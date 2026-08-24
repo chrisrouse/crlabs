@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PermissionSet xmlns="http://soap.sforce.com/2006/04/metadata">
+    <label>FlowGrid - Apex Execute</label>
+    <description>Execute access to the Apex behind the Flow Grid screen component. Required for any user running a Flow that contains Flow Grid. Grants no object or field permissions; field access is filtered by the running user's own FLS.</description>
+    <hasActivationRequired>false</hasActivationRequired>
+    <classAccesses>
+        <apexClass>FlowGridController</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <classAccesses>
+        <apexClass>FlowGridColumnService</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
+    <userPermissions>
+        <enabled>true</enabled>
+        <name>RunFlow</name>
+    </userPermissions>
+</PermissionSet>
