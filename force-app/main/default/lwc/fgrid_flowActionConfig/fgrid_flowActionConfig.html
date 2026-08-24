@@ -10,19 +10,28 @@
             <lightning-combobox
                 data-validatable
                 data-property="rowActionFlowApiName"
-                label="Screen flow to launch"
-                placeholder="Select an active screen flow"
+                label="Flow to launch"
+                placeholder="Select an active flow"
                 value={flowApiName}
                 options={flowOptions}
                 required
-                field-level-help="Only active screen flows appear here. A draft flow cannot be launched at runtime."
+                field-level-help="Active screen flows and autolaunched flows. A draft flow cannot be launched at runtime."
                 onchange={handleFlowChange}
             ></lightning-combobox>
+
+            <template lwc:if={hasLaunchModeNote}>
+                <p class="flowconfig__summary">{launchModeNote}</p>
+            </template>
         </template>
         <template lwc:else>
             <p class="slds-text-body_small slds-text-color_weak">
-                No active screen flows were found. A flow must be activated before it can be launched from a row action.
+                No launchable active flows were found. A flow must be activated, and be either a screen flow or an
+                autolaunched flow, before a row action can launch it.
             </p>
+        </template>
+
+        <template lwc:if={hasExcludedNote}>
+            <p class="flowconfig__excluded">{excludedNote}</p>
         </template>
 
         <template lwc:if={hasFlowSelected}>

@@ -99,6 +99,7 @@
                  into its own working collection by key.
             -->
             <property name="rowActionFlowApiName" type="String" label="Flow API Name" role="inputOnly" description="API name of the screen flow to launch when a row action is clicked." />
+            <property name="rowActionFlowLaunchMode" type="String" label="Flow Launch Mode" role="inputOnly" description="Screen or Headless. Set by the property editor from the chosen flow's type; a screen flow opens in a modal, an autolaunched flow runs with no UI." />
             <property name="rowActionFlowRecordVariable" type="String" label="Flow Record Variable" default="record" role="inputOnly" description="Name of the flow's input variable that receives the clicked record. Leave blank to pass no record." />
             <property name="rowActionFlowIdVariable" type="String" label="Flow Record Id Variable" default="recordId" role="inputOnly" description="Name of the flow's input variable that receives the record Id. Leave blank to pass no Id." />
             <property name="rowActionFlowOutputVariable" type="String" label="Flow Output Variable" role="inputOnly" description="Name of the flow's output variable holding the edited record. Leave blank to use the record variable name." />

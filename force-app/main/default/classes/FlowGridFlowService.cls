@@ -1,6 +1,7 @@
 /**
- * Discovers active screen flows and their variables, so the property editor can
- * offer pickers instead of asking an admin to type variable names.
+ * Discovers active flows and their variables so the property editor can offer
+ * pickers instead of asking an admin to type variable names, and runs the
+ * autolaunched ones on the grid's behalf.
  *
  * This is what makes the Flow row action behave like the platform's own Screen
  * Action editor: choose a flow, then map the grid's record and Id onto the
@@ -13,20 +14,67 @@
  * @see FlowGridController
  */
 public with sharing class FlowGridFlowService {
-    /** Screen flows only; `Flow` is the ProcessType for a screen flow. */
-    private static final String SCREEN_FLOW_PROCESS_TYPE = 'Flow';
+    /** ProcessType of a screen flow. */
+    private static final String SCREEN_FLOW = 'Flow';
 
-    /** A launchable flow. */
+    /** ProcessType shared by autolaunched, record-triggered and scheduled flows. */
+    private static final String AUTOLAUNCHED_FLOW = 'AutoLaunchedFlow';
+
+    /** Launch modes Flow Grid can actually perform. */
+    public static final String MODE_SCREEN = 'Screen';
+    public static final String MODE_HEADLESS = 'Headless';
+
+    /**
+     * TriggerType values meaning the platform fires the flow, not us. An
+     * AutoLaunchedFlow with any of these cannot be invoked from a component.
+     */
+    private static final Set<String> PLATFORM_TRIGGERED = new Set<String>{
+        'RecordBeforeSave',
+        'RecordAfterSave',
+        'RecordBeforeDelete',
+        'PlatformEvent',
+        'Scheduled',
+        'DataCloudDataChange'
+    };
+
+    /** An active flow, with whether and how Flow Grid can launch it. */
     public class FlowSummary {
         @AuraEnabled
         public String apiName;
         @AuraEnabled
         public String label;
+        @AuraEnabled
+        public String processType;
+        @AuraEnabled
+        public String triggerType;
+        /** `Screen`, `Headless`, or null when it cannot be launched. */
+        @AuraEnabled
+        public String launchMode;
 
-        private FlowSummary(String apiName, String label) {
-            this.apiName = apiName;
-            this.label = label;
+        private FlowSummary(FlowDefinitionView definition) {
+            this.apiName = definition.ApiName;
+            this.label = definition.Label;
+            this.processType = definition.ProcessType;
+            this.triggerType = definition.TriggerType;
+            this.launchMode = resolveLaunchMode(definition.ProcessType, definition.TriggerType);
         }
+    }
+
+    /**
+     * Decides how — or whether — a flow can be launched from a row action.
+     *
+     * ProcessType alone is not enough: a record-triggered flow is also an
+     * AutoLaunchedFlow, and TriggerType is what separates one the platform fires
+     * from one we can invoke ourselves.
+     */
+    private static String resolveLaunchMode(String processType, String triggerType) {
+        if (processType == SCREEN_FLOW) {
+            return MODE_SCREEN;
+        }
+        if (processType == AUTOLAUNCHED_FLOW && !PLATFORM_TRIGGERED.contains(triggerType)) {
+            return MODE_HEADLESS;
+        }
+        return null;
     }
 
     /** One variable declared by a flow, with enough shape to filter on. */
@@ -46,26 +94,108 @@ public with sharing class FlowGridFlowService {
     }
 
     /**
-     * Lists active screen flows the running user can see, ordered by label.
+     * Lists every active flow the running user can see, each tagged with its
+     * launch mode.
      *
-     * @return every active flow with ProcessType `Flow`
+     * Non-launchable flows are returned too, with a null launchMode, so the
+     * editor can say how many were excluded and why rather than silently
+     * shortening the list.
+     *
+     * @return all active flows, ordered by label
      *
      * @example
-     * List<FlowSummary> flows = FlowGridFlowService.listScreenFlows();
+     * List<FlowSummary> flows = FlowGridFlowService.listFlows();
      */
-    public static List<FlowSummary> listScreenFlows() {
+    public static List<FlowSummary> listFlows() {
         List<FlowSummary> flows = new List<FlowSummary>();
         for (FlowDefinitionView definition : [
-            SELECT ApiName, Label
+            SELECT ApiName, Label, ProcessType, TriggerType
             FROM FlowDefinitionView
-            WHERE IsActive = TRUE AND ProcessType = :SCREEN_FLOW_PROCESS_TYPE
+            WHERE IsActive = TRUE
             WITH USER_MODE
             ORDER BY Label
             LIMIT 2000
         ]) {
-            flows.add(new FlowSummary(definition.ApiName, definition.Label));
+            flows.add(new FlowSummary(definition));
         }
         return flows;
+    }
+
+    /**
+     * Runs an autolaunched flow and returns its output variables.
+     *
+     * Autolaunched flows have no screens, so `lightning-flow` is the wrong tool:
+     * there is nothing to render. They are invoked here instead and the grid
+     * simply folds the outputs back in, with no modal at all.
+     *
+     * The record arrives as JSON with its object API name rather than as a typed
+     * parameter, because an SObject sent from LWC deserializes to a Map and Flow
+     * would reject it for an SObject variable.
+     *
+     * NOTE ON CONTEXT: an autolaunched flow runs in whatever context its own
+     * definition declares — by default system context, ignoring the running
+     * user's object and field permissions. That is the flow's configuration, not
+     * something this method can constrain, and it is worth knowing before wiring
+     * one to a row action.
+     *
+     * @param flowApiName API name of the autolaunched flow
+     * @param objectApiName object type of the record being passed, if any
+     * @param recordJson the clicked record, serialized
+     * @param recordVariable flow input variable receiving the record
+     * @param idVariable flow input variable receiving the record Id
+     * @param recordId the clicked record's Id
+     * @return every output variable the flow declares, keyed by API name
+     */
+    public static Map<String, Object> runFlow(
+        String flowApiName,
+        String objectApiName,
+        String recordJson,
+        String recordVariable,
+        String idVariable,
+        String recordId
+    ) {
+        Map<String, Object> outputs = new Map<String, Object>();
+        if (String.isBlank(flowApiName)) {
+            return outputs;
+        }
+
+        Map<String, Object> inputs = new Map<String, Object>();
+        if (String.isNotBlank(recordVariable) && String.isNotBlank(recordJson) && String.isNotBlank(objectApiName)) {
+            SObject record = deserializeRecord(objectApiName, recordJson);
+            if (record != null) {
+                inputs.put(recordVariable, record);
+            }
+        }
+        if (String.isNotBlank(idVariable) && String.isNotBlank(recordId)) {
+            inputs.put(idVariable, recordId);
+        }
+
+        Flow.Interview interview = Flow.Interview.createInterview(flowApiName, inputs);
+        interview.start();
+
+        // Read back whatever the flow declares as output, so the caller does not
+        // have to know the names in advance.
+        for (FlowVariable variable : listFlowVariables(flowApiName)) {
+            if (variable.isOutput == true) {
+                outputs.put(variable.apiName, interview.getVariableValue(variable.apiName));
+            }
+        }
+        return outputs;
+    }
+
+    /** Rebuilds a typed SObject from the JSON the component sent. */
+    private static SObject deserializeRecord(String objectApiName, String recordJson) {
+        Type sobjectType = Type.forName(objectApiName.trim());
+        if (sobjectType == null) {
+            return null;
+        }
+        try {
+            return (SObject) JSON.deserialize(recordJson, sobjectType);
+        } catch (Exception error) {
+            // A record the flow cannot accept is better than a broken interview,
+            // but not worth failing the whole action over.
+            return null;
+        }
     }
 
     /**

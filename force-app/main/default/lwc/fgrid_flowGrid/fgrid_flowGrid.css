@@ -107,3 +107,12 @@
     top: 0.5rem;
     right: 0.5rem;
 }
+
+/* Autolaunched flows have no UI, so this is the only feedback that one ran. */
+.grid__running {
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-height: 2rem;
+    padding: 0.25rem 0;
+}

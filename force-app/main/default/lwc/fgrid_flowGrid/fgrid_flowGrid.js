@@ -24,6 +24,7 @@
 import { LightningElement, api, wire } from "lwc";
 import { FlowAttributeChangeEvent } from "lightning/flowSupport";
 import getGridMetadata from "@salesforce/apex/FlowGridController.getGridMetadata";
+import runFlow from "@salesforce/apex/FlowGridController.runFlow";
 import {
     buildColumns,
     buildRows,
@@ -95,6 +96,7 @@ export default class FgridFlowGrid extends LightningElement {
 
     // ----- Flow row action -----
     @api rowActionFlowApiName;
+    @api rowActionFlowLaunchMode;
     @api rowActionFlowRecordVariable = "record";
     @api rowActionFlowIdVariable = "recordId";
     @api rowActionFlowOutputVariable;
@@ -159,6 +161,7 @@ export default class FgridFlowGrid extends LightningElement {
     /** The record currently open in the row-action flow modal. */
     _flowRecord = null;
     _isFlowOpen = false;
+    _isRunningFlow = false;
     _flowError = null;
 
     @api
@@ -513,6 +516,10 @@ export default class FgridFlowGrid extends LightningElement {
         return Boolean(this._flowError);
     }
 
+    get isRunningFlow() {
+        return this._isRunningFlow;
+    }
+
     /* ----- row removal ----- */
 
     get removalBlockedMessage() {
@@ -659,6 +666,17 @@ export default class FgridFlowGrid extends LightningElement {
         this.publishSelection();
     }
 
+    get isHeadlessFlowAction() {
+        return this.rowActionFlowLaunchMode === "Headless";
+    }
+
+    /**
+     * Launches the configured flow for a row.
+     *
+     * A screen flow renders in a modal. An autolaunched flow has no screens, so
+     * showing a modal would mean an empty box: it runs server-side instead and
+     * its outputs are folded straight back in.
+     */
     openRowActionFlow(record) {
         if (!this.rowActionFlowApiName) {
             this._flowError = "No flow is configured for this row action.";
@@ -666,7 +684,40 @@ export default class FgridFlowGrid extends LightningElement {
         }
         this._flowError = null;
         this._flowRecord = { ...record };
+
+        if (this.isHeadlessFlowAction) {
+            this.runHeadlessFlow(record);
+            return;
+        }
         this._isFlowOpen = true;
+    }
+
+    /** Runs an autolaunched flow and applies whatever it returns. */
+    async runHeadlessFlow(record) {
+        this._isRunningFlow = true;
+        try {
+            const outputs = await runFlow({
+                flowApiName: this.rowActionFlowApiName,
+                objectApiName: this.objectApiName,
+                recordJson: JSON.stringify(record),
+                recordVariable: this.rowActionFlowRecordVariable,
+                idVariable: this.rowActionFlowIdVariable,
+                recordId: record?.Id || record?.[this.keyField]
+            });
+
+            // Apex returns a name-keyed map; readFlowResult works on the same
+            // {name, value} shape lightning-flow emits.
+            const asVariables = Object.entries(outputs || {}).map(([name, value]) => ({ name, value }));
+            const patch = this.readFlowResult(asVariables);
+            if (patch) {
+                this.upsertRecord(patch);
+            }
+        } catch (error) {
+            this._flowError = error?.body?.message || "The flow did not run.";
+        } finally {
+            this._isRunningFlow = false;
+            this._flowRecord = null;
+        }
     }
 
     handleCloseFlow() {

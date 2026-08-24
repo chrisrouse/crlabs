@@ -89,6 +89,7 @@ export const EDITOR_MANAGED_PROPERTIES = [
     "objectApiName",
     "columnConfig",
     "rowActionFlowApiName",
+    "rowActionFlowLaunchMode",
     "rowActionFlowRecordVariable",
     "rowActionFlowIdVariable",
     "rowActionFlowOutputVariable"
@@ -130,7 +131,9 @@ export const VISIBILITY = {
     iconAction: (v) => v.rowActionType !== "None" && v.rowActionDisplay === "Icon",
     buttonAction: (v) => v.rowActionType !== "None" && v.rowActionDisplay === "Button",
     removeAction: (v) => v.rowActionType === "Remove",
-    flowAction: (v) => v.rowActionType === "Flow"
+    flowAction: (v) => v.rowActionType === "Flow",
+    // Modal options only mean something for a flow that renders screens.
+    screenFlowAction: (v) => v.rowActionType === "Flow" && v.rowActionFlowLaunchMode !== "Headless"
 };
 
 /** Named predicates that grey a control out instead of hiding it. */
@@ -398,14 +401,14 @@ export const SECTIONS = [
                 property: "rowActionFlowModalHeader",
                 type: CONTROL.TEXT,
                 label: "Modal header",
-                when: ["flowAction"]
+                when: ["screenFlowAction"]
             },
             {
                 property: "rowActionFlowModalSize",
                 type: CONTROL.SELECT,
                 label: "Modal size",
                 options: MODAL_SIZES,
-                when: ["flowAction"]
+                when: ["screenFlowAction"]
             }
         ]
     },

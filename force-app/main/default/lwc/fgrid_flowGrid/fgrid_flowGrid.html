@@ -182,6 +182,13 @@
             <p class="grid__validation" role="alert">{validationMessage}</p>
         </template>
 
+        <template lwc:if={isRunningFlow}>
+            <div class="grid__running" role="status">
+                <lightning-spinner alternative-text="Running flow" size="small" variant="brand"></lightning-spinner>
+                <span class="slds-m-left_small slds-text-body_small">Running flow…</span>
+            </div>
+        </template>
+
         <template lwc:if={hasFlowError}>
             <div class="slds-box slds-box_x-small slds-theme_warning slds-m-top_x-small" role="alert">
                 <p>{flowError}</p>

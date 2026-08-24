@@ -91,16 +91,55 @@ public with sharing class FlowGridController {
     }
 
     /**
-     * Active screen flows, for the row-action flow picker.
+     * Active flows, for the row-action flow picker.
      *
-     * @return every active flow with ProcessType `Flow`, ordered by label
+     * Includes flows that cannot be launched, tagged with a null launch mode, so
+     * the editor can explain the exclusions instead of silently hiding them.
+     *
+     * @return every active flow, ordered by label
      */
     @AuraEnabled(cacheable=true)
-    public static List<FlowGridFlowService.FlowSummary> getScreenFlows() {
+    public static List<FlowGridFlowService.FlowSummary> getFlows() {
         try {
-            return FlowGridFlowService.listScreenFlows();
+            return FlowGridFlowService.listFlows();
         } catch (Exception error) {
-            throw new AuraHandledException('Unable to list screen flows: ' + error.getMessage());
+            throw new AuraHandledException('Unable to list flows: ' + error.getMessage());
+        }
+    }
+
+    /**
+     * Runs an autolaunched flow for a row action and returns its outputs.
+     *
+     * Not cacheable: this performs work, and the same row may be actioned twice.
+     *
+     * @param flowApiName API name of the autolaunched flow
+     * @param objectApiName object type of the record being passed
+     * @param recordJson the clicked record, serialized
+     * @param recordVariable flow input variable receiving the record
+     * @param idVariable flow input variable receiving the record Id
+     * @param recordId the clicked record's Id
+     * @return the flow's output variables, keyed by API name
+     */
+    @AuraEnabled
+    public static Map<String, Object> runFlow(
+        String flowApiName,
+        String objectApiName,
+        String recordJson,
+        String recordVariable,
+        String idVariable,
+        String recordId
+    ) {
+        try {
+            return FlowGridFlowService.runFlow(
+                flowApiName,
+                objectApiName,
+                recordJson,
+                recordVariable,
+                idVariable,
+                recordId
+            );
+        } catch (Exception error) {
+            throw new AuraHandledException('The flow ' + flowApiName + ' did not run: ' + error.getMessage());
         }
     }
 

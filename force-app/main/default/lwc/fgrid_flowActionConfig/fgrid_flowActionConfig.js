@@ -1,9 +1,14 @@
 /**
  * Configures the Flow row action by discovery rather than by typing.
  *
- * Modelled on the platform's own Screen Action editor: pick an active screen
- * flow, and the editor reads that flow's variables and offers only the ones the
- * grid can actually populate. Free-text variable names were the previous
+ * Modelled on the platform's own Screen Action editor: pick an active flow, and
+ * the editor reads that flow's variables and offers only the ones the grid can
+ * actually populate.
+ *
+ * Both launchable kinds are offered. A screen flow opens in a modal; an
+ * autolaunched flow runs server-side with no UI. Flows the platform fires itself
+ * — record-triggered, scheduled, platform-event — are excluded and counted, since
+ * nothing can invoke them from a component. Free-text variable names were the previous
  * approach here, and a typo produced a flow that launched and silently ignored
  * its inputs.
  *
@@ -17,7 +22,7 @@
  * because that combination fails at runtime rather than at save time.
  */
 import { LightningElement, api, wire } from "lwc";
-import getScreenFlows from "@salesforce/apex/FlowGridController.getScreenFlows";
+import getFlows from "@salesforce/apex/FlowGridController.getFlows";
 import getFlowVariables from "@salesforce/apex/FlowGridController.getFlowVariables";
 
 const NONE = "__none__";
@@ -36,14 +41,14 @@ export default class FgridFlowActionConfig extends LightningElement {
     _flowsError;
     _variablesError;
 
-    @wire(getScreenFlows)
+    @wire(getFlows)
     wiredFlows({ data, error }) {
         if (data) {
             this._flows = data;
             this._flowsError = undefined;
         } else if (error) {
             this._flows = [];
-            this._flowsError = "Could not load the list of screen flows.";
+            this._flowsError = "Could not load the list of flows.";
         }
     }
 
@@ -62,15 +67,54 @@ export default class FgridFlowActionConfig extends LightningElement {
      * Options
      * ------------------------------------------------------------------ */
 
+    /** Only flows the grid can actually invoke, labelled with how. */
     get flowOptions() {
-        return this._flows.map((flow) => ({
-            label: flow.label ? `${flow.label} (${flow.apiName})` : flow.apiName,
-            value: flow.apiName
-        }));
+        return this._flows
+            .filter((flow) => flow.launchMode)
+            .map((flow) => {
+                const kind = flow.launchMode === "Headless" ? "Autolaunched" : "Screen";
+                const name = flow.label || flow.apiName;
+                return { label: `${kind} — ${name}`, value: flow.apiName };
+            });
     }
 
     get hasFlows() {
-        return this._flows.length > 0;
+        return this.flowOptions.length > 0;
+    }
+
+    /** The flow currently selected, from the discovered list. */
+    get selectedFlow() {
+        return this._flows.find((flow) => flow.apiName === this.flowApiName) || null;
+    }
+
+    get isHeadlessFlow() {
+        return this.selectedFlow?.launchMode === "Headless";
+    }
+
+    /** Explains the flows deliberately left out of the picker. */
+    get excludedNote() {
+        const excluded = this._flows.filter((flow) => !flow.launchMode).length;
+        if (!excluded) {
+            return null;
+        }
+        return `${excluded} active ${excluded === 1 ? "flow is" : "flows are"} not listed: record-triggered, scheduled, platform-event and specialised flows are fired by the platform and cannot be launched from a row action.`;
+    }
+
+    get hasExcludedNote() {
+        return Boolean(this.excludedNote);
+    }
+
+    get launchModeNote() {
+        if (!this.selectedFlow?.launchMode) {
+            return null;
+        }
+        return this.isHeadlessFlow
+            ? "Autolaunched: this runs immediately with no screen. Its outputs are read back into the grid."
+            : "Screen flow: this opens in a modal for the user to complete.";
+    }
+
+    get hasLaunchModeNote() {
+        return Boolean(this.launchModeNote);
     }
 
     get hasFlowSelected() {
@@ -165,6 +209,11 @@ export default class FgridFlowActionConfig extends LightningElement {
         return this.hasFlowSelected && this._variables.length > 0 && this.outputOptions.length === 1;
     }
 
+    /** Screen-flow label; an autolaunched flow has no screens to complete. */
+    get recordMappingLabel() {
+        return this.isHeadlessFlow ? "Send the row's record to" : "Send the row's record to";
+    }
+
     get variablesSummary() {
         if (!this.hasFlowSelected) {
             return null;
@@ -187,7 +236,11 @@ export default class FgridFlowActionConfig extends LightningElement {
 
     handleFlowChange(event) {
         const value = event.detail.value;
+        const chosen = this._flows.find((flow) => flow.apiName === value);
         this.publish("rowActionFlowApiName", value || null);
+        // Stored so the runtime knows which launch path to take without having to
+        // look the flow up again on every click.
+        this.publish("rowActionFlowLaunchMode", chosen?.launchMode || null);
         // The previous mappings referred to a different flow's variables.
         this.publish("rowActionFlowRecordVariable", null);
         this.publish("rowActionFlowIdVariable", null);
