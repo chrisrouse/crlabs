@@ -23,16 +23,38 @@
  * values rather than waiting for Flow Builder to republish inputVariables.
  */
 import { LightningElement, api } from "lwc";
-import { buildColumns, buildSampleRows, parseFieldList, parseColumnConfig } from "c/fgrid_gridModel";
+import { buildColumns, buildRows, buildSampleRows, parseFieldList, parseColumnConfig } from "c/fgrid_gridModel";
 import { setPopoverHostActive } from "c/flowConfigPopoverUtils";
+import getGridMetadata from "@salesforce/apex/FlowGridController.getGridMetadata";
+import getPreviewRecords from "@salesforce/apex/FlowGridController.getPreviewRecords";
 
 const PREVIEW_ROW_COUNT = 6;
 
 export default class FgridFlowGridStudio extends LightningElement {
     @api sections = [];
-    @api values = {};
+
+    /**
+     * Current configuration. Changing the object or the column selection
+     * invalidates the preview sample, so the setter refetches on those.
+     */
+    @api
+    get values() {
+        return this._values || {};
+    }
+    set values(next) {
+        this._values = next || {};
+        this.refreshPreviewIfStale();
+    }
     @api valueDataTypes = {};
-    @api objectApiName;
+    @api
+    get objectApiName() {
+        return this._objectApiName;
+    }
+    set objectApiName(next) {
+        this._objectApiName = next;
+        this.refreshPreviewIfStale();
+    }
+
     @api validationErrors = [];
 
     @api builderContext;
@@ -59,6 +81,16 @@ export default class FgridFlowGridStudio extends LightningElement {
     /** Section names expanded in the left pane. */
     openSections = ["source", "columns"];
 
+    _values = {};
+    _objectApiName;
+    /** Real field metadata, keyed by field path. Null until Apex answers. */
+    _describeByPath = null;
+    /** Real sample records. Empty means fall back to fabricated rows. */
+    _sampleRecords = [];
+    /** Signature of the object + columns the current sample was fetched for. */
+    _sampleSignature = null;
+    _isLoadingSample = false;
+
     /* ------------------------------------------------------------------ *
      * Preview
      * ------------------------------------------------------------------ */
@@ -84,17 +116,24 @@ export default class FgridFlowGridStudio extends LightningElement {
     get previewColumns() {
         return buildColumns(this.columnFields, this.columnConfigObject, {
             hideHeaderActions: Boolean(this.values?.hideHeaderActions),
-            defaultEditable: false
+            defaultEditable: false,
+            describeByPath: this._describeByPath,
+            // Links are inert in a preview and would invite a misclick that
+            // navigates away from the editor.
+            linkNameField: false
         });
     }
 
+    /** True when the rows on screen are real records, not fabricated ones. */
+    get isRealSample() {
+        return this._sampleRecords.length > 0;
+    }
+
     get previewRows() {
-        const rows = buildSampleRows(
-            this.columnFields,
-            this.columnConfigObject,
-            PREVIEW_ROW_COUNT,
-            this.values?.keyField || "Id"
-        );
+        const keyField = this.values?.keyField || "Id";
+        const rows = this.isRealSample
+            ? buildRows(this._sampleRecords, this.previewColumns, keyField)
+            : buildSampleRows(this.columnFields, this.columnConfigObject, PREVIEW_ROW_COUNT, keyField);
         const max = Number(this.values?.maxNumberOfRows);
         const perPage = this.values?.showPagination ? Number(this.values?.recordsPerPage) : null;
         const limit = [max, perPage].filter((n) => Number.isFinite(n) && n > 0).sort((a, b) => a - b)[0];
@@ -186,6 +225,94 @@ export default class FgridFlowGridStudio extends LightningElement {
 
     get hasValidationErrors() {
         return (this.validationErrors || []).length > 0;
+    }
+
+    get previewBannerText() {
+        if (this._isLoadingSample) {
+            return "Loading a sample of your records\u2026";
+        }
+        if (this.isRealSample) {
+            return "Live preview using real records from this object.";
+        }
+        if (this.hasObject && this.hasColumns) {
+            return "No records found for this object, so the rows below are fabricated. Column layout and formatting are real.";
+        }
+        return "Preview with sample data. Values are fabricated; column layout and formatting are real.";
+    }
+
+    get previewBannerIcon() {
+        return this.isRealSample ? "utility:success" : "utility:preview";
+    }
+
+    get previewBannerClass() {
+        return this.isRealSample ? "preview__banner preview__banner_live" : "preview__banner";
+    }
+
+    /* ------------------------------------------------------------------ *
+     * Preview data loading
+     * ------------------------------------------------------------------ */
+
+    /**
+     * Refetches describe and a record sample when the object or the column
+     * selection changes.
+     *
+     * Guarded by a signature rather than a lifecycle hook: Flow Builder
+     * republishes `values` on every keystroke, and refetching on each one would
+     * hammer Apex for a preview.
+     */
+    refreshPreviewIfStale() {
+        const object = this._objectApiName;
+        const paths = parseFieldList(this._values?.columnFields);
+        const signature = object ? `${object}|${paths.join(",")}` : null;
+
+        if (signature === this._sampleSignature) {
+            return;
+        }
+        this._sampleSignature = signature;
+        this._describeByPath = null;
+        this._sampleRecords = [];
+
+        if (!object || !paths.length) {
+            return;
+        }
+        this.loadPreview(object, paths, signature);
+    }
+
+    /**
+     * Loads real metadata and records for the preview.
+     *
+     * Both calls are best effort. Describe failing means the preview keeps
+     * guessing types from field names; no records means it keeps fabricating
+     * rows. Neither should break the editor.
+     */
+    async loadPreview(object, paths, signature) {
+        this._isLoadingSample = true;
+        try {
+            const [metadata, records] = await Promise.all([
+                getGridMetadata({ objectApiName: object, fieldPaths: paths }).catch(() => null),
+                getPreviewRecords({
+                    objectApiName: object,
+                    fieldPaths: paths,
+                    recordLimit: PREVIEW_ROW_COUNT
+                }).catch(() => [])
+            ]);
+
+            // The admin may have changed the object while this was in flight.
+            if (signature !== this._sampleSignature) {
+                return;
+            }
+            if (metadata?.columns?.length) {
+                this._describeByPath = metadata.columns.reduce((map, column) => {
+                    map[column.fieldPath] = column;
+                    return map;
+                }, {});
+            }
+            this._sampleRecords = Array.isArray(records) ? records : [];
+        } finally {
+            if (signature === this._sampleSignature) {
+                this._isLoadingSample = false;
+            }
+        }
     }
 
     /* ------------------------------------------------------------------ *

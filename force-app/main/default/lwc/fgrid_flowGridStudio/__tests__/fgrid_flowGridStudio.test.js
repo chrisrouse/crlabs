@@ -2,6 +2,25 @@ import { createElement } from "lwc";
 import FgridFlowGridStudio from "c/fgrid_flowGridStudio";
 import { SECTIONS } from "c/fgrid_propertySchema";
 
+// The Studio loads real describe and a record sample for its preview. Mocked to
+// empty so these tests stay deterministic and exercise the fabricated-row
+// fallback; the live path is verified in the org.
+jest.mock(
+    "@salesforce/apex/FlowGridController.getGridMetadata",
+    () => ({ default: jest.fn(() => Promise.resolve({ objectInfo: {}, columns: [] })) }),
+    { virtual: true }
+);
+jest.mock(
+    "@salesforce/apex/FlowGridController.getPreviewRecords",
+    () => ({ default: jest.fn(() => Promise.resolve([])) }),
+    { virtual: true }
+);
+
+/** Lets the Studio's preview fetch settle before assertions. */
+function flushPromises() {
+    return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 const BASE_VALUES = {
     columnFields: '["Name","AnnualRevenue"]',
     columnConfig: null,
@@ -56,9 +75,9 @@ describe("layout", () => {
         expect(element.shadowRoot.querySelector(".preview__empty")).not.toBeNull();
     });
 
-    it("labels the preview data as fabricated", async () => {
+    it("labels the preview data as fabricated when no records come back", async () => {
         const element = build();
-        await Promise.resolve();
+        await flushPromises();
 
         expect(element.shadowRoot.querySelector(".preview__banner").textContent).toContain("fabricated");
     });

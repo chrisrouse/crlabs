@@ -64,12 +64,9 @@
                 <!-- ================= right: preview + columns ============== -->
                 <div class="studio__preview">
                     <div class="preview">
-                        <div class="preview__banner">
-                            <lightning-icon icon-name="utility:preview" size="x-small"></lightning-icon>
-                            <span class="slds-m-left_xx-small"
-                                >Preview with sample data. Values are fabricated; column layout and formatting are
-                                real.</span
-                            >
+                        <div class={previewBannerClass}>
+                            <lightning-icon icon-name={previewBannerIcon} size="x-small"></lightning-icon>
+                            <span class="slds-m-left_xx-small">{previewBannerText}</span>
                         </div>
 
                         <template lwc:if={hasColumns}>

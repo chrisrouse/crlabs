@@ -123,3 +123,10 @@
     background-color: #f3f3f3;
     border-radius: 0.25rem;
 }
+
+/* Real records rather than fabricated ones: green rather than caution yellow. */
+.preview__banner_live {
+    color: #2e564a;
+    background-color: #ebf7ee;
+    border-color: #91db8b;
+}
