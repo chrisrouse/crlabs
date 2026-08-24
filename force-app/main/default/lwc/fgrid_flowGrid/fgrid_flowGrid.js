@@ -9,16 +9,33 @@
  * Column derivation is shared with the Grid Studio preview through
  * `c/fgrid_gridModel`, so what an admin previews is what runs.
  *
+ * The row pipeline runs in a fixed order, which is what makes the counts read
+ * correctly: source -> minus removed -> cap -> search -> filter -> sort -> page.
+ * The cap (maxNumberOfRows) sits before search and filter on purpose: it is a
+ * ceiling on what the grid will handle, not a ceiling on results.
+ *
  * IMPLEMENTED: display, real labels and types, record links, selection and its
- * outputs, column sorting, required validation, header and counts, row cap.
- * NOT YET: search, column filters, pagination, inline editing, row actions, and
- * the user-defined-object JSON source. Those properties exist in the contract
- * and are accepted, but do nothing yet.
+ * outputs, sorting, search, per-column filters, pagination, row actions
+ * (standard and remove), required validation, header and counts, row cap, and
+ * the user-defined-object JSON source.
+ * NOT YET: inline editing and its Cancel/Save bar. `suppressBottomBar` and
+ * `navigateNextOnSave` are accepted and inert until then.
  */
 import { LightningElement, api, wire } from "lwc";
 import { FlowAttributeChangeEvent } from "lightning/flowSupport";
 import getGridMetadata from "@salesforce/apex/FlowGridController.getGridMetadata";
-import { buildColumns, buildRows, sortRows, parseFieldList, parseColumnConfig } from "c/fgrid_gridModel";
+import {
+    buildColumns,
+    buildRows,
+    sortRows,
+    searchRows,
+    filterRows,
+    paginate,
+    withRowActionColumn,
+    parseFieldList,
+    parseColumnConfig,
+    ROW_ACTION_NAME
+} from "c/fgrid_gridModel";
 
 export default class FgridFlowGrid extends LightningElement {
     // ----- Data source -----
@@ -120,6 +137,13 @@ export default class FgridFlowGrid extends LightningElement {
     _sortField;
     _sortDirection = "asc";
     _touched = false;
+    _searchTerm = "";
+    /** Per-column filter text, keyed by field path. */
+    _filters = {};
+    _page = 1;
+    /** Keys of rows the user removed with the Remove row action. */
+    _removedKeys = [];
+    _removalBlockedMessage = null;
 
     @api
     get records() {
@@ -180,30 +204,103 @@ export default class FgridFlowGrid extends LightningElement {
         }, {});
     }
 
+    /**
+     * The records to display, from whichever source is configured.
+     *
+     * In user-defined mode the Flow supplies serialized JSON instead of a record
+     * collection, so there is no SObject and no describe; column types come from
+     * columnConfig or the name-based guess.
+     */
+    get sourceRecords() {
+        if (!this.isUserDefinedObject) {
+            return this._records;
+        }
+        const raw =
+            this.isSerializedRecordData && this.serializedRecordData ? this.serializedRecordData : this.recordsJson;
+        return parseRecordJson(raw);
+    }
+
+    /** Records still in the grid, i.e. excluding any the user removed. */
+    get remainingRecords() {
+        if (!this._removedKeys.length) {
+            return this.sourceRecords;
+        }
+        const removed = new Set(this._removedKeys);
+        return this.sourceRecords.filter((record) => !removed.has(record?.[this.keyField]));
+    }
+
     get columns() {
-        return buildColumns(this._columnPaths, this._columnConfig, {
+        const columns = buildColumns(this._columnPaths, this._columnConfig, {
             hideHeaderActions: this.hideHeaderActions,
             describeByPath: this.describeByPath,
-            linkNameField: this.isNameFieldLinked,
+            // A user-defined object has no record id, so there is nothing to
+            // link to.
+            linkNameField: this.isNameFieldLinked && !this.isUserDefinedObject,
             openLinksInSameTab: this.openLinkInSameTab
+        });
+
+        return withRowActionColumn(columns, {
+            actionType: this.rowActionType,
+            display: this.rowActionDisplay,
+            position: this.rowActionPosition,
+            label: this.rowActionLabel,
+            iconName: this.rowActionIcon,
+            color: this.rowActionColor,
+            buttonLabel: this.rowActionButtonLabel,
+            buttonIcon: this.rowActionButtonIcon,
+            buttonIconPosition: this.rowActionButtonIconPosition,
+            buttonVariant: this.rowActionButtonVariant
         });
     }
 
-    /** Rows, capped and sorted. */
-    get rows() {
-        const columns = this.columns;
-        let rows = buildRows(this._records, columns, this.keyField);
-
-        if (this._sortField) {
-            rows = sortRows(rows, this._sortField, this._sortDirection, this.caseInsensitiveSort);
-        }
-
+    /** Every row available after removals and the display cap. */
+    get cappedRows() {
+        const rows = buildRows(this.remainingRecords, this.columns, this.keyField);
         const cap = Number(this.maxNumberOfRows);
         return Number.isFinite(cap) && cap > 0 ? rows.slice(0, cap) : rows;
     }
 
+    /** Rows surviving search and per-column filters, then sorted. */
+    get matchedRows() {
+        const columns = this.columns;
+        let rows = searchRows(this.cappedRows, columns, this._searchTerm, this.matchCaseOnFilters);
+        rows = filterRows(rows, this._filters, this.matchCaseOnFilters);
+        if (this._sortField) {
+            rows = sortRows(rows, this._sortField, this._sortDirection, this.caseInsensitiveSort);
+        }
+        return rows;
+    }
+
+    /** Page state for the current result set. */
+    get pageState() {
+        if (!this.showPagination) {
+            const rows = this.matchedRows;
+            return {
+                rows,
+                page: 1,
+                totalPages: 1,
+                totalRows: rows.length,
+                firstRow: rows.length ? 1 : 0,
+                lastRow: rows.length,
+                isFirstPage: true,
+                isLastPage: true
+            };
+        }
+        return paginate(this.matchedRows, this._page, this.recordsPerPage);
+    }
+
+    /** The rows actually handed to the datatable. */
+    get rows() {
+        return this.pageState.rows;
+    }
+
     get hasRows() {
         return this.rows.length > 0;
+    }
+
+    /** True when rows exist but search or filters hid them all. */
+    get isFilteredEmpty() {
+        return !this.hasRows && this.cappedRows.length > 0;
     }
 
     get hasColumns() {
@@ -279,6 +376,66 @@ export default class FgridFlowGrid extends LightningElement {
         return Boolean(this.headerIcon);
     }
 
+    /* ----- search and filters ----- */
+
+    get searchTerm() {
+        return this._searchTerm;
+    }
+
+    /** Columns the admin marked filterable, as filter-row inputs. */
+    get filterInputs() {
+        return this.columns
+            .filter((column) => column.fieldName !== ROW_ACTION_NAME)
+            .map((column) => ({
+                key: column.fieldName,
+                path: column.fgridLinkFor || column.fieldName,
+                label: column.label
+            }))
+            .filter((entry) => this._columnConfig?.[entry.path]?.filter === true)
+            .map((entry) => ({ ...entry, value: this._filters[entry.path] || "" }));
+    }
+
+    get hasFilterInputs() {
+        return this.filterInputs.length > 0;
+    }
+
+    get hasActiveFilters() {
+        return Object.values(this._filters).some((value) => String(value ?? "").trim() !== "");
+    }
+
+    get showFilterBar() {
+        return this.hasFilterInputs && !this.hideHeaderActions;
+    }
+
+    /* ----- pagination ----- */
+
+    get showPaginationBar() {
+        return this.showPagination && this.matchedRows.length > 0;
+    }
+
+    get pageSummary() {
+        const state = this.pageState;
+        return `${state.firstRow}-${state.lastRow} of ${state.totalRows}`;
+    }
+
+    get isFirstPage() {
+        return this.pageState.isFirstPage;
+    }
+
+    get isLastPage() {
+        return this.pageState.isLastPage;
+    }
+
+    /* ----- row removal ----- */
+
+    get removalBlockedMessage() {
+        return this._removalBlockedMessage;
+    }
+
+    get hasRemovalBlockedMessage() {
+        return Boolean(this._removalBlockedMessage);
+    }
+
     get headerCounts() {
         const parts = [];
         if (this.showRecordCount) {
@@ -339,6 +496,74 @@ export default class FgridFlowGrid extends LightningElement {
         this.publishSelection();
     }
 
+    handleSearch(event) {
+        this._searchTerm = event.target.value || "";
+        this._page = 1;
+    }
+
+    handleFilterChange(event) {
+        const path = event.target.dataset.path;
+        const value = event.target.value || "";
+        this._filters = { ...this._filters, [path]: value };
+        this._page = 1;
+    }
+
+    handleClearFilters() {
+        this._filters = {};
+        this._searchTerm = "";
+        this._page = 1;
+    }
+
+    handleFirstPage() {
+        this._page = 1;
+    }
+
+    handlePreviousPage() {
+        this._page = Math.max(1, this.pageState.page - 1);
+    }
+
+    handleNextPage() {
+        this._page = Math.min(this.pageState.totalPages, this.pageState.page + 1);
+    }
+
+    handleLastPage() {
+        this._page = this.pageState.totalPages;
+    }
+
+    /**
+     * Row action. `Remove` takes the row out of the grid and republishes the
+     * removed and remaining collections; `Standard` just reports the row.
+     */
+    handleRowAction(event) {
+        if (event.detail.action?.name !== ROW_ACTION_NAME) {
+            return;
+        }
+        const key = event.detail.row?.[this.keyField];
+        const record = this.sourceRecords.find((candidate) => candidate?.[this.keyField] === key);
+        if (!record) {
+            return;
+        }
+
+        this.publishActioned(record);
+
+        if (this.rowActionType !== "Remove") {
+            return;
+        }
+
+        const cap = Number(this.maxRemovedRows);
+        if (Number.isFinite(cap) && cap > 0 && this._removedKeys.length >= cap) {
+            this._removalBlockedMessage = `You can remove at most ${cap} ${cap === 1 ? "row" : "rows"}.`;
+            return;
+        }
+        this._removalBlockedMessage = null;
+        this._removedKeys = [...this._removedKeys, key];
+        // A removed row cannot stay selected, and the current page may no longer
+        // exist once the result set shrinks.
+        this._selectedKeys = this._selectedKeys.filter((selected) => selected !== key);
+        this.publishRemoval();
+        this.publishSelection();
+    }
+
     handleSort(event) {
         const { fieldName, sortDirection } = event.detail;
         // A link column sorts on the underlying value, not on the generated URL,
@@ -372,10 +597,16 @@ export default class FgridFlowGrid extends LightningElement {
 
     /** Seeds the selection from preSelectedRecords once records arrive. */
     applyPreSelection() {
-        if (this._selectedKeys.length || !Array.isArray(this.preSelectedRecords)) {
+        if (this._selectedKeys.length) {
             return;
         }
-        const keys = this.preSelectedRecords.map((record) => record?.[this.keyField]).filter(Boolean);
+        const source = this.isUserDefinedObject
+            ? parseRecordJson(this.preSelectedRecordsJson)
+            : this.preSelectedRecords;
+        if (!Array.isArray(source) || !source.length) {
+            return;
+        }
+        const keys = source.map((record) => record?.[this.keyField]).filter(Boolean);
         if (keys.length) {
             this._selectedKeys = keys;
             this.publishSelection();
@@ -385,19 +616,62 @@ export default class FgridFlowGrid extends LightningElement {
     /** Publishes every selection-derived output in one pass. */
     publishSelection() {
         const keys = new Set(this._selectedKeys);
-        const selected = this._records.filter((record) => keys.has(record?.[this.keyField]));
+        const selected = this.remainingRecords.filter((record) => keys.has(record?.[this.keyField]));
 
-        this.publish("outputSelectedRecords", selected);
-        this.publish("outputSelectedRecord", selected.length === 1 ? selected[0] : null);
+        this.publish("outputSelectedRecords", this.isUserDefinedObject ? [] : selected);
+        this.publish("outputSelectedRecord", !this.isUserDefinedObject && selected.length === 1 ? selected[0] : null);
         this.publish("outputSelectedRecordsJson", selected.length ? JSON.stringify(selected) : null);
         this.publish("selectedCount", selected.length);
         this.publish("selectedRowKey", selected.length === 1 ? selected[0]?.[this.keyField] : null);
+    }
+
+    /** Publishes the most recent row-action record. */
+    publishActioned(record) {
+        this.publish("outputActionedRecord", this.isUserDefinedObject ? null : record);
+        this.publish("outputActionedRecordJson", JSON.stringify(record));
+    }
+
+    /** Publishes both sides of the removal split. */
+    publishRemoval() {
+        const removed = new Set(this._removedKeys);
+        const removedRecords = this.sourceRecords.filter((record) => removed.has(record?.[this.keyField]));
+        const remaining = this.remainingRecords;
+
+        this.publish("outputRemovedRecords", this.isUserDefinedObject ? [] : removedRecords);
+        this.publish("outputRemainingRecords", this.isUserDefinedObject ? [] : remaining);
+        this.publish("outputRemovedRecordsJson", removedRecords.length ? JSON.stringify(removedRecords) : null);
+        this.publish("outputRemainingRecordsJson", remaining.length ? JSON.stringify(remaining) : null);
+        this.publish("removedCount", removedRecords.length);
     }
 
     /** Assigns a Flow output and mirrors it locally so getters stay in step. */
     publish(name, value) {
         this[name] = value;
         this.dispatchEvent(new FlowAttributeChangeEvent(name, value));
+    }
+}
+
+/**
+ * Reads a serialized record collection supplied by a Flow.
+ *
+ * Returns an empty list rather than throwing: a malformed string is an admin
+ * configuration problem, and the empty state reports it better than a crash.
+ */
+function parseRecordJson(raw) {
+    if (Array.isArray(raw)) {
+        return raw;
+    }
+    if (typeof raw !== "string" || !raw.trim()) {
+        return [];
+    }
+    try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+            return parsed;
+        }
+        return parsed && typeof parsed === "object" ? [parsed] : [];
+    } catch {
+        return [];
     }
 }
 

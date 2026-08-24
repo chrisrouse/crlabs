@@ -39,3 +39,59 @@
     font-size: 0.75rem;
     color: #ea001e;
 }
+
+.grid__search {
+    max-width: 20rem;
+    margin-bottom: 0.5rem;
+}
+
+.grid__filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+.grid__filter {
+    flex: 0 1 12rem;
+    min-width: 0;
+}
+
+.grid__filter-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 0.25rem;
+}
+
+.grid__pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding-top: 0.5rem;
+}
+
+.grid__page-summary {
+    font-size: 0.75rem;
+    color: #706e6b;
+}
+
+.grid__page-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Row-action icon colours. The datatable's button-icon variant cannot express an
+   arbitrary colour, so withRowActionColumn passes one of these classes through
+   typeAttributes.class instead. */
+.fgrid-action_red {
+    --slds-c-icon-color-foreground: #ea001e;
+}
+
+.fgrid-action_green {
+    --slds-c-icon-color-foreground: #2e844a;
+}
+
+.fgrid-action_black {
+    --slds-c-icon-color-foreground: #181818;
+}

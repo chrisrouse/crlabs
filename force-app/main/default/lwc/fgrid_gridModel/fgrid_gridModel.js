@@ -386,3 +386,212 @@ function sampleValue(type, field, index) {
 function isPlainObject(value) {
     return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
+
+/* ==================================================================== *
+ * Row pipeline
+ *
+ * Applied in this order, which is what makes the counts behave sensibly:
+ *   source -> minus removed -> cap -> search -> filter -> sort -> page
+ *
+ * The cap (maxNumberOfRows) sits before search and filter deliberately: it is a
+ * ceiling on what the grid will handle at all, not a ceiling on results.
+ * ==================================================================== */
+
+/**
+ * Narrows rows to those matching a free-text term across every visible column.
+ *
+ * @param {object[]} rows rows from buildRows
+ * @param {object[]} columns output of buildColumns, for which values to search
+ * @param {string} term text to look for
+ * @param {boolean} caseSensitive compare without lowering case
+ */
+export function searchRows(rows, columns, term, caseSensitive = false) {
+    const needle = String(term ?? "").trim();
+    if (!Array.isArray(rows) || !needle) {
+        return rows || [];
+    }
+    const target = caseSensitive ? needle : needle.toLowerCase();
+    const paths = searchablePaths(columns);
+
+    return rows.filter((row) =>
+        paths.some((path) => {
+            const value = row?.[path];
+            if (value === null || value === undefined) {
+                return false;
+            }
+            const text = caseSensitive ? String(value) : String(value).toLowerCase();
+            return text.includes(target);
+        })
+    );
+}
+
+/**
+ * Narrows rows by per-column filter text. Every non-empty filter must match,
+ * so filters combine with AND.
+ *
+ * @param {object[]} rows rows from buildRows
+ * @param {object} filters map of field path to filter text
+ * @param {boolean} caseSensitive compare without lowering case
+ */
+export function filterRows(rows, filters, caseSensitive = false) {
+    if (!Array.isArray(rows) || !filters) {
+        return rows || [];
+    }
+    const active = Object.entries(filters).filter(([, value]) => String(value ?? "").trim() !== "");
+    if (!active.length) {
+        return rows;
+    }
+
+    return rows.filter((row) =>
+        active.every(([path, filterValue]) => {
+            const raw = row?.[path];
+            if (raw === null || raw === undefined) {
+                return false;
+            }
+            const value = caseSensitive ? String(raw) : String(raw).toLowerCase();
+            const term = caseSensitive ? String(filterValue).trim() : String(filterValue).trim().toLowerCase();
+            return value.includes(term);
+        })
+    );
+}
+
+/**
+ * Slices rows into one page and reports the surrounding page state.
+ *
+ * @param {object[]} rows rows to paginate
+ * @param {number} page requested 1-based page number
+ * @param {number} perPage rows per page
+ * @returns {{rows: object[], page: number, totalPages: number, totalRows: number,
+ *            firstRow: number, lastRow: number, isFirstPage: boolean,
+ *            isLastPage: boolean}}
+ */
+export function paginate(rows, page = 1, perPage = 10) {
+    const all = Array.isArray(rows) ? rows : [];
+    const size = Number(perPage);
+    if (!Number.isFinite(size) || size < 1) {
+        return onePage(all);
+    }
+
+    const totalPages = Math.max(1, Math.ceil(all.length / size));
+    // Clamp rather than trusting the caller: deleting or filtering rows can
+    // strand the current page past the end.
+    const current = Math.min(Math.max(1, Number(page) || 1), totalPages);
+    const start = (current - 1) * size;
+    const slice = all.slice(start, start + size);
+
+    return {
+        rows: slice,
+        page: current,
+        totalPages,
+        totalRows: all.length,
+        firstRow: all.length ? start + 1 : 0,
+        lastRow: start + slice.length,
+        isFirstPage: current === 1,
+        isLastPage: current === totalPages
+    };
+}
+
+/** Name carried on the row-action column and echoed back by onrowaction. */
+export const ROW_ACTION_NAME = "fgridRowAction";
+
+/**
+ * Adds the row-action column to a column set.
+ *
+ * @param {object[]} columns columns from buildColumns
+ * @param {object} options row-action configuration from the component
+ * @returns {object[]} a new column list; the input is untouched
+ */
+export function withRowActionColumn(columns, options = {}) {
+    const {
+        actionType = "None",
+        display = "Icon",
+        position = "Right",
+        label,
+        iconName,
+        color,
+        buttonLabel,
+        buttonIcon,
+        buttonIconPosition = "Left",
+        buttonVariant = "neutral"
+    } = options;
+
+    const base = Array.isArray(columns) ? [...columns] : [];
+    if (actionType === "None") {
+        return base;
+    }
+
+    const isRemove = actionType === "Remove";
+    const column =
+        display === "Button"
+            ? {
+                  type: "button",
+                  fieldName: ROW_ACTION_NAME,
+                  label: "",
+                  hideDefaultActions: true,
+                  typeAttributes: {
+                      name: ROW_ACTION_NAME,
+                      label: buttonLabel || (isRemove ? "Remove" : "Select"),
+                      variant: buttonVariant,
+                      iconName: buttonIcon || undefined,
+                      iconPosition: String(buttonIconPosition).toLowerCase()
+                  }
+              }
+            : {
+                  type: "button-icon",
+                  fieldName: ROW_ACTION_NAME,
+                  label: "",
+                  fixedWidth: 60,
+                  hideDefaultActions: true,
+                  cellAttributes: { alignment: "center" },
+                  typeAttributes: {
+                      name: ROW_ACTION_NAME,
+                      iconName: iconName || (isRemove ? "utility:close" : "utility:right"),
+                      title: label || (isRemove ? "Remove Row" : "Select Row"),
+                      alternativeText: label || (isRemove ? "Remove Row" : "Select Row"),
+                      variant: "bare",
+                      class: colorClass(color)
+                  }
+              };
+
+    if (String(position).toLowerCase() === "left") {
+        base.unshift(column);
+    } else {
+        base.push(column);
+    }
+    return base;
+}
+
+/** Maps the configured colour name to a class the component's CSS defines. */
+function colorClass(color) {
+    switch (String(color || "").toLowerCase()) {
+        case "green":
+            return "fgrid-action_green";
+        case "black":
+            return "fgrid-action_black";
+        case "red":
+            return "fgrid-action_red";
+        default:
+            return undefined;
+    }
+}
+
+/** Field paths worth searching: real data columns, not generated link URLs. */
+function searchablePaths(columns) {
+    return (columns || [])
+        .filter((column) => column.fieldName !== ROW_ACTION_NAME)
+        .map((column) => column.fgridLinkFor || column.fieldName)
+        .filter(Boolean);
+}
+
+function onePage(rows) {
+    return {
+        rows,
+        page: 1,
+        totalPages: 1,
+        totalRows: rows.length,
+        firstRow: rows.length ? 1 : 0,
+        lastRow: rows.length,
+        isFirstPage: true,
+        isLastPage: true
+    };
+}

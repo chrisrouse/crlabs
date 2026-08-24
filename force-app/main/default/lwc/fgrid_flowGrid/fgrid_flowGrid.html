@@ -42,6 +42,52 @@
         </template>
 
         <template lwc:if={hasColumns}>
+            <template lwc:if={showSearchBar}>
+                <div class="grid__search">
+                    <lightning-input
+                        type="search"
+                        variant="label-hidden"
+                        label="Search records"
+                        placeholder="Search records..."
+                        value={searchTerm}
+                        onchange={handleSearch}
+                    ></lightning-input>
+                </div>
+            </template>
+
+            <template lwc:if={showFilterBar}>
+                <div class="grid__filters">
+                    <template for:each={filterInputs} for:item="filter">
+                        <div class="grid__filter" key={filter.key}>
+                            <lightning-input
+                                type="search"
+                                label={filter.label}
+                                data-path={filter.path}
+                                value={filter.value}
+                                onchange={handleFilterChange}
+                            ></lightning-input>
+                        </div>
+                    </template>
+                </div>
+            </template>
+
+            <template lwc:if={hasActiveFilters}>
+                <div class="grid__filter-actions">
+                    <lightning-button
+                        variant="base"
+                        label="Clear Filters"
+                        icon-name="utility:clear"
+                        onclick={handleClearFilters}
+                    ></lightning-button>
+                </div>
+            </template>
+
+            <template lwc:if={hasRemovalBlockedMessage}>
+                <div class="slds-box slds-box_x-small slds-theme_warning slds-m-bottom_x-small" role="alert">
+                    <p>{removalBlockedMessage}</p>
+                </div>
+            </template>
+
             <template lwc:if={hasRows}>
                 <div class={wrapperClass} style={wrapperStyle}>
                     <lightning-datatable
@@ -56,9 +102,42 @@
                         sorted-direction={sortDirection}
                         onrowselection={handleRowSelection}
                         onsort={handleSort}
+                        onrowaction={handleRowAction}
                         suppress-bottom-bar
                     ></lightning-datatable>
                 </div>
+
+                <template lwc:if={showPaginationBar}>
+                    <div class="grid__pagination">
+                        <span class="grid__page-summary">{pageSummary}</span>
+                        <div class="grid__page-buttons">
+                            <template lwc:if={showFirstLastButtons}>
+                                <lightning-button
+                                    label="First"
+                                    disabled={isFirstPage}
+                                    onclick={handleFirstPage}
+                                ></lightning-button>
+                            </template>
+                            <lightning-button
+                                label="Previous"
+                                disabled={isFirstPage}
+                                onclick={handlePreviousPage}
+                            ></lightning-button>
+                            <lightning-button
+                                label="Next"
+                                disabled={isLastPage}
+                                onclick={handleNextPage}
+                            ></lightning-button>
+                            <template lwc:if={showFirstLastButtons}>
+                                <lightning-button
+                                    label="Last"
+                                    disabled={isLastPage}
+                                    onclick={handleLastPage}
+                                ></lightning-button>
+                            </template>
+                        </div>
+                    </div>
+                </template>
 
                 <!-- Clear Selection lives in the header when one is shown. -->
                 <template lwc:if={showHeader}></template>
@@ -78,7 +157,17 @@
             <template lwc:else>
                 <div class="grid__empty">
                     <lightning-icon icon-name="utility:table" size="small" variant="inverse"></lightning-icon>
-                    <p class="slds-m-top_x-small">No records to display.</p>
+                    <template lwc:if={isFilteredEmpty}>
+                        <p class="slds-m-top_x-small">No records match your search or filters.</p>
+                        <lightning-button
+                            variant="base"
+                            label="Clear Search and Filters"
+                            onclick={handleClearFilters}
+                        ></lightning-button>
+                    </template>
+                    <template lwc:else>
+                        <p class="slds-m-top_x-small">No records to display.</p>
+                    </template>
                 </div>
             </template>
         </template>

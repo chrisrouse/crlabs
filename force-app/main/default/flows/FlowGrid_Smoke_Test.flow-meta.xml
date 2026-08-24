@@ -82,7 +82,7 @@
                 <name>columnConfig</name>
                 <value>
                     <stringValue
-                    >{"Name":{"label":"Account","width":220,"align":"left"},"AnnualRevenue":{"align":"right","scale":0}}</stringValue>
+                    >{"Name":{"label":"Account","width":260,"align":"left","filter":true},"Industry":{"filter":true},"AnnualRevenue":{"align":"right","scale":0}}</stringValue>
                 </value>
             </inputParameters>
 
@@ -109,6 +109,24 @@
                 <name>tableIcon</name>
                 <value>
                     <stringValue>standard:account</stringValue>
+                </value>
+            </inputParameters>
+            <inputParameters>
+                <name>showSearchBar</name>
+                <value>
+                    <booleanValue>true</booleanValue>
+                </value>
+            </inputParameters>
+            <inputParameters>
+                <name>showRecordCount</name>
+                <value>
+                    <booleanValue>true</booleanValue>
+                </value>
+            </inputParameters>
+            <inputParameters>
+                <name>showSelectedCount</name>
+                <value>
+                    <booleanValue>true</booleanValue>
                 </value>
             </inputParameters>
             <inputParameters>
