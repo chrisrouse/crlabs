@@ -3,6 +3,10 @@
  * pickers instead of asking an admin to type variable names, and runs the
  * autolaunched ones on the grid's behalf.
  *
+ * Template flows are excluded. A template exists to be cloned, not run, and
+ * managed packages ship a lot of them — in a typical org they were the majority
+ * of what the picker offered, crowding out the flows an admin actually wrote.
+ *
  * This is what makes the Flow row action behave like the platform's own Screen
  * Action editor: choose a flow, then map the grid's record and Id onto the
  * variables that flow actually declares.
@@ -117,7 +121,7 @@ public with sharing class FlowGridFlowService {
         for (FlowDefinitionView definition : [
             SELECT ApiName, Label, ProcessType, TriggerType, ActiveVersionId, LatestVersionId
             FROM FlowDefinitionView
-            WHERE IsActive = TRUE
+            WHERE IsActive = TRUE AND IsTemplate = FALSE
             WITH USER_MODE
             ORDER BY Label
             LIMIT 2000
@@ -224,7 +228,7 @@ public with sharing class FlowGridFlowService {
         List<FlowDefinitionView> definitions = [
             SELECT ActiveVersionId
             FROM FlowDefinitionView
-            WHERE ApiName = :flowApiName.trim() AND IsActive = TRUE
+            WHERE ApiName = :flowApiName.trim() AND IsActive = TRUE AND IsTemplate = FALSE
             WITH USER_MODE
             LIMIT 1
         ];
