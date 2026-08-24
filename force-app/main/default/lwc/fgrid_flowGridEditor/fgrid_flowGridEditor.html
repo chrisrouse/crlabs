@@ -1,0 +1,83 @@
+<template>
+    <div class="editor">
+        <template lwc:if={hasValidationErrors}>
+            <div
+                class="slds-box slds-box_x-small slds-theme_error slds-m-bottom_x-small"
+                role="alert"
+                aria-live="assertive"
+            >
+                <p class="slds-text-title_bold slds-m-bottom_xx-small">Fix the following:</p>
+                <ul class="slds-list_dotted">
+                    <template for:each={validationErrors} for:item="error">
+                        <li key={error.key}>{error.errorString}</li>
+                    </template>
+                </ul>
+            </div>
+        </template>
+
+        <div class="editor__studio">
+            <lightning-button
+                variant="brand"
+                icon-name="utility:expand_alt"
+                label="Open Grid Studio"
+                title={studioButtonLabel}
+                class="editor__studio-button"
+                onclick={handleOpenStudio}
+            ></lightning-button>
+            <p class="editor__studio-hint">Configure everything side by side with a live preview.</p>
+        </div>
+
+        <lightning-accordion allow-multiple-sections-open active-section-name={initialSections}>
+            <template for:each={sections} for:item="section">
+                <lightning-accordion-section key={section.name} name={section.name} label={section.label}>
+                    <c-fgrid_property-controls
+                        section={section}
+                        values={values}
+                        value-data-types={valueDataTypes}
+                        object-api-name={objectApiName}
+                        builder-context={builderContext}
+                        automatic-output-variables={automaticOutputVariables}
+                        api-version={apiVersion}
+                        onpropertychange={handlePropertyChange}
+                    ></c-fgrid_property-controls>
+
+                    <!-- Column attributes are read-only here; the grid is too wide
+                         for this panel and lives in the Studio. -->
+                    <template lwc:if={section.hasColumnGrid}>
+                        <template lwc:if={columnSummaryVisible}>
+                            <div class="editor__columns slds-m-top_x-small">
+                                <c-fgrid_column-config
+                                    compact
+                                    column-fields={values.columnFields}
+                                    column-config={values.columnConfig}
+                                ></c-fgrid_column-config>
+                                <lightning-button
+                                    variant="base"
+                                    label="Edit column attributes"
+                                    icon-name="utility:settings"
+                                    onclick={handleOpenStudio}
+                                ></lightning-button>
+                            </div>
+                        </template>
+                    </template>
+                </lightning-accordion-section>
+            </template>
+        </lightning-accordion>
+    </div>
+
+    <template lwc:if={isStudioOpen}>
+        <c-fgrid_flow-grid-studio
+            sections={sections}
+            values={values}
+            value-data-types={valueDataTypes}
+            object-api-name={objectApiName}
+            validation-errors={validationErrors}
+            builder-context={builderContext}
+            automatic-output-variables={automaticOutputVariables}
+            api-version={apiVersion}
+            onpropertychange={handlePropertyChange}
+            oncolumnconfigchange={handleColumnConfigChange}
+            onclose={handleCloseStudio}
+        ></c-fgrid_flow-grid-studio>
+    </template>
+</template>

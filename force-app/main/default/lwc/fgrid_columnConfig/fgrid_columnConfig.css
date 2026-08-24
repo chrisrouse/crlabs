@@ -1,0 +1,85 @@
+/* ---------- compact (narrow property panel) ---------- */
+.summary__item {
+    padding: 0.25rem 0;
+}
+
+.summary__field {
+    display: block;
+    font-family: monospace;
+    font-size: 0.75rem;
+}
+
+.summary__detail {
+    display: block;
+    font-size: 0.75rem;
+    color: #706e6b;
+}
+
+/* ---------- full (Grid Studio) ---------- */
+.grid__toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.25rem;
+}
+
+.grid__table {
+    font-size: 0.8125rem;
+}
+
+.grid__col-num {
+    width: 2.5rem;
+}
+.grid__col-width,
+.grid__col-align {
+    width: 6rem;
+}
+.grid__col-flag {
+    width: 3.5rem;
+}
+.grid__col-actions {
+    width: 7rem;
+}
+
+.grid__cell-num {
+    text-align: right;
+    color: #706e6b;
+}
+
+.grid__cell-flag {
+    text-align: center;
+}
+
+.grid__cell-actions {
+    text-align: right;
+}
+
+.grid__field {
+    font-family: monospace;
+}
+
+.grid__advanced {
+    background-color: #f3f3f3;
+}
+
+.advanced {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    padding: 0.5rem 0;
+}
+
+.advanced__col {
+    flex: 1 1 12rem;
+    min-width: 0;
+}
+
+.advanced__col_wide {
+    flex: 2 1 20rem;
+}
+
+.advanced__footer {
+    display: flex;
+    justify-content: flex-end;
+    padding-bottom: 0.5rem;
+}

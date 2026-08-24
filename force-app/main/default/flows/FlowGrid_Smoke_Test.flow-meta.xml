@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>67.0</apiVersion>
+    <description
+    >Draft screen flow that exercises the Flow Grid property contract. Deploying it validates the property names, types, and generic type mapping against the platform. Not intended for end users.</description>
+    <environments>Default</environments>
+    <interviewLabel>Flow Grid Smoke Test {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>Flow Grid Smoke Test</label>
+    <processType>Flow</processType>
+    <status>Draft</status>
+
+    <start>
+        <locationX>176</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Get_Accounts</targetReference>
+        </connector>
+    </start>
+
+    <recordLookups>
+        <name>Get_Accounts</name>
+        <label>Get Accounts</label>
+        <locationX>176</locationX>
+        <locationY>134</locationY>
+        <connector>
+            <targetReference>Show_Grid</targetReference>
+        </connector>
+        <getFirstRecordOnly>false</getFirstRecordOnly>
+        <object>Account</object>
+        <storeOutputAutomatically>true</storeOutputAutomatically>
+    </recordLookups>
+
+    <screens>
+        <name>Show_Grid</name>
+        <label>Show Grid</label>
+        <locationX>176</locationX>
+        <locationY>268</locationY>
+        <allowBack>true</allowBack>
+        <allowFinish>true</allowFinish>
+        <allowPause>false</allowPause>
+        <showFooter>true</showFooter>
+        <showHeader>true</showHeader>
+        <fields>
+            <name>FlowGrid</name>
+            <extensionName>c:fgrid_flowGrid</extensionName>
+            <fieldType>ComponentInstance</fieldType>
+            <isRequired>false</isRequired>
+            <storeOutputAutomatically>true</storeOutputAutomatically>
+            <dataTypeMappings>
+                <typeName>T</typeName>
+                <typeValue>Account</typeValue>
+            </dataTypeMappings>
+
+            <!-- Data source -->
+            <inputParameters>
+                <name>records</name>
+                <value>
+                    <elementReference>Get_Accounts</elementReference>
+                </value>
+            </inputParameters>
+            <inputParameters>
+                <name>objectApiName</name>
+                <value>
+                    <stringValue>Account</stringValue>
+                </value>
+            </inputParameters>
+            <inputParameters>
+                <name>keyField</name>
+                <value>
+                    <stringValue>Id</stringValue>
+                </value>
+            </inputParameters>
+
+            <!-- Columns: the two JSON properties that replace 13 delimited strings -->
+            <inputParameters>
+                <name>columnFields</name>
+                <value>
+                    <stringValue>["Name","Industry","AnnualRevenue"]</stringValue>
+                </value>
+            </inputParameters>
+            <inputParameters>
+                <name>columnConfig</name>
+                <value>
+                    <stringValue
+                    >{"Name":{"label":"Account","width":220,"align":"left"},"AnnualRevenue":{"align":"right","scale":0}}</stringValue>
+                </value>
+            </inputParameters>
+
+            <!-- A sample from each remaining section, to prove the types -->
+            <inputParameters>
+                <name>selectionMode</name>
+                <value>
+                    <stringValue>Single</stringValue>
+                </value>
+            </inputParameters>
+            <inputParameters>
+                <name>showHeader</name>
+                <value>
+                    <booleanValue>true</booleanValue>
+                </value>
+            </inputParameters>
+            <inputParameters>
+                <name>tableLabel</name>
+                <value>
+                    <stringValue>Accounts</stringValue>
+                </value>
+            </inputParameters>
+            <inputParameters>
+                <name>tableIcon</name>
+                <value>
+                    <stringValue>standard:account</stringValue>
+                </value>
+            </inputParameters>
+            <inputParameters>
+                <name>showPagination</name>
+                <value>
+                    <booleanValue>true</booleanValue>
+                </value>
+            </inputParameters>
+            <inputParameters>
+                <name>recordsPerPage</name>
+                <value>
+                    <numberValue>10.0</numberValue>
+                </value>
+            </inputParameters>
+            <inputParameters>
+                <name>rowActionType</name>
+                <value>
+                    <stringValue>Remove</stringValue>
+                </value>
+            </inputParameters>
+            <inputParameters>
+                <name>maxRemovedRows</name>
+                <value>
+                    <numberValue>3.0</numberValue>
+                </value>
+            </inputParameters>
+        </fields>
+    </screens>
+</Flow>

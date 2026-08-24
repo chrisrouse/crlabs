@@ -1,0 +1,7 @@
+.control {
+    margin-bottom: 0.5rem;
+}
+
+.control:last-child {
+    margin-bottom: 0;
+}

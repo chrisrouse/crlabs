@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>67.0</apiVersion>
+    <isExposed>true</isExposed>
+    <masterLabel>Flow Grid</masterLabel>
+    <description>Configurable record grid for Flow screens. Built on the Flow Config Editor Kit.</description>
+    <targets>
+        <target>lightning__FlowScreen</target>
+    </targets>
+    <targetConfigs>
+        <targetConfig targets="lightning__FlowScreen" configurationEditor="c-fgrid_flow-grid-editor">
+            <!--
+                Property labels and help text live in fgrid_flowGridEditor. The values here
+                are the fallback Flow Builder shows if the custom editor fails to load.
+
+                One generic type: every record property below is the same collection.
+            -->
+            <propertyType name="T" extends="SObject" label="Grid Object" description="The object shown in the grid." />
+
+            <!-- ============================ Data source ============================ -->
+            <property name="records" type="{T[]}" label="Records" role="inputOnly" />
+            <property name="objectApiName" type="String" label="Object API Name" role="inputOnly" />
+            <property name="preSelectedRecords" type="{T[]}" label="Pre-Selected Records" role="inputOnly" />
+            <property name="keyField" type="String" label="Key Field" default="Id" role="inputOnly" />
+
+            <!-- User-defined (non-SObject) source. Records arrive as serialized JSON. -->
+            <property name="isUserDefinedObject" type="Boolean" label="Use a User-Defined Object" default="false" role="inputOnly" />
+            <property name="recordsJson" type="String" label="Records (JSON)" role="inputOnly" />
+            <property name="preSelectedRecordsJson" type="String" label="Pre-Selected Records (JSON)" role="inputOnly" />
+            <property name="isSerializedRecordData" type="Boolean" label="Records Are Serialized" default="false" role="inputOnly" />
+            <property name="serializedRecordData" type="String" label="Serialized Record Data" role="inputOnly" />
+
+            <!-- ============================== Columns ==============================
+                 columnFields  - JSON array of field API paths, ordered. Written by the
+                                 kit field picker in multiple + sortable mode.
+                 columnConfig  - JSON object keyed by field API path, holding that
+                                 column's attributes. Replaces the 13 parallel
+                                 delimited strings of the component this replaces.
+            -->
+            <property name="columnFields" type="String" label="Columns" role="inputOnly" />
+            <property name="columnConfig" type="String" label="Column Configuration" role="inputOnly" />
+
+            <!-- =========================== Table display =========================== -->
+            <property name="showHeader" type="Boolean" label="Show Table Header" default="false" role="inputOnly" />
+            <property name="tableLabel" type="String" label="Table Label" role="inputOnly" />
+            <property name="tableIcon" type="String" label="Table Icon" role="inputOnly" />
+            <property name="showRecordCount" type="Boolean" label="Show Record Count" default="false" role="inputOnly" />
+            <property name="showSelectedCount" type="Boolean" label="Show Selected Count" default="false" role="inputOnly" />
+            <property name="showRowNumbers" type="Boolean" label="Show Row Numbers" default="false" role="inputOnly" />
+            <property name="tableHeight" type="String" label="Table Height" role="inputOnly" />
+            <property name="showBorder" type="Boolean" label="Show Border" default="true" role="inputOnly" />
+            <property name="allowOverflow" type="Boolean" label="Allow Overflow" default="false" role="inputOnly" />
+
+            <!-- ============================= Selection =============================
+                 selectionMode replaces the baseline's hideCheckboxColumn +
+                 singleRowSelection boolean pair: None | Single | Multiple.
+            -->
+            <property name="selectionMode" type="String" label="Selection Mode" default="Multiple" role="inputOnly" />
+            <property name="isRequired" type="Boolean" label="Require a Selection" default="false" role="inputOnly" />
+            <property name="hideClearSelectionButton" type="Boolean" label="Hide Clear Selection Button" default="false" role="inputOnly" />
+
+            <!-- ======================= Search, filter, sort ======================== -->
+            <property name="showSearchBar" type="Boolean" label="Show Search Bar" default="false" role="inputOnly" />
+            <property name="hideHeaderActions" type="Boolean" label="Hide Column Header Actions" default="false" role="inputOnly" />
+            <property name="matchCaseOnFilters" type="Boolean" label="Match Case on Filters" default="false" role="inputOnly" />
+            <property name="caseInsensitiveSort" type="Boolean" label="Case-Insensitive Sort" default="false" role="inputOnly" />
+
+            <!-- ============================ Pagination ============================= -->
+            <property name="showPagination" type="Boolean" label="Show Pagination" default="false" role="inputOnly" />
+            <property name="recordsPerPage" type="Integer" label="Records Per Page" role="inputOnly" />
+            <property name="showFirstLastButtons" type="Boolean" label="Show First/Last Buttons" default="false" role="inputOnly" />
+            <property name="maxNumberOfRows" type="Integer" label="Maximum Records to Display" role="inputOnly" />
+
+            <!-- ========================== Inline editing =========================== -->
+            <property name="suppressBottomBar" type="Boolean" label="Hide Cancel/Save Bar" default="false" role="inputOnly" />
+            <property name="navigateNextOnSave" type="Boolean" label="Navigate Next on Save" default="false" role="inputOnly" />
+
+            <!-- ============================ Row action =============================
+                 rowActionType replaces the baseline's isRemoveRowAction boolean +
+                 rowActionType string pair: None | Standard | Remove.
+            -->
+            <property name="rowActionType" type="String" label="Row Action" default="None" role="inputOnly" />
+            <property name="rowActionDisplay" type="String" label="Row Action Display" default="Icon" role="inputOnly" />
+            <property name="rowActionPosition" type="String" label="Row Action Column Position" default="Right" role="inputOnly" />
+            <property name="rowActionLabel" type="String" label="Row Action Label" role="inputOnly" />
+            <property name="rowActionIcon" type="String" label="Row Action Icon" role="inputOnly" />
+            <property name="rowActionColor" type="String" label="Row Action Icon Color" role="inputOnly" />
+            <property name="rowActionButtonLabel" type="String" label="Row Action Button Label" role="inputOnly" />
+            <property name="rowActionButtonIcon" type="String" label="Row Action Button Icon" role="inputOnly" />
+            <property name="rowActionButtonIconPosition" type="String" label="Row Action Button Icon Position" default="Left" role="inputOnly" />
+            <property name="rowActionButtonVariant" type="String" label="Row Action Button Variant" default="neutral" role="inputOnly" />
+            <property name="maxRemovedRows" type="Integer" label="Maximum Rows Removable" role="inputOnly" />
+
+            <!-- ======================== Links and formatting ======================== -->
+            <property name="showNameFieldLink" type="Boolean" label="Link the Name Field to the Record" default="true" role="inputOnly" />
+            <property name="openLinkInSameTab" type="Boolean" label="Open Links in the Same Tab" default="false" role="inputOnly" />
+            <property name="suppressCurrencyConversion" type="Boolean" label="Suppress Currency Conversion" default="false" role="inputOnly" />
+
+            <!-- =================== Picklist editing (record type) =================== -->
+            <property name="recordTypeId" type="String" label="Record Type Id" role="inputOnly" />
+            <property name="showAllPicklistValues" type="Boolean" label="Show All Picklist Values" default="false" role="inputOnly" />
+            <property name="allowNoneToBeChosen" type="Boolean" label="Allow --None-- to Be Chosen" default="true" role="inputOnly" />
+
+            <!-- Flow supplies its runtime API version; the editor forwards it to pickers. -->
+            <property name="flowRuntimeApiVersion" type="Double" label="Flow Runtime API Version" role="inputOnly" flowRole="flowRuntimeApiVersion" />
+
+            <!-- ============================== Outputs =============================== -->
+            <property name="outputSelectedRecords" type="{T[]}" label="Selected Records" role="outputOnly" />
+            <property name="outputSelectedRecord" type="{T}" label="Selected Record (single)" role="outputOnly" />
+            <property name="outputEditedRecords" type="{T[]}" label="Edited Records" role="outputOnly" />
+            <property name="outputRemovedRecords" type="{T[]}" label="Removed Records" role="outputOnly" />
+            <property name="outputRemainingRecords" type="{T[]}" label="Remaining Records" role="outputOnly" />
+            <property name="outputActionedRecord" type="{T}" label="Actioned Record" role="outputOnly" />
+
+            <!-- JSON output mirrors, for the user-defined-object source -->
+            <property name="outputSelectedRecordsJson" type="String" label="Selected Records (JSON)" role="outputOnly" />
+            <property name="outputEditedRecordsJson" type="String" label="Edited Records (JSON)" role="outputOnly" />
+            <property name="outputRemovedRecordsJson" type="String" label="Removed Records (JSON)" role="outputOnly" />
+            <property name="outputRemainingRecordsJson" type="String" label="Remaining Records (JSON)" role="outputOnly" />
+            <property name="outputActionedRecordJson" type="String" label="Actioned Record (JSON)" role="outputOnly" />
+
+            <property name="selectedCount" type="Integer" label="Number of Selected Records" role="outputOnly" />
+            <property name="editedCount" type="Integer" label="Number of Edited Records" role="outputOnly" />
+            <property name="removedCount" type="Integer" label="Number of Removed Records" role="outputOnly" />
+            <property name="selectedRowKey" type="String" label="Selected Row Key Value" role="outputOnly" />
+            <property name="sortedBy" type="String" label="Sorted By" role="outputOnly" />
+            <property name="sortDirection" type="String" label="Sort Direction" role="outputOnly" />
+        </targetConfig>
+    </targetConfigs>
+</LightningComponentBundle>

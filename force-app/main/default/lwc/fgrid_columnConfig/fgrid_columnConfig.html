@@ -1,0 +1,234 @@
+<template>
+    <template lwc:if={hasFields}>
+        <!-- ===================== Compact: narrow panel ===================== -->
+        <template lwc:if={compact}>
+            <div class="summary">
+                <p class="slds-text-title_caps slds-m-bottom_xx-small">{countLabel}</p>
+                <ul class="slds-has-dividers_bottom-space">
+                    <template for:each={rows} for:item="row">
+                        <li key={row.key} class="slds-item summary__item">
+                            <span class="summary__field">{row.field}</span>
+                            <span class="summary__detail">{row.summary}</span>
+                        </li>
+                    </template>
+                </ul>
+            </div>
+        </template>
+
+        <!-- ====================== Full: Grid Studio ======================== -->
+        <template lwc:else>
+            <div class="grid">
+                <div class="grid__toolbar">
+                    <span class="slds-text-title_caps">{countLabel}</span>
+                    <lightning-button
+                        variant="base"
+                        label="Reset all attributes"
+                        onclick={handleClearAll}
+                    ></lightning-button>
+                </div>
+
+                <table class="slds-table slds-table_bordered slds-table_fixed-layout grid__table">
+                    <thead>
+                        <tr class="slds-line-height_reset">
+                            <th class="grid__col-num" scope="col"><div class="slds-truncate">#</div></th>
+                            <th class="grid__col-field" scope="col"><div class="slds-truncate">Field</div></th>
+                            <th class="grid__col-label" scope="col"><div class="slds-truncate">Label</div></th>
+                            <th class="grid__col-width" scope="col"><div class="slds-truncate">Width</div></th>
+                            <th class="grid__col-align" scope="col"><div class="slds-truncate">Align</div></th>
+                            <th class="grid__col-flag" scope="col">
+                                <div class="slds-truncate" title="Editable">Edit</div>
+                            </th>
+                            <th class="grid__col-flag" scope="col">
+                                <div class="slds-truncate" title="Filterable">Filter</div>
+                            </th>
+                            <th class="grid__col-flag" scope="col">
+                                <div class="slds-truncate" title="Wrap text">Wrap</div>
+                            </th>
+                            <th class="grid__col-flag" scope="col">
+                                <div class="slds-truncate" title="Flexible width">Flex</div>
+                            </th>
+                            <th class="grid__col-actions" scope="col"><div class="slds-truncate">&nbsp;</div></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template for:each={rows} for:item="row">
+                            <tr key={row.key} class="slds-hint-parent">
+                                <td class="grid__cell-num">{row.position}</td>
+                                <td>
+                                    <div class="slds-truncate grid__field" title={row.field}>{row.field}</div>
+                                </td>
+                                <td>
+                                    <lightning-input
+                                        type="text"
+                                        variant="label-hidden"
+                                        label="Label"
+                                        data-field={row.field}
+                                        data-attribute="label"
+                                        placeholder="Default"
+                                        value={row.label}
+                                        onchange={handleTextChange}
+                                    ></lightning-input>
+                                </td>
+                                <td>
+                                    <lightning-input
+                                        type="number"
+                                        variant="label-hidden"
+                                        label="Width"
+                                        data-field={row.field}
+                                        data-attribute="width"
+                                        placeholder="auto"
+                                        min="20"
+                                        value={row.width}
+                                        onchange={handleNumberChange}
+                                    ></lightning-input>
+                                </td>
+                                <td>
+                                    <lightning-combobox
+                                        variant="label-hidden"
+                                        label="Align"
+                                        data-field={row.field}
+                                        data-attribute="align"
+                                        value={row.align}
+                                        options={alignmentOptions}
+                                        onchange={handleSelectChange}
+                                    ></lightning-combobox>
+                                </td>
+                                <td class="grid__cell-flag">
+                                    <lightning-input
+                                        type="checkbox"
+                                        variant="label-hidden"
+                                        label="Editable"
+                                        data-field={row.field}
+                                        data-attribute="edit"
+                                        checked={row.edit}
+                                        onchange={handleCheckboxChange}
+                                    ></lightning-input>
+                                </td>
+                                <td class="grid__cell-flag">
+                                    <lightning-input
+                                        type="checkbox"
+                                        variant="label-hidden"
+                                        label="Filterable"
+                                        data-field={row.field}
+                                        data-attribute="filter"
+                                        checked={row.filter}
+                                        onchange={handleCheckboxChange}
+                                    ></lightning-input>
+                                </td>
+                                <td class="grid__cell-flag">
+                                    <lightning-input
+                                        type="checkbox"
+                                        variant="label-hidden"
+                                        label="Wrap text"
+                                        data-field={row.field}
+                                        data-attribute="wrap"
+                                        checked={row.wrap}
+                                        onchange={handleCheckboxChange}
+                                    ></lightning-input>
+                                </td>
+                                <td class="grid__cell-flag">
+                                    <lightning-input
+                                        type="checkbox"
+                                        variant="label-hidden"
+                                        label="Flexible width"
+                                        data-field={row.field}
+                                        data-attribute="flex"
+                                        checked={row.flex}
+                                        onchange={handleCheckboxChange}
+                                    ></lightning-input>
+                                </td>
+                                <td class="grid__cell-actions">
+                                    <lightning-button
+                                        variant="base"
+                                        label={row.expandLabel}
+                                        data-field={row.field}
+                                        onclick={handleToggleAdvanced}
+                                    ></lightning-button>
+                                </td>
+                            </tr>
+
+                            <template lwc:if={row.isExpanded}>
+                                <tr key={row.field} class="grid__advanced">
+                                    <td colspan="10">
+                                        <div class="advanced">
+                                            <div class="advanced__col">
+                                                <c-fgrid_icon-picker
+                                                    label="Column icon"
+                                                    data-field={row.field}
+                                                    data-attribute="icon"
+                                                    value={row.icon}
+                                                    oniconchange={handleIconChange}
+                                                ></c-fgrid_icon-picker>
+                                            </div>
+                                            <div class="advanced__col">
+                                                <lightning-input
+                                                    type="number"
+                                                    label="Decimal places"
+                                                    data-field={row.field}
+                                                    data-attribute="scale"
+                                                    min="0"
+                                                    max="10"
+                                                    value={row.scale}
+                                                    field-level-help="Digits shown after the decimal point for currency, number, and percent columns."
+                                                    onchange={handleNumberChange}
+                                                ></lightning-input>
+                                                <lightning-input
+                                                    type="text"
+                                                    label="Field type override"
+                                                    data-field={row.field}
+                                                    data-attribute="type"
+                                                    value={row.type}
+                                                    placeholder="text"
+                                                    field-level-help="Only needed for a user-defined object, where Flow Grid cannot describe the field."
+                                                    onchange={handleTextChange}
+                                                ></lightning-input>
+                                            </div>
+                                            <div class="advanced__col advanced__col_wide">
+                                                <lightning-textarea
+                                                    label="Cell attributes (JSON)"
+                                                    data-field={row.field}
+                                                    data-attribute="cellAttribs"
+                                                    value={row.cellAttribs}
+                                                    placeholder={cellAttribsPlaceholder}
+                                                    onchange={handleBlobChange}
+                                                ></lightning-textarea>
+                                                <lightning-textarea
+                                                    label="Type attributes (JSON)"
+                                                    data-field={row.field}
+                                                    data-attribute="typeAttribs"
+                                                    value={row.typeAttribs}
+                                                    placeholder={typeAttribsPlaceholder}
+                                                    onchange={handleBlobChange}
+                                                ></lightning-textarea>
+                                                <lightning-textarea
+                                                    label="Other attributes (JSON)"
+                                                    data-field={row.field}
+                                                    data-attribute="otherAttribs"
+                                                    value={row.otherAttribs}
+                                                    placeholder={otherAttribsPlaceholder}
+                                                    onchange={handleBlobChange}
+                                                ></lightning-textarea>
+                                            </div>
+                                        </div>
+                                        <div class="advanced__footer">
+                                            <lightning-button
+                                                variant="destructive-text"
+                                                label="Reset this column"
+                                                data-field={row.field}
+                                                onclick={handleClearColumn}
+                                            ></lightning-button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </template>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </template>
+    </template>
+
+    <template lwc:else>
+        <p class="slds-text-body_small slds-text-color_weak">Select columns first; their attributes appear here.</p>
+    </template>
+</template>

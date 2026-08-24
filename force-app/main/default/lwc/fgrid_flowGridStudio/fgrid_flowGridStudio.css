@@ -1,0 +1,125 @@
+/* Two separate concerns, previously conflated:
+
+   1. STACKING. Flow Builder's screen canvas paints above SLDS's default modal
+      z-index token, putting its component chip and Previous/Finish chrome on top
+      of this modal. Setting z-index explicitly is the whole fix.
+
+   2. DIMMING. This modal opens from inside Flow Builder's own screen-editor
+      modal, which already dims the page at 0.8 opacity. `slds-backdrop` here
+      stacked a second full-strength dimmer and read far too dark. Removing the
+      dim entirely was worse still — with nothing here the editor behind sits at
+      full brightness and the modal loses all separation. So: one light wash.
+      PARKED — the residual complaint is a slight double-shade where the two
+      modals do not align exactly. Revisit alongside the modal geometry. */
+.studio {
+    z-index: 99999;
+    background-color: rgba(8, 7, 7, 0.16);
+}
+
+/* Anchor for the close button, which sits inside the white header rather than
+   outside the container the way slds-modal__close would place it. */
+.studio__header {
+    position: relative;
+}
+
+.studio__close {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+}
+
+/* SLDS caps slds-modal_large at ~1024px, which is too narrow for a two-pane
+   workspace. Widen the container explicitly instead of using a size modifier. */
+.studio__container {
+    max-width: 92vw;
+    width: 92vw;
+    min-width: 60rem;
+}
+
+.studio__content {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    padding: 0;
+    max-height: 74vh;
+    overflow: hidden;
+}
+
+/* Left pane: independently scrolling control list. */
+.studio__controls {
+    flex: 0 0 24rem;
+    max-width: 24rem;
+    overflow-y: auto;
+    padding: 0.75rem;
+    border-right: 1px solid #e5e5e5;
+    background-color: #fbfbfb;
+}
+
+/* Right pane: preview above, column grid below, scrolling together. */
+.studio__preview {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-y: auto;
+    padding: 0.75rem 1rem;
+}
+
+.studio__columns {
+    margin-top: 1.5rem;
+    padding-top: 1rem;
+    border-top: 1px solid #e5e5e5;
+}
+
+/* ---------------------------- preview ---------------------------- */
+.preview__banner {
+    display: flex;
+    align-items: center;
+    font-size: 0.75rem;
+    color: #514f4d;
+    background-color: #fef8e6;
+    border: 1px solid #f3d47a;
+    border-radius: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.preview__header {
+    display: flex;
+    align-items: center;
+    padding: 0.5rem 0.25rem;
+}
+
+.preview__search {
+    max-width: 20rem;
+    margin-bottom: 0.5rem;
+}
+
+.preview__grid_bordered {
+    border: 1px solid #c9c7c5;
+    border-radius: 0.25rem;
+}
+
+.preview__pagination {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+    margin-top: 0.5rem;
+}
+
+.preview__note {
+    margin-top: 0.5rem;
+    font-size: 0.75rem;
+    color: #706e6b;
+    font-style: italic;
+}
+
+.preview__empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 3rem 1rem;
+    color: #706e6b;
+    background-color: #f3f3f3;
+    border-radius: 0.25rem;
+}

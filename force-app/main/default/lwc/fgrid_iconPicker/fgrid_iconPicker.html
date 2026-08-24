@@ -1,0 +1,80 @@
+<template>
+    <div class="picker">
+        <div class="picker__row">
+            <div class="picker__input">
+                <lightning-input
+                    lwc:ref="text"
+                    type="text"
+                    label={label}
+                    field-level-help={fieldLevelHelp}
+                    placeholder={placeholder}
+                    value={value}
+                    disabled={disabled}
+                    onchange={handleTextChange}
+                ></lightning-input>
+            </div>
+            <template lwc:if={hasValue}>
+                <div class="picker__preview" title={value}>
+                    <lightning-icon icon-name={value} size="small"></lightning-icon>
+                </div>
+            </template>
+        </div>
+
+        <div class="picker__actions">
+            <lightning-button
+                variant="base"
+                label={browseLabel}
+                icon-name="utility:image"
+                disabled={disabled}
+                onclick={handleToggleBrowse}
+            ></lightning-button>
+            <template lwc:if={hasValue}>
+                <lightning-button
+                    variant="base"
+                    label="Clear"
+                    disabled={disabled}
+                    onclick={handleClear}
+                ></lightning-button>
+            </template>
+        </div>
+
+        <template lwc:if={isBrowsing}>
+            <div class="picker__browser slds-box slds-box_x-small slds-m-top_xx-small">
+                <lightning-input
+                    type="search"
+                    variant="label-hidden"
+                    label="Filter icons"
+                    placeholder="Filter icons"
+                    value={filter}
+                    onchange={handleFilter}
+                ></lightning-input>
+
+                <template lwc:if={hasMatches}>
+                    <div class="picker__grid slds-m-top_xx-small">
+                        <template for:each={visibleIcons} for:item="icon">
+                            <button
+                                key={icon.name}
+                                type="button"
+                                class="picker__cell"
+                                data-icon={icon.name}
+                                title={icon.name}
+                                onclick={handleIconClick}
+                            >
+                                <lightning-icon
+                                    icon-name={icon.name}
+                                    size="small"
+                                    variant={icon.variant}
+                                ></lightning-icon>
+                            </button>
+                        </template>
+                    </div>
+                </template>
+                <template lwc:else>
+                    <p class="slds-text-body_small slds-text-color_weak slds-m-top_xx-small">
+                        No icons match. You can still type any valid SLDS icon name above.
+                    </p>
+                </template>
+            </div>
+        </template>
+    </div>
+</template>

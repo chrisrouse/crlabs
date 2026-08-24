@@ -1,0 +1,174 @@
+<template>
+    <section
+        role="dialog"
+        tabindex="-1"
+        aria-modal="true"
+        aria-labelledby="studio-heading"
+        class="slds-modal slds-fade-in-open studio"
+        onkeydown={handleKeyDown}
+    >
+        <div class="slds-modal__container studio__container">
+            <header class="slds-modal__header studio__header">
+                <!-- Deliberately NOT slds-modal__close: that class positions the
+                     button outside the white container over the backdrop, which is
+                     why SLDS pairs it with an inverse icon. This modal is 92vw, so
+                     that lands over the header itself and a white icon disappears.
+                     Keep it inside the header with a normal dark icon. -->
+                <lightning-button-icon
+                    icon-name="utility:close"
+                    alternative-text="Close Grid Studio"
+                    title="Close Grid Studio"
+                    size="medium"
+                    variant="bare"
+                    class="studio__close"
+                    onclick={handleClose}
+                ></lightning-button-icon>
+                <h1 id="studio-heading" class="slds-modal__title slds-hyphenate">Grid Studio</h1>
+                <p class="slds-m-top_x-small slds-text-body_small">
+                    Changes apply immediately and are saved with the Flow element.
+                </p>
+            </header>
+
+            <div class="slds-modal__content studio__content">
+                <!-- ==================== left: controls ==================== -->
+                <div class="studio__controls">
+                    <template lwc:if={hasValidationErrors}>
+                        <div class="slds-box slds-box_x-small slds-theme_error slds-m-bottom_x-small" role="alert">
+                            <p class="slds-text-title_bold slds-m-bottom_xx-small">Fix the following:</p>
+                            <ul class="slds-list_dotted">
+                                <template for:each={validationErrors} for:item="error">
+                                    <li key={error.key}>{error.errorString}</li>
+                                </template>
+                            </ul>
+                        </div>
+                    </template>
+
+                    <lightning-accordion allow-multiple-sections-open active-section-name={openSections}>
+                        <template for:each={sections} for:item="section">
+                            <lightning-accordion-section key={section.name} name={section.name} label={section.label}>
+                                <c-fgrid_property-controls
+                                    section={section}
+                                    values={values}
+                                    value-data-types={valueDataTypes}
+                                    object-api-name={objectApiName}
+                                    builder-context={builderContext}
+                                    automatic-output-variables={automaticOutputVariables}
+                                    api-version={apiVersion}
+                                    onpropertychange={handlePropertyChange}
+                                ></c-fgrid_property-controls>
+                            </lightning-accordion-section>
+                        </template>
+                    </lightning-accordion>
+                </div>
+
+                <!-- ================= right: preview + columns ============== -->
+                <div class="studio__preview">
+                    <div class="preview">
+                        <div class="preview__banner">
+                            <lightning-icon icon-name="utility:preview" size="x-small"></lightning-icon>
+                            <span class="slds-m-left_xx-small"
+                                >Preview with sample data. Values are fabricated; column layout and formatting are
+                                real.</span
+                            >
+                        </div>
+
+                        <template lwc:if={hasColumns}>
+                            <template lwc:if={showPreviewHeader}>
+                                <div class="preview__header">
+                                    <template lwc:if={hasPreviewHeaderIcon}>
+                                        <lightning-icon
+                                            icon-name={previewHeaderIcon}
+                                            size="small"
+                                            class="slds-m-right_x-small"
+                                        ></lightning-icon>
+                                    </template>
+                                    <div>
+                                        <h2 class="slds-text-heading_small">{previewHeaderLabel}</h2>
+                                        <template lwc:if={hasPreviewCountLabel}>
+                                            <p class="slds-text-body_small slds-text-color_weak">{previewCountLabel}</p>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+
+                            <template lwc:if={showSearchBar}>
+                                <div class="preview__search">
+                                    <lightning-input
+                                        type="search"
+                                        variant="label-hidden"
+                                        label="Search"
+                                        placeholder="Search…"
+                                        disabled
+                                    ></lightning-input>
+                                </div>
+                            </template>
+
+                            <div class={previewWrapperClass} style={previewGridStyle}>
+                                <lightning-datatable
+                                    key-field={previewKeyField}
+                                    columns={previewColumns}
+                                    data={previewRows}
+                                    hide-checkbox-column={previewHideCheckbox}
+                                    max-row-selection={previewMaxRowSelection}
+                                    show-row-number-column={values.showRowNumbers}
+                                    suppress-bottom-bar
+                                ></lightning-datatable>
+                            </div>
+
+                            <template lwc:if={showPaginationChrome}>
+                                <div class="preview__pagination">
+                                    <template lwc:if={showFirstLast}>
+                                        <lightning-button label="First" disabled></lightning-button>
+                                    </template>
+                                    <lightning-button label="Previous" disabled></lightning-button>
+                                    <lightning-button label="Next" disabled></lightning-button>
+                                    <template lwc:if={showFirstLast}>
+                                        <lightning-button label="Last" disabled></lightning-button>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <template lwc:if={hasRowAction}>
+                                <p class="preview__note">{rowActionSummary}</p>
+                            </template>
+                        </template>
+
+                        <template lwc:else>
+                            <div class="preview__empty">
+                                <lightning-icon
+                                    icon-name="utility:table"
+                                    size="large"
+                                    variant="inverse"
+                                ></lightning-icon>
+                                <p class="slds-m-top_small">
+                                    Choose a record collection and some columns to see a preview.
+                                </p>
+                            </div>
+                        </template>
+                    </div>
+
+                    <div class="studio__columns">
+                        <h3 class="slds-text-heading_small slds-m-bottom_x-small">Column attributes</h3>
+                        <template lwc:if={hasObject}>
+                            <c-fgrid_column-config
+                                column-fields={values.columnFields}
+                                column-config={values.columnConfig}
+                                object-api-name={objectApiName}
+                                oncolumnconfigchange={handleColumnConfigChange}
+                            ></c-fgrid_column-config>
+                        </template>
+                        <template lwc:else>
+                            <p class="slds-text-body_small slds-text-color_weak">
+                                Choose a record collection in Data Source first — columns come from that object.
+                            </p>
+                        </template>
+                    </div>
+                </div>
+            </div>
+
+            <footer class="slds-modal__footer">
+                <lightning-button variant="brand" label="Done" onclick={handleClose}></lightning-button>
+            </footer>
+        </div>
+    </section>
+</template>

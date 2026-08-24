@@ -1,0 +1,50 @@
+<template>
+    <div class="slds-card slds-p-around_medium">
+        <div class="slds-media slds-media_center slds-m-bottom_small">
+            <div class="slds-media__figure">
+                <lightning-icon icon-name="standard:record" size="small"></lightning-icon>
+            </div>
+            <div class="slds-media__body">
+                <h2 class="slds-text-heading_small">Flow Grid — configuration preview</h2>
+                <p class="slds-text-body_small slds-text-color_weak">
+                    Phase 2 stub. The grid is not rendered yet; this shows what the property editor saved.
+                </p>
+            </div>
+        </div>
+
+        <dl class="slds-dl_horizontal slds-m-bottom_small">
+            <dt class="slds-dl_horizontal__label">Source</dt>
+            <dd class="slds-dl_horizontal__detail">{sourceSummary}</dd>
+            <dt class="slds-dl_horizontal__label">Key field</dt>
+            <dd class="slds-dl_horizontal__detail">{keyField}</dd>
+            <dt class="slds-dl_horizontal__label">Selection</dt>
+            <dd class="slds-dl_horizontal__detail">{selectionMode}</dd>
+            <dt class="slds-dl_horizontal__label">Row action</dt>
+            <dd class="slds-dl_horizontal__detail">{rowActionType}</dd>
+        </dl>
+
+        <template lwc:if={hasColumns}>
+            <table class="slds-table slds-table_bordered slds-table_cell-buffer">
+                <thead>
+                    <tr class="slds-line-height_reset">
+                        <th scope="col"><div class="slds-truncate" title="#">#</div></th>
+                        <th scope="col"><div class="slds-truncate" title="Field">Field</div></th>
+                        <th scope="col"><div class="slds-truncate" title="Attributes">Attributes</div></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template for:each={summaryRows} for:item="row">
+                        <tr key={row.key} class="slds-hint-parent">
+                            <td>{row.position}</td>
+                            <td><div class="slds-truncate" title={row.field}>{row.field}</div></td>
+                            <td><div class="slds-truncate" title={row.attributes}>{row.attributes}</div></td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </template>
+        <template lwc:else>
+            <p class="slds-text-body_regular slds-text-color_weak">No columns selected.</p>
+        </template>
+    </div>
+</template>
