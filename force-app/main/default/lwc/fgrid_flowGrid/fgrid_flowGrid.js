@@ -122,11 +122,14 @@ export default class FgridFlowGrid extends LightningElement {
     @api outputRemovedRecords = [];
     @api outputRemainingRecords = [];
     @api outputActionedRecord;
+    @api outputActionedRecords = [];
     @api outputSelectedRecordsJson;
     @api outputEditedRecordsJson;
     @api outputRemovedRecordsJson;
     @api outputRemainingRecordsJson;
     @api outputActionedRecordJson;
+    @api outputActionedRecordsJson;
+    @api actionedCount = 0;
     @api selectedCount = 0;
     @api editedCount = 0;
     @api removedCount = 0;
@@ -156,6 +159,8 @@ export default class FgridFlowGrid extends LightningElement {
     _removalBlockedMessage = null;
     /** Field patches applied by the row-action flow, keyed by keyField. */
     _editsByKey = {};
+    /** Keys of every row a row action ran on, in the order first actioned. */
+    _actionedKeys = [];
     /** Records the flow returned whose key was not already in the grid. */
     _addedRecords = [];
     /** The record currently open in the row-action flow modal. */
@@ -246,22 +251,52 @@ export default class FgridFlowGrid extends LightningElement {
      * component needed: the grid seeds from its input and then owns the current
      * state itself, applying flow edits, upserted additions, and removals.
      */
-    get remainingRecords() {
-        const removed = new Set(this._removedKeys);
+    /**
+     * Every record the grid knows about, edits applied, including removed ones.
+     *
+     * Removed rows stay reachable here so an actioned row can still be reported
+     * after it has been taken out of the grid.
+     */
+    get allKnownRecords() {
         const all = this._addedRecords.length ? [...this.sourceRecords, ...this._addedRecords] : this.sourceRecords;
-
-        return all
-            .filter((record) => !removed.has(record?.[this.keyField]))
-            .map((record) => {
-                const patch = this._editsByKey[record?.[this.keyField]];
-                return patch ? { ...record, ...patch } : record;
-            });
+        return all.map((record) => {
+            const patch = this._editsByKey[record?.[this.keyField]];
+            return patch ? { ...record, ...patch } : record;
+        });
     }
 
-    /** Only the records a row-action flow changed, with their edits applied. */
+    get remainingRecords() {
+        if (!this._removedKeys.length) {
+            return this.allKnownRecords;
+        }
+        const removed = new Set(this._removedKeys);
+        return this.allKnownRecords.filter((record) => !removed.has(record?.[this.keyField]));
+    }
+
+    /**
+     * Records whose values a row action actually changed.
+     *
+     * `_editsByKey` only holds fields that genuinely differed, so a flow that
+     * hands back an untouched record does not appear here. The difference between
+     * this and `actionedRecords` is exactly "touched" versus "changed".
+     */
     get editedRecords() {
         const keys = new Set(Object.keys(this._editsByKey));
-        return keys.size ? this.remainingRecords.filter((record) => keys.has(String(record?.[this.keyField]))) : [];
+        return keys.size ? this.allKnownRecords.filter((record) => keys.has(String(record?.[this.keyField]))) : [];
+    }
+
+    /**
+     * Every record a row action ran on, whether or not anything changed.
+     *
+     * Deduplicated by key and ordered by first action, so the calling Flow can
+     * iterate "rows the user worked on" without seeing repeats.
+     */
+    get actionedRecords() {
+        if (!this._actionedKeys.length) {
+            return [];
+        }
+        const byKey = new Map(this.allKnownRecords.map((record) => [String(record?.[this.keyField]), record]));
+        return this._actionedKeys.map((key) => byKey.get(String(key))).filter(Boolean);
     }
 
     get columns() {
@@ -803,11 +838,24 @@ export default class FgridFlowGrid extends LightningElement {
             return;
         }
 
-        const known = this.remainingRecords.some((candidate) => candidate?.[this.keyField] === key);
-        if (known) {
-            this._editsByKey = { ...this._editsByKey, [key]: { ...record, [this.keyField]: key } };
-        } else {
+        const existing = this.allKnownRecords.find((candidate) => candidate?.[this.keyField] === key);
+        if (!existing) {
             this._addedRecords = [...this._addedRecords, { ...record, [this.keyField]: key }];
+        } else {
+            // Keep only fields whose value genuinely differs, so a flow that
+            // returns the record untouched does not register as an edit.
+            const changed = {};
+            Object.keys(record).forEach((field) => {
+                if (field !== this.keyField && !sameValue(existing[field], record[field])) {
+                    changed[field] = record[field];
+                }
+            });
+            if (Object.keys(changed).length) {
+                this._editsByKey = {
+                    ...this._editsByKey,
+                    [key]: { ...(this._editsByKey[key] || {}), ...changed }
+                };
+            }
         }
 
         this.publishEdits();
@@ -893,12 +941,33 @@ export default class FgridFlowGrid extends LightningElement {
      */
     publishActioned(record) {
         const snapshot = { ...record };
+        const key = record?.[this.keyField];
+        if (key !== undefined && key !== null && !this._actionedKeys.some((seen) => String(seen) === String(key))) {
+            this._actionedKeys = [...this._actionedKeys, key];
+        }
+
         this.publish("outputActionedRecord", this.isUserDefinedObject ? null : snapshot);
         this.publish("outputActionedRecordJson", JSON.stringify(snapshot));
+        this.publishActionedCollection();
+    }
+
+    /**
+     * Publishes the accumulated touched-rows collection.
+     *
+     * Republished after an edit too, so the collection always carries current
+     * values rather than a snapshot from action time.
+     */
+    publishActionedCollection() {
+        const actioned = this.actionedRecords;
+        this.publish("outputActionedRecords", this.isUserDefinedObject ? [] : actioned);
+        this.publish("outputActionedRecordsJson", actioned.length ? JSON.stringify(actioned) : null);
+        this.publish("actionedCount", actioned.length);
     }
 
     /** Publishes the edited-records outputs. */
     publishEdits() {
+        // An edited row may also be an actioned row; keep that collection current.
+        this.publishActionedCollection();
         const edited = this.editedRecords;
         this.publish("outputEditedRecords", this.isUserDefinedObject ? [] : edited);
         this.publish("outputEditedRecordsJson", edited.length ? JSON.stringify(edited) : null);
@@ -923,6 +992,27 @@ export default class FgridFlowGrid extends LightningElement {
         this[name] = value;
         this.dispatchEvent(new FlowAttributeChangeEvent(name, value));
     }
+}
+
+/**
+ * Compares two field values the way an admin would judge "did this change".
+ *
+ * Blank forms are treated as equivalent: a flow that clears a field may return
+ * an empty string where the record held null, and reporting that as an edit
+ * would be noise. Objects are compared structurally.
+ */
+function sameValue(before, after) {
+    const blank = (value) => value === null || value === undefined || value === "";
+    if (blank(before) && blank(after)) {
+        return true;
+    }
+    if (blank(before) !== blank(after)) {
+        return false;
+    }
+    if (typeof before === "object" || typeof after === "object") {
+        return JSON.stringify(before) === JSON.stringify(after);
+    }
+    return String(before) === String(after);
 }
 
 /**
