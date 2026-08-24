@@ -43,8 +43,15 @@ public with sharing class FlowGridController {
      */
     @AuraEnabled(cacheable=true)
     public static GridMetadata getGridMetadata(String objectApiName, List<String> fieldPaths) {
+        // A wired Apex call fires even while its reactive parameters are still
+        // undefined, so a blank object name is an ordinary not-ready state, not
+        // an error. Report it the same way an unknown object is reported rather
+        // than throwing and flashing an error banner on first render.
         if (String.isBlank(objectApiName)) {
-            throw new AuraHandledException('An object API name is required.');
+            GridMetadata empty = new GridMetadata();
+            empty.objectInfo = FlowGridColumnService.describeObject(objectApiName);
+            empty.columns = new List<FlowGridColumnService.ColumnInfo>();
+            return empty;
         }
 
         try {
@@ -56,6 +63,30 @@ public with sharing class FlowGridController {
             // Surface the reason to the admin; the raw stack trace is not useful
             // in a Flow screen and may leak metadata names.
             throw new AuraHandledException('Unable to describe ' + objectApiName + ': ' + error.getMessage());
+        }
+    }
+
+    /**
+     * Sample records for the Grid Studio preview.
+     *
+     * Design-time only, so deliberately NOT cacheable: an admin adding a column
+     * expects the preview to refresh, not to serve a stale sample.
+     *
+     * @param objectApiName API name of the object to sample
+     * @param fieldPaths requested column paths; inaccessible ones are skipped
+     * @param recordLimit desired row count, clamped by the service
+     * @return real records, or an empty list when none can be queried, in which
+     *         case the caller falls back to fabricated rows
+     */
+    @AuraEnabled
+    public static List<SObject> getPreviewRecords(String objectApiName, List<String> fieldPaths, Integer recordLimit) {
+        if (String.isBlank(objectApiName)) {
+            return new List<SObject>();
+        }
+        try {
+            return FlowGridPreviewService.queryPreviewRecords(objectApiName, fieldPaths, recordLimit);
+        } catch (Exception error) {
+            throw new AuraHandledException('Unable to load preview records: ' + error.getMessage());
         }
     }
 }

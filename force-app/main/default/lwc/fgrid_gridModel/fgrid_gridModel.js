@@ -107,27 +107,73 @@ export function defaultLabel(fieldPath) {
 }
 
 /**
+ * Suffix for the synthetic row property holding a record link URL.
+ *
+ * `lightning-datatable` renders a link with type `url`, which needs the URL in
+ * the row rather than derived at render time. `buildRows` populates it.
+ */
+export const LINK_SUFFIX = "__fgridUrl";
+
+/**
  * Builds `lightning-datatable` columns.
+ *
+ * Precedence for every column fact is: the admin's explicit `columnConfig`
+ * override, then real field metadata from Apex, then a guess from the field's
+ * API name. That ordering is what lets one function serve both the Grid Studio
+ * preview (no Apex at design time) and the runtime (full describe).
  *
  * @param {string[]} fields ordered field API paths
  * @param {object} config per-field attribute map from the columnConfig property
- * @param {object} options grid-level flags that affect every column
+ * @param {object} options grid-level flags, plus `describeByPath` from
+ *        FlowGridController.getGridMetadata when available
  * @returns {object[]} datatable column definitions
  */
 export function buildColumns(fields, config = {}, options = {}) {
-    const { hideHeaderActions = false, allowSort = true, defaultEditable = false } = options;
+    const {
+        hideHeaderActions = false,
+        allowSort = true,
+        defaultEditable = false,
+        describeByPath = null,
+        linkNameField = false,
+        openLinksInSameTab = false
+    } = options;
 
     return (fields || []).map((field) => {
         const attributes = config?.[field] || {};
+        const describe = describeByPath?.[field] || null;
+
         const column = {
-            label: attributes.label || defaultLabel(field),
+            label: attributes.label || describe?.label || defaultLabel(field),
             fieldName: field,
-            type: inferType(field, attributes.type),
-            sortable: allowSort && !hideHeaderActions,
-            editable: attributes.edit ?? defaultEditable,
+            type: attributes.type || describe?.dataType || inferType(field),
+            // A field the describe says is unsortable can never be sorted, no
+            // matter what the grid-level flags say.
+            sortable: allowSort && !hideHeaderActions && describe?.isSortable !== false,
+            editable: attributes.edit ?? (describe ? describe.isEditable && defaultEditable : defaultEditable),
             wrapText: Boolean(attributes.wrap),
             hideDefaultActions: Boolean(hideHeaderActions)
         };
+
+        // Picklist values travel to the custom edit cell; the datatable ignores
+        // them for a text column.
+        if (describe?.picklistOptions?.length) {
+            column.fgridPicklistOptions = describe.picklistOptions;
+        }
+        if (describe && describe.isAccessible === false) {
+            column.fgridInaccessible = true;
+            column.fgridError = describe.errorMessage || null;
+        }
+
+        // Render the object's Name field as a link to the record.
+        if (linkNameField && describe?.isNameField) {
+            column.type = "url";
+            column.fieldName = field + LINK_SUFFIX;
+            column.fgridLinkFor = field;
+            column.typeAttributes = {
+                label: { fieldName: field },
+                target: openLinksInSameTab ? "_self" : "_blank"
+            };
+        }
 
         if (Number.isFinite(Number(attributes.width)) && attributes.width) {
             column.initialWidth = Number(attributes.width);
@@ -144,10 +190,16 @@ export function buildColumns(fields, config = {}, options = {}) {
             column.cellAttributes = cellAttributes;
         }
 
-        const typeAttributes = { ...(isPlainObject(attributes.typeAttribs) ? attributes.typeAttribs : {}) };
-        if (Number.isFinite(Number(attributes.scale)) && attributes.scale !== null && attributes.scale !== "") {
-            typeAttributes.minimumFractionDigits = Number(attributes.scale);
-            typeAttributes.maximumFractionDigits = Number(attributes.scale);
+        // Merge onto whatever is already there: a link column set typeAttributes
+        // above, and clobbering it would drop the link label and target.
+        const typeAttributes = {
+            ...(column.typeAttributes || {}),
+            ...(isPlainObject(attributes.typeAttribs) ? attributes.typeAttribs : {})
+        };
+        const scale = firstNumber(attributes.scale, describe?.scale);
+        if (scale !== null) {
+            typeAttributes.minimumFractionDigits = scale;
+            typeAttributes.maximumFractionDigits = scale;
         }
         if (Object.keys(typeAttributes).length) {
             column.typeAttributes = typeAttributes;
@@ -162,6 +214,127 @@ export function buildColumns(fields, config = {}, options = {}) {
 
         return column;
     });
+}
+
+/**
+ * Flattens real records into datatable rows.
+ *
+ * `lightning-datatable` looks a column's `fieldName` up directly on the row, so
+ * it cannot traverse `Owner.Alias`. Relationship paths are resolved here and
+ * stored under the dotted path as a literal key.
+ *
+ * NOTE: a relationship value only exists if the Flow actually queried it. Flow's
+ * "automatically store all fields" covers direct fields only, so a related
+ * column will be blank unless the Get Records element selected it explicitly.
+ *
+ * @param {object[]} records records as the Flow supplied them
+ * @param {object[]} columns output of `buildColumns`, for link and path info
+ * @param {string} keyField unique row identifier property
+ * @returns {object[]} flat rows safe to hand to `lightning-datatable`
+ */
+export function buildRows(records, columns, keyField = "Id") {
+    if (!Array.isArray(records)) {
+        return [];
+    }
+    const paths = (columns || []).map((column) => column.fgridLinkFor || column.fieldName).filter(Boolean);
+
+    return records.map((record, index) => {
+        const row = {};
+        // Always carry the key, even when it is not a displayed column.
+        row[keyField] = resolvePath(record, keyField) ?? `row-${index}`;
+        if (record?.Id !== undefined) {
+            row.Id = record.Id;
+        }
+
+        paths.forEach((path) => {
+            row[path] = resolvePath(record, path) ?? null;
+        });
+
+        (columns || []).forEach((column) => {
+            if (column.fgridLinkFor && row.Id) {
+                row[column.fgridLinkFor + LINK_SUFFIX] = `/${row.Id}`;
+            }
+        });
+
+        return row;
+    });
+}
+
+/**
+ * Sorts rows by one column, leaving the input untouched.
+ *
+ * Blank values always sort last regardless of direction, which is what a user
+ * expects from a column of mostly-populated data.
+ *
+ * @param {object[]} rows rows from `buildRows`
+ * @param {string} fieldName row property to sort on
+ * @param {string} direction `asc` or `desc`
+ * @param {boolean} caseInsensitive compare text without regard to case
+ */
+export function sortRows(rows, fieldName, direction = "asc", caseInsensitive = false) {
+    if (!Array.isArray(rows) || !fieldName) {
+        return rows || [];
+    }
+    const factor = direction === "desc" ? -1 : 1;
+
+    return [...rows].sort((left, right) => {
+        const a = normalizeForSort(left?.[fieldName], caseInsensitive);
+        const b = normalizeForSort(right?.[fieldName], caseInsensitive);
+
+        const aBlank = a === null || a === "";
+        const bBlank = b === null || b === "";
+        if (aBlank && bBlank) {
+            return 0;
+        }
+        if (aBlank) {
+            return 1;
+        }
+        if (bBlank) {
+            return -1;
+        }
+        if (a === b) {
+            return 0;
+        }
+        return (a < b ? -1 : 1) * factor;
+    });
+}
+
+/** Walks a dotted path through a record, tolerating missing links. */
+function resolvePath(record, path) {
+    if (!record || !path) {
+        return null;
+    }
+    if (Object.prototype.hasOwnProperty.call(record, path)) {
+        return record[path];
+    }
+    return String(path)
+        .split(".")
+        .reduce((node, segment) => (node === null || node === undefined ? null : node[segment]), record);
+}
+
+function normalizeForSort(value, caseInsensitive) {
+    if (value === null || value === undefined) {
+        return null;
+    }
+    if (typeof value === "number" || typeof value === "boolean") {
+        return value;
+    }
+    const text = String(value);
+    return caseInsensitive ? text.toLowerCase() : text;
+}
+
+/** First of the supplied values that is a finite number, else null. */
+function firstNumber(...candidates) {
+    for (const candidate of candidates) {
+        if (candidate === null || candidate === undefined || candidate === "") {
+            continue;
+        }
+        const parsed = Number(candidate);
+        if (Number.isFinite(parsed)) {
+            return parsed;
+        }
+    }
+    return null;
 }
 
 /**

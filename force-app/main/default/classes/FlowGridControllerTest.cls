@@ -23,14 +23,18 @@ private class FlowGridControllerTest {
     }
 
     @IsTest
-    static void getGridMetadataRejectsBlankObjectName() {
+    static void getGridMetadataTreatsBlankObjectNameAsNotReady() {
+        // A wired call fires before its reactive parameters resolve; that must
+        // not surface as an error to the user.
         for (String candidate : new List<String>{ null, '', '   ' }) {
-            try {
-                FlowGridController.getGridMetadata(candidate, new List<String>{ 'Name' });
-                Assert.fail('A blank object API name should be refused: ' + candidate);
-            } catch (AuraHandledException expected) {
-                Assert.isNotNull(expected, 'An AuraHandledException is expected');
-            }
+            FlowGridController.GridMetadata metadata = FlowGridController.getGridMetadata(
+                candidate,
+                new List<String>{ 'Name' }
+            );
+
+            Assert.isNotNull(metadata, 'A bundle is always returned: ' + candidate);
+            Assert.isFalse(metadata.objectInfo.isAccessible, 'Nothing is accessible yet');
+            Assert.areEqual(0, metadata.columns.size(), 'No columns are described yet');
         }
     }
 
