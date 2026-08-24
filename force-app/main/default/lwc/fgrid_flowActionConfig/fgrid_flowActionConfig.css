@@ -15,3 +15,14 @@
     font-style: italic;
     margin: 0.5rem 0 0;
 }
+
+.flowconfig__actions {
+    display: flex;
+    align-items: center;
+    margin-top: 0.25rem;
+}
+
+/* Reclaims the option gutter lightning-combobox reserves for its check icon. */
+.flowconfig__list {
+    --slds-c-listbox-option-spacing-inline-start: 0.5rem;
+}

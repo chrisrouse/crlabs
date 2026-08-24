@@ -3,105 +3,99 @@
  *
  * Modelled on the platform's own Screen Action editor: pick an active flow, and
  * the editor reads that flow's variables and offers only the ones the grid can
- * actually populate.
+ * populate. Free-text variable names were the previous approach, and a typo
+ * produced a flow that launched and silently ignored its inputs.
  *
  * Both launchable kinds are offered. A screen flow opens in a modal; an
  * autolaunched flow runs server-side with no UI. Flows the platform fires itself
- * — record-triggered, scheduled, platform-event — are excluded and counted, since
- * nothing can invoke them from a component. Free-text variable names were the previous
- * approach here, and a typo produced a flow that launched and silently ignored
- * its inputs.
+ * are simply absent, since nothing can invoke them from a component.
  *
- * Filtering is deliberately narrow:
- *   record variable  - input, SObject, not a collection, and matching the grid's
- *                      object where the flow declares one
- *   Id variable      - input, String or Id, not a collection
- *   output variable  - output, SObject, not a collection
+ * Refresh re-reads the flow list and the selected flow's variables in place, so
+ * editing a flow in another tab does not mean closing and reopening this editor.
+ * It goes through refreshApex because the underlying Apex is cacheable and a
+ * plain re-call would hand back the cached answer.
  *
- * A record variable typed to a different object is still offered but flagged,
- * because that combination fails at runtime rather than at save time.
+ * Variables come from the flow's ACTIVE version, which is also the version the
+ * row action launches. A saved-but-not-activated version therefore shows no
+ * change on refresh, and the editor says so rather than looking broken.
  */
 import { LightningElement, api, wire } from "lwc";
+import { refreshApex } from "@salesforce/apex";
 import getFlows from "@salesforce/apex/FlowGridController.getFlows";
 import getFlowVariables from "@salesforce/apex/FlowGridController.getFlowVariables";
 
 const NONE = "__none__";
 
 export default class FgridFlowActionConfig extends LightningElement {
+    @api label = "Flow to launch";
+    @api help;
+    @api required = false;
+
     @api flowApiName;
     @api recordVariable;
     @api idVariable;
     @api outputVariable;
+    @api statusVariable;
 
     /** The grid's object, used to flag a mismatched record variable. */
     @api objectApiName;
 
+    _flowsResult;
+    _variablesResult;
     _flows = [];
     _variables = [];
     _flowsError;
     _variablesError;
+    isRefreshing = false;
 
     @wire(getFlows)
-    wiredFlows({ data, error }) {
-        if (data) {
-            this._flows = data;
+    wiredFlows(result) {
+        this._flowsResult = result;
+        if (result.data) {
+            this._flows = result.data;
             this._flowsError = undefined;
-        } else if (error) {
+        } else if (result.error) {
             this._flows = [];
             this._flowsError = "Could not load the list of flows.";
         }
     }
 
     @wire(getFlowVariables, { flowApiName: "$flowApiName" })
-    wiredVariables({ data, error }) {
-        if (data) {
-            this._variables = data;
+    wiredVariables(result) {
+        this._variablesResult = result;
+        if (result.data) {
+            this._variables = result.data;
             this._variablesError = undefined;
-        } else if (error) {
+        } else if (result.error) {
             this._variables = [];
             this._variablesError = "Could not read the variables for this flow.";
         }
     }
 
     /* ------------------------------------------------------------------ *
-     * Options
+     * Flow selection
      * ------------------------------------------------------------------ */
 
-    /** Only flows the grid can actually invoke, labelled with how. */
     get flowOptions() {
         return this._flows
             .filter((flow) => flow.launchMode)
-            .map((flow) => {
-                const kind = flow.launchMode === "Headless" ? "Autolaunched" : "Screen";
-                const name = flow.label || flow.apiName;
-                return { label: `${kind} — ${name}`, value: flow.apiName };
-            });
+            .map((flow) => ({ label: flow.label || flow.apiName, value: flow.apiName }));
     }
 
     get hasFlows() {
         return this.flowOptions.length > 0;
     }
 
-    /** The flow currently selected, from the discovered list. */
     get selectedFlow() {
         return this._flows.find((flow) => flow.apiName === this.flowApiName) || null;
     }
 
+    get hasFlowSelected() {
+        return Boolean(this.flowApiName);
+    }
+
     get isHeadlessFlow() {
         return this.selectedFlow?.launchMode === "Headless";
-    }
-
-    /** Explains the flows deliberately left out of the picker. */
-    get excludedNote() {
-        const excluded = this._flows.filter((flow) => !flow.launchMode).length;
-        if (!excluded) {
-            return null;
-        }
-        return `${excluded} active ${excluded === 1 ? "flow is" : "flows are"} not listed: record-triggered, scheduled, platform-event and specialised flows are fired by the platform and cannot be launched from a row action.`;
-    }
-
-    get hasExcludedNote() {
-        return Boolean(this.excludedNote);
     }
 
     get launchModeNote() {
@@ -109,48 +103,81 @@ export default class FgridFlowActionConfig extends LightningElement {
             return null;
         }
         return this.isHeadlessFlow
-            ? "Autolaunched: this runs immediately with no screen. Its outputs are read back into the grid."
-            : "Screen flow: this opens in a modal for the user to complete.";
+            ? "Autolaunched: runs immediately with no screen. Its outputs are read back into the grid."
+            : "Screen flow: opens in a modal for the user to complete.";
     }
 
     get hasLaunchModeNote() {
         return Boolean(this.launchModeNote);
     }
 
-    get hasFlowSelected() {
-        return Boolean(this.flowApiName);
+    /**
+     * Warns when the flow has a newer version that is not active.
+     *
+     * Without this, refreshing after editing a flow appears to do nothing.
+     */
+    get versionNote() {
+        const flow = this.selectedFlow;
+        if (!flow?.latestVersionId || !flow?.activeVersionId) {
+            return null;
+        }
+        if (flow.latestVersionId === flow.activeVersionId) {
+            return null;
+        }
+        return "This flow has a newer version that is not activated. The editor and the row action both use the active version — activate your changes to see them here.";
     }
 
-    /** Input SObject variables, non-collection. */
+    get hasVersionNote() {
+        return Boolean(this.versionNote);
+    }
+
+    /* ------------------------------------------------------------------ *
+     * Variable mapping
+     * ------------------------------------------------------------------ */
+
     get recordOptions() {
-        return this.optional(
+        return this.withCurrent(
             this._variables
                 .filter((v) => v.isInput && v.dataType === "SObject" && !v.isCollection)
                 .map((v) => ({
                     label: v.objectType ? `${v.apiName} (${v.objectType})` : v.apiName,
                     value: v.apiName
-                }))
+                })),
+            this.recordVariable
         );
     }
 
-    /** Input text variables that can carry a record Id. */
     get idOptions() {
-        return this.optional(
+        return this.withCurrent(
             this._variables
                 .filter((v) => v.isInput && !v.isCollection && (v.dataType === "String" || v.dataType === "Id"))
-                .map((v) => ({ label: `${v.apiName} (${v.dataType})`, value: v.apiName }))
+                .map((v) => ({ label: `${v.apiName} (${v.dataType})`, value: v.apiName })),
+            this.idVariable
         );
     }
 
-    /** Output SObject variables the grid can read the edited record from. */
     get outputOptions() {
-        return this.optional(
+        return this.withCurrent(
             this._variables
                 .filter((v) => v.isOutput && v.dataType === "SObject" && !v.isCollection)
                 .map((v) => ({
                     label: v.objectType ? `${v.apiName} (${v.objectType})` : v.apiName,
                     value: v.apiName
-                }))
+                })),
+            this.outputVariable
+        );
+    }
+
+    /**
+     * Any non-collection output. Not restricted to SObject, because a status can
+     * be a Boolean, a picklist, or free text.
+     */
+    get statusOptions() {
+        return this.withCurrent(
+            this._variables
+                .filter((v) => v.isOutput && !v.isCollection)
+                .map((v) => ({ label: `${v.apiName} (${v.dataType})`, value: v.apiName })),
+            this.statusVariable
         );
     }
 
@@ -166,6 +193,39 @@ export default class FgridFlowActionConfig extends LightningElement {
         return this.outputVariable || NONE;
     }
 
+    get statusValue() {
+        return this.statusVariable || NONE;
+    }
+
+    /**
+     * Names any mapping pointing at a variable the flow no longer declares.
+     *
+     * Flagged rather than cleared: silently discarding configuration is worse
+     * than showing it, and the stale value stays selectable so it can be cleared
+     * deliberately — the way Flow surfaces a removed subflow variable.
+     */
+    get staleMappings() {
+        if (!this._variables.length) {
+            return [];
+        }
+        const declared = new Set(this._variables.map((v) => v.apiName));
+        return [
+            { label: "the row's record", name: this.recordVariable },
+            { label: "the row's Id", name: this.idVariable },
+            { label: "the edited record", name: this.outputVariable },
+            { label: "the status", name: this.statusVariable }
+        ]
+            .filter((entry) => entry.name && !declared.has(entry.name))
+            .map((entry) => ({
+                key: `${entry.name}:${entry.label}`,
+                message: `${entry.name}, mapped to ${entry.label}, is no longer a variable in this flow. Set it to "not passed" to clear it.`
+            }));
+    }
+
+    get hasStaleMappings() {
+        return this.staleMappings.length > 0;
+    }
+
     /* ------------------------------------------------------------------ *
      * Diagnostics
      * ------------------------------------------------------------------ */
@@ -178,7 +238,6 @@ export default class FgridFlowActionConfig extends LightningElement {
         return Boolean(this.errorMessage);
     }
 
-    /** Warns when the chosen record variable is typed to a different object. */
     get objectMismatch() {
         if (!this.recordVariable || !this.objectApiName) {
             return null;
@@ -194,40 +253,18 @@ export default class FgridFlowActionConfig extends LightningElement {
         return Boolean(this.objectMismatch);
     }
 
-    /** Warns when the flow takes nothing the grid can populate. */
-    get takesNoInput() {
-        return (
-            this.hasFlowSelected &&
-            this._variables.length > 0 &&
-            this.recordOptions.length === 1 &&
-            this.idOptions.length === 1
-        );
-    }
-
-    /** Warns when the flow returns nothing, so no edit can come back. */
-    get returnsNothing() {
-        return this.hasFlowSelected && this._variables.length > 0 && this.outputOptions.length === 1;
-    }
-
-    /** Screen-flow label; an autolaunched flow has no screens to complete. */
-    get recordMappingLabel() {
-        return this.isHeadlessFlow ? "Send the row's record to" : "Send the row's record to";
-    }
-
-    get variablesSummary() {
-        if (!this.hasFlowSelected) {
+    get statusHint() {
+        if (!this.statusVariable) {
             return null;
         }
-        if (!this._variables.length) {
-            return "This flow declares no variables, so nothing can be passed in or read back.";
-        }
-        const inputs = this._variables.filter((v) => v.isInput).length;
-        const outputs = this._variables.filter((v) => v.isOutput).length;
-        return `${inputs} input and ${outputs} output ${outputs === 1 ? "variable" : "variables"} available.`;
+        const chosen = this._variables.find((v) => v.apiName === this.statusVariable);
+        return chosen?.dataType === "Boolean"
+            ? `${this.statusVariable} is a Boolean, so the value it returns decides whether the row is recorded as actioned.`
+            : `${this.statusVariable} is passed through to Last Action Status. Only a Boolean can decide whether the row is recorded.`;
     }
 
-    get hasVariablesSummary() {
-        return Boolean(this.variablesSummary);
+    get hasStatusHint() {
+        return Boolean(this.statusHint);
     }
 
     /* ------------------------------------------------------------------ *
@@ -238,13 +275,13 @@ export default class FgridFlowActionConfig extends LightningElement {
         const value = event.detail.value;
         const chosen = this._flows.find((flow) => flow.apiName === value);
         this.publish("rowActionFlowApiName", value || null);
-        // Stored so the runtime knows which launch path to take without having to
-        // look the flow up again on every click.
+        // Stored so the runtime picks its launch path without another lookup.
         this.publish("rowActionFlowLaunchMode", chosen?.launchMode || null);
         // The previous mappings referred to a different flow's variables.
         this.publish("rowActionFlowRecordVariable", null);
         this.publish("rowActionFlowIdVariable", null);
         this.publish("rowActionFlowOutputVariable", null);
+        this.publish("rowActionFlowStatusVariable", null);
     }
 
     handleRecordChange(event) {
@@ -259,9 +296,32 @@ export default class FgridFlowActionConfig extends LightningElement {
         this.publish("rowActionFlowOutputVariable", this.normalize(event.detail.value));
     }
 
-    /** Prepends a "not passed" choice so a mapping can be cleared. */
-    optional(options) {
-        return [{ label: "— not passed —", value: NONE }, ...options];
+    handleStatusChange(event) {
+        this.publish("rowActionFlowStatusVariable", this.normalize(event.detail.value));
+    }
+
+    /** Re-reads the flow list and the selected flow's variables from the server. */
+    async handleRefresh() {
+        this.isRefreshing = true;
+        try {
+            await Promise.all(
+                [this._flowsResult, this._variablesResult].filter(Boolean).map((result) => refreshApex(result))
+            );
+        } finally {
+            this.isRefreshing = false;
+        }
+    }
+
+    /**
+     * Keeps a saved value selectable even when the flow no longer declares it, so
+     * the combobox does not render blank and the mapping can be cleared.
+     */
+    withCurrent(options, current) {
+        const base = [{ label: "— not passed —", value: NONE }, ...options];
+        if (current && !options.some((option) => option.value === current)) {
+            base.push({ label: `${current} (no longer in this flow)`, value: current });
+        }
+        return base;
     }
 
     normalize(value) {

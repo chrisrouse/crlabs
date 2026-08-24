@@ -144,6 +144,25 @@ public with sharing class FlowGridController {
     }
 
     /**
+     * Reports which of the given records still exist.
+     *
+     * Used after a row action, because a launched flow can delete the record it
+     * was handed and the grid holds only an in-memory copy.
+     *
+     * @param objectApiName API name of the object to check
+     * @param recordIds ids to look for
+     * @return the subset that still exists and is visible to the running user
+     */
+    @AuraEnabled
+    public static List<String> getExistingRecordIds(String objectApiName, List<String> recordIds) {
+        try {
+            return FlowGridRecordService.findExistingIds(objectApiName, recordIds);
+        } catch (Exception error) {
+            throw new AuraHandledException('Unable to verify records: ' + error.getMessage());
+        }
+    }
+
+    /**
      * Variables declared by a flow, so the editor can map the grid's record and
      * Id onto the variables that flow actually has.
      *

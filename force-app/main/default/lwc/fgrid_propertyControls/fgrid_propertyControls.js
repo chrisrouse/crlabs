@@ -75,6 +75,12 @@ export default class FgridPropertyControls extends LightningElement {
         this.publish(name, newValue, newValueDataType || DATA_TYPE_FOR[CONTROL.RESOURCE], resource);
     }
 
+    /** The flow picker already emits the normalized shape; pass it straight on. */
+    handleFlowConfig(event) {
+        event.stopPropagation();
+        this.publish(event.detail.property, event.detail.value, event.detail.dataType || "String");
+    }
+
     handleField(event) {
         const { name, newValue } = event.detail;
         this.publish(name, newValue, DATA_TYPE_FOR[CONTROL.FIELD]);

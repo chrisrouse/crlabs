@@ -8,14 +8,15 @@
 
         <template lwc:if={hasFlows}>
             <lightning-combobox
+                class="flowconfig__list"
                 data-validatable
                 data-property="rowActionFlowApiName"
-                label="Flow to launch"
+                label={label}
                 placeholder="Select an active flow"
                 value={flowApiName}
                 options={flowOptions}
-                required
-                field-level-help="Active screen flows and autolaunched flows. A draft flow cannot be launched at runtime."
+                required={required}
+                field-level-help={help}
                 onchange={handleFlowChange}
             ></lightning-combobox>
 
@@ -30,16 +31,15 @@
             </p>
         </template>
 
-        <template lwc:if={hasExcludedNote}>
-            <p class="flowconfig__excluded">{excludedNote}</p>
-        </template>
-
         <template lwc:if={hasFlowSelected}>
-            <template lwc:if={hasVariablesSummary}>
-                <p class="flowconfig__summary">{variablesSummary}</p>
+            <template lwc:if={hasVersionNote}>
+                <div class="slds-box slds-box_x-small slds-theme_warning slds-m-vertical_x-small" role="alert">
+                    <p>{versionNote}</p>
+                </div>
             </template>
 
             <lightning-combobox
+                class="flowconfig__list"
                 data-property="rowActionFlowRecordVariable"
                 label="Send the row's record to"
                 value={recordValue}
@@ -49,6 +49,7 @@
             ></lightning-combobox>
 
             <lightning-combobox
+                class="flowconfig__list"
                 data-property="rowActionFlowIdVariable"
                 label="Send the row's Id to"
                 value={idValue}
@@ -58,6 +59,7 @@
             ></lightning-combobox>
 
             <lightning-combobox
+                class="flowconfig__list"
                 data-property="rowActionFlowOutputVariable"
                 label="Read the edited record from"
                 value={outputValue}
@@ -66,27 +68,46 @@
                 onchange={handleOutputChange}
             ></lightning-combobox>
 
+            <lightning-combobox
+                class="flowconfig__list"
+                data-property="rowActionFlowStatusVariable"
+                label="Read a status from"
+                value={statusValue}
+                options={statusOptions}
+                field-level-help="Optional. An output variable reporting what the flow did. Surfaced as Last Action Status, and a Boolean decides whether the row is recorded as actioned."
+                onchange={handleStatusChange}
+            ></lightning-combobox>
+
+            <template lwc:if={hasStatusHint}>
+                <p class="flowconfig__summary">{statusHint}</p>
+            </template>
+
+            <div class="flowconfig__actions">
+                <lightning-button
+                    variant="base"
+                    label="Refresh variables"
+                    icon-name="utility:refresh"
+                    disabled={isRefreshing}
+                    onclick={handleRefresh}
+                ></lightning-button>
+                <template lwc:if={isRefreshing}>
+                    <span class="flowconfig__summary slds-m-left_x-small">Refreshing…</span>
+                </template>
+            </div>
+
+            <template lwc:if={hasStaleMappings}>
+                <div class="slds-box slds-box_x-small slds-theme_warning slds-m-top_x-small" role="alert">
+                    <ul class="slds-list_dotted">
+                        <template for:each={staleMappings} for:item="stale">
+                            <li key={stale.key}>{stale.message}</li>
+                        </template>
+                    </ul>
+                </div>
+            </template>
+
             <template lwc:if={hasObjectMismatch}>
                 <div class="slds-box slds-box_x-small slds-theme_error slds-m-top_x-small" role="alert">
                     <p>{objectMismatch}</p>
-                </div>
-            </template>
-
-            <template lwc:if={takesNoInput}>
-                <div class="slds-box slds-box_x-small slds-theme_warning slds-m-top_x-small" role="alert">
-                    <p>
-                        This flow has no input variable the grid can populate. Add an SObject or text input variable to
-                        it, or the flow will open without knowing which row was clicked.
-                    </p>
-                </div>
-            </template>
-
-            <template lwc:if={returnsNothing}>
-                <div class="slds-box slds-box_x-small slds-theme_warning slds-m-top_x-small" role="alert">
-                    <p>
-                        This flow has no SObject output variable. Edits will not come back into the grid unless it
-                        outputs individual values named after your columns.
-                    </p>
                 </div>
             </template>
         </template>

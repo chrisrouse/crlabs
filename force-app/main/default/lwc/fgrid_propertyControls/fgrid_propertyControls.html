@@ -112,6 +112,23 @@
                     ></c-flow-config-field-picker>
                 </template>
 
+                <template lwc:elseif={control.isFlow}>
+                    <c-fgrid_flow-action-config
+                        data-validatable
+                        data-property={control.property}
+                        label={control.label}
+                        help={control.help}
+                        required={control.required}
+                        flow-api-name={values.rowActionFlowApiName}
+                        record-variable={values.rowActionFlowRecordVariable}
+                        id-variable={values.rowActionFlowIdVariable}
+                        output-variable={values.rowActionFlowOutputVariable}
+                        status-variable={values.rowActionFlowStatusVariable}
+                        object-api-name={objectApiName}
+                        onpropertychange={handleFlowConfig}
+                    ></c-fgrid_flow-action-config>
+                </template>
+
                 <template lwc:elseif={control.isFields}>
                     <c-flow-config-field-picker
                         data-validatable

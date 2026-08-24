@@ -19,7 +19,11 @@ export const CONTROL = {
     ICON: "icon",
     RESOURCE: "resource",
     FIELD: "field",
-    FIELDS: "fields"
+    FIELDS: "fields",
+    /** Flow picker. Needs Apex to read a flow's variables, so it is a component
+     *  rather than a plain input, but it participates in declaration order like
+     *  any other control. */
+    FLOW: "flow"
 };
 
 /** Flow `valueDataType` each control type writes. */
@@ -44,7 +48,7 @@ const ROW_ACTION_TYPES = [
     { label: "None", value: "None" },
     { label: "Standard action", value: "Standard" },
     { label: "Remove row", value: "Remove" },
-    { label: "Run a screen flow", value: "Flow" }
+    { label: "Run a flow", value: "Flow" }
 ];
 
 const MODAL_SIZES = [
@@ -88,7 +92,6 @@ const BUTTON_VARIANTS = [
 export const EDITOR_MANAGED_PROPERTIES = [
     "objectApiName",
     "columnConfig",
-    "rowActionFlowApiName",
     "rowActionFlowLaunchMode",
     "rowActionFlowRecordVariable",
     "rowActionFlowIdVariable",
@@ -132,8 +135,15 @@ export const VISIBILITY = {
     buttonAction: (v) => v.rowActionType !== "None" && v.rowActionDisplay === "Button",
     removeAction: (v) => v.rowActionType === "Remove",
     flowAction: (v) => v.rowActionType === "Flow",
-    // Modal options only mean something for a flow that renders screens.
-    screenFlowAction: (v) => v.rowActionType === "Flow" && v.rowActionFlowLaunchMode !== "Headless"
+    /**
+     * Everything below the flow picker waits until a flow is chosen, so the
+     * section reads top-down instead of showing options for an action that has
+     * not been pointed at anything yet.
+     */
+    flowConfigured: (v) => v.rowActionType !== "Flow" || Boolean(v.rowActionFlowApiName),
+    /** Modal options only mean something for a flow that renders screens. */
+    screenFlowAction: (v) =>
+        v.rowActionType === "Flow" && Boolean(v.rowActionFlowApiName) && v.rowActionFlowLaunchMode !== "Headless"
 };
 
 /** Named predicates that grey a control out instead of hiding it. */
@@ -335,67 +345,91 @@ export const SECTIONS = [
     {
         name: "rowaction",
         label: "Row Action",
-        // The flow picker renders after these controls. It needs Apex to read a
-        // flow's variables, which a declarative control cannot do.
-        hasFlowActionConfig: true,
         controls: [
             { property: "rowActionType", type: CONTROL.SELECT, label: "Row action", options: ROW_ACTION_TYPES },
+            {
+                property: "rowActionFlowApiName",
+                type: CONTROL.FLOW,
+                label: "Flow to launch",
+                required: true,
+                when: ["flowAction"],
+                help: "Select an active flow to edit the selected row."
+            },
             {
                 property: "rowActionDisplay",
                 type: CONTROL.SELECT,
                 label: "Display as",
                 options: ROW_ACTION_DISPLAYS,
-                when: ["hasRowAction"]
+                when: ["hasRowAction", "flowConfigured"]
             },
             {
                 property: "rowActionPosition",
                 type: CONTROL.SELECT,
                 label: "Action column position",
                 options: SIDES,
-                when: ["hasRowAction"]
+                when: ["hasRowAction", "flowConfigured"]
             },
-            { property: "rowActionLabel", type: CONTROL.TEXT, label: "Hover text", when: ["iconAction"] },
-            { property: "rowActionIcon", type: CONTROL.ICON, label: "Action icon", when: ["iconAction"] },
+            {
+                property: "rowActionLabel",
+                type: CONTROL.TEXT,
+                label: "Hover text",
+                when: ["iconAction", "flowConfigured"]
+            },
+            {
+                property: "rowActionIcon",
+                type: CONTROL.ICON,
+                label: "Action icon",
+                when: ["iconAction", "flowConfigured"]
+            },
             {
                 property: "rowActionColor",
                 type: CONTROL.SELECT,
                 label: "Icon color",
                 options: ACTION_COLORS,
-                when: ["iconAction"]
+                when: ["iconAction", "flowConfigured"]
             },
             {
                 property: "rowActionButtonLabel",
                 type: CONTROL.TEXT,
                 label: "Button label",
                 required: true,
-                when: ["buttonAction"]
+                when: ["buttonAction", "flowConfigured"]
             },
             {
                 property: "rowActionButtonIcon",
                 type: CONTROL.ICON,
                 label: "Button icon (optional)",
-                when: ["buttonAction"]
+                when: ["buttonAction", "flowConfigured"]
             },
             {
                 property: "rowActionButtonIconPosition",
                 type: CONTROL.SELECT,
                 label: "Button icon position",
                 options: SIDES,
-                when: ["buttonAction"]
+                when: ["buttonAction", "flowConfigured"]
             },
             {
                 property: "rowActionButtonVariant",
                 type: CONTROL.SELECT,
                 label: "Button variant",
                 options: BUTTON_VARIANTS,
-                when: ["buttonAction"]
+                when: ["buttonAction", "flowConfigured"]
             },
             {
                 property: "maxRemovedRows",
                 type: CONTROL.NUMBER,
                 label: "Maximum rows that can be removed",
-                when: ["removeAction"],
+                when: ["removeAction", "flowConfigured"],
                 help: "Leave blank for no limit."
+            },
+            {
+                property: "markActionedRows",
+                type: CONTROL.CHECKBOX,
+                label: "Record every actioned row",
+                // flowConfigured alone is true for Standard and Remove too, so
+                // this needs the Flow action as well.
+                when: ["flowAction", "flowConfigured"],
+                help: "Adds each row a flow action runs on to Actioned Records. Off by default. A Boolean status variable from the launched flow overrides this per row."
             },
             {
                 property: "rowActionFlowModalHeader",
@@ -488,6 +522,7 @@ export function resolveSection(section, values) {
             isIcon: control.type === CONTROL.ICON,
             isResource: control.type === CONTROL.RESOURCE,
             isField: control.type === CONTROL.FIELD,
-            isFields: control.type === CONTROL.FIELDS
+            isFields: control.type === CONTROL.FIELDS,
+            isFlow: control.type === CONTROL.FLOW
         }));
 }

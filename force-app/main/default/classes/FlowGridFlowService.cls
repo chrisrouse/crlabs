@@ -50,6 +50,10 @@ public with sharing class FlowGridFlowService {
         /** `Screen`, `Headless`, or null when it cannot be launched. */
         @AuraEnabled
         public String launchMode;
+        @AuraEnabled
+        public String activeVersionId;
+        @AuraEnabled
+        public String latestVersionId;
 
         private FlowSummary(FlowDefinitionView definition) {
             this.apiName = definition.ApiName;
@@ -57,6 +61,8 @@ public with sharing class FlowGridFlowService {
             this.processType = definition.ProcessType;
             this.triggerType = definition.TriggerType;
             this.launchMode = resolveLaunchMode(definition.ProcessType, definition.TriggerType);
+            this.activeVersionId = definition.ActiveVersionId;
+            this.latestVersionId = definition.LatestVersionId;
         }
     }
 
@@ -109,7 +115,7 @@ public with sharing class FlowGridFlowService {
     public static List<FlowSummary> listFlows() {
         List<FlowSummary> flows = new List<FlowSummary>();
         for (FlowDefinitionView definition : [
-            SELECT ApiName, Label, ProcessType, TriggerType
+            SELECT ApiName, Label, ProcessType, TriggerType, ActiveVersionId, LatestVersionId
             FROM FlowDefinitionView
             WHERE IsActive = TRUE
             WITH USER_MODE

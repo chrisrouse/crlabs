@@ -25,6 +25,7 @@ import { LightningElement, api, wire } from "lwc";
 import { FlowAttributeChangeEvent } from "lightning/flowSupport";
 import getGridMetadata from "@salesforce/apex/FlowGridController.getGridMetadata";
 import runFlow from "@salesforce/apex/FlowGridController.runFlow";
+import getExistingRecordIds from "@salesforce/apex/FlowGridController.getExistingRecordIds";
 import {
     buildColumns,
     buildRows,
@@ -100,6 +101,8 @@ export default class FgridFlowGrid extends LightningElement {
     @api rowActionFlowRecordVariable = "record";
     @api rowActionFlowIdVariable = "recordId";
     @api rowActionFlowOutputVariable;
+    @api rowActionFlowStatusVariable;
+    @api markActionedRows = false;
     @api rowActionFlowModalHeader = "Edit Record";
     @api rowActionFlowModalSize = "Medium";
 
@@ -129,6 +132,7 @@ export default class FgridFlowGrid extends LightningElement {
     @api outputRemainingRecordsJson;
     @api outputActionedRecordJson;
     @api outputActionedRecordsJson;
+    @api outputLastActionStatus;
     @api actionedCount = 0;
     @api selectedCount = 0;
     @api editedCount = 0;
@@ -674,7 +678,8 @@ export default class FgridFlowGrid extends LightningElement {
         }
 
         if (this.rowActionType === "Flow") {
-            this.publishActioned(record);
+            // Whether this row counts as actioned depends on what the flow
+            // reports, so recording it waits for completion.
             this.openRowActionFlow(record);
             return;
         }
@@ -740,13 +745,10 @@ export default class FgridFlowGrid extends LightningElement {
                 recordId: record?.Id || record?.[this.keyField]
             });
 
-            // Apex returns a name-keyed map; readFlowResult works on the same
+            // Apex returns a name-keyed map; the shared handler works on the
             // {name, value} shape lightning-flow emits.
             const asVariables = Object.entries(outputs || {}).map(([name, value]) => ({ name, value }));
-            const patch = this.readFlowResult(asVariables);
-            if (patch) {
-                this.upsertRecord(patch);
-            }
+            await this.applyFlowResult(record, asVariables);
         } catch (error) {
             this._flowError = error?.body?.message || "The flow did not run.";
         } finally {
@@ -778,11 +780,68 @@ export default class FgridFlowGrid extends LightningElement {
             return;
         }
 
+        const record = this._flowRecord;
+        this.applyFlowResult(record, outputVariables);
+        this.handleCloseFlow();
+    }
+
+    /**
+     * Folds a completed flow's result back into the grid.
+     *
+     * Shared by both launch paths so a screen flow and an autolaunched flow are
+     * handled identically once they have finished.
+     */
+    async applyFlowResult(record, outputVariables) {
+        const status = this.readActionStatus(outputVariables);
+        this.publish("outputLastActionStatus", status === undefined || status === null ? null : String(status));
+        this.publishActioned(record, { collect: this.shouldRecordActioned(status) });
+
+        // A flow reporting that it did nothing should not rewrite the row.
+        if (typeof status === "boolean" && status === false) {
+            return;
+        }
+
         const patch = this.readFlowResult(outputVariables);
         if (patch) {
             this.upsertRecord(patch);
         }
-        this.handleCloseFlow();
+        await this.reconcileDeletion(record);
+    }
+
+    /**
+     * Removes the row when the launched flow deleted the record.
+     *
+     * The grid holds an in-memory copy and cannot see a delete, so it asks. A
+     * vanished record follows the same path as the Remove row action, landing in
+     * Removed Records for the calling flow to act on.
+     */
+    async reconcileDeletion(record) {
+        const id = record?.Id || record?.[this.keyField];
+        if (this.isUserDefinedObject || !this.objectApiName || !id) {
+            return;
+        }
+        try {
+            const existing = await getExistingRecordIds({
+                objectApiName: this.objectApiName,
+                recordIds: [String(id)]
+            });
+            if (Array.isArray(existing) && existing.length) {
+                return;
+            }
+        } catch {
+            // Not being able to check is not a reason to drop a row.
+            return;
+        }
+
+        const key = record?.[this.keyField];
+        if (key === undefined || key === null || this._removedKeys.some((seen) => String(seen) === String(key))) {
+            return;
+        }
+        this._removedKeys = [...this._removedKeys, key];
+        this._selectedKeys = this._selectedKeys.filter((selected) => String(selected) !== String(key));
+        this._flowError = "That record no longer exists, so the row was removed from the grid.";
+        this.publishRemoval();
+        this.publishSelection();
     }
 
     /**
@@ -823,6 +882,35 @@ export default class FgridFlowGrid extends LightningElement {
         }
         // Carry the key so the patch can be matched to its row.
         return { ...patch, [this.keyField]: this._flowRecord?.[this.keyField] };
+    }
+
+    /**
+     * Reads the configured status variable out of the flow's outputs.
+     *
+     * @returns the raw value, or undefined when no status variable is mapped or
+     *          the flow did not return it
+     */
+    readActionStatus(outputVariables) {
+        const name = this.rowActionFlowStatusVariable;
+        if (!name || !Array.isArray(outputVariables)) {
+            return undefined;
+        }
+        const match = outputVariables.find((output) => output?.name === name);
+        return match ? match.value : undefined;
+    }
+
+    /**
+     * Decides whether a row counts as actioned.
+     *
+     * Follows the platform's default-false convention: nothing is recorded unless
+     * asked for. A Boolean status from the launched flow wins over the static
+     * setting, so the flow itself can say "I did nothing here" per row.
+     */
+    shouldRecordActioned(status) {
+        if (typeof status === "boolean") {
+            return status;
+        }
+        return this.markActionedRows === true;
     }
 
     /**
@@ -939,10 +1027,22 @@ export default class FgridFlowGrid extends LightningElement {
      * the output carries only real fields — the flattened row also holds the
      * generated link URLs, which are not fields on the object.
      */
-    publishActioned(record) {
+    /**
+     * Reports the row an action ran on.
+     *
+     * `record` is always published as the most recent actioned row. Adding it to
+     * the accumulated collection is gated, so a flow that reports doing nothing
+     * does not pad the list the calling flow iterates.
+     */
+    publishActioned(record, { collect = true } = {}) {
         const snapshot = { ...record };
         const key = record?.[this.keyField];
-        if (key !== undefined && key !== null && !this._actionedKeys.some((seen) => String(seen) === String(key))) {
+        if (
+            collect &&
+            key !== undefined &&
+            key !== null &&
+            !this._actionedKeys.some((seen) => String(seen) === String(key))
+        ) {
             this._actionedKeys = [...this._actionedKeys, key];
         }
 

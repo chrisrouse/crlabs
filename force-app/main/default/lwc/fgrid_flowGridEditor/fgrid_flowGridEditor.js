@@ -126,11 +126,6 @@ export default class FgridFlowGridEditor extends FlowConfigEditorBase {
         return this.hasObject ? "Open Grid Studio" : "Open Grid Studio (choose records first)";
     }
 
-    /** The flow picker only applies to the Flow row action. */
-    get isFlowRowAction() {
-        return this.values?.rowActionType === "Flow";
-    }
-
     get columnSummaryVisible() {
         return this.hasObject && Boolean(this.values.columnFields);
     }
