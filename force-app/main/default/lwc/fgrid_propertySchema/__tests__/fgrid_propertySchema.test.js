@@ -1,4 +1,11 @@
-import { SECTIONS, DEFAULTS, resolveSection, schemaProperties, CONTROL } from "c/fgrid_propertySchema";
+import {
+    SECTIONS,
+    DEFAULTS,
+    resolveSection,
+    schemaProperties,
+    CONTROL,
+    EDITOR_MANAGED_PROPERTIES
+} from "c/fgrid_propertySchema";
 
 function section(name) {
     return SECTIONS.find((s) => s.name === name);
@@ -37,9 +44,16 @@ describe("schema integrity", () => {
         });
     });
 
-    it("defaults only properties the schema drives", () => {
-        const known = new Set([...schemaProperties(), "objectApiName", "columnConfig"]);
+    it("defaults only properties the editor actually writes", () => {
+        const known = new Set([...schemaProperties(), ...EDITOR_MANAGED_PROPERTIES]);
         Object.keys(DEFAULTS).forEach((name) => expect(known.has(name)).toBe(true));
+    });
+
+    it("keeps editor-managed properties out of the declarative controls", () => {
+        // Each of these is owned by a dedicated component, so a control for it
+        // would fight that component for the same value.
+        const controls = new Set(schemaProperties());
+        EDITOR_MANAGED_PROPERTIES.forEach((name) => expect(controls.has(name)).toBe(false));
     });
 });
 

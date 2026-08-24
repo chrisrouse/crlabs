@@ -19,16 +19,13 @@
  * This class is the only writer to Flow Builder.
  */
 import FlowConfigEditorBase from "c/flowConfigEditorBase";
-import { SECTIONS, DEFAULTS, schemaProperties } from "c/fgrid_propertySchema";
+import { SECTIONS, DEFAULTS, schemaProperties, EDITOR_MANAGED_PROPERTIES } from "c/fgrid_propertySchema";
 import { setPopoverHostActive } from "c/flowConfigPopoverUtils";
 
 /** Generic SObject type letter declared in fgrid_flowGrid.js-meta.xml. */
 const GENERIC_TYPE = "T";
 
 const MAX_RECORDS_PER_PAGE = 200;
-
-/** Properties the editor writes that no schema control owns. */
-const DERIVED_PROPERTIES = ["objectApiName", "columnConfig"];
 
 export default class FgridFlowGridEditor extends FlowConfigEditorBase {
     sections = SECTIONS;
@@ -93,7 +90,7 @@ export default class FgridFlowGridEditor extends FlowConfigEditorBase {
     get values() {
         const referenceProperties = new Set(["records", "preSelectedRecords"]);
         const resolved = {};
-        [...schemaProperties(), ...DERIVED_PROPERTIES].forEach((name) => {
+        [...schemaProperties(), ...EDITOR_MANAGED_PROPERTIES].forEach((name) => {
             resolved[name] = this.resolve(name, referenceProperties.has(name));
         });
         resolved.objectApiName = this.objectApiName;
@@ -127,6 +124,11 @@ export default class FgridFlowGridEditor extends FlowConfigEditorBase {
 
     get studioButtonLabel() {
         return this.hasObject ? "Open Grid Studio" : "Open Grid Studio (choose records first)";
+    }
+
+    /** The flow picker only applies to the Flow row action. */
+    get isFlowRowAction() {
+        return this.values?.rowActionType === "Flow";
     }
 
     get columnSummaryVisible() {

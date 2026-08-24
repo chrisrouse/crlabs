@@ -41,6 +41,19 @@
                         onpropertychange={handlePropertyChange}
                     ></c-fgrid_property-controls>
 
+                    <template lwc:if={section.hasFlowActionConfig}>
+                        <template lwc:if={isFlowRowAction}>
+                            <c-fgrid_flow-action-config
+                                flow-api-name={values.rowActionFlowApiName}
+                                record-variable={values.rowActionFlowRecordVariable}
+                                id-variable={values.rowActionFlowIdVariable}
+                                output-variable={values.rowActionFlowOutputVariable}
+                                object-api-name={objectApiName}
+                                onpropertychange={handlePropertyChange}
+                            ></c-fgrid_flow-action-config>
+                        </template>
+                    </template>
+
                     <!-- Column attributes are read-only here; the grid is too wide
                          for this panel and lives in the Studio. -->
                     <template lwc:if={section.hasColumnGrid}>

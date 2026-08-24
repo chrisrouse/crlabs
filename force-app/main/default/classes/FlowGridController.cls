@@ -89,4 +89,37 @@ public with sharing class FlowGridController {
             throw new AuraHandledException('Unable to load preview records: ' + error.getMessage());
         }
     }
+
+    /**
+     * Active screen flows, for the row-action flow picker.
+     *
+     * @return every active flow with ProcessType `Flow`, ordered by label
+     */
+    @AuraEnabled(cacheable=true)
+    public static List<FlowGridFlowService.FlowSummary> getScreenFlows() {
+        try {
+            return FlowGridFlowService.listScreenFlows();
+        } catch (Exception error) {
+            throw new AuraHandledException('Unable to list screen flows: ' + error.getMessage());
+        }
+    }
+
+    /**
+     * Variables declared by a flow, so the editor can map the grid's record and
+     * Id onto the variables that flow actually has.
+     *
+     * @param flowApiName API name of the flow to inspect
+     * @return its variables, or an empty list when there are none to report
+     */
+    @AuraEnabled(cacheable=true)
+    public static List<FlowGridFlowService.FlowVariable> getFlowVariables(String flowApiName) {
+        if (String.isBlank(flowApiName)) {
+            return new List<FlowGridFlowService.FlowVariable>();
+        }
+        try {
+            return FlowGridFlowService.listFlowVariables(flowApiName);
+        } catch (Exception error) {
+            throw new AuraHandledException('Unable to read variables for ' + flowApiName + ': ' + error.getMessage());
+        }
+    }
 }

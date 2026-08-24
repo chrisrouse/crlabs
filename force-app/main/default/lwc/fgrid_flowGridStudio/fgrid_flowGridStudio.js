@@ -109,6 +109,11 @@ export default class FgridFlowGridStudio extends LightningElement {
 
     /** Columns come from the selected object, so there is nothing to configure
      *  until a record collection has established one. */
+    /** The flow picker only applies to the Flow row action. */
+    get isFlowRowAction() {
+        return this.values?.rowActionType === "Flow";
+    }
+
     get hasObject() {
         return Boolean(this.objectApiName);
     }

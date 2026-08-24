@@ -93,6 +93,14 @@ export default class FgridFlowGrid extends LightningElement {
     @api rowActionButtonVariant = "neutral";
     @api maxRemovedRows;
 
+    // ----- Flow row action -----
+    @api rowActionFlowApiName;
+    @api rowActionFlowRecordVariable = "record";
+    @api rowActionFlowIdVariable = "recordId";
+    @api rowActionFlowOutputVariable;
+    @api rowActionFlowModalHeader = "Edit Record";
+    @api rowActionFlowModalSize = "Medium";
+
     // ----- Links and formatting -----
     @api showNameFieldLink;
     @api openLinkInSameTab = false;
@@ -144,6 +152,14 @@ export default class FgridFlowGrid extends LightningElement {
     /** Keys of rows the user removed with the Remove row action. */
     _removedKeys = [];
     _removalBlockedMessage = null;
+    /** Field patches applied by the row-action flow, keyed by keyField. */
+    _editsByKey = {};
+    /** Records the flow returned whose key was not already in the grid. */
+    _addedRecords = [];
+    /** The record currently open in the row-action flow modal. */
+    _flowRecord = null;
+    _isFlowOpen = false;
+    _flowError = null;
 
     @api
     get records() {
@@ -220,13 +236,29 @@ export default class FgridFlowGrid extends LightningElement {
         return parseRecordJson(raw);
     }
 
-    /** Records still in the grid, i.e. excluding any the user removed. */
+    /**
+     * The grid's live working collection.
+     *
+     * This is what replaces the "Reactive Record Collection" helper the previous
+     * component needed: the grid seeds from its input and then owns the current
+     * state itself, applying flow edits, upserted additions, and removals.
+     */
     get remainingRecords() {
-        if (!this._removedKeys.length) {
-            return this.sourceRecords;
-        }
         const removed = new Set(this._removedKeys);
-        return this.sourceRecords.filter((record) => !removed.has(record?.[this.keyField]));
+        const all = this._addedRecords.length ? [...this.sourceRecords, ...this._addedRecords] : this.sourceRecords;
+
+        return all
+            .filter((record) => !removed.has(record?.[this.keyField]))
+            .map((record) => {
+                const patch = this._editsByKey[record?.[this.keyField]];
+                return patch ? { ...record, ...patch } : record;
+            });
+    }
+
+    /** Only the records a row-action flow changed, with their edits applied. */
+    get editedRecords() {
+        const keys = new Set(Object.keys(this._editsByKey));
+        return keys.size ? this.remainingRecords.filter((record) => keys.has(String(record?.[this.keyField]))) : [];
     }
 
     get columns() {
@@ -426,6 +458,61 @@ export default class FgridFlowGrid extends LightningElement {
         return this.pageState.isLastPage;
     }
 
+    /* ----- row action flow ----- */
+
+    get isFlowOpen() {
+        return this._isFlowOpen;
+    }
+
+    get flowApiName() {
+        return this.rowActionFlowApiName;
+    }
+
+    get flowModalHeader() {
+        return this.rowActionFlowModalHeader || "Edit Record";
+    }
+
+    get flowModalClass() {
+        const size = String(this.rowActionFlowModalSize || "Medium").toLowerCase();
+        const modifier =
+            size === "small" ? "slds-modal_small" : size === "large" ? "slds-modal_large" : "slds-modal_medium";
+        return `slds-modal slds-fade-in-open ${modifier}`;
+    }
+
+    /**
+     * Input variables for the launched flow.
+     *
+     * Both the record and its Id are offered because edit flows come in both
+     * shapes: some take an SObject variable, others just take recordId and
+     * re-query. Either name can be left blank to omit it.
+     */
+    get flowInputVariables() {
+        if (!this._flowRecord) {
+            return [];
+        }
+        const variables = [];
+        if (this.rowActionFlowRecordVariable) {
+            variables.push({
+                name: this.rowActionFlowRecordVariable,
+                type: "SObject",
+                value: this._flowRecord
+            });
+        }
+        const id = this._flowRecord.Id || this._flowRecord[this.keyField];
+        if (this.rowActionFlowIdVariable && id) {
+            variables.push({ name: this.rowActionFlowIdVariable, type: "String", value: id });
+        }
+        return variables;
+    }
+
+    get flowError() {
+        return this._flowError;
+    }
+
+    get hasFlowError() {
+        return Boolean(this._flowError);
+    }
+
     /* ----- row removal ----- */
 
     get removalBlockedMessage() {
@@ -544,22 +631,135 @@ export default class FgridFlowGrid extends LightningElement {
             return;
         }
 
-        this.publishActioned(record);
-
-        if (this.rowActionType !== "Remove") {
+        if (this.rowActionType === "Flow") {
+            this.publishActioned(record);
+            this.openRowActionFlow(record);
             return;
         }
 
+        if (this.rowActionType !== "Remove") {
+            this.publishActioned(record);
+            return;
+        }
+
+        // maxRemovedRows of 0 or blank means no limit.
         const cap = Number(this.maxRemovedRows);
         if (Number.isFinite(cap) && cap > 0 && this._removedKeys.length >= cap) {
+            // Nothing was removed, so nothing was actioned.
             this._removalBlockedMessage = `You can remove at most ${cap} ${cap === 1 ? "row" : "rows"}.`;
             return;
         }
         this._removalBlockedMessage = null;
+        this.publishActioned(record);
         this._removedKeys = [...this._removedKeys, key];
         // A removed row cannot stay selected, and the current page may no longer
         // exist once the result set shrinks.
         this._selectedKeys = this._selectedKeys.filter((selected) => selected !== key);
+        this.publishRemoval();
+        this.publishSelection();
+    }
+
+    openRowActionFlow(record) {
+        if (!this.rowActionFlowApiName) {
+            this._flowError = "No flow is configured for this row action.";
+            return;
+        }
+        this._flowError = null;
+        this._flowRecord = { ...record };
+        this._isFlowOpen = true;
+    }
+
+    handleCloseFlow() {
+        this._isFlowOpen = false;
+        this._flowRecord = null;
+    }
+
+    /**
+     * Reads the launched flow's result and folds it back into the grid.
+     *
+     * This is the half that replaces the Get First Record / Upsert Record By Key
+     * chain: the grid already knows which row was clicked, so it can match the
+     * returned data by key itself.
+     */
+    handleFlowStatusChange(event) {
+        const { flowStatus, outputVariables } = event.detail;
+
+        if (flowStatus === "ERROR") {
+            this._flowError = "The flow did not complete. Nothing was changed.";
+            return;
+        }
+        if (flowStatus !== "FINISHED" && flowStatus !== "FINISHED_SCREEN") {
+            return;
+        }
+
+        const patch = this.readFlowResult(outputVariables);
+        if (patch) {
+            this.upsertRecord(patch);
+        }
+        this.handleCloseFlow();
+    }
+
+    /**
+     * Extracts the changed data from the flow's outputs.
+     *
+     * Accepts either shape, because edit flows are written both ways:
+     *   - a whole record in the configured output variable, or
+     *   - individual field values named after the grid's columns
+     *
+     * @returns {object|null} a record-shaped patch, or null when nothing usable
+     *          came back
+     */
+    readFlowResult(outputVariables) {
+        const outputs = Array.isArray(outputVariables) ? outputVariables : [];
+        if (!outputs.length) {
+            return null;
+        }
+
+        const recordName = this.rowActionFlowOutputVariable || this.rowActionFlowRecordVariable;
+        const recordOutput = outputs.find(
+            (output) => recordName && output?.name === recordName && output?.value && typeof output.value === "object"
+        );
+        if (recordOutput) {
+            return Array.isArray(recordOutput.value) ? recordOutput.value[0] || null : recordOutput.value;
+        }
+
+        // Fall back to field-level outputs whose names match displayed columns.
+        const byLowerName = new Map(this._columnPaths.map((path) => [path.toLowerCase(), path]));
+        const patch = {};
+        outputs.forEach((output) => {
+            const path = byLowerName.get(String(output?.name || "").toLowerCase());
+            if (path && output.value !== undefined) {
+                patch[path] = output.value;
+            }
+        });
+        if (!Object.keys(patch).length) {
+            return null;
+        }
+        // Carry the key so the patch can be matched to its row.
+        return { ...patch, [this.keyField]: this._flowRecord?.[this.keyField] };
+    }
+
+    /**
+     * Upserts a record into the working collection, matched on keyField.
+     *
+     * Update when the key is already present, insert when it is not, which is
+     * what "upsert by key" meant in the helper component this replaces.
+     */
+    upsertRecord(record) {
+        const key = record?.[this.keyField] ?? this._flowRecord?.[this.keyField];
+        if (key === undefined || key === null || key === "") {
+            this._flowError = `The flow returned a record with no ${this.keyField}, so it could not be matched to a row.`;
+            return;
+        }
+
+        const known = this.remainingRecords.some((candidate) => candidate?.[this.keyField] === key);
+        if (known) {
+            this._editsByKey = { ...this._editsByKey, [key]: { ...record, [this.keyField]: key } };
+        } else {
+            this._addedRecords = [...this._addedRecords, { ...record, [this.keyField]: key }];
+        }
+
+        this.publishEdits();
         this.publishRemoval();
         this.publishSelection();
     }
@@ -625,10 +825,33 @@ export default class FgridFlowGrid extends LightningElement {
         this.publish("selectedRowKey", selected.length === 1 ? selected[0]?.[this.keyField] : null);
     }
 
-    /** Publishes the most recent row-action record. */
+    /**
+     * Publishes the record the most recent row action was performed on.
+     *
+     * Deliberately publishes a NEW object each time rather than the record
+     * reference. This output is the hook for the pop-up-screen-flow pattern: a
+     * sibling component on the same screen watches it and launches a subflow for
+     * the actioned record. Flow only propagates a reactive output when it sees a
+     * change, so re-publishing the same reference after the user actions the same
+     * row twice would silently do nothing the second time. The component this
+     * replaces spreads the row for the same reason.
+     *
+     * The source record is published rather than the flattened datatable row, so
+     * the output carries only real fields — the flattened row also holds the
+     * generated link URLs, which are not fields on the object.
+     */
     publishActioned(record) {
-        this.publish("outputActionedRecord", this.isUserDefinedObject ? null : record);
-        this.publish("outputActionedRecordJson", JSON.stringify(record));
+        const snapshot = { ...record };
+        this.publish("outputActionedRecord", this.isUserDefinedObject ? null : snapshot);
+        this.publish("outputActionedRecordJson", JSON.stringify(snapshot));
+    }
+
+    /** Publishes the edited-records outputs. */
+    publishEdits() {
+        const edited = this.editedRecords;
+        this.publish("outputEditedRecords", this.isUserDefinedObject ? [] : edited);
+        this.publish("outputEditedRecordsJson", edited.length ? JSON.stringify(edited) : null);
+        this.publish("editedCount", edited.length);
     }
 
     /** Publishes both sides of the removal split. */

@@ -43,7 +43,14 @@ export const SELECTION_MODES = [
 const ROW_ACTION_TYPES = [
     { label: "None", value: "None" },
     { label: "Standard action", value: "Standard" },
-    { label: "Remove row", value: "Remove" }
+    { label: "Remove row", value: "Remove" },
+    { label: "Run a screen flow", value: "Flow" }
+];
+
+const MODAL_SIZES = [
+    { label: "Small", value: "Small" },
+    { label: "Medium", value: "Medium" },
+    { label: "Large", value: "Large" }
 ];
 
 const ROW_ACTION_DISPLAYS = [
@@ -70,6 +77,23 @@ const BUTTON_VARIANTS = [
     { label: "Inverse", value: "inverse" }
 ];
 
+/**
+ * Properties the editor writes but no declarative control owns.
+ *
+ * `objectApiName` mirrors the generic type mapping; `columnConfig` has its own
+ * grid; the four flow properties are set by `c/fgrid_flowActionConfig`, which
+ * needs Apex to read a flow's variables. They still have to appear in the
+ * editor's value map, or the components that own them receive nothing.
+ */
+export const EDITOR_MANAGED_PROPERTIES = [
+    "objectApiName",
+    "columnConfig",
+    "rowActionFlowApiName",
+    "rowActionFlowRecordVariable",
+    "rowActionFlowIdVariable",
+    "rowActionFlowOutputVariable"
+];
+
 /** Values Flow Grid assumes when an admin has not set the property. */
 export const DEFAULTS = {
     keyField: "Id",
@@ -82,7 +106,11 @@ export const DEFAULTS = {
     rowActionPosition: "Right",
     rowActionColor: "Red",
     rowActionButtonIconPosition: "Left",
-    rowActionButtonVariant: "neutral"
+    rowActionButtonVariant: "neutral",
+    rowActionFlowRecordVariable: "record",
+    rowActionFlowIdVariable: "recordId",
+    rowActionFlowModalHeader: "Edit Record",
+    rowActionFlowModalSize: "Medium"
 };
 
 /**
@@ -101,7 +129,8 @@ export const VISIBILITY = {
     hasRowAction: (v) => v.rowActionType !== "None",
     iconAction: (v) => v.rowActionType !== "None" && v.rowActionDisplay === "Icon",
     buttonAction: (v) => v.rowActionType !== "None" && v.rowActionDisplay === "Button",
-    removeAction: (v) => v.rowActionType === "Remove"
+    removeAction: (v) => v.rowActionType === "Remove",
+    flowAction: (v) => v.rowActionType === "Flow"
 };
 
 /** Named predicates that grey a control out instead of hiding it. */
@@ -303,6 +332,9 @@ export const SECTIONS = [
     {
         name: "rowaction",
         label: "Row Action",
+        // The flow picker renders after these controls. It needs Apex to read a
+        // flow's variables, which a declarative control cannot do.
+        hasFlowActionConfig: true,
         controls: [
             { property: "rowActionType", type: CONTROL.SELECT, label: "Row action", options: ROW_ACTION_TYPES },
             {
@@ -361,6 +393,19 @@ export const SECTIONS = [
                 label: "Maximum rows that can be removed",
                 when: ["removeAction"],
                 help: "Leave blank for no limit."
+            },
+            {
+                property: "rowActionFlowModalHeader",
+                type: CONTROL.TEXT,
+                label: "Modal header",
+                when: ["flowAction"]
+            },
+            {
+                property: "rowActionFlowModalSize",
+                type: CONTROL.SELECT,
+                label: "Modal size",
+                options: MODAL_SIZES,
+                when: ["flowAction"]
             }
         ]
     },

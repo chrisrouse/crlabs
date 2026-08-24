@@ -181,5 +181,40 @@
         <template lwc:if={hasValidationMessage}>
             <p class="grid__validation" role="alert">{validationMessage}</p>
         </template>
+
+        <template lwc:if={hasFlowError}>
+            <div class="slds-box slds-box_x-small slds-theme_warning slds-m-top_x-small" role="alert">
+                <p>{flowError}</p>
+            </div>
+        </template>
     </div>
+
+    <!-- Row-action flow. Launched in place of the four-component chain the
+         predecessor required: the grid passes the clicked record in, reads the
+         result out, and upserts it by key. -->
+    <template lwc:if={isFlowOpen}>
+        <section role="dialog" tabindex="-1" aria-modal="true" aria-label={flowModalHeader} class={flowModalClass}>
+            <div class="slds-modal__container">
+                <header class="slds-modal__header grid__flow-header">
+                    <lightning-button-icon
+                        icon-name="utility:close"
+                        alternative-text="Close"
+                        title="Close"
+                        variant="bare"
+                        class="grid__flow-close"
+                        onclick={handleCloseFlow}
+                    ></lightning-button-icon>
+                    <h2 class="slds-text-heading_medium slds-hyphenate">{flowModalHeader}</h2>
+                </header>
+                <div class="slds-modal__content slds-p-around_medium">
+                    <lightning-flow
+                        flow-api-name={flowApiName}
+                        flow-input-variables={flowInputVariables}
+                        onstatuschange={handleFlowStatusChange}
+                    ></lightning-flow>
+                </div>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
 </template>

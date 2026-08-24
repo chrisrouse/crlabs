@@ -1,0 +1,10 @@
+.flowconfig lightning-combobox {
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.flowconfig__summary {
+    font-size: 0.75rem;
+    color: #706e6b;
+    margin: 0 0 0.5rem;
+}

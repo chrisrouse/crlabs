@@ -79,7 +79,7 @@
                  rowActionType replaces the baseline's isRemoveRowAction boolean +
                  rowActionType string pair: None | Standard | Remove.
             -->
-            <property name="rowActionType" type="String" label="Row Action" default="None" role="inputOnly" />
+            <property name="rowActionType" type="String" label="Row Action" default="None" role="inputOnly" description="None, Standard, Remove, or Flow. Flow launches a screen flow in a modal for the clicked row and upserts whatever it returns back into the grid." />
             <property name="rowActionDisplay" type="String" label="Row Action Display" default="Icon" role="inputOnly" />
             <property name="rowActionPosition" type="String" label="Row Action Column Position" default="Right" role="inputOnly" />
             <property name="rowActionLabel" type="String" label="Row Action Label" role="inputOnly" />
@@ -90,6 +90,20 @@
             <property name="rowActionButtonIconPosition" type="String" label="Row Action Button Icon Position" default="Left" role="inputOnly" />
             <property name="rowActionButtonVariant" type="String" label="Row Action Button Variant" default="neutral" role="inputOnly" />
             <property name="maxRemovedRows" type="Integer" label="Maximum Rows Removable" role="inputOnly" />
+
+            <!-- ===================== Flow row action ======================
+                 Replaces the four-component Flow pattern this component's
+                 predecessor required (Get First Record -> Flow Launcher ->
+                 Upsert Record By Key -> Reactive Record Collection). The grid
+                 launches the flow, takes the returned record, and upserts it
+                 into its own working collection by key.
+            -->
+            <property name="rowActionFlowApiName" type="String" label="Flow API Name" role="inputOnly" description="API name of the screen flow to launch when a row action is clicked." />
+            <property name="rowActionFlowRecordVariable" type="String" label="Flow Record Variable" default="record" role="inputOnly" description="Name of the flow's input variable that receives the clicked record. Leave blank to pass no record." />
+            <property name="rowActionFlowIdVariable" type="String" label="Flow Record Id Variable" default="recordId" role="inputOnly" description="Name of the flow's input variable that receives the record Id. Leave blank to pass no Id." />
+            <property name="rowActionFlowOutputVariable" type="String" label="Flow Output Variable" role="inputOnly" description="Name of the flow's output variable holding the edited record. Leave blank to use the record variable name." />
+            <property name="rowActionFlowModalHeader" type="String" label="Modal Header" default="Edit Record" role="inputOnly" />
+            <property name="rowActionFlowModalSize" type="String" label="Modal Size" default="Medium" role="inputOnly" description="Small, Medium, or Large." />
 
             <!-- ======================== Links and formatting ======================== -->
             <property name="showNameFieldLink" type="Boolean" label="Link the Name Field to the Record" default="true" role="inputOnly" />

@@ -95,3 +95,15 @@
 .fgrid-action_black {
     --slds-c-icon-color-foreground: #181818;
 }
+
+/* Row-action flow modal. The close button sits inside the white header rather
+   than using slds-modal__close, which positions it outside the container. */
+.grid__flow-header {
+    position: relative;
+}
+
+.grid__flow-close {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+}

@@ -15,6 +15,10 @@
         <apexClass>FlowGridPreviewService</apexClass>
         <enabled>true</enabled>
     </classAccesses>
+    <classAccesses>
+        <apexClass>FlowGridFlowService</apexClass>
+        <enabled>true</enabled>
+    </classAccesses>
     <userPermissions>
         <enabled>true</enabled>
         <name>RunFlow</name>

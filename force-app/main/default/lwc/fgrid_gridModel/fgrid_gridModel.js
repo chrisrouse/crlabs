@@ -494,6 +494,15 @@ export function paginate(rows, page = 1, perPage = 10) {
 /** Name carried on the row-action column and echoed back by onrowaction. */
 export const ROW_ACTION_NAME = "fgridRowAction";
 
+/* Row-action defaults, matching the conventions of the component Flow Grid
+   replaces so an admin's expectations carry over. */
+const STANDARD_LABEL = "Perform Action";
+const STANDARD_ICON = "utility:touch_action";
+const REMOVE_LABEL = "Remove Row";
+const REMOVE_ICON = "utility:close";
+const FLOW_LABEL = "Run Flow";
+const FLOW_ICON = "utility:flow";
+
 /**
  * Adds the row-action column to a column set.
  *
@@ -521,6 +530,9 @@ export function withRowActionColumn(columns, options = {}) {
     }
 
     const isRemove = actionType === "Remove";
+    const isFlow = actionType === "Flow";
+    const defaultLabelText = isRemove ? REMOVE_LABEL : isFlow ? FLOW_LABEL : STANDARD_LABEL;
+    const defaultIconName = isRemove ? REMOVE_ICON : isFlow ? FLOW_ICON : STANDARD_ICON;
     const column =
         display === "Button"
             ? {
@@ -530,7 +542,7 @@ export function withRowActionColumn(columns, options = {}) {
                   hideDefaultActions: true,
                   typeAttributes: {
                       name: ROW_ACTION_NAME,
-                      label: buttonLabel || (isRemove ? "Remove" : "Select"),
+                      label: buttonLabel || defaultLabelText,
                       variant: buttonVariant,
                       iconName: buttonIcon || undefined,
                       iconPosition: String(buttonIconPosition).toLowerCase()
@@ -545,9 +557,9 @@ export function withRowActionColumn(columns, options = {}) {
                   cellAttributes: { alignment: "center" },
                   typeAttributes: {
                       name: ROW_ACTION_NAME,
-                      iconName: iconName || (isRemove ? "utility:close" : "utility:right"),
-                      title: label || (isRemove ? "Remove Row" : "Select Row"),
-                      alternativeText: label || (isRemove ? "Remove Row" : "Select Row"),
+                      iconName: iconName || defaultIconName,
+                      title: label || defaultLabelText,
+                      alternativeText: label || defaultLabelText,
                       variant: "bare",
                       class: colorClass(color)
                   }

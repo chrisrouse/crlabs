@@ -1,0 +1,85 @@
+<template>
+    <div class="flowconfig">
+        <template lwc:if={hasError}>
+            <div class="slds-box slds-box_x-small slds-theme_error slds-m-bottom_x-small" role="alert">
+                <p>{errorMessage}</p>
+            </div>
+        </template>
+
+        <template lwc:if={hasFlows}>
+            <lightning-combobox
+                data-validatable
+                data-property="rowActionFlowApiName"
+                label="Screen flow to launch"
+                placeholder="Select an active screen flow"
+                value={flowApiName}
+                options={flowOptions}
+                required
+                field-level-help="Only active screen flows appear here. A draft flow cannot be launched at runtime."
+                onchange={handleFlowChange}
+            ></lightning-combobox>
+        </template>
+        <template lwc:else>
+            <p class="slds-text-body_small slds-text-color_weak">
+                No active screen flows were found. A flow must be activated before it can be launched from a row action.
+            </p>
+        </template>
+
+        <template lwc:if={hasFlowSelected}>
+            <template lwc:if={hasVariablesSummary}>
+                <p class="flowconfig__summary">{variablesSummary}</p>
+            </template>
+
+            <lightning-combobox
+                data-property="rowActionFlowRecordVariable"
+                label="Send the row's record to"
+                value={recordValue}
+                options={recordOptions}
+                field-level-help="Input variable in the flow that receives the whole record."
+                onchange={handleRecordChange}
+            ></lightning-combobox>
+
+            <lightning-combobox
+                data-property="rowActionFlowIdVariable"
+                label="Send the row's Id to"
+                value={idValue}
+                options={idOptions}
+                field-level-help="Input variable that receives just the record Id, for flows that re-query."
+                onchange={handleIdChange}
+            ></lightning-combobox>
+
+            <lightning-combobox
+                data-property="rowActionFlowOutputVariable"
+                label="Read the edited record from"
+                value={outputValue}
+                options={outputOptions}
+                field-level-help="Output variable holding the record to upsert back into the grid. Leave unset if the flow returns individual field values named after your columns instead."
+                onchange={handleOutputChange}
+            ></lightning-combobox>
+
+            <template lwc:if={hasObjectMismatch}>
+                <div class="slds-box slds-box_x-small slds-theme_error slds-m-top_x-small" role="alert">
+                    <p>{objectMismatch}</p>
+                </div>
+            </template>
+
+            <template lwc:if={takesNoInput}>
+                <div class="slds-box slds-box_x-small slds-theme_warning slds-m-top_x-small" role="alert">
+                    <p>
+                        This flow has no input variable the grid can populate. Add an SObject or text input variable to
+                        it, or the flow will open without knowing which row was clicked.
+                    </p>
+                </div>
+            </template>
+
+            <template lwc:if={returnsNothing}>
+                <div class="slds-box slds-box_x-small slds-theme_warning slds-m-top_x-small" role="alert">
+                    <p>
+                        This flow has no SObject output variable. Edits will not come back into the grid unless it
+                        outputs individual values named after your columns.
+                    </p>
+                </div>
+            </template>
+        </template>
+    </div>
+</template>

@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>67.0</apiVersion>
+    <description
+    >Example edit flow launched by Flow Grid's Flow row action. Takes the clicked Account in the `record` variable, lets the user change two fields, and returns `record` so the grid can upsert it by key. Deliberately does no DML: the grid updates its in-memory collection, and the parent flow decides whether to save.</description>
+    <environments>Default</environments>
+    <interviewLabel>Flow Grid Edit Account {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>Flow Grid Edit Account</label>
+    <processType>Flow</processType>
+    <status>Active</status>
+
+    <!-- Input and output. Flow Grid passes the clicked record in and reads it
+         back out under the same name. -->
+    <variables>
+        <name>record</name>
+        <dataType>SObject</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>true</isOutput>
+        <objectType>Account</objectType>
+    </variables>
+    <!-- Accepted so the grid's Id variable has somewhere to land, even though
+         this example works from the record itself. -->
+    <variables>
+        <name>recordId</name>
+        <dataType>String</dataType>
+        <isCollection>false</isCollection>
+        <isInput>true</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+
+    <start>
+        <locationX>176</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Edit_Fields</targetReference>
+        </connector>
+    </start>
+
+    <screens>
+        <name>Edit_Fields</name>
+        <label>Edit Account</label>
+        <locationX>176</locationX>
+        <locationY>134</locationY>
+        <allowBack>false</allowBack>
+        <allowFinish>true</allowFinish>
+        <allowPause>false</allowPause>
+        <showFooter>true</showFooter>
+        <showHeader>false</showHeader>
+        <connector>
+            <targetReference>Apply_Edits</targetReference>
+        </connector>
+        <fields>
+            <name>AccountName</name>
+            <dataType>String</dataType>
+            <defaultValue>
+                <elementReference>record.Name</elementReference>
+            </defaultValue>
+            <fieldText>Account Name</fieldText>
+            <fieldType>InputField</fieldType>
+            <isRequired>true</isRequired>
+        </fields>
+        <fields>
+            <name>AccountIndustry</name>
+            <dataType>String</dataType>
+            <defaultValue>
+                <elementReference>record.Industry</elementReference>
+            </defaultValue>
+            <fieldText>Industry</fieldText>
+            <fieldType>InputField</fieldType>
+            <isRequired>false</isRequired>
+        </fields>
+    </screens>
+
+    <assignments>
+        <name>Apply_Edits</name>
+        <label>Apply Edits</label>
+        <locationX>176</locationX>
+        <locationY>268</locationY>
+        <assignmentItems>
+            <assignToReference>record.Name</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>AccountName</elementReference>
+            </value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>record.Industry</assignToReference>
+            <operator>Assign</operator>
+            <value>
+                <elementReference>AccountIndustry</elementReference>
+            </value>
+        </assignmentItems>
+    </assignments>
+</Flow>

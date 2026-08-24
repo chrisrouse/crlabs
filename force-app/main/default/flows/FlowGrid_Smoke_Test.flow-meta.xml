@@ -141,10 +141,38 @@
                     <numberValue>10.0</numberValue>
                 </value>
             </inputParameters>
+            <!-- The headline feature: one row action that opens a screen flow,
+                 takes the edited record back, and upserts it by key. Flip
+                 rowActionType to Remove in the property editor to exercise the
+                 removal path instead. -->
             <inputParameters>
                 <name>rowActionType</name>
                 <value>
-                    <stringValue>Remove</stringValue>
+                    <stringValue>Flow</stringValue>
+                </value>
+            </inputParameters>
+            <inputParameters>
+                <name>rowActionFlowApiName</name>
+                <value>
+                    <stringValue>FlowGrid_Edit_Account</stringValue>
+                </value>
+            </inputParameters>
+            <inputParameters>
+                <name>rowActionFlowRecordVariable</name>
+                <value>
+                    <stringValue>record</stringValue>
+                </value>
+            </inputParameters>
+            <inputParameters>
+                <name>rowActionFlowIdVariable</name>
+                <value>
+                    <stringValue>recordId</stringValue>
+                </value>
+            </inputParameters>
+            <inputParameters>
+                <name>rowActionFlowModalHeader</name>
+                <value>
+                    <stringValue>Edit Account</stringValue>
                 </value>
             </inputParameters>
             <inputParameters>
