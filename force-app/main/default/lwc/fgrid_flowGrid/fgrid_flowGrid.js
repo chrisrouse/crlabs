@@ -174,6 +174,7 @@ export default class FgridFlowGrid extends LightningElement {
     _isRunningFlow = false;
     _flowError = null;
     _flowVariables = [];
+    _flowInputs = [];
 
     @api
     get records() {
@@ -599,19 +600,33 @@ export default class FgridFlowGrid extends LightningElement {
         return `${this.rowActionFlowApiName} does not declare ${names.length === 1 ? "an input variable" : "input variables"} named ${list}, so ${names.length === 1 ? "it was" : "they were"} not sent. Check the name in the row action settings.`;
     }
 
+    /**
+     * Input variables handed to `lightning-flow`.
+     *
+     * Deliberately a stored field rather than a computed getter. `lightning-flow`
+     * treats a new `flowInputVariables` identity as a reason to restart the
+     * interview, and a getter returns a fresh array on every render — so any
+     * re-render while the modal was open restarted the flow, including the
+     * re-render caused by publishing outputs when it finished.
+     */
     get flowInputVariables() {
-        if (!this._flowRecord) {
-            return [];
-        }
+        return this._flowInputs;
+    }
+
+    /** Builds the input list once, when the flow is opened. */
+    buildFlowInputs(record) {
         const variables = [];
+        if (!record) {
+            return variables;
+        }
         if (this.acceptsInput(this.rowActionFlowRecordVariable)) {
             variables.push({
                 name: this.rowActionFlowRecordVariable,
                 type: "SObject",
-                value: this._flowRecord
+                value: record
             });
         }
-        const id = this._flowRecord.Id || this._flowRecord[this.keyField];
+        const id = record.Id || record[this.keyField];
         if (id && this.acceptsInput(this.rowActionFlowIdVariable)) {
             variables.push({ name: this.rowActionFlowIdVariable, type: "String", value: id });
         }
@@ -795,6 +810,7 @@ export default class FgridFlowGrid extends LightningElement {
         }
         this._flowError = null;
         this._flowRecord = { ...record };
+        this._flowInputs = this.buildFlowInputs(this._flowRecord);
 
         if (this.isHeadlessFlowAction) {
             this.runHeadlessFlow(record);
@@ -833,6 +849,7 @@ export default class FgridFlowGrid extends LightningElement {
     handleCloseFlow() {
         this._isFlowOpen = false;
         this._flowRecord = null;
+        this._flowInputs = [];
     }
 
     /**
@@ -843,19 +860,23 @@ export default class FgridFlowGrid extends LightningElement {
      * returned data by key itself.
      */
     handleFlowStatusChange(event) {
-        const { flowStatus, outputVariables } = event.detail;
+        const { flowStatus, outputVariables } = event.detail || {};
 
         if (flowStatus === "ERROR") {
             this._flowError = "The flow did not complete. Nothing was changed.";
+            this.handleCloseFlow();
             return;
         }
         if (flowStatus !== "FINISHED" && flowStatus !== "FINISHED_SCREEN") {
             return;
         }
 
+        // Unmount before folding the result in. `lightning-flow` restarts its
+        // interview once finished if it is still on the page, so closing has to
+        // happen first and must not be reachable only after other work.
         const record = this._flowRecord;
-        this.applyFlowResult(record, outputVariables);
         this.handleCloseFlow();
+        this.applyFlowResult(record, outputVariables);
     }
 
     /**
@@ -1007,7 +1028,12 @@ export default class FgridFlowGrid extends LightningElement {
             // returns the record untouched does not register as an edit.
             const changed = {};
             Object.keys(record).forEach((field) => {
-                if (field !== this.keyField && !sameValue(existing[field], record[field])) {
+                // `attributes` is the SObject envelope Flow and Apex attach; it is
+                // not a field and would otherwise register as an edit every time.
+                if (field === this.keyField || field === "attributes") {
+                    return;
+                }
+                if (!sameValue(existing[field], record[field])) {
                     changed[field] = record[field];
                 }
             });
