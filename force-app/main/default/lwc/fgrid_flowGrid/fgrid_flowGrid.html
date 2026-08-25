@@ -220,9 +220,14 @@
                     <h2 class="slds-text-heading_medium slds-hyphenate">{flowModalHeader}</h2>
                 </header>
                 <div class="slds-modal__content slds-p-around_medium">
+                    <!-- flow-finish-behavior NONE stops lightning-flow restarting
+                         its interview on completion, which is its default. The
+                         modal is unmounted on finish anyway; this makes the loop
+                         impossible rather than merely unlikely. -->
                     <lightning-flow
                         flow-api-name={flowApiName}
                         flow-input-variables={flowInputVariables}
+                        flow-finish-behavior="NONE"
                         onstatuschange={handleFlowStatusChange}
                     ></lightning-flow>
                 </div>

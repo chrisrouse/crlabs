@@ -860,7 +860,15 @@ export default class FgridFlowGrid extends LightningElement {
      * returned data by key itself.
      */
     handleFlowStatusChange(event) {
-        const { flowStatus, outputVariables } = event.detail || {};
+        const detail = event.detail || {};
+        // `lightning-flow` reports this as `status`, not `flowStatus`. Reading the
+        // wrong key meant this handler returned early every time, so the modal was
+        // never unmounted and the component restarted its interview — which also
+        // discarded the edits. Both the component this replaces and the BasePack's
+        // fsc_modalFlow read `status`; `flowStatus` is a fallback in case a future
+        // API version renames it.
+        const flowStatus = detail.status ?? detail.flowStatus;
+        const outputVariables = detail.outputVariables;
 
         if (flowStatus === "ERROR") {
             this._flowError = "The flow did not complete. Nothing was changed.";
