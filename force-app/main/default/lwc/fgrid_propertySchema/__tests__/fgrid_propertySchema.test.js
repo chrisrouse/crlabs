@@ -120,17 +120,32 @@ describe("row action visibility", () => {
     });
 
     it("shows icon properties for the icon display", () => {
-        const shown = visible("rowaction", { rowActionType: "Standard", rowActionDisplay: "Icon" });
+        const shown = visible("rowaction", { rowActionType: "Remove", rowActionDisplay: "Icon" });
         expect(shown).toContain("rowActionIcon");
         expect(shown).toContain("rowActionColor");
         expect(shown).not.toContain("rowActionButtonLabel");
     });
 
     it("shows button properties for the button display", () => {
-        const shown = visible("rowaction", { rowActionType: "Standard", rowActionDisplay: "Button" });
+        const shown = visible("rowaction", { rowActionType: "Remove", rowActionDisplay: "Button" });
         expect(shown).toContain("rowActionButtonLabel");
         expect(shown).toContain("rowActionButtonVariant");
         expect(shown).not.toContain("rowActionIcon");
+    });
+
+    it("offers only None, Remove and Flow", () => {
+        const [type] = SECTIONS.find((s) => s.name === "rowaction").controls;
+        expect(type.property).toBe("rowActionType");
+        expect(type.options.map((o) => o.value)).toEqual(["None", "Remove", "Flow"]);
+    });
+
+    it("shows nothing for a saved Standard action", () => {
+        // Standard only reported the clicked row, which the selected-record
+        // outputs already do. A configuration left over from it must not surface
+        // options for an action that no longer exists.
+        expect(visible("rowaction", { rowActionType: "Standard", rowActionDisplay: "Icon" })).toEqual([
+            "rowActionType"
+        ]);
     });
 
     it("shows the removal cap only for the remove action", () => {

@@ -729,7 +729,7 @@ export default class FgridFlowGrid extends LightningElement {
 
     /**
      * Row action. `Remove` takes the row out of the grid and republishes the
-     * removed and remaining collections; `Standard` just reports the row.
+     * removed and remaining collections.
      */
     handleRowAction(event) {
         if (event.detail.action?.name !== ROW_ACTION_NAME) {
@@ -749,7 +749,6 @@ export default class FgridFlowGrid extends LightningElement {
         }
 
         if (this.rowActionType !== "Remove") {
-            this.publishActioned(record);
             return;
         }
 

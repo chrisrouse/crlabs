@@ -46,7 +46,6 @@ export const SELECTION_MODES = [
 
 const ROW_ACTION_TYPES = [
     { label: "None", value: "None" },
-    { label: "Standard action", value: "Standard" },
     { label: "Remove row", value: "Remove" },
     { label: "Run a flow", value: "Flow" }
 ];
@@ -127,9 +126,12 @@ export const VISIBILITY = {
     selectable: (v) => v.selectionMode !== "None",
     singleSelect: (v) => v.selectionMode === "Single",
     paginated: (v) => Boolean(v.showPagination),
-    hasRowAction: (v) => v.rowActionType !== "None",
-    iconAction: (v) => v.rowActionType !== "None" && v.rowActionDisplay === "Icon",
-    buttonAction: (v) => v.rowActionType !== "None" && v.rowActionDisplay === "Button",
+    // Named explicitly rather than "not None", so a configuration left over from
+    // the removed Standard action does not show sub-options for an action that no
+    // longer exists.
+    hasRowAction: (v) => v.rowActionType === "Remove" || v.rowActionType === "Flow",
+    iconAction: (v) => VISIBILITY.hasRowAction(v) && v.rowActionDisplay === "Icon",
+    buttonAction: (v) => VISIBILITY.hasRowAction(v) && v.rowActionDisplay === "Button",
     removeAction: (v) => v.rowActionType === "Remove",
     flowAction: (v) => v.rowActionType === "Flow",
     /**

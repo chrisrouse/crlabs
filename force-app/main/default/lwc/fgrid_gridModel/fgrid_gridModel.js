@@ -496,8 +496,6 @@ export const ROW_ACTION_NAME = "fgridRowAction";
 
 /* Row-action defaults, matching the conventions of the component Flow Grid
    replaces so an admin's expectations carry over. */
-const STANDARD_LABEL = "Perform Action";
-const STANDARD_ICON = "utility:touch_action";
 const REMOVE_LABEL = "Remove Row";
 const REMOVE_ICON = "utility:close";
 const FLOW_LABEL = "Run Flow";
@@ -525,14 +523,18 @@ export function withRowActionColumn(columns, options = {}) {
     } = options;
 
     const base = Array.isArray(columns) ? [...columns] : [];
-    if (actionType === "None") {
+    // Remove and Flow are the only actions. Anything else, including a saved
+    // configuration from the removed Standard action, gets no column: a button
+    // that reports the clicked row duplicated what row selection already
+    // provides through the selected-record outputs.
+    const isRemove = actionType === "Remove";
+    const isFlow = actionType === "Flow";
+    if (!isRemove && !isFlow) {
         return base;
     }
 
-    const isRemove = actionType === "Remove";
-    const isFlow = actionType === "Flow";
-    const defaultLabelText = isRemove ? REMOVE_LABEL : isFlow ? FLOW_LABEL : STANDARD_LABEL;
-    const defaultIconName = isRemove ? REMOVE_ICON : isFlow ? FLOW_ICON : STANDARD_ICON;
+    const defaultLabelText = isRemove ? REMOVE_LABEL : FLOW_LABEL;
+    const defaultIconName = isRemove ? REMOVE_ICON : FLOW_ICON;
     const column =
         display === "Button"
             ? {
