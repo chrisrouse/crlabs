@@ -35,27 +35,22 @@
             <lightning-input
                 type="text"
                 data-property="rowActionFlowRecordVariable"
-                label="Send the row's record to"
+                label="Record Input Variable"
                 placeholder="Variable name in the launched flow"
                 value={recordVariable}
-                field-level-help="API name of an SObject input variable in that flow. Leave blank to send no record."
+                field-level-help="Pass the entire record into the launched flow. Provide the variable's API name. Variable must be available for input and output."
                 onchange={handleVariableChange}
             ></lightning-input>
 
             <lightning-input
                 type="text"
                 data-property="rowActionFlowIdVariable"
-                label="Send the row's Id to"
+                label="Record ID Input Variable"
                 placeholder="Variable name in the launched flow"
                 value={idVariable}
-                field-level-help="API name of a text input variable in that flow, for flows that re-query. Leave blank to send no Id."
+                field-level-help="Pass the record ID into the launched flow. Provide the variable's API name. Variable must be available for input and output."
                 onchange={handleVariableChange}
             ></lightning-input>
-
-            <p class="flowconfig__summary">
-                Names must match the launched flow exactly. A name that flow does not declare is not sent, and the grid
-                reports it when the action runs. The flow's edited record is read back from the same variable.
-            </p>
         </template>
     </div>
 </template>
