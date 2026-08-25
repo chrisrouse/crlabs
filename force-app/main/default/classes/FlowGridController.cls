@@ -144,21 +144,25 @@ public with sharing class FlowGridController {
     }
 
     /**
-     * Reports which of the given records still exist.
+     * Fetches the current state of the given records.
      *
-     * Used after a row action, because a launched flow can delete the record it
-     * was handed and the grid holds only an in-memory copy.
+     * Called after a row action. A launched flow can update the record without
+     * returning it, or delete it, and the grid holds only an in-memory copy — a
+     * record that comes back supplies current values, one that does not has gone.
      *
-     * @param objectApiName API name of the object to check
+     * Not cacheable: the whole point is to see what just changed.
+     *
+     * @param objectApiName API name of the object to query
+     * @param fieldPaths column field paths to select
      * @param recordIds ids to look for
-     * @return the subset that still exists and is visible to the running user
+     * @return the records that still exist and are visible to the running user
      */
     @AuraEnabled
-    public static List<String> getExistingRecordIds(String objectApiName, List<String> recordIds) {
+    public static List<SObject> getRecordsByIds(String objectApiName, List<String> fieldPaths, List<String> recordIds) {
         try {
-            return FlowGridRecordService.findExistingIds(objectApiName, recordIds);
+            return FlowGridRecordService.fetchRecords(objectApiName, fieldPaths, recordIds);
         } catch (Exception error) {
-            throw new AuraHandledException('Unable to verify records: ' + error.getMessage());
+            throw new AuraHandledException('Unable to refresh records: ' + error.getMessage());
         }
     }
 

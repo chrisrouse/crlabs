@@ -25,7 +25,7 @@ import { LightningElement, api, wire } from "lwc";
 import { FlowAttributeChangeEvent } from "lightning/flowSupport";
 import getGridMetadata from "@salesforce/apex/FlowGridController.getGridMetadata";
 import runFlow from "@salesforce/apex/FlowGridController.runFlow";
-import getExistingRecordIds from "@salesforce/apex/FlowGridController.getExistingRecordIds";
+import getRecordsByIds from "@salesforce/apex/FlowGridController.getRecordsByIds";
 import getFlowVariables from "@salesforce/apex/FlowGridController.getFlowVariables";
 import {
     buildColumns,
@@ -880,31 +880,49 @@ export default class FgridFlowGrid extends LightningElement {
         if (patch) {
             this.upsertRecord(patch);
         }
-        await this.reconcileDeletion(record);
+        await this.reconcileRow(record, Boolean(patch));
     }
 
     /**
-     * Removes the row when the launched flow deleted the record.
+     * Re-reads the actioned row from the database and reconciles the grid.
      *
-     * The grid holds an in-memory copy and cannot see a delete, so it asks. A
-     * vanished record follows the same path as the Remove row action, landing in
-     * Removed Records for the calling flow to act on.
+     * One query, three outcomes:
+     *   gone                       - the flow deleted it, so remove the row and
+     *                                report it through Removed Records
+     *   returned, flow gave nothing - the flow changed the record without handing
+     *                                it back, which is what happens when only the
+     *                                Id was passed and the flow did its own DML.
+     *                                The fetched values are the refresh.
+     *   returned, flow gave a patch - trust the patch and ignore the fetch. The
+     *                                patch may be an unsaved edit, and the
+     *                                database would overwrite it with stale values.
+     *
+     * @param record the row the action ran on
+     * @param hadPatch whether the flow returned usable data
      */
-    async reconcileDeletion(record) {
+    async reconcileRow(record, hadPatch) {
         const id = record?.Id || record?.[this.keyField];
         if (this.isUserDefinedObject || !this.objectApiName || !id) {
             return;
         }
+
+        let fetched;
         try {
-            const existing = await getExistingRecordIds({
+            fetched = await getRecordsByIds({
                 objectApiName: this.objectApiName,
+                fieldPaths: this._columnPaths,
                 recordIds: [String(id)]
             });
-            if (Array.isArray(existing) && existing.length) {
-                return;
-            }
         } catch {
-            // Not being able to check is not a reason to drop a row.
+            // Not being able to re-read is never a reason to drop or rewrite a row.
+            return;
+        }
+
+        const current = Array.isArray(fetched) ? fetched[0] : null;
+        if (current) {
+            if (!hadPatch) {
+                this.upsertRecord({ ...current, [this.keyField]: record[this.keyField] });
+            }
             return;
         }
 

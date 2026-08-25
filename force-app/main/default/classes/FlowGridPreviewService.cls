@@ -41,8 +41,14 @@ public with sharing class FlowGridPreviewService {
         List<String> fieldPaths,
         Integer recordLimit
     ) {
-        List<String> safePaths = accessiblePaths(objectApiName, fieldPaths);
-        if (safePaths.isEmpty()) {
+        if (String.isBlank(objectApiName) || fieldPaths == null || fieldPaths.isEmpty()) {
+            return new List<SObject>();
+        }
+        // Same validation the runtime refresh uses, so a path that is unsafe in
+        // one place cannot be safe in the other.
+        List<String> safePaths = FlowGridRecordService.safePaths(objectApiName, fieldPaths);
+        if (safePaths.size() < 2) {
+            // Only Id survived, so there is nothing worth previewing.
             return new List<SObject>();
         }
 
@@ -58,42 +64,6 @@ public with sharing class FlowGridPreviewService {
             // falls back to fabricated rows rather than failing the editor.
             return new List<SObject>();
         }
-    }
-
-    /**
-     * Filters the requested paths down to ones that describe to a readable field.
-     *
-     * Always includes Id so the preview rows carry a stable key.
-     */
-    private static List<String> accessiblePaths(String objectApiName, List<String> fieldPaths) {
-        List<String> safePaths = new List<String>();
-        if (String.isBlank(objectApiName) || fieldPaths == null || fieldPaths.isEmpty()) {
-            return safePaths;
-        }
-
-        List<FlowGridColumnService.ColumnInfo> columns = FlowGridColumnService.describeColumns(
-            objectApiName,
-            fieldPaths
-        );
-        if (columns.isEmpty()) {
-            return safePaths;
-        }
-
-        Set<String> seen = new Set<String>{ 'id' };
-        safePaths.add('Id');
-
-        for (FlowGridColumnService.ColumnInfo column : columns) {
-            if (column.isAccessible != true || String.isBlank(column.fieldPath)) {
-                continue;
-            }
-            String path = column.fieldPath.trim();
-            if (seen.add(path.toLowerCase())) {
-                safePaths.add(path);
-            }
-        }
-
-        // Only Id survived, so there is nothing worth previewing.
-        return safePaths.size() > 1 ? safePaths : new List<String>();
     }
 
     /** Keeps the row count inside a sane range regardless of the request. */

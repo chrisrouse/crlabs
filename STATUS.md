@@ -270,6 +270,13 @@ compromise. The CSS comment records both failures.
   version uses — an empty string counts as removal, and flow versions are
   immutable. That is why the runtime validates names against the flow instead of
   relying on the properties being empty.
+- **The grid re-reads the actioned row after every flow action.** One query does
+  three jobs: a record that has gone means the flow deleted it, a record returned
+  when the flow handed nothing back supplies the refresh, and a record returned
+  when the flow *did* hand something back is ignored — the flow's version may be
+  an unsaved edit, and the database would overwrite it with stale values. This is
+  what lets a flow take only the record Id, do its own DML, and still have the
+  table reflect it.
 - **Nothing is saved unless a flow does DML.** A screen or autolaunched flow's
   SObject variable is an in-memory value: editing `record.Name` changes the
   variable, not the database. Only a record-triggered before-save flow persists
