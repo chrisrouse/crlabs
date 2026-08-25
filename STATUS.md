@@ -259,6 +259,15 @@ compromise. The CSS comment records both failures.
   version uses — an empty string counts as removal, and flow versions are
   immutable. That is why the runtime validates names against the flow instead of
   relying on the properties being empty.
+- **Nothing is saved unless a flow does DML.** A screen or autolaunched flow's
+  SObject variable is an in-memory value: editing `record.Name` changes the
+  variable, not the database. Only a record-triggered before-save flow persists
+  `$Record` implicitly. Flow Grid never writes either — it updates its working
+  collection and publishes it — so an edit shows in the grid and vanishes on
+  reload unless something commits it. Either give the launched flow its own
+  Update Records, or add one to the calling flow fed from `outputEditedRecords`
+  (only what changed) or `outputRemainingRecords` (the whole working set with
+  edits applied). Do not do both, or the record is updated twice.
 - **`fToggleChange` is not needed.** The grid owns its collection, so there is no
   reactive round-trip to force and no custom checkbox field required on your
   objects. The one real gap is DML the flow performs without returning the
