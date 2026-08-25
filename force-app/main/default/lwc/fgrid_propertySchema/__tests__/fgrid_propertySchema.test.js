@@ -199,10 +199,14 @@ describe("control stamping", () => {
 
 describe("dynamic placeholders", () => {
     it("shows the icon each action type actually falls back to", () => {
+        // rowActionFlowApiName is required for the Flow case: every control below
+        // the flow picker waits until a flow is chosen.
         const icon = (type) =>
-            resolveSection(section("rowaction"), { rowActionType: type, rowActionDisplay: "Icon" }).find(
-                (c) => c.property === "rowActionIcon"
-            ).placeholder;
+            resolveSection(section("rowaction"), {
+                rowActionType: type,
+                rowActionDisplay: "Icon",
+                rowActionFlowApiName: "SomeFlow"
+            }).find((c) => c.property === "rowActionIcon").placeholder;
 
         // The placeholder is resolved from the same map the runtime applies, so a
         // hint cannot promise an icon the grid will not use.
