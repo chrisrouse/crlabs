@@ -26,6 +26,7 @@ import { FlowAttributeChangeEvent } from "lightning/flowSupport";
 import getGridMetadata from "@salesforce/apex/FlowGridController.getGridMetadata";
 import runFlow from "@salesforce/apex/FlowGridController.runFlow";
 import getExistingRecordIds from "@salesforce/apex/FlowGridController.getExistingRecordIds";
+import getFlowVariables from "@salesforce/apex/FlowGridController.getFlowVariables";
 import {
     buildColumns,
     buildRows,
@@ -98,8 +99,8 @@ export default class FgridFlowGrid extends LightningElement {
     // ----- Flow row action -----
     @api rowActionFlowApiName;
     @api rowActionFlowLaunchMode;
-    @api rowActionFlowRecordVariable = "record";
-    @api rowActionFlowIdVariable = "recordId";
+    @api rowActionFlowRecordVariable;
+    @api rowActionFlowIdVariable;
     @api rowActionFlowOutputVariable;
     @api rowActionFlowStatusVariable;
     @api markActionedRows = false;
@@ -172,6 +173,7 @@ export default class FgridFlowGrid extends LightningElement {
     _isFlowOpen = false;
     _isRunningFlow = false;
     _flowError = null;
+    _flowVariables = [];
 
     @api
     get records() {
@@ -199,6 +201,24 @@ export default class FgridFlowGrid extends LightningElement {
     set columnConfig(value) {
         this._columnConfigRaw = value;
         this._columnConfig = parseColumnConfig(value);
+    }
+
+    /**
+     * Variables the configured row-action flow actually declares.
+     *
+     * The mapping properties carry platform defaults of `record` and `recordId`
+     * that cannot be removed — an immutable flow version references them, and
+     * Salesforce refuses to drop a default that is in use. So rather than trust
+     * the configured names, the runtime checks them against the flow and sends
+     * only variables that exist. A flow declaring neither used to be handed both
+     * and fail with "the input variable doesn't exist in the active version".
+     *
+     * This also covers a variable being edited out of a flow after the row action
+     * was configured.
+     */
+    @wire(getFlowVariables, { flowApiName: "$rowActionFlowApiName" })
+    wiredFlowVariables({ data }) {
+        this._flowVariables = data || [];
     }
 
     /**
@@ -528,12 +548,32 @@ export default class FgridFlowGrid extends LightningElement {
      * shapes: some take an SObject variable, others just take recordId and
      * re-query. Either name can be left blank to omit it.
      */
+    /**
+     * Input variables for the launched flow.
+     *
+     * Only what the admin explicitly mapped is sent. These used to default to
+     * `record` and `recordId`, which meant a flow declaring neither was handed
+     * both and failed with "the input variable does not exist in the active
+     * version of the flow".
+     */
+    /** Names of input variables the configured flow declares. */
+    get declaredInputNames() {
+        return new Set(this._flowVariables.filter((variable) => variable?.isInput).map((variable) => variable.apiName));
+    }
+
+    /** True when the flow declares an input by this name. */
+    acceptsInput(name) {
+        // Before the variable list arrives, trust the configuration rather than
+        // dropping inputs and launching the flow with nothing.
+        return Boolean(name) && (!this._flowVariables.length || this.declaredInputNames.has(name));
+    }
+
     get flowInputVariables() {
         if (!this._flowRecord) {
             return [];
         }
         const variables = [];
-        if (this.rowActionFlowRecordVariable) {
+        if (this.acceptsInput(this.rowActionFlowRecordVariable)) {
             variables.push({
                 name: this.rowActionFlowRecordVariable,
                 type: "SObject",
@@ -541,7 +581,7 @@ export default class FgridFlowGrid extends LightningElement {
             });
         }
         const id = this._flowRecord.Id || this._flowRecord[this.keyField];
-        if (this.rowActionFlowIdVariable && id) {
+        if (id && this.acceptsInput(this.rowActionFlowIdVariable)) {
             variables.push({ name: this.rowActionFlowIdVariable, type: "String", value: id });
         }
         return variables;
@@ -740,8 +780,10 @@ export default class FgridFlowGrid extends LightningElement {
                 flowApiName: this.rowActionFlowApiName,
                 objectApiName: this.objectApiName,
                 recordJson: JSON.stringify(record),
-                recordVariable: this.rowActionFlowRecordVariable,
-                idVariable: this.rowActionFlowIdVariable,
+                recordVariable: this.acceptsInput(this.rowActionFlowRecordVariable)
+                    ? this.rowActionFlowRecordVariable
+                    : null,
+                idVariable: this.acceptsInput(this.rowActionFlowIdVariable) ? this.rowActionFlowIdVariable : null,
                 recordId: record?.Id || record?.[this.keyField]
             });
 

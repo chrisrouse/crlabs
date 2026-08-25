@@ -111,8 +111,6 @@ export const DEFAULTS = {
     rowActionColor: "Red",
     rowActionButtonIconPosition: "Left",
     rowActionButtonVariant: "neutral",
-    rowActionFlowRecordVariable: "record",
-    rowActionFlowIdVariable: "recordId",
     rowActionFlowModalHeader: "Edit Record",
     rowActionFlowModalSize: "Medium"
 };
