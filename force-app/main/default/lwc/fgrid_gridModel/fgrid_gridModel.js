@@ -497,7 +497,7 @@ export const ROW_ACTION_NAME = "fgridRowAction";
 /* Row-action defaults, matching the conventions of the component Flow Grid
    replaces so an admin's expectations carry over. */
 const REMOVE_LABEL = "Remove Row";
-const REMOVE_ICON = "utility:close";
+const REMOVE_ICON = "utility:delete";
 const FLOW_LABEL = "Run Flow";
 const FLOW_ICON = "utility:flow";
 
@@ -512,7 +512,7 @@ export function withRowActionColumn(columns, options = {}) {
     const {
         actionType = "None",
         display = "Icon",
-        position = "Right",
+        position = "Left",
         label,
         iconName,
         color,
@@ -535,6 +535,10 @@ export function withRowActionColumn(columns, options = {}) {
 
     const defaultLabelText = isRemove ? REMOVE_LABEL : FLOW_LABEL;
     const defaultIconName = isRemove ? REMOVE_ICON : FLOW_ICON;
+    // Removal reads as destructive, so it defaults to red even when nothing is
+    // stored. A contract-level default cannot express this: it would colour the
+    // flow action red too.
+    const effectiveColor = color || (isRemove ? "Red" : null);
     const column =
         display === "Button"
             ? {
@@ -563,7 +567,7 @@ export function withRowActionColumn(columns, options = {}) {
                       title: label || defaultLabelText,
                       alternativeText: label || defaultLabelText,
                       variant: "bare",
-                      class: colorClass(color)
+                      class: colorClass(effectiveColor)
                   }
               };
 

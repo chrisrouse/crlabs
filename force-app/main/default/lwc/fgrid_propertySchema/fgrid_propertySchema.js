@@ -62,8 +62,8 @@ const ROW_ACTION_DISPLAYS = [
 ];
 
 const SIDES = [
-    { label: "Right", value: "Right" },
-    { label: "Left", value: "Left" }
+    { label: "Left", value: "Left" },
+    { label: "Right", value: "Right" }
 ];
 
 const ACTION_COLORS = [
@@ -105,7 +105,7 @@ export const DEFAULTS = {
     allowNoneToBeChosen: true,
     rowActionType: "None",
     rowActionDisplay: "Icon",
-    rowActionPosition: "Right",
+    rowActionPosition: "Left",
     rowActionColor: "Red",
     rowActionButtonIconPosition: "Left",
     rowActionButtonVariant: "neutral",

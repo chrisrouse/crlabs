@@ -86,7 +86,7 @@ export default class FgridFlowGrid extends LightningElement {
     // ----- Row action -----
     @api rowActionType = "None";
     @api rowActionDisplay = "Icon";
-    @api rowActionPosition = "Right";
+    @api rowActionPosition = "Left";
     @api rowActionLabel;
     @api rowActionIcon;
     @api rowActionColor;
