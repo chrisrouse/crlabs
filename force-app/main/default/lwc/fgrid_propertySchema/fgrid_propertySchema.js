@@ -94,8 +94,7 @@ export const EDITOR_MANAGED_PROPERTIES = [
     "columnConfig",
     "rowActionFlowLaunchMode",
     "rowActionFlowRecordVariable",
-    "rowActionFlowIdVariable",
-    "rowActionFlowOutputVariable"
+    "rowActionFlowIdVariable"
 ];
 
 /** Values Flow Grid assumes when an admin has not set the property. */
@@ -419,15 +418,6 @@ export const SECTIONS = [
                 label: "Maximum rows that can be removed",
                 when: ["removeAction", "flowConfigured"],
                 help: "Leave blank for no limit."
-            },
-            {
-                property: "markActionedRows",
-                type: CONTROL.CHECKBOX,
-                label: "Record every actioned row",
-                // flowConfigured alone is true for Standard and Remove too, so
-                // this needs the Flow action as well.
-                when: ["flowAction", "flowConfigured"],
-                help: "Adds each row a flow action runs on to Actioned Records. Off by default. A Boolean status variable from the launched flow overrides this per row."
             },
             {
                 property: "rowActionFlowModalHeader",

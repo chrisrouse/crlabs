@@ -101,9 +101,6 @@ export default class FgridFlowGrid extends LightningElement {
     @api rowActionFlowLaunchMode;
     @api rowActionFlowRecordVariable;
     @api rowActionFlowIdVariable;
-    @api rowActionFlowOutputVariable;
-    @api rowActionFlowStatusVariable;
-    @api markActionedRows = false;
     @api rowActionFlowModalHeader = "Edit Record";
     @api rowActionFlowModalSize = "Medium";
 
@@ -126,15 +123,12 @@ export default class FgridFlowGrid extends LightningElement {
     @api outputRemovedRecords = [];
     @api outputRemainingRecords = [];
     @api outputActionedRecord;
-    @api outputActionedRecords = [];
     @api outputSelectedRecordsJson;
     @api outputEditedRecordsJson;
     @api outputRemovedRecordsJson;
     @api outputRemainingRecordsJson;
     @api outputActionedRecordJson;
-    @api outputActionedRecordsJson;
-    @api outputLastActionStatus;
-    @api actionedCount = 0;
+
     @api selectedCount = 0;
     @api editedCount = 0;
     @api removedCount = 0;
@@ -164,8 +158,6 @@ export default class FgridFlowGrid extends LightningElement {
     _removalBlockedMessage = null;
     /** Field patches applied by the row-action flow, keyed by keyField. */
     _editsByKey = {};
-    /** Keys of every row a row action ran on, in the order first actioned. */
-    _actionedKeys = [];
     /** Records the flow returned whose key was not already in the grid. */
     _addedRecords = [];
     /** The record currently open in the row-action flow modal. */
@@ -308,20 +300,6 @@ export default class FgridFlowGrid extends LightningElement {
     get editedRecords() {
         const keys = new Set(Object.keys(this._editsByKey));
         return keys.size ? this.allKnownRecords.filter((record) => keys.has(String(record?.[this.keyField]))) : [];
-    }
-
-    /**
-     * Every record a row action ran on, whether or not anything changed.
-     *
-     * Deduplicated by key and ordered by first action, so the calling Flow can
-     * iterate "rows the user worked on" without seeing repeats.
-     */
-    get actionedRecords() {
-        if (!this._actionedKeys.length) {
-            return [];
-        }
-        const byKey = new Map(this.allKnownRecords.map((record) => [String(record?.[this.keyField]), record]));
-        return this._actionedKeys.map((key) => byKey.get(String(key))).filter(Boolean);
     }
 
     get columns() {
@@ -894,14 +872,9 @@ export default class FgridFlowGrid extends LightningElement {
      * handled identically once they have finished.
      */
     async applyFlowResult(record, outputVariables) {
-        const status = this.readActionStatus(outputVariables);
-        this.publish("outputLastActionStatus", status === undefined || status === null ? null : String(status));
-        this.publishActioned(record, { collect: this.shouldRecordActioned(status) });
-
-        // A flow reporting that it did nothing should not rewrite the row.
-        if (typeof status === "boolean" && status === false) {
-            return;
-        }
+        // Reported on every completion, whether or not the flow changed the row:
+        // a flow that only creates related records still worked on this one.
+        this.publishActioned(record);
 
         const patch = this.readFlowResult(outputVariables);
         if (patch) {
@@ -962,7 +935,10 @@ export default class FgridFlowGrid extends LightningElement {
             return null;
         }
 
-        const recordName = this.rowActionFlowOutputVariable || this.rowActionFlowRecordVariable;
+        // The launched flow returns the edited record in the same variable it was
+        // handed, which is how a Flow SObject variable marked for input and output
+        // behaves.
+        const recordName = this.rowActionFlowRecordVariable;
         const recordOutput = outputs.find(
             (output) => recordName && output?.name === recordName && output?.value && typeof output.value === "object"
         );
@@ -984,35 +960,6 @@ export default class FgridFlowGrid extends LightningElement {
         }
         // Carry the key so the patch can be matched to its row.
         return { ...patch, [this.keyField]: this._flowRecord?.[this.keyField] };
-    }
-
-    /**
-     * Reads the configured status variable out of the flow's outputs.
-     *
-     * @returns the raw value, or undefined when no status variable is mapped or
-     *          the flow did not return it
-     */
-    readActionStatus(outputVariables) {
-        const name = this.rowActionFlowStatusVariable;
-        if (!name || !Array.isArray(outputVariables)) {
-            return undefined;
-        }
-        const match = outputVariables.find((output) => output?.name === name);
-        return match ? match.value : undefined;
-    }
-
-    /**
-     * Decides whether a row counts as actioned.
-     *
-     * Follows the platform's default-false convention: nothing is recorded unless
-     * asked for. A Boolean status from the launched flow wins over the static
-     * setting, so the flow itself can say "I did nothing here" per row.
-     */
-    shouldRecordActioned(status) {
-        if (typeof status === "boolean") {
-            return status;
-        }
-        return this.markActionedRows === true;
     }
 
     /**
@@ -1135,46 +1082,21 @@ export default class FgridFlowGrid extends LightningElement {
      * generated link URLs, which are not fields on the object.
      */
     /**
-     * Reports the row an action ran on.
+     * Reports the row the most recent action ran on.
      *
-     * `record` is always published as the most recent actioned row. Adding it to
-     * the accumulated collection is gated, so a flow that reports doing nothing
-     * does not pad the list the calling flow iterates.
+     * Publishes a new object each time rather than the record reference: this
+     * output is the hook for a sibling component reacting to a row action, and
+     * Flow only propagates a reactive output when it sees a change, so reusing
+     * the reference would silently do nothing on a repeat action.
      */
-    publishActioned(record, { collect = true } = {}) {
+    publishActioned(record) {
         const snapshot = { ...record };
-        const key = record?.[this.keyField];
-        if (
-            collect &&
-            key !== undefined &&
-            key !== null &&
-            !this._actionedKeys.some((seen) => String(seen) === String(key))
-        ) {
-            this._actionedKeys = [...this._actionedKeys, key];
-        }
-
         this.publish("outputActionedRecord", this.isUserDefinedObject ? null : snapshot);
         this.publish("outputActionedRecordJson", JSON.stringify(snapshot));
-        this.publishActionedCollection();
-    }
-
-    /**
-     * Publishes the accumulated touched-rows collection.
-     *
-     * Republished after an edit too, so the collection always carries current
-     * values rather than a snapshot from action time.
-     */
-    publishActionedCollection() {
-        const actioned = this.actionedRecords;
-        this.publish("outputActionedRecords", this.isUserDefinedObject ? [] : actioned);
-        this.publish("outputActionedRecordsJson", actioned.length ? JSON.stringify(actioned) : null);
-        this.publish("actionedCount", actioned.length);
     }
 
     /** Publishes the edited-records outputs. */
     publishEdits() {
-        // An edited row may also be an actioned row; keep that collection current.
-        this.publishActionedCollection();
         const edited = this.editedRecords;
         this.publish("outputEditedRecords", this.isUserDefinedObject ? [] : edited);
         this.publish("outputEditedRecordsJson", edited.length ? JSON.stringify(edited) : null);

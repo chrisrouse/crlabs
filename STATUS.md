@@ -72,10 +72,6 @@ Open the smoke flow, click the Flow Grid element:
 - [ ] Cancel the modal instead: confirm nothing changes and no edit is recorded
 - [ ] Finish without changing anything: confirm it does **not** appear in
       `outputEditedRecords` (the value-comparison path)
-- [ ] Turn on **Record every actioned row**, action a row, confirm
-      `outputActionedRecords` and `actionedCount` populate
-- [ ] Map a Boolean output as the status variable, return `false`, confirm the row
-      is neither recorded nor rewritten, and `outputLastActionStatus` is `false`
 - [ ] Point the row action at an **autolaunched** flow: confirm no modal, a brief
       "Running flow…" indicator, and outputs still fold back in
 - [ ] **Deleted record:** have the launched flow delete the record, then confirm
@@ -258,6 +254,16 @@ compromise. The CSS comment records both failures.
   user's object and field permissions. That is the flow's own configuration, and
   a row action makes it easy to hand a user a button that does more than their
   profile allows.
+- **Contract changes are blocked by flows that use the component.** An output
+  property cannot be deleted, and an input default cannot be changed, while any
+  flow version references the component — including inactive drafts, and versions
+  accumulate. `sf project deploy` with a destructive manifest fails on Flow and
+  FlowDefinition with "insufficient access rights on cross-reference id"; deleting
+  each version by id through the Tooling API works:
+  `sf data delete record --use-tooling-api -s Flow -i <versionId>`. Version ids
+  come from `SELECT Id, VersionNumber, Definition.DeveloperName FROM Flow`.
+  Also note LWC requires every property in `targetConfigs` to have a matching
+  `@api`, so the contract and the JS have to change together.
 - **Property defaults cannot be removed once a flow references them.**
   `rowActionFlowRecordVariable` and `rowActionFlowIdVariable` default to `record`
   and `recordId`, and Salesforce refuses to drop a default that an existing flow

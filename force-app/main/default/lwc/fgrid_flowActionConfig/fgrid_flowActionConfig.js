@@ -3,7 +3,11 @@
  * variables it should receive.
  *
  * The flow itself is picked from a list of active, non-template, launchable
- * flows. The variable names are typed.
+ * flows. The two variable names are typed.
+ *
+ * There is no separate "read the result from" mapping: the launched flow returns
+ * its edited record in the same variable it was handed, which is how a Flow
+ * SObject variable marked for both input and output behaves.
  *
  * Variable names were briefly discovered from the flow and offered as dropdowns.
  * That read well but accumulated scaffolding around the mechanism rather than the
@@ -28,8 +32,6 @@ export default class FgridFlowActionConfig extends LightningElement {
     @api flowApiName;
     @api recordVariable;
     @api idVariable;
-    @api outputVariable;
-    @api statusVariable;
 
     _flows = [];
     _flowsError;
@@ -105,8 +107,6 @@ export default class FgridFlowActionConfig extends LightningElement {
         // The previous names referred to a different flow's variables.
         this.publish("rowActionFlowRecordVariable", null);
         this.publish("rowActionFlowIdVariable", null);
-        this.publish("rowActionFlowOutputVariable", null);
-        this.publish("rowActionFlowStatusVariable", null);
     }
 
     handleVariableChange(event) {

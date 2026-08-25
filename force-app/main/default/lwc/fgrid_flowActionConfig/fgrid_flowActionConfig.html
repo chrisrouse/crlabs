@@ -52,29 +52,9 @@
                 onchange={handleVariableChange}
             ></lightning-input>
 
-            <lightning-input
-                type="text"
-                data-property="rowActionFlowOutputVariable"
-                label="Read the edited record from"
-                placeholder="Variable name in the launched flow"
-                value={outputVariable}
-                field-level-help="API name of the output variable holding the record to upsert back into the grid. Leave blank if the flow returns individual field values named after your columns instead."
-                onchange={handleVariableChange}
-            ></lightning-input>
-
-            <lightning-input
-                type="text"
-                data-property="rowActionFlowStatusVariable"
-                label="Read a status from"
-                placeholder="Variable name in the launched flow"
-                value={statusVariable}
-                field-level-help="Optional. API name of an output variable reporting what the flow did. Surfaced as Last Action Status, and a Boolean decides whether the row is recorded as actioned."
-                onchange={handleVariableChange}
-            ></lightning-input>
-
             <p class="flowconfig__summary">
                 Names must match the launched flow exactly. A name that flow does not declare is not sent, and the grid
-                reports it when the action runs.
+                reports it when the action runs. The flow's edited record is read back from the same variable.
             </p>
         </template>
     </div>

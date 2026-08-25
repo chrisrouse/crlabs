@@ -102,9 +102,6 @@
             <property name="rowActionFlowLaunchMode" type="String" label="Flow Launch Mode" role="inputOnly" description="Screen or Headless. Set by the property editor from the chosen flow's type; a screen flow opens in a modal, an autolaunched flow runs with no UI." />
             <property name="rowActionFlowRecordVariable" type="String" label="Flow Record Variable" role="inputOnly" description="Name of the flow's input variable that receives the clicked record. Leave blank to pass no record." />
             <property name="rowActionFlowIdVariable" type="String" label="Flow Record Id Variable" role="inputOnly" description="Name of the flow's input variable that receives the record Id. Leave blank to pass no Id." />
-            <property name="rowActionFlowStatusVariable" type="String" label="Flow Status Variable" role="inputOnly" description="Optional output variable in the launched flow reporting what it did. Surfaced as Last Action Status. When it is a Boolean, its value decides whether the row is added to Actioned Records." />
-            <property name="markActionedRows" type="Boolean" label="Record Actioned Rows" default="false" role="inputOnly" description="When true, every row a flow action runs on is added to Actioned Records. Defaults to false. A Boolean status variable from the launched flow overrides this per row." />
-            <property name="rowActionFlowOutputVariable" type="String" label="Flow Output Variable" role="inputOnly" description="Name of the flow's output variable holding the edited record. Leave blank to use the record variable name." />
             <property name="rowActionFlowModalHeader" type="String" label="Modal Header" default="Edit Record" role="inputOnly" />
             <property name="rowActionFlowModalSize" type="String" label="Modal Size" default="Medium" role="inputOnly" description="Small, Medium, or Large." />
 
@@ -127,8 +124,7 @@
             <property name="outputEditedRecords" type="{T[]}" label="Edited Records" role="outputOnly" />
             <property name="outputRemovedRecords" type="{T[]}" label="Removed Records" role="outputOnly" />
             <property name="outputRemainingRecords" type="{T[]}" label="Remaining Records" role="outputOnly" />
-            <property name="outputActionedRecord" type="{T}" label="Actioned Record (most recent)" role="outputOnly" />
-            <property name="outputActionedRecords" type="{T[]}" label="Actioned Records" role="outputOnly" description="Every row a row action was performed on, whether or not anything ultimately changed. Deduplicated by key, in the order first actioned. Compare with Edited Records to tell touched from changed." />
+            <property name="outputActionedRecord" type="{T}" label="Actioned Record" role="outputOnly" />
 
             <!-- JSON output mirrors, for the user-defined-object source -->
             <property name="outputSelectedRecordsJson" type="String" label="Selected Records (JSON)" role="outputOnly" />
@@ -136,10 +132,7 @@
             <property name="outputRemovedRecordsJson" type="String" label="Removed Records (JSON)" role="outputOnly" />
             <property name="outputRemainingRecordsJson" type="String" label="Remaining Records (JSON)" role="outputOnly" />
             <property name="outputActionedRecordJson" type="String" label="Actioned Record (JSON)" role="outputOnly" />
-            <property name="outputActionedRecordsJson" type="String" label="Actioned Records (JSON)" role="outputOnly" />
 
-            <property name="outputLastActionStatus" type="String" label="Last Action Status" role="outputOnly" description="Value the launched flow's status variable returned on the most recent row action, so the calling flow can branch on what it reported." />
-            <property name="actionedCount" type="Integer" label="Number of Actioned Records" role="outputOnly" />
             <property name="selectedCount" type="Integer" label="Number of Selected Records" role="outputOnly" />
             <property name="editedCount" type="Integer" label="Number of Edited Records" role="outputOnly" />
             <property name="removedCount" type="Integer" label="Number of Removed Records" role="outputOnly" />
