@@ -59,11 +59,16 @@ Open the smoke flow, click the Flow Grid element:
 
 ### 1.4 Runtime — the Flow row action (the headline feature)
 
-- [ ] Click the row action: the modal opens and `FlowGrid_Edit_Account` renders.
-      **This is the load-bearing assumption I could not verify** — `lightning-flow`
-      nested inside a running Flow screen. If the modal is empty, that's why.
-- [ ] Change the name, Finish: the grid shows the new value immediately
-- [ ] `outputEditedRecords` / `editedCount` reflect it
+- [x] Click the row action: the modal opens and `FlowGrid_Edit_Account` renders.
+      **Verified 2026-08-25.** This was the load-bearing assumption of the whole
+      native row action — `lightning-flow` does work nested inside a running Flow
+      screen.
+- [x] Change the name, Finish: the modal closes and the grid shows the new value.
+      **Verified 2026-08-25**, after fixing `event.detail.status` (the handler was
+      reading `flowStatus`, so it never closed and the interview restarted,
+      discarding the edits).
+- [ ] `outputEditedRecords` / `editedCount` reflect it — not yet checked in the
+      debug panel
 - [ ] Cancel the modal instead: confirm nothing changes and no edit is recorded
 - [ ] Finish without changing anything: confirm it does **not** appear in
       `outputEditedRecords` (the value-comparison path)
