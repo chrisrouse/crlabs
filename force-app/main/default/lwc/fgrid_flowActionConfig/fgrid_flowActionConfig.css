@@ -1,4 +1,5 @@
-.flowconfig lightning-combobox {
+.flowconfig lightning-combobox,
+.flowconfig lightning-input {
     display: block;
     margin-bottom: 0.5rem;
 }
@@ -7,19 +8,6 @@
     font-size: 0.75rem;
     color: #706e6b;
     margin: 0 0 0.5rem;
-}
-
-.flowconfig__excluded {
-    font-size: 0.6875rem;
-    color: #706e6b;
-    font-style: italic;
-    margin: 0.5rem 0 0;
-}
-
-.flowconfig__actions {
-    display: flex;
-    align-items: center;
-    margin-top: 0.25rem;
 }
 
 /* Reclaims the option gutter lightning-combobox reserves for its check icon. */

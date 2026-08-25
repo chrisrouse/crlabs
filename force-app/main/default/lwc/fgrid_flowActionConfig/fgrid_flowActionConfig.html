@@ -32,84 +32,50 @@
         </template>
 
         <template lwc:if={hasFlowSelected}>
-            <template lwc:if={hasVersionNote}>
-                <div class="slds-box slds-box_x-small slds-theme_warning slds-m-vertical_x-small" role="alert">
-                    <p>{versionNote}</p>
-                </div>
-            </template>
-
-            <lightning-combobox
-                class="flowconfig__list"
+            <lightning-input
+                type="text"
                 data-property="rowActionFlowRecordVariable"
                 label="Send the row's record to"
-                value={recordValue}
-                options={recordOptions}
-                field-level-help="Input variable in the flow that receives the whole record."
-                onchange={handleRecordChange}
-            ></lightning-combobox>
+                placeholder="Variable name in the launched flow"
+                value={recordVariable}
+                field-level-help="API name of an SObject input variable in that flow. Leave blank to send no record."
+                onchange={handleVariableChange}
+            ></lightning-input>
 
-            <lightning-combobox
-                class="flowconfig__list"
+            <lightning-input
+                type="text"
                 data-property="rowActionFlowIdVariable"
                 label="Send the row's Id to"
-                value={idValue}
-                options={idOptions}
-                field-level-help="Input variable that receives just the record Id, for flows that re-query."
-                onchange={handleIdChange}
-            ></lightning-combobox>
+                placeholder="Variable name in the launched flow"
+                value={idVariable}
+                field-level-help="API name of a text input variable in that flow, for flows that re-query. Leave blank to send no Id."
+                onchange={handleVariableChange}
+            ></lightning-input>
 
-            <lightning-combobox
-                class="flowconfig__list"
+            <lightning-input
+                type="text"
                 data-property="rowActionFlowOutputVariable"
                 label="Read the edited record from"
-                value={outputValue}
-                options={outputOptions}
-                field-level-help="Output variable holding the record to upsert back into the grid. Leave unset if the flow returns individual field values named after your columns instead."
-                onchange={handleOutputChange}
-            ></lightning-combobox>
+                placeholder="Variable name in the launched flow"
+                value={outputVariable}
+                field-level-help="API name of the output variable holding the record to upsert back into the grid. Leave blank if the flow returns individual field values named after your columns instead."
+                onchange={handleVariableChange}
+            ></lightning-input>
 
-            <lightning-combobox
-                class="flowconfig__list"
+            <lightning-input
+                type="text"
                 data-property="rowActionFlowStatusVariable"
                 label="Read a status from"
-                value={statusValue}
-                options={statusOptions}
-                field-level-help="Optional. An output variable reporting what the flow did. Surfaced as Last Action Status, and a Boolean decides whether the row is recorded as actioned."
-                onchange={handleStatusChange}
-            ></lightning-combobox>
+                placeholder="Variable name in the launched flow"
+                value={statusVariable}
+                field-level-help="Optional. API name of an output variable reporting what the flow did. Surfaced as Last Action Status, and a Boolean decides whether the row is recorded as actioned."
+                onchange={handleVariableChange}
+            ></lightning-input>
 
-            <template lwc:if={hasStatusHint}>
-                <p class="flowconfig__summary">{statusHint}</p>
-            </template>
-
-            <div class="flowconfig__actions">
-                <lightning-button
-                    variant="base"
-                    label="Refresh variables"
-                    icon-name="utility:refresh"
-                    disabled={isRefreshing}
-                    onclick={handleRefresh}
-                ></lightning-button>
-                <template lwc:if={isRefreshing}>
-                    <span class="flowconfig__summary slds-m-left_x-small">Refreshing…</span>
-                </template>
-            </div>
-
-            <template lwc:if={hasStaleMappings}>
-                <div class="slds-box slds-box_x-small slds-theme_warning slds-m-top_x-small" role="alert">
-                    <ul class="slds-list_dotted">
-                        <template for:each={staleMappings} for:item="stale">
-                            <li key={stale.key}>{stale.message}</li>
-                        </template>
-                    </ul>
-                </div>
-            </template>
-
-            <template lwc:if={hasObjectMismatch}>
-                <div class="slds-box slds-box_x-small slds-theme_error slds-m-top_x-small" role="alert">
-                    <p>{objectMismatch}</p>
-                </div>
-            </template>
+            <p class="flowconfig__summary">
+                Names must match the launched flow exactly. A name that flow does not declare is not sent, and the grid
+                reports it when the action runs.
+            </p>
         </template>
     </div>
 </template>

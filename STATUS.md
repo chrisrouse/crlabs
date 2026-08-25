@@ -34,13 +34,9 @@ Open the smoke flow, click the Flow Grid element:
       and the rest of the section stays hidden until a flow is chosen
 - [ ] The flow list has no `Screen —` / `Autolaunched —` prefixes, no template
       flows, and reasonable left padding (see §3.1)
-- [ ] Pick a flow: variable dropdowns populate from that flow's real variables
-- [ ] **Refresh variables** — edit `FlowGrid_Edit_Account` in another tab, add a
-      variable, activate it, then Refresh here and confirm it appears
-- [ ] Refresh *without* activating: confirm the "newer version is not activated"
-      warning appears rather than silently doing nothing
-- [ ] Remove a mapped variable from the flow, activate, Refresh: confirm the
-      stale mapping is flagged and can be cleared via "— not passed —"
+- [ ] Pick a flow, then type the variable names. Blank means "do not send".
+- [ ] Type a name the flow does not declare, run the action, and confirm the grid
+      reports the dropped name rather than failing the interview or going quiet
 
 ### 1.2 Design time — Grid Studio
 
@@ -120,7 +116,21 @@ so they should either query for a suitable flow and skip when none is found (the
 pattern `FlowGridColumnServiceTest` already uses for its FLS test) or depend on
 `FlowGrid_Edit_Account` being deployed.
 
-### 2.3 Resource-capable Boolean properties
+### 2.3 Variable mapping is text, by choice
+
+Variable names are typed rather than picked. Discovery-backed dropdowns were built
+and then cut: they read well, but the scaffolding around the mechanism — refresh
+button, version-mismatch warnings, stale-mapping flags — outgrew the task, which
+is only ever "name two variables".
+
+Discovery still runs at runtime to drop names the flow does not declare, because
+the mapping properties carry platform defaults that cannot be removed. See §4.
+
+If this ever wants to become the Screen Action-style list — enumerate the flow's
+inputs, toggle each, Missing badges — that needs discovery back in the editor.
+`FlowGridController.getFlowVariables` is still there and tested by hand.
+
+### 2.4 Resource-capable Boolean properties
 
 `markActionedRows` renders as a checkbox, so it cannot be bound to
 `$GlobalConstant.True` or a Flow formula the way the platform's own Boolean
@@ -172,6 +182,12 @@ compromise. The CSS comment records both failures.
   user's object and field permissions. That is the flow's own configuration, and
   a row action makes it easy to hand a user a button that does more than their
   profile allows.
+- **Property defaults cannot be removed once a flow references them.**
+  `rowActionFlowRecordVariable` and `rowActionFlowIdVariable` default to `record`
+  and `recordId`, and Salesforce refuses to drop a default that an existing flow
+  version uses — an empty string counts as removal, and flow versions are
+  immutable. That is why the runtime validates names against the flow instead of
+  relying on the properties being empty.
 - **`fToggleChange` is not needed.** The grid owns its collection, so there is no
   reactive round-trip to force and no custom checkbox field required on your
   objects. The one real gap is DML the flow performs without returning the

@@ -568,6 +568,37 @@ export default class FgridFlowGrid extends LightningElement {
         return Boolean(name) && (!this._flowVariables.length || this.declaredInputNames.has(name));
     }
 
+    /**
+     * Names configured but not declared by the flow.
+     *
+     * Variable names are typed, so a typo is the likely failure. Reporting the
+     * dropped name beats both alternatives: sending it fails the whole interview,
+     * and dropping it silently leaves the flow running with nothing and no clue
+     * why.
+     */
+    get unmatchedInputNames() {
+        if (!this._flowVariables.length) {
+            return [];
+        }
+        const declared = this.declaredInputNames;
+        return [this.rowActionFlowRecordVariable, this.rowActionFlowIdVariable]
+            .filter((name) => name && !declared.has(name))
+            .filter((name, index, all) => all.indexOf(name) === index);
+    }
+
+    get hasUnmatchedInputNames() {
+        return this.unmatchedInputNames.length > 0;
+    }
+
+    get unmatchedInputMessage() {
+        const names = this.unmatchedInputNames;
+        if (!names.length) {
+            return null;
+        }
+        const list = names.join(", ");
+        return `${this.rowActionFlowApiName} does not declare ${names.length === 1 ? "an input variable" : "input variables"} named ${list}, so ${names.length === 1 ? "it was" : "they were"} not sent. Check the name in the row action settings.`;
+    }
+
     get flowInputVariables() {
         if (!this._flowRecord) {
             return [];

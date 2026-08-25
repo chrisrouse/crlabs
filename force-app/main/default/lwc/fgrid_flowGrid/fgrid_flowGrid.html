@@ -189,6 +189,12 @@
             </div>
         </template>
 
+        <template lwc:if={hasUnmatchedInputNames}>
+            <div class="slds-box slds-box_x-small slds-theme_warning slds-m-bottom_x-small" role="alert">
+                <p>{unmatchedInputMessage}</p>
+            </div>
+        </template>
+
         <template lwc:if={hasFlowError}>
             <div class="slds-box slds-box_x-small slds-theme_warning slds-m-top_x-small" role="alert">
                 <p>{flowError}</p>
