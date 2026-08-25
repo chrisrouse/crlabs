@@ -130,7 +130,9 @@ const CATALOG = [
 export default class FgridIconPicker extends LightningElement {
     @api label;
     @api fieldLevelHelp;
-    @api placeholder = "utility:table";
+    /** Overridable hint. Null-safe, because a caller that has no specific hint
+     *  passes null rather than omitting the attribute. */
+    @api placeholder;
     @api disabled = false;
 
     _value;
@@ -143,6 +145,10 @@ export default class FgridIconPicker extends LightningElement {
     }
     set value(next) {
         this._value = next || null;
+    }
+
+    get effectivePlaceholder() {
+        return this.placeholder || "utility:table";
     }
 
     get hasValue() {

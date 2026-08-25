@@ -10,6 +10,8 @@
  * second is a mirror the editor maintains, never something an admin edits.
  */
 
+import { ROW_ACTION_DEFAULT_ICONS } from "c/fgrid_gridModel";
+
 /** Control types `fgrid_propertyControls` knows how to render. */
 export const CONTROL = {
     CHECKBOX: "checkbox",
@@ -149,6 +151,15 @@ export const VISIBILITY = {
 export const DISABLED = {
     bottomBarHidden: (v) => Boolean(v.suppressBottomBar),
     nameFieldNotLinked: (v) => !v.showNameFieldLink
+};
+
+/**
+ * Named placeholder resolvers, following the same pattern as VISIBILITY: a
+ * descriptor references one by key so it stays comparable and testable.
+ */
+export const PLACEHOLDERS = {
+    /** Shows the icon the chosen action type will actually fall back to. */
+    rowActionIcon: (v) => ROW_ACTION_DEFAULT_ICONS[v.rowActionType] || null
 };
 
 export const SECTIONS = [
@@ -378,6 +389,7 @@ export const SECTIONS = [
                 property: "rowActionIcon",
                 type: CONTROL.ICON,
                 label: "Action icon",
+                placeholderFrom: "rowActionIcon",
                 when: ["iconAction", "flowConfigured"]
             },
             {
@@ -504,6 +516,9 @@ export function resolveSection(section, values) {
             ...control,
             key: control.property,
             value: values[control.property] ?? null,
+            placeholder: control.placeholderFrom
+                ? (PLACEHOLDERS[control.placeholderFrom]?.(values) ?? control.placeholder ?? null)
+                : (control.placeholder ?? null),
             disabled: Boolean(control.disabledWhen) && allPass(DISABLED, control.disabledWhen, values),
             isCheckbox: control.type === CONTROL.CHECKBOX,
             isSelect: control.type === CONTROL.SELECT,

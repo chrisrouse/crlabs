@@ -196,3 +196,29 @@ describe("control stamping", () => {
         expect(userDefined.value).toBe(true);
     });
 });
+
+describe("dynamic placeholders", () => {
+    it("shows the icon each action type actually falls back to", () => {
+        const icon = (type) =>
+            resolveSection(section("rowaction"), { rowActionType: type, rowActionDisplay: "Icon" }).find(
+                (c) => c.property === "rowActionIcon"
+            ).placeholder;
+
+        // The placeholder is resolved from the same map the runtime applies, so a
+        // hint cannot promise an icon the grid will not use.
+        expect(icon("Remove")).toBe("utility:delete");
+        expect(icon("Flow")).toBe("utility:flow");
+    });
+
+    it("leaves static placeholders alone", () => {
+        const height = resolveSection(section("display"), {}).find((c) => c.property === "tableHeight");
+        expect(height.placeholder).toBe("30rem");
+    });
+
+    it("returns null where no placeholder is declared", () => {
+        const tableIcon = resolveSection(section("display"), { showHeader: true }).find(
+            (c) => c.property === "tableIcon"
+        );
+        expect(tableIcon.placeholder).toBeNull();
+    });
+});
