@@ -141,6 +141,77 @@ property that may arrive as either.
 
 ---
 
+## 2.5 Parity gaps against the original datatable
+
+Reviewed 2026-08-25 against the baseline's `datatable.js-meta.xml` and its README
+release notes. The unofficialsf.com feature page returns 403 to automated
+fetching, so the repo was used as the source — it is the authoritative one anyway.
+
+**Property parity is complete.** All 83 non-legacy baseline properties have a
+counterpart among Flow Grid's 81. Every gap below is behavioural.
+
+Nothing here is scheduled. Deferred by decision, not oversight.
+
+### Bug
+
+- **`flex` does nothing.** `fgrid_columnConfig` offers a Flex checkbox per column
+  and `buildColumns` never reads it — 11 of the 12 offered attributes are
+  consumed. The baseline treated fixed-versus-floating column width as a real
+  feature. Small fix.
+
+### Missing behaviour, roughly by risk
+
+1. **Timezone offset on Date and Time fields — not implemented.** The highest-risk
+   gap, because it is silent data corruption rather than cosmetics. The baseline
+   adjusts Date fields by the running user's offset to keep the correct day, moved
+   the offset to noon to avoid DST edge cases, stores as `YYYY-MM-DD` because
+   datetime broke collection processors, reapplies the offset to edited records,
+   and applies it to Time fields. Flow Grid does none of it, so a date near
+   midnight can display or save a day out.
+2. **Multi-currency conversion — accepted and ignored.** `suppressCurrencyConversion`
+   exists as a property but nothing implements conversion. The baseline converts
+   currency values to the user's currency and supports currency rollup and formula
+   fields in multi-currency orgs. Only matters if the target org is multi-currency.
+3. **Lookup fields are not links.** Only the object's own Name field links to its
+   record. The baseline resolves lookup columns and links them to the related
+   record. Lookups in a grid are common, so this is likely to be noticed.
+4. **Rich text renders as escaped markup.** The baseline ships a dedicated rich
+   text cell type; Flow Grid maps TEXTAREA to `text`.
+5. **No runtime Clip/Wrap per column.** The baseline lets the user toggle
+   wrap/clip from the column header menu at runtime. Flow Grid has only the
+   design-time `wrap` attribute.
+6. **Percent fields untested.** The baseline documents `.25 = 25%` and locale
+   handling, and had repeated bugs here. Display maps PERCENT to the datatable's
+   `percent` type, which expects a fraction, so it is probably correct but
+   unverified. Editing is where the baseline struggled — relevant when inline
+   editing is built.
+
+### Open questions
+
+- **Apex-defined types.** The baseline treats these as a first-class mode:
+  reactivity, editing, and "unable to edit Apex-Defined columns unless Type was
+  specified". Flow Grid's user-defined-object mode takes serialized JSON, which
+  covers the data shape but is not the same as a Flow Apex-Defined variable. Is
+  genuine Apex-defined support needed, or is JSON enough? This decides how much
+  work that mode still is.
+- **Filters: header actions or a filter row?** The baseline puts Set Filter and
+  Clear Filter in each column's header menu. Flow Grid uses a filter row above the
+  table — simpler and more discoverable, but a different mental model for anyone
+  migrating.
+- **Reactive `preSelectedRecords`.** The baseline made this reactive. Flow Grid
+  seeds the selection once and then guards against re-applying, so a later
+  reactive change does not take effect. Deliberate at the time; may be wrong.
+
+### Deliberately not carried over
+
+- **Clipboard copy of attribute strings** — a wizard convenience for the 13
+  delimited column strings. Obsolete now that column config is JSON.
+- **The `YYYY-MM-DD` search format note** — the baseline had to document it. Flow
+  Grid substring-matches raw values and dates arrive as ISO strings, so the same
+  format works incidentally. No action, but the constraint is the same.
+
+---
+
 ## 3. Known issues
 
 ### 3.1 Combobox option padding
