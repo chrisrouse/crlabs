@@ -38,7 +38,7 @@
                 label="Record Input Variable"
                 placeholder="Variable name in the launched flow"
                 value={recordVariable}
-                field-level-help="Pass the entire record into the launched flow. Provide the variable's API name. Variable must be available for input and output."
+                field-level-help="Passes the entire record into the launched flow — enter the variable's API name, or leave blank to omit it. Mark the variable available for output as well if the flow should hand the edited record back, including unsaved changes; input only means the grid re-reads the row from the database instead."
                 onchange={handleVariableChange}
             ></lightning-input>
 
@@ -48,7 +48,7 @@
                 label="Record ID Input Variable"
                 placeholder="Variable name in the launched flow"
                 value={idVariable}
-                field-level-help="Pass the record ID into the launched flow. Provide the variable's API name. Variable must be available for input and output."
+                field-level-help="Passes the record Id into the launched flow — enter the variable's API name, or leave blank to omit it. Input only is enough, since nothing is read back from it. Suits a flow that re-queries or updates the record itself."
                 onchange={handleVariableChange}
             ></lightning-input>
         </template>
