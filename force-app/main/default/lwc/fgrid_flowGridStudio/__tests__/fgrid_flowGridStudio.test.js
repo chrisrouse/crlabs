@@ -97,7 +97,8 @@ describe("preview reflects configuration", () => {
 
         const [column] = datatable(element).columns;
         expect(column.label).toBe("Account");
-        expect(column.initialWidth).toBe(220);
+        // Locked rather than a starting width, because Flex is off.
+        expect(column.fixedWidth).toBe(220);
         expect(column.cellAttributes.alignment).toBe("right");
     });
 

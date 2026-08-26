@@ -128,6 +128,13 @@ export const MULTI_PICKLIST_SEPARATOR = ";";
  *  when it is available, otherwise the raw Id. */
 export const LOOKUP_LABEL_SUFFIX = "__fgridLookupLabel";
 
+/**
+ * Datatable types that cannot wrap, per the component reference: wrapping is not
+ * supported for row numbers, `action`, `boolean`, `button`, `button-icon` or
+ * `date-local`. Setting wrapText on these does nothing, so it is not set.
+ */
+const WRAP_UNSUPPORTED_TYPES = new Set(["action", "boolean", "button", "button-icon", "date-local"]);
+
 /** Header-menu action name that opens the filter editor for a column. */
 export const FILTER_ACTION_NAME = "fgridFilter";
 
@@ -160,10 +167,11 @@ export function buildColumns(fields, config = {}, options = {}) {
         openLinksInSameTab = false,
         allowNone = true,
         forceReadOnly = false,
-        filterActions = false
+        filterActions = false,
+        readOnlyIcon = false
     } = options;
 
-    return (fields || []).map((field) => {
+    return (fields || []).map((field, index) => {
         const attributes = config?.[field] || {};
         const describe = describeByPath?.[field] || null;
 
@@ -177,8 +185,11 @@ export function buildColumns(fields, config = {}, options = {}) {
             editable: forceReadOnly
                 ? false
                 : (attributes.edit ?? (describe ? describe.isEditable && defaultEditable : defaultEditable)),
-            wrapText: Boolean(attributes.wrap),
-            hideDefaultActions: Boolean(hideHeaderActions)
+            hideDefaultActions: Boolean(hideHeaderActions),
+            // Distinct from fieldName, which a linked Name column rewrites to a
+            // generated URL field. Also what keeps two columns on the SAME field
+            // addressable independently, which the reference calls for.
+            columnKey: `${field}__${index}`
         };
 
         // Picklist values travel to the custom edit cell; the datatable ignores
@@ -272,8 +283,19 @@ export function buildColumns(fields, config = {}, options = {}) {
             };
         }
 
-        if (Number.isFinite(Number(attributes.width)) && attributes.width) {
-            column.initialWidth = Number(attributes.width);
+        // `flex` finally does something. The reference distinguishes two width
+        // properties, and this is the difference the checkbox was always describing:
+        //   initialWidth — a starting width the user can then drag
+        //   fixedWidth   — an exact width that cannot be resized, and which
+        //                  overrides initialWidth
+        // So a width with Flex on is a starting point; without it, it is locked.
+        const width = Number(attributes.width);
+        if (Number.isFinite(width) && width > 0) {
+            if (attributes.flex) {
+                column.initialWidth = width;
+            } else {
+                column.fixedWidth = width;
+            }
         }
 
         const cellAttributes = {};
@@ -298,6 +320,17 @@ export function buildColumns(fields, config = {}, options = {}) {
             typeAttributes.minimumFractionDigits = scale;
             typeAttributes.maximumFractionDigits = scale;
         }
+        // Inline-edit granularity for currency, number and percent. Without it the
+        // editor snaps to the default 0.01, which silently rounds a value needing
+        // more precision.
+        const step = firstNumber(attributes.step);
+        if (step !== null) {
+            typeAttributes.step = step;
+        }
+        // Auto-links URLs found inside a plain text cell.
+        if (attributes.linkify) {
+            typeAttributes.linkify = true;
+        }
         if (Object.keys(typeAttributes).length) {
             column.typeAttributes = typeAttributes;
         }
@@ -307,6 +340,23 @@ export function buildColumns(fields, config = {}, options = {}) {
         }
         if (isPlainObject(attributes.cellAttribs)) {
             column.cellAttributes = { ...(column.cellAttributes || {}), ...attributes.cellAttribs };
+        }
+
+        // WRAPPING, resolved last because the type is still being decided above: a
+        // Name column becomes `url`, a picklist or lookup becomes a custom type.
+        //
+        // On by default. Clipping hides data behind an ellipsis and reads worse, and
+        // the datatable still offers Wrap text / Clip text in the header menu so a
+        // user can override per column at runtime. Stored as an opt-OUT, so the
+        // config only carries `wrap: false` where an admin actually wanted clipping.
+        if (!WRAP_UNSUPPORTED_TYPES.has(column.type)) {
+            column.wrapText = attributes.wrap !== false;
+        }
+
+        // A lock on a read-only column, but only worth showing on a grid where
+        // something else IS editable — otherwise every column wears one.
+        if (readOnlyIcon && !column.editable) {
+            column.displayReadOnlyIcon = true;
         }
 
         return column;

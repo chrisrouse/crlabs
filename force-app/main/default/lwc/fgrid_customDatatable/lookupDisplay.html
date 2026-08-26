@@ -11,10 +11,10 @@
 <template>
     <template lwc:if={typeAttributes.link}>
         <a href={typeAttributes.url} target="_blank" rel="noopener noreferrer" title={typeAttributes.label}>
-            <span class="slds-truncate">{typeAttributes.label}</span>
+            <span>{typeAttributes.label}</span>
         </a>
     </template>
     <template lwc:else>
-        <span class="slds-truncate" title={typeAttributes.label}>{typeAttributes.label}</span>
+        <span title={typeAttributes.label}>{typeAttributes.label}</span>
     </template>
 </template>

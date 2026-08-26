@@ -46,6 +46,14 @@ export const SELECTION_MODES = [
     { label: "None (read only)", value: "None" }
 ];
 
+/** `wrap-table-header` values. Blank leaves the datatable's own default. */
+const HEADER_WRAP_MODES = [
+    { label: "Default", value: "" },
+    { label: "Never wrap", value: "none" },
+    { label: "Wrap all headers", value: "all" },
+    { label: "Wrap per column", value: "by-column" }
+];
+
 const ROW_ACTION_TYPES = [
     { label: "None", value: "None" },
     { label: "Remove row", value: "Remove" },
@@ -126,6 +134,7 @@ export const VISIBILITY = {
     singleSelect: (v) => v.selectionMode === "Single",
     paginated: (v) => Boolean(v.showPagination),
     searchable: (v) => Boolean(v.showSearchBar),
+    autoWidths: (v) => Boolean(v.autoColumnWidths),
     // Named explicitly rather than "not None", so a configuration left over from
     // the removed Standard action does not show sub-options for an action that no
     // longer exists.
@@ -269,6 +278,45 @@ export const SECTIONS = [
                 help: "Needed when an editable picklist or lookup would otherwise be clipped."
             },
             {
+                property: "autoColumnWidths",
+                type: CONTROL.CHECKBOX,
+                label: "Size columns to their content",
+                help: "Off: columns split the available width equally. On: each column is sized to what it contains, within the minimum and maximum below. Content sizing needs a plain block container — it does not work inside a flex layout."
+            },
+            {
+                property: "minColumnWidth",
+                type: CONTROL.NUMBER,
+                label: "Minimum column width",
+                when: ["autoWidths"],
+                placeholder: "50"
+            },
+            {
+                property: "maxColumnWidth",
+                type: CONTROL.NUMBER,
+                label: "Maximum column width",
+                when: ["autoWidths"],
+                placeholder: "1000"
+            },
+            { property: "disableColumnResize", type: CONTROL.CHECKBOX, label: "Prevent column resizing" },
+            {
+                property: "wrapTableHeader",
+                type: CONTROL.SELECT,
+                label: "Wrap column headers",
+                options: HEADER_WRAP_MODES
+            },
+            {
+                property: "wrapTextMaxLines",
+                type: CONTROL.NUMBER,
+                label: "Maximum wrapped lines",
+                help: "Lines a wrapped cell shows before it truncates. Cells wrap by default; leave blank for no limit."
+            },
+            {
+                property: "showReadOnlyIcon",
+                type: CONTROL.CHECKBOX,
+                label: "Show a lock on read-only columns",
+                help: "Only worth turning on when some columns are editable, or every column wears a lock."
+            },
+            {
                 property: "tableHeight",
                 type: CONTROL.TEXT,
                 label: "Grid height",
@@ -293,6 +341,13 @@ export const SECTIONS = [
                 type: CONTROL.CHECKBOX,
                 label: "Hide the Clear Selection button",
                 when: ["singleSelect"]
+            },
+            {
+                property: "singleSelectAsCheckbox",
+                type: CONTROL.CHECKBOX,
+                label: "Use a checkbox for single selection",
+                when: ["singleSelect"],
+                help: "Single selection uses a radio button by default, which cannot be cleared once chosen. A checkbox can."
             }
         ]
     },

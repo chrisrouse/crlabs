@@ -48,7 +48,9 @@ export default class FgridColumnConfig extends LightningElement {
        cannot be written inline. */
     cellAttribsPlaceholder = '{"class": "slds-theme_shade"}';
     typeAttribsPlaceholder = '{"minimumFractionDigits": 2}';
-    otherAttribsPlaceholder = '{"wrapTextMaxLines": 5}';
+    // Not wrapTextMaxLines: that is a table-level attribute, offered under Table
+    // Display. Column-level examples only.
+    otherAttribsPlaceholder = '{"hideLabel": true}';
 
     /** Field paths whose Advanced block is open. */
     expandedFields = [];
@@ -87,7 +89,10 @@ export default class FgridColumnConfig extends LightningElement {
                 align: attributes.align ?? "",
                 edit: Boolean(attributes.edit),
                 filter: Boolean(attributes.filter),
-                wrap: Boolean(attributes.wrap),
+                // Wrapping is ON unless explicitly turned off, so the stored value
+                // is the opt-out. Column config is JSON inside a String property,
+                // so a stored `false` survives — unlike a Flow Boolean parameter.
+                wrap: attributes.wrap !== false,
                 flex: Boolean(attributes.flex),
                 // Lookup display options, mirroring the standard datatable. Both
                 // default ON, so the stored value is only ever an explicit opt-out.
@@ -97,6 +102,8 @@ export default class FgridColumnConfig extends LightningElement {
                 isPolymorphic: Boolean(this.describeByPath?.[field]?.isPolymorphic),
                 icon: attributes.icon ?? "",
                 scale: attributes.scale ?? null,
+                step: attributes.step ?? null,
+                linkify: Boolean(attributes.linkify),
                 type: attributes.type ?? "",
                 cellAttribs: stringifyBlob(attributes.cellAttribs),
                 typeAttribs: stringifyBlob(attributes.typeAttribs),
@@ -140,13 +147,14 @@ export default class FgridColumnConfig extends LightningElement {
     }
 
     /**
-     * Persists a lookup display option, which defaults ON.
+     * Persists a column flag that defaults ON — wrap text, and the two lookup
+     * display options.
      *
-     * The inverse of `handleCheckboxChange`: `false` is stored and `true` clears
-     * the key, so the saved config carries only explicit opt-outs instead of a
-     * redundant `true` on every lookup column.
+     * The inverse of `handleCheckboxChange`: `false` is stored and `true` clears the
+     * key, so the saved config carries only explicit opt-outs rather than a
+     * redundant `true` on every column.
      */
-    handleLookupFlagChange(event) {
+    handleDefaultOnFlagChange(event) {
         const { field, attribute } = event.currentTarget.dataset;
         this.apply(field, attribute, event.target.checked ? null : false);
     }

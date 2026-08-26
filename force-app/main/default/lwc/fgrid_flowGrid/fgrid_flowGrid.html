@@ -124,6 +124,15 @@
                         sorted-by={sortedBy}
                         sorted-direction={sortDirection}
                         draft-values={draftValues}
+                        errors={tableErrors}
+                        aria-label={tableAriaLabel}
+                        column-widths-mode={columnWidthsMode}
+                        min-column-width={minColumnWidth}
+                        max-column-width={maxColumnWidth}
+                        resize-column-disabled={disableColumnResize}
+                        wrap-table-header={wrapTableHeader}
+                        wrap-text-max-lines={wrapTextMaxLines}
+                        single-row-selection-mode={singleRowSelectionMode}
                         onrowselection={handleRowSelection}
                         onsort={handleSort}
                         onrowaction={handleRowAction}
@@ -131,6 +140,7 @@
                         oncellchange={handleCellChange}
                         onsave={handleInlineSave}
                         oncancel={handleInlineCancel}
+                        onresize={handleColumnResize}
                         suppress-bottom-bar={suppressBottomBar}
                     ></c-fgrid_custom-datatable>
                 </div>

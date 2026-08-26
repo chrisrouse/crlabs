@@ -68,12 +68,52 @@ describe("buildColumns", () => {
         expect(overridden.label).toBe("Account");
     });
 
-    it("maps width, alignment, and icon onto datatable shapes", () => {
+    it("maps alignment and icon onto datatable shapes", () => {
         const [column] = buildColumns(["Name"], {
-            Name: { width: 220, align: "right", icon: "standard:account" }
+            Name: { align: "right", icon: "standard:account" }
         });
-        expect(column.initialWidth).toBe(220);
         expect(column.cellAttributes).toEqual({ alignment: "right", iconName: "standard:account" });
+    });
+
+    it("locks a width unless the column is flexible", () => {
+        // fixedWidth cannot be dragged and overrides initialWidth; that is exactly
+        // what "not flexible" means, and what the Flex checkbox now controls.
+        const [locked] = buildColumns(["Name"], { Name: { width: 220 } });
+        expect(locked.fixedWidth).toBe(220);
+        expect(locked.initialWidth).toBeUndefined();
+
+        const [flexible] = buildColumns(["Name"], { Name: { width: 220, flex: true } });
+        expect(flexible.initialWidth).toBe(220);
+        expect(flexible.fixedWidth).toBeUndefined();
+    });
+
+    it("wraps text by default, and only on types that support it", () => {
+        expect(buildColumns(["Name"])[0].wrapText).toBe(true);
+        expect(buildColumns(["Name"], { Name: { wrap: false } })[0].wrapText).toBe(false);
+        // Wrapping is unsupported for these, so the property is not set at all.
+        expect(buildColumns(["Flag"], { Flag: { type: "boolean" } })[0].wrapText).toBeUndefined();
+        expect(buildColumns(["Due"], { Due: { type: "date-local" } })[0].wrapText).toBeUndefined();
+    });
+
+    it("gives every column a unique columnKey, even on the same field", () => {
+        const columns = buildColumns(["Name", "Name"]);
+        expect(columns[0].columnKey).not.toBe(columns[1].columnKey);
+    });
+
+    it("carries step and linkify into typeAttributes", () => {
+        const [amount] = buildColumns(["Amount"], { Amount: { type: "currency", step: 0.001 } });
+        expect(amount.typeAttributes.step).toBe(0.001);
+        const [notes] = buildColumns(["Notes"], { Notes: { linkify: true } });
+        expect(notes.typeAttributes.linkify).toBe(true);
+    });
+
+    it("shows the read-only lock only when asked, and only on read-only columns", () => {
+        const [plain] = buildColumns(["Name"], {}, { readOnlyIcon: true });
+        expect(plain.displayReadOnlyIcon).toBe(true);
+        const [editable] = buildColumns(["Name"], { Name: { edit: true } }, { readOnlyIcon: true });
+        expect(editable.displayReadOnlyIcon).toBeUndefined();
+        const [off] = buildColumns(["Name"], {}, {});
+        expect(off.displayReadOnlyIcon).toBeUndefined();
     });
 
     it("turns scale into fraction-digit type attributes", () => {

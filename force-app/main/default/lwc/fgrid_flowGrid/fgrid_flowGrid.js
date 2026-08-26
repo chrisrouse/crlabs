@@ -67,11 +67,19 @@ export default class FgridFlowGrid extends LightningElement {
     @api showRowNumbers = false;
     @api tableHeight;
     @api allowOverflow = false;
+    @api autoColumnWidths = false;
+    @api minColumnWidth;
+    @api maxColumnWidth;
+    @api disableColumnResize = false;
+    @api wrapTableHeader;
+    @api wrapTextMaxLines;
+    @api showReadOnlyIcon = false;
 
     // ----- Selection -----
     @api selectionMode = "Multiple";
     @api isRequired = false;
     @api hideClearSelectionButton = false;
+    @api singleSelectAsCheckbox = false;
 
     // ----- Search, filter, sort -----
     @api showSearchBar = false;
@@ -188,6 +196,12 @@ export default class FgridFlowGrid extends LightningElement {
     _preSelectionSignature = null;
     /** Field path whose filter editor is open, or null. */
     _filterEditorPath = null;
+    /** Widths the user dragged, by columnKey. The columns array is rebuilt on every
+     *  render, which resets the datatable's own width state, so they are re-applied
+     *  from here or every re-render would snap the columns back. */
+    _columnWidths = {};
+    /** Page the grid last scrolled to the top for. */
+    _scrolledForPage = 1;
 
     /* Reactive, so a preselection recomputed upstream reaches the grid. Both
        accessors funnel into applyPreSelection, which decides whether the value
@@ -368,8 +382,25 @@ export default class FgridFlowGrid extends LightningElement {
             allowNone: this.isNoneAllowed,
             // Only the runtime offers filtering. The Studio preview shows layout and
             // cannot filter, so a header action there would do nothing.
-            filterActions: true
+            filterActions: true,
+            readOnlyIcon: Boolean(this.showReadOnlyIcon)
         });
+
+        // Re-apply anything the user dragged. Rebuilding `columns` on every render
+        // resets the datatable's internal width state, so without this a resize was
+        // lost the moment anything else changed — paging, sorting, a filter.
+        const dragged = this._columnWidths;
+        if (Object.keys(dragged).length) {
+            columns.forEach((column) => {
+                const width = dragged[column.columnKey];
+                if (width) {
+                    // initialWidth, not fixedWidth: a column the user has already
+                    // dragged must stay draggable.
+                    column.initialWidth = width;
+                    delete column.fixedWidth;
+                }
+            });
+        }
 
         return withRowActionColumn(columns, {
             actionType: this.rowActionType,
@@ -780,6 +811,80 @@ export default class FgridFlowGrid extends LightningElement {
 
     get wrapperStyle() {
         return this.tableHeight ? `height: ${this.tableHeight}; overflow: auto;` : "";
+    }
+
+    /** `fixed` splits the space equally; `auto` sizes each column to its content. */
+    get columnWidthsMode() {
+        return this.autoColumnWidths ? "auto" : "fixed";
+    }
+
+    /** Radio is the datatable's default for single select; this offers the checkbox
+     *  alternative the reference documents. */
+    get singleRowSelectionMode() {
+        return this.singleSelectAsCheckbox ? "checkbox" : undefined;
+    }
+
+    /**
+     * Names the table for assistive technology.
+     *
+     * The datatable has no accessible name of its own, so without this a screen
+     * reader announces an unlabelled grid. Falls back to the object's plural label
+     * when the admin has not set a table label.
+     */
+    get tableAriaLabel() {
+        return this.tableLabel || this._metadata?.object?.pluralLabel || "Records";
+    }
+
+    /**
+     * Row- and table-level errors in the shape the datatable expects.
+     *
+     * Previously every failure was a banner above the grid, which cannot say WHICH
+     * row failed. A row-action flow knows exactly which record it was launched for,
+     * so that failure belongs on the row.
+     */
+    get tableErrors() {
+        const errors = {};
+        if (this._flowError && this._flowRecord) {
+            const key = this._flowRecord[this.keyField];
+            if (key !== null && key !== undefined) {
+                errors.rows = {
+                    [key]: { title: "This row's action did not finish", messages: [this._flowError] }
+                };
+            }
+        }
+        if (this._metadataError) {
+            errors.table = { title: "Column setup problem", messages: [this._metadataError] };
+        }
+        return errors;
+    }
+
+    /** Remembers a dragged width so a re-render does not undo it. */
+    handleColumnResize(event) {
+        const widths = event.detail?.columnWidths;
+        if (!Array.isArray(widths) || !event.detail?.isUserTriggered) {
+            return;
+        }
+        const next = { ...this._columnWidths };
+        this.columns.forEach((column, index) => {
+            if (Number.isFinite(widths[index]) && widths[index] > 0) {
+                next[column.columnKey] = widths[index];
+            }
+        });
+        this._columnWidths = next;
+    }
+
+    /**
+     * Sends the table back to the top after a page change.
+     *
+     * Without it, moving to page two leaves the viewport where it was, so the user
+     * lands mid-table on rows they have not seen the start of.
+     */
+    renderedCallback() {
+        if (this._scrolledForPage === this._page) {
+            return;
+        }
+        this._scrolledForPage = this._page;
+        this.template.querySelector("c-fgrid_custom-datatable")?.scrollToTop?.();
     }
 
     /** Shown once the user has interacted and a required selection is missing. */

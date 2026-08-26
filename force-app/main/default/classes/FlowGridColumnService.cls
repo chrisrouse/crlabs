@@ -48,7 +48,14 @@ public with sharing class FlowGridColumnService {
         Schema.DisplayType.DATACATEGORYGROUPREFERENCE,
         Schema.DisplayType.ENCRYPTEDSTRING,
         Schema.DisplayType.ID,
-        Schema.DisplayType.LOCATION
+        Schema.DisplayType.LOCATION,
+        // The datatable itself refuses to inline-edit these: "Inline editing is not
+        // supported for date and location fields." Without them here, isEditable
+        // said true, the column config offered Edit, and the cell rendered a pencil
+        // that silently did nothing.
+        Schema.DisplayType.DATE,
+        Schema.DisplayType.DATETIME,
+        Schema.DisplayType.TIME
     };
 
     /** Object-level facts the grid header and record links need. */

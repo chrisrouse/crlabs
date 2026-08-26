@@ -152,6 +152,7 @@ export default class FgridFlowGridStudio extends LightningElement {
             // and it is the only way an admin can confirm from the preview which
             // columns they marked filterable.
             filterActions: true,
+            readOnlyIcon: Boolean(this.values?.showReadOnlyIcon),
             describeByPath: this._describeByPath,
             // Links are inert in a preview and would invite a misclick that
             // navigates away from the editor.
@@ -244,6 +245,16 @@ export default class FgridFlowGridStudio extends LightningElement {
     get previewGridStyle() {
         const height = this.values?.tableHeight;
         return height ? `height: ${height}; overflow: auto;` : "";
+    }
+
+    /* Datatable attributes the preview mirrors so layout choices are visible here. */
+
+    get previewColumnWidthsMode() {
+        return this.values?.autoColumnWidths ? "auto" : "fixed";
+    }
+
+    get previewSingleRowSelectionMode() {
+        return this.values?.singleSelectAsCheckbox ? "checkbox" : undefined;
     }
 
     get showPaginationChrome() {

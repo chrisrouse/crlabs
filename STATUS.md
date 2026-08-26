@@ -378,6 +378,90 @@ Nothing here is scheduled. Deferred by decision, not oversight.
 
 ---
 
+## 2.9 Reviewed against the lightning-datatable reference — 2026-08-26
+
+Read the component reference against what was built. Three defects found and fixed,
+`flex` finally implemented, wrapping realigned, and the unused attributes wired.
+
+### Defects fixed
+
+- **Date and Datetime columns could be marked editable but could not be edited.**
+  The reference is explicit: inline editing is not supported for date or location
+  fields. `NON_EDITABLE_TYPES` blocked LOCATION but not DATE/DATETIME/TIME, so
+  `isEditable` said true, the column config offered Edit, and the cell rendered a
+  pencil that did nothing.
+- **The `errors` attribute was unused.** Every failure was a banner above the grid,
+  which cannot say WHICH row failed. `tableErrors` now attributes a failed row-action
+  flow to its own row, and a describe failure to the table.
+- **No `aria-label` on the datatable.** A screen reader announced an unlabelled grid.
+  Now named from `tableLabel`, falling back to the object's plural label.
+
+### `flex` implemented
+
+Offered since the beginning and never read. The reference explains the model, and it
+is exactly what the checkbox was always describing:
+
+| | Resizable | Notes |
+| --- | --- | --- |
+| `initialWidth` | yes | a starting width the user can drag |
+| `fixedWidth` | no | exact, and overrides `initialWidth` |
+
+So a width with **Flex on** is a starting point; **Flex off** locks it. Behaviour
+change: a width set before this shipped was resizable and is now locked.
+
+### Wrapping is on by default
+
+Clipping hides data behind an ellipsis; wrapping reads better. `wrapText` is now
+`attributes.wrap !== false`, so the config stores only explicit opt-outs.
+
+Two things this had to respect:
+
+- **Not every type can wrap.** The reference excludes `action`, `boolean`, `button`,
+  `button-icon`, `date-local` and row numbers. `wrapText` is not set on those at all,
+  so Wrap no longer appears to do something it cannot. DATE maps to `date-local`.
+- **Our own custom cells were forcing a clip.** The picklist, multi-picklist and
+  lookup display templates each wrapped their value in `slds-truncate`, which
+  overrode whatever the standard cell layout wanted. Removed.
+
+It also closes parity gap §2.5.5 for free: the datatable supplies Wrap text / Clip
+text in the header menu natively, so runtime per-column control was never missing —
+only `hideHeaderActions` suppresses it.
+
+### Attributes now wired
+
+`column-widths-mode` (with min/max), `resize-column-disabled`, `wrap-table-header`,
+`wrap-text-max-lines`, `single-row-selection-mode`, `errors`, `aria-label`,
+`displayReadOnlyIcon`, `columnKey`, `step`, `linkify`, plus `onresize` and
+`scrollToTop()`.
+
+Two worth calling out:
+
+- **`onresize` now persists dragged widths.** `columns` is rebuilt on every render,
+  which resets the datatable's internal width state, so a resize was previously lost
+  the moment anything else changed — paging, sorting, a filter. Dragged widths are
+  kept by `columnKey` and re-applied as `initialWidth`, dropping any `fixedWidth` so
+  a column the user has already dragged stays draggable.
+- **`scrollToTop()` fires after a page change.** Moving to page two used to leave the
+  viewport mid-table.
+- **`wrapTextMaxLines` is table-level, not per column.** It had been offered as a
+  per-column `otherAttribs` example, where it did nothing.
+
+### Deliberately not done
+
+- **`disabled-rows`** needs a way to say WHICH rows are read-only — a record
+  collection or a field-based rule. That is a design decision, not a wiring job.
+- **`enable-infinite-loading`** is an alternative to pagination, not an addition;
+  adopting it means choosing between the two.
+- **Column-level `iconName`** (a header icon, distinct from `cellAttributes.iconName`
+  which decorates every cell) is left alone by decision — revisit alongside column
+  properties. Note this corrects an earlier claim in §2.8 that the datatable has no
+  header-icon API: it does, and a filtered-column header marker is therefore
+  possible. Pills remain the chosen reporting mechanism.
+- Our column config's "Column icon" maps to `cellAttributes.iconName`, so it marks
+  every CELL, not the header. The label implies otherwise. Unresolved.
+
+---
+
 ## 2.8 Filters: header menu, operators, and pills
 
 Rebuilt twice on 2026-08-25. The first attempt was a collapsible panel holding one
