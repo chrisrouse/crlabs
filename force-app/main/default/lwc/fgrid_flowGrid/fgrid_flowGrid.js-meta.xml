@@ -21,12 +21,14 @@
             <property name="records" type="{T[]}" label="Records" role="inputOnly" />
             <property name="objectApiName" type="String" label="Object API Name" role="inputOnly" />
             <property name="preSelectedRecords" type="{T[]}" label="Pre-Selected Records" role="inputOnly" />
+            <property name="disabledRecords" type="{T[]}" label="Disabled Records" role="inputOnly" description="Records the user cannot select or edit. They still render, greyed, so a user can see why a row is unavailable instead of wondering where it went." />
             <property name="keyField" type="String" label="Key Field" default="Id" role="inputOnly" />
 
             <!-- User-defined (non-SObject) source. Records arrive as serialized JSON. -->
             <property name="isUserDefinedObject" type="Boolean" label="Use a User-Defined Object" default="false" role="inputOnly" />
             <property name="recordsJson" type="String" label="Records (JSON)" role="inputOnly" />
             <property name="preSelectedRecordsJson" type="String" label="Pre-Selected Records (JSON)" role="inputOnly" />
+            <property name="disabledRecordsJson" type="String" label="Disabled Records (JSON)" role="inputOnly" />
             <property name="isSerializedRecordData" type="Boolean" label="Records Are Serialized" default="false" role="inputOnly" />
             <property name="serializedRecordData" type="String" label="Serialized Record Data" role="inputOnly" />
 

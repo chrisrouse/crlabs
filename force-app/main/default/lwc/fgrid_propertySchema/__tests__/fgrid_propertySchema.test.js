@@ -63,6 +63,7 @@ describe("data source visibility", () => {
             "isUserDefinedObject",
             "records",
             "preSelectedRecords",
+            "disabledRecords",
             "keyField"
         ]);
     });
@@ -76,6 +77,7 @@ describe("data source visibility", () => {
             "isUserDefinedObject",
             "recordsJson",
             "preSelectedRecordsJson",
+            "disabledRecordsJson",
             "isSerializedRecordData"
         ]);
     });

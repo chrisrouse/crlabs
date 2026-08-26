@@ -200,6 +200,15 @@ export const SECTIONS = [
                 help: "Records to show as already selected. Reapplied whenever this collection changes, replacing whatever the user had selected. Leave it unset to let the user's selection stand; set it to an empty collection to clear the selection."
             },
             {
+                property: "disabledRecords",
+                type: CONTROL.RESOURCE,
+                label: "Disabled records",
+                acceptedTypes: "SObject",
+                collection: "only",
+                when: ["sobjectSource"],
+                help: "Records the user cannot select or edit. They still appear, greyed, so it is clear why a row is unavailable rather than it simply being missing. Build the collection in the Flow — for example every record whose Status is Pending. Matched to rows by the key field."
+            },
+            {
                 property: "keyField",
                 type: CONTROL.FIELD,
                 label: "Key field",
@@ -220,6 +229,13 @@ export const SECTIONS = [
                 label: "Pre-selected records (JSON)",
                 when: ["userDefinedSource"],
                 help: "Serialized collection of the rows to show as already selected. Reapplied whenever this value changes, replacing whatever the user had selected."
+            },
+            {
+                property: "disabledRecordsJson",
+                type: CONTROL.TEXT,
+                label: "Disabled records (JSON)",
+                when: ["userDefinedSource"],
+                help: "Serialized collection of the rows the user cannot select or edit. Matched to rows by the key field."
             },
             {
                 property: "isSerializedRecordData",

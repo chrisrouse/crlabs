@@ -55,6 +55,11 @@ export default class FgridFlowGrid extends LightningElement {
     @api keyField = "Id";
     @api isUserDefinedObject = false;
     @api recordsJson;
+    /* No accessor needed, unlike preSelectedRecords: this is not user-mutable, so
+       there is no local selection for an incoming value to fight over. The getter
+       below simply reads whatever the Flow currently supplies. */
+    @api disabledRecords;
+    @api disabledRecordsJson;
     @api isSerializedRecordData = false;
     @api serializedRecordData;
 
@@ -521,6 +526,26 @@ export default class FgridFlowGrid extends LightningElement {
 
     get selectedRowKeys() {
         return this._selectedKeys;
+    }
+
+    /**
+     * Keys of rows the user can neither select nor edit.
+     *
+     * The Flow decides what "unavailable" means — typically a filtered collection
+     * such as Status = Pending — and the datatable greys them. Showing them greyed
+     * rather than omitting them is the whole point: the user can see why a row is
+     * not offered instead of wondering where it went.
+     *
+     * A disabled row that is ALSO preselected still counts toward the selection
+     * limit, per the component reference. Nothing here can change that, but it is
+     * worth knowing before setting both to the same collection.
+     */
+    get disabledRows() {
+        const source = this.isUserDefinedObject ? parseRecordJson(this.disabledRecordsJson) : this.disabledRecords;
+        if (!Array.isArray(source)) {
+            return [];
+        }
+        return source.map((record) => record?.[this.keyField]).filter((key) => key !== null && key !== undefined);
     }
 
     get showClearSelection() {

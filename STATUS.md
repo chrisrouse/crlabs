@@ -448,13 +448,20 @@ Two worth calling out:
 
 ### Deliberately not done
 
-- **`disabled-rows` — DECLINED 2026-08-26**, not deferred. It needs a way to say
-  which rows are read-only, and every scenario it serves has a better answer in a
-  Flow: don't put ineligible records in the collection, or split them into a second
-  grid. The only thing genuinely lost is *showing* ineligible rows greyed rather than
-  omitting them, so a user can see why a row is not offered instead of wondering
-  where it went — real, but uncommon, and a Decision element plus a second grid
-  covers it. Reopen only if that specific need turns up.
+- **`disabled-rows` — BUILT 2026-08-26** as a **Disabled records** collection input,
+  sitting under Pre-selected records and mirroring it (with a JSON variant for the
+  user-defined-object mode). Briefly declined, then reinstated once the real use case
+  was named: `Status = Pending`. The Flow decides what unavailable means and passes
+  the collection; SLDS greys the rows.
+
+  This is the case the earlier decline got wrong. Filtering ineligible records out
+  upstream hides them, and a user then wonders where a record went; greying it says
+  why it is not on offer. Rows are matched by the key field, so no new plumbing.
+
+  Unlike `preSelectedRecords` this needs no accessor: it is not user-mutable, so
+  there is no local state for an incoming value to fight over. Worth knowing from the
+  reference: a row that is both disabled and preselected still counts toward the
+  selection limit.
 - **`enable-infinite-loading`** is an alternative to pagination, not an addition;
   adopting it means choosing between the two.
 - **Column-level `iconName`** (a header icon, distinct from `cellAttributes.iconName`
