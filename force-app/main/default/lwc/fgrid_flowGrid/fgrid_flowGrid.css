@@ -9,11 +9,6 @@
     min-width: 0;
 }
 
-.grid__wrapper_bordered {
-    border: 1px solid #c9c7c5;
-    border-radius: 0.25rem;
-}
-
 /* Editable picklist and lookup cells are clipped by the datatable's own
    scroll container; opting out of clipping is what allowOverflow buys. */
 .grid__wrapper_overflow {

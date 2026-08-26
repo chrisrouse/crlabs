@@ -54,12 +54,11 @@
                  vanishes and absence reads back as the default.
                  Verified by inspecting a saved flow's inputParameters: every stored
                  Boolean was `true` and no `false` existed anywhere.
-                 These four therefore store the NEGATIVE, which is the state worth
+                 These therefore store the NEGATIVE, which is the state worth
                  persisting. The editor still shows a positive label and inverts on
                  read and write (see `invert` in fgrid_propertySchema), so nothing
                  changes for the admin. Same reason hideHeaderActions,
                  hideClearSelectionButton and suppressBottomBar are framed this way. -->
-            <property name="hideBorder" type="Boolean" label="Hide Border" default="false" role="inputOnly" />
             <property name="allowOverflow" type="Boolean" label="Allow Overflow" default="false" role="inputOnly" />
 
             <!-- ============================= Selection =============================

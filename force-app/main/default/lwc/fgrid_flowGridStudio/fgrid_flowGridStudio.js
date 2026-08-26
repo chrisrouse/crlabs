@@ -29,7 +29,13 @@ import {
     buildSampleRows,
     parseFieldList,
     parseColumnConfig,
-    withRowActionColumn
+    withRowActionColumn,
+    filterRows,
+    filterKindFor,
+    isFilterActive,
+    describeFilter,
+    FILTER_ACTION_NAME,
+    ROW_ACTION_NAME
 } from "c/fgrid_gridModel";
 import { setPopoverHostActive } from "c/flowConfigPopoverUtils";
 import getGridMetadata from "@salesforce/apex/FlowGridController.getGridMetadata";
@@ -97,6 +103,11 @@ export default class FgridFlowGridStudio extends LightningElement {
     /** Signature of the object + columns the current sample was fetched for. */
     _sampleSignature = null;
     _isLoadingSample = false;
+    /** Filters applied to the preview. Real, not decorative: the preview holds real
+     *  sample records, so filtering them demonstrates the actual behaviour rather
+     *  than showing a control that does nothing. */
+    _previewFilters = {};
+    _previewFilterEditorPath = null;
 
     /** Field metadata for the column attributes table, which uses it only to tell
      *  which columns are lookups. */
@@ -137,6 +148,10 @@ export default class FgridFlowGridStudio extends LightningElement {
             // fields, and buildSampleRows works from field names, so a synthetic row
             // has no options array for the editor to render.
             forceReadOnly: true,
+            // Filtering IS offered here, unlike editing: it needs no writable data
+            // and it is the only way an admin can confirm from the preview which
+            // columns they marked filterable.
+            filterActions: true,
             describeByPath: this._describeByPath,
             // Links are inert in a preview and would invite a misclick that
             // navigates away from the editor.
@@ -171,10 +186,11 @@ export default class FgridFlowGridStudio extends LightningElement {
         const rows = this.isRealSample
             ? buildRows(this._sampleRecords, this.previewColumns, keyField)
             : buildSampleRows(this.columnFields, this.columnConfigObject, PREVIEW_ROW_COUNT, keyField);
+        const filtered = filterRows(rows, this._previewFilters, Boolean(this.values?.matchCaseOnFilters));
         const max = Number(this.values?.maxNumberOfRows);
         const perPage = this.values?.showPagination ? Number(this.values?.recordsPerPage) : null;
         const limit = [max, perPage].filter((n) => Number.isFinite(n) && n > 0).sort((a, b) => a - b)[0];
-        return limit ? rows.slice(0, limit) : rows;
+        return limit ? filtered.slice(0, limit) : filtered;
     }
 
     get previewKeyField() {
@@ -224,10 +240,6 @@ export default class FgridFlowGridStudio extends LightningElement {
         return Boolean(this.previewCountLabel);
     }
 
-    get previewWrapperClass() {
-        return this.values?.hideBorder ? "preview__grid" : "preview__grid preview__grid_bordered";
-    }
-
     /** Honors the configured grid height so the preview reflects it. */
     get previewGridStyle() {
         const height = this.values?.tableHeight;
@@ -256,6 +268,101 @@ export default class FgridFlowGridStudio extends LightningElement {
      */
     get showPreviewToolbar() {
         return this.showPreviewHeader || this.showSearchBar;
+    }
+
+    /* ----- preview filters -----
+       Mirrors the runtime: set from a column's header menu, reported by pills. The
+       column descriptors are built the same way, so the operators and value
+       controls an admin sees here are the ones that will appear at runtime. */
+
+    get previewFilterColumns() {
+        const config = this.columnConfigObject;
+        return this.previewColumns
+            .filter((column) => column.fieldName !== ROW_ACTION_NAME)
+            .map((column) => ({
+                fieldName: column.fieldName,
+                configKey: column.fgridLinkFor || column.fieldName,
+                path: column.fgridTextField || column.fgridLinkFor || column.fieldName,
+                label: column.label,
+                kind: filterKindFor(column),
+                options: (column.fgridPicklistOptions || []).map((option) => ({
+                    label: option.label,
+                    value: option.value
+                }))
+            }))
+            .filter((entry) => config?.[entry.configKey]?.filter === true);
+    }
+
+    get previewFilterPills() {
+        const byPath = new Map(this.previewFilterColumns.map((column) => [column.path, column]));
+        return Object.entries(this._previewFilters)
+            .filter(([, filter]) => isFilterActive(filter))
+            .map(([path, filter]) => ({
+                path,
+                label: describeFilter(byPath.get(path)?.label || path, filter)
+            }));
+    }
+
+    get hasPreviewFilters() {
+        return this.previewFilterPills.length > 0;
+    }
+
+    get previewFilterEditorColumn() {
+        return this.previewFilterColumns.find((column) => column.path === this._previewFilterEditorPath) || null;
+    }
+
+    get isPreviewFilterEditorOpen() {
+        return Boolean(this.previewFilterEditorColumn);
+    }
+
+    get previewFilterEditorFilter() {
+        return this._previewFilterEditorPath ? this._previewFilters[this._previewFilterEditorPath] || null : null;
+    }
+
+    handlePreviewHeaderAction(event) {
+        const { action, columnDefinition } = event.detail;
+        if (action?.name !== FILTER_ACTION_NAME) {
+            return;
+        }
+        const name = columnDefinition?.fieldName;
+        this._previewFilterEditorPath =
+            this.previewFilterColumns.find((candidate) => candidate.fieldName === name)?.path || null;
+    }
+
+    handlePreviewFilterSave(event) {
+        this.applyPreviewFilter(event.detail.path, event.detail.filter);
+        this._previewFilterEditorPath = null;
+    }
+
+    handlePreviewFilterRemove(event) {
+        this.applyPreviewFilter(event.detail.path, null);
+        this._previewFilterEditorPath = null;
+    }
+
+    handlePreviewFilterEditorClose() {
+        this._previewFilterEditorPath = null;
+    }
+
+    handleEditPreviewPill(event) {
+        this._previewFilterEditorPath = event.currentTarget.dataset.path;
+    }
+
+    handleRemovePreviewPill(event) {
+        this.applyPreviewFilter(event.currentTarget.dataset.path, null);
+    }
+
+    handleClearPreviewFilters() {
+        this._previewFilters = {};
+    }
+
+    applyPreviewFilter(path, filter) {
+        const next = { ...this._previewFilters };
+        if (filter === null || filter === undefined) {
+            delete next[path];
+        } else {
+            next[path] = filter;
+        }
+        this._previewFilters = next;
     }
 
     get rowActionSummary() {

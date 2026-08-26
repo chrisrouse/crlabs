@@ -71,8 +71,9 @@
 
                         <template lwc:if={hasColumns}>
                             <!-- Same toolbar shape as the runtime grid: title left,
-                                 search right. The search is inert — the preview
-                                 shows layout, it does not search or filter. -->
+                                 search right. The search is inert; filters are not —
+                                 the preview holds real records, so filtering them
+                                 shows the actual behaviour. -->
                             <template lwc:if={showPreviewToolbar}>
                                 <div class="preview__header">
                                     <template lwc:if={showPreviewHeader}>
@@ -109,7 +110,40 @@
                                 </div>
                             </template>
 
-                            <div class={previewWrapperClass} style={previewGridStyle}>
+                            <template lwc:if={hasPreviewFilters}>
+                                <div class="preview__pills">
+                                    <span class="preview__pills-label">Filters</span>
+                                    <template for:each={previewFilterPills} for:item="pill">
+                                        <span class="preview__pill" key={pill.path}>
+                                            <button
+                                                type="button"
+                                                class="preview__pill-label"
+                                                data-path={pill.path}
+                                                title="Edit this filter"
+                                                onclick={handleEditPreviewPill}
+                                            >
+                                                {pill.label}
+                                            </button>
+                                            <lightning-button-icon
+                                                icon-name="utility:close"
+                                                variant="bare"
+                                                size="xx-small"
+                                                alternative-text="Remove this filter"
+                                                title="Remove this filter"
+                                                data-path={pill.path}
+                                                onclick={handleRemovePreviewPill}
+                                            ></lightning-button-icon>
+                                        </span>
+                                    </template>
+                                    <lightning-button
+                                        variant="base"
+                                        label="Clear all"
+                                        onclick={handleClearPreviewFilters}
+                                    ></lightning-button>
+                                </div>
+                            </template>
+
+                            <div class="preview__grid" style={previewGridStyle}>
                                 <!-- The subclass, not the base datatable: a column
                                      config that enables editing on a picklist emits
                                      a custom cell type, which a plain
@@ -121,6 +155,7 @@
                                     hide-checkbox-column={previewHideCheckbox}
                                     max-row-selection={previewMaxRowSelection}
                                     show-row-number-column={values.showRowNumbers}
+                                    onheaderaction={handlePreviewHeaderAction}
                                     suppress-bottom-bar
                                 ></c-fgrid_custom-datatable>
                             </div>
@@ -176,6 +211,16 @@
                     </div>
                 </div>
             </div>
+
+            <template lwc:if={isPreviewFilterEditorOpen}>
+                <c-fgrid_filter-editor
+                    column={previewFilterEditorColumn}
+                    filter={previewFilterEditorFilter}
+                    onfiltersave={handlePreviewFilterSave}
+                    onfilterremove={handlePreviewFilterRemove}
+                    onfilterclose={handlePreviewFilterEditorClose}
+                ></c-fgrid_filter-editor>
+            </template>
 
             <footer class="slds-modal__footer">
                 <lightning-button variant="brand" label="Done" onclick={handleClose}></lightning-button>

@@ -262,7 +262,6 @@ export const SECTIONS = [
                 when: ["headerShown"]
             },
             { property: "showRowNumbers", type: CONTROL.CHECKBOX, label: "Show row numbers" },
-            { property: "hideBorder", type: CONTROL.CHECKBOX, label: "Hide the border around the grid" },
             {
                 property: "allowOverflow",
                 type: CONTROL.CHECKBOX,

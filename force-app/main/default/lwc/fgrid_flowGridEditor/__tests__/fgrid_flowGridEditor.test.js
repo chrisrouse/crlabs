@@ -170,8 +170,7 @@ describe("optimistic values", () => {
         expect(values.selectionMode).toBe("Multiple");
         expect(values.rowActionType).toBe("None");
         // The defaults-on booleans are stored negatively, so "nothing saved" means
-        // the negative is absent, and the positive control reads as checked.
-        expect(values.hideBorder).toBeFalsy();
+        // the negative is absent.
         expect(values.hideNameFieldLink).toBeFalsy();
         expect(values.keyField).toBe("Id");
     });
@@ -339,7 +338,7 @@ describe("booleans that must default on", () => {
     // reading a saved flow's inputParameters, where every stored Boolean was true
     // and no false existed. So a defaults-on setting is stored NEGATIVELY and the
     // editor inverts it for display. These tests pin that round trip.
-    const INVERTED = ["hideBorder", "hideNameFieldLink", "hideNoneOption", "searchWholePhrase"];
+    const INVERTED = ["hideNameFieldLink", "hideNoneOption", "searchWholePhrase"];
 
     it.each(INVERTED)("reads %s as unset when nothing is saved", async (property) => {
         const element = build();
@@ -367,12 +366,12 @@ describe("booleans that must default on", () => {
         const element = build();
         await Promise.resolve();
 
-        changeProperty(element, { property: "hideBorder", value: true, dataType: "Boolean" });
+        changeProperty(element, { property: "hideNameFieldLink", value: true, dataType: "Boolean" });
         await Promise.resolve();
 
-        element.inputVariables = [{ name: "hideBorder", value: false, valueDataType: "Boolean" }];
+        element.inputVariables = [{ name: "hideNameFieldLink", value: false, valueDataType: "Boolean" }];
         await Promise.resolve();
 
-        expect(element.shadowRoot.querySelector("c-fgrid_property-controls").values.hideBorder).toBe(false);
+        expect(element.shadowRoot.querySelector("c-fgrid_property-controls").values.hideNameFieldLink).toBe(false);
     });
 });

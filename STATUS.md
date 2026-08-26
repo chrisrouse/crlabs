@@ -442,9 +442,18 @@ Decisions worth keeping:
 was an artifact of the old table putting filters in the header menu *in place of*
 other actions; they are independent column attributes in Flow Grid.
 
-The Studio preview mirrors the toolbar shape but offers no filtering: `buildColumns`
-is called without `filterActions`, so no Filter item appears in a preview header
-menu that would have nothing to act on.
+**The Studio preview filters for real** (2026-08-26). It gets `filterActions: true`,
+its own `_previewFilters`, the same `fgrid_filterEditor`, and its own pill bar.
+
+Filtering is offered in the preview even though editing is not, and the asymmetry is
+deliberate: filtering needs no writable data, it is the only way an admin can confirm
+from the preview which columns they actually marked filterable, and the preview holds
+real sample records so the result is the real behaviour rather than dead chrome. The
+search box stays inert because searching a six-row sample demonstrates nothing.
+
+The column descriptors are built the same way as the runtime's — including the
+`fieldName` / `configKey` / `path` distinction — so the operators and value controls
+an admin sees in the Studio are the ones that appear at runtime.
 
 ---
 
@@ -636,8 +645,14 @@ Failed so far: explicit `z-index`; host elevation via the kit's
   had always been this shape, which is why they always worked.
 
   Accepted consequence: a defaults-on setting cannot show a positive label. Current
-  labels are "Hide the border around the grid", "Do not link the Name field", "Hide
-  --None-- in editable picklists" and "Limit search to a single column".
+  labels are "Do not link the Name field", "Hide --None-- in editable picklists" and
+  "Limit search to a single column", all confirmed 2026-08-26.
+- **The grid draws no border of its own.** `showBorder`/`hideBorder` and its CSS were
+  removed entirely on 2026-08-26: the standard datatable does not offer it, and SLDS
+  handles the table's own edges. The property left a faint outline visible at the
+  grid's corners. Removing it from `targetConfigs` deployed cleanly with the smoke
+  test flow in place, because no flow had ever stored the property — no flow version
+  deletion was needed.
 - **Property defaults cannot be removed once a flow references them.** Salesforce
   refuses to drop a default that an existing flow version uses — an empty string
   counts as removal, and flow versions are immutable. The removals above deployed

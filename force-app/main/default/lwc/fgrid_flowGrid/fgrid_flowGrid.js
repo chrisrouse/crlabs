@@ -66,7 +66,6 @@ export default class FgridFlowGrid extends LightningElement {
     @api showSelectedCount = false;
     @api showRowNumbers = false;
     @api tableHeight;
-    @api hideBorder = false;
     @api allowOverflow = false;
 
     // ----- Selection -----
@@ -461,10 +460,6 @@ export default class FgridFlowGrid extends LightningElement {
 
     /* True-defaulting booleans: undefined means the admin never touched it. */
 
-    get isBordered() {
-        return !this.hideBorder;
-    }
-
     get isNameFieldLinked() {
         return !this.hideNameFieldLink;
     }
@@ -777,9 +772,6 @@ export default class FgridFlowGrid extends LightningElement {
 
     get wrapperClass() {
         const classes = ["grid__wrapper"];
-        if (this.isBordered) {
-            classes.push("grid__wrapper_bordered");
-        }
         if (this.allowOverflow) {
             classes.push("grid__wrapper_overflow");
         }
