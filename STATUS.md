@@ -101,6 +101,18 @@ Open the smoke flow, click the Flow Grid element:
 - [ ] Recalculate the incoming collection mid-edit and confirm unsaved edits are
       discarded — the §2.6 rule
 
+### 1.4b Runtime — disabled rows
+
+- [x] **Disabled records greys the matching rows and blocks selection.** Verified
+      2026-08-26 with a Collection Filter output (`Status`-style filter on Industry =
+      Energy) wired to Disabled records: rows 6, 9 and 10 rendered with greyed radio
+      buttons while row 5 stayed selectable.
+      This verifies the kit patch end to end as well — the Collection Filter output is
+      not merely visible in the picker, it is consumed as a real input at runtime.
+- [ ] A disabled row also refuses inline editing, not just selection. The reference
+      describes these as rows the user "cannot modify", so it should, but that half is
+      unconfirmed.
+
 ### 1.5 Runtime — Remove row action
 
 - [ ] Switch `rowActionType` to **Remove**, confirm removal, the 3-row cap
