@@ -583,6 +583,20 @@ Failed so far: explicit `z-index`; host elevation via the kit's
   `fgrid_customDatatable` was deployed for the first time. Hard-refresh after every
   deploy before trusting an error.
 
+- **`FlowGrid_Smoke_Test` cannot be redeployed from the repo.** The committed copy is
+  a snapshot for version control, not a deployable artifact. It still contains the
+  ORIGINAL datatable element for side-by-side comparison, and that element's
+  `official` parameter fails validation on the way back in:
+
+  ```
+  official (Screen Component) - The value in "official" is either missing or
+  contains multiple fields. Enter a single value.
+  ```
+
+  Not our component and not our bug — a quirk of the datatable being replaced. The
+  org's copy is authoritative; treat the repo file as read-only history. Deploy with
+  the directories listed rather than `--source-dir flowgrid/force-app`, or the whole
+  deploy fails on this one component (observed 2026-08-26: 41/42).
 - **A draft flow cannot be launched.** The row-action picker only lists active
   flows for this reason. `FlowGrid_Edit_Account` is deployed Active.
 - **Relationship columns need the Flow to query them.** Flow's "automatically
