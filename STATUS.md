@@ -448,8 +448,13 @@ Two worth calling out:
 
 ### Deliberately not done
 
-- **`disabled-rows`** needs a way to say WHICH rows are read-only — a record
-  collection or a field-based rule. That is a design decision, not a wiring job.
+- **`disabled-rows` — DECLINED 2026-08-26**, not deferred. It needs a way to say
+  which rows are read-only, and every scenario it serves has a better answer in a
+  Flow: don't put ineligible records in the collection, or split them into a second
+  grid. The only thing genuinely lost is *showing* ineligible rows greyed rather than
+  omitting them, so a user can see why a row is not offered instead of wondering
+  where it went — real, but uncommon, and a Decision element plus a second grid
+  covers it. Reopen only if that specific need turns up.
 - **`enable-infinite-loading`** is an alternative to pagination, not an addition;
   adopting it means choosing between the two.
 - **Column-level `iconName`** (a header icon, distinct from `cellAttributes.iconName`
