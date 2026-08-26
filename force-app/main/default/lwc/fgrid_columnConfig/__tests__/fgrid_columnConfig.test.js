@@ -43,12 +43,16 @@ describe("rendering", () => {
         expect(element.shadowRoot.textContent).toContain("Select columns first");
     });
 
-    it("renders a read-only summary in compact mode", async () => {
+    it("renders only a column count in compact mode", async () => {
         const element = build({ compact: true, columnConfig: '{"Name":{"width":200}}' });
         await Promise.resolve();
 
         expect(element.shadowRoot.querySelector("table")).toBeNull();
-        expect(element.shadowRoot.textContent).toContain("width: 200");
+        expect(element.shadowRoot.textContent).toContain("columns");
+        // Per-column detail is deliberately absent: listing every attribute grew a
+        // full screen tall on a real grid and pushed the rest of the property panel
+        // out of reach. The detail lives in the Studio's editable table.
+        expect(element.shadowRoot.textContent).not.toContain("width: 200");
     });
 
     it("survives malformed JSON in either property", async () => {

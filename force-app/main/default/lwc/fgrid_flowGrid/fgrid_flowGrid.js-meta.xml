@@ -48,7 +48,18 @@
             <property name="showSelectedCount" type="Boolean" label="Show Selected Count" default="false" role="inputOnly" />
             <property name="showRowNumbers" type="Boolean" label="Show Row Numbers" default="false" role="inputOnly" />
             <property name="tableHeight" type="String" label="Table Height" role="inputOnly" />
-            <property name="showBorder" type="Boolean" label="Show Border" default="true" role="inputOnly" />
+            <!-- INVERTED ON PURPOSE. Flow Builder does not persist a `false`
+                 Boolean input parameter — it drops it — so a value that must
+                 default ON can never be turned off if stored positively: the write
+                 vanishes and absence reads back as the default.
+                 Verified by inspecting a saved flow's inputParameters: every stored
+                 Boolean was `true` and no `false` existed anywhere.
+                 These four therefore store the NEGATIVE, which is the state worth
+                 persisting. The editor still shows a positive label and inverts on
+                 read and write (see `invert` in fgrid_propertySchema), so nothing
+                 changes for the admin. Same reason hideHeaderActions,
+                 hideClearSelectionButton and suppressBottomBar are framed this way. -->
+            <property name="hideBorder" type="Boolean" label="Hide Border" default="false" role="inputOnly" />
             <property name="allowOverflow" type="Boolean" label="Allow Overflow" default="false" role="inputOnly" />
 
             <!-- ============================= Selection =============================
@@ -61,6 +72,7 @@
 
             <!-- ======================= Search, filter, sort ======================== -->
             <property name="showSearchBar" type="Boolean" label="Show Search Bar" default="false" role="inputOnly" />
+            <property name="searchWholePhrase" type="Boolean" label="Search the Whole Phrase in One Column" default="false" role="inputOnly" description="Off (the default): every word typed must appear somewhere in the row, in any column and in any order, so a full name is still found when first and last name are separate columns. On: the whole phrase must appear within a single column." />
             <property name="hideHeaderActions" type="Boolean" label="Hide Column Header Actions" default="false" role="inputOnly" />
             <property name="matchCaseOnFilters" type="Boolean" label="Match Case on Filters" default="false" role="inputOnly" />
             <property name="caseInsensitiveSort" type="Boolean" label="Case-Insensitive Sort" default="false" role="inputOnly" />
@@ -106,14 +118,14 @@
             <property name="rowActionFlowModalSize" type="String" label="Modal Size" default="Medium" role="inputOnly" description="Small, Medium, or Large." />
 
             <!-- ======================== Links and formatting ======================== -->
-            <property name="showNameFieldLink" type="Boolean" label="Link the Name Field to the Record" default="true" role="inputOnly" />
+            <property name="hideNameFieldLink" type="Boolean" label="Do Not Link the Name Field" default="false" role="inputOnly" />
             <property name="openLinkInSameTab" type="Boolean" label="Open Links in the Same Tab" default="false" role="inputOnly" />
             <property name="suppressCurrencyConversion" type="Boolean" label="Suppress Currency Conversion" default="false" role="inputOnly" />
 
             <!-- =================== Picklist editing (record type) =================== -->
             <property name="recordTypeId" type="String" label="Record Type Id" role="inputOnly" />
             <property name="showAllPicklistValues" type="Boolean" label="Show All Picklist Values" default="false" role="inputOnly" />
-            <property name="allowNoneToBeChosen" type="Boolean" label="Allow --None-- to Be Chosen" default="true" role="inputOnly" />
+            <property name="hideNoneOption" type="Boolean" label="Hide the --None-- Picklist Option" default="false" role="inputOnly" />
 
             <!-- Flow supplies its runtime API version; the editor forwards it to pickers. -->
             <property name="flowRuntimeApiVersion" type="Double" label="Flow Runtime API Version" role="inputOnly" flowRole="flowRuntimeApiVersion" />

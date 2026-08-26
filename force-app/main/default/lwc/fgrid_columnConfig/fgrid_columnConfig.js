@@ -24,10 +24,6 @@ const ALIGNMENTS = [
     { label: "Right", value: "right" }
 ];
 
-/** Attribute keys held per column, in display order. */
-const SIMPLE_KEYS = ["label", "width", "align", "edit", "filter", "wrap", "flex"];
-const ADVANCED_KEYS = ["icon", "scale", "type", "cellAttribs", "typeAttribs", "otherAttribs"];
-
 export default class FgridColumnConfig extends LightningElement {
     /** JSON array of ordered field API paths, as the kit field picker persists it. */
     @api columnFields;
@@ -36,6 +32,11 @@ export default class FgridColumnConfig extends LightningElement {
     @api columnConfig;
 
     @api objectApiName;
+
+    /** Describe facts keyed by field path. Only used to tell which columns are
+     *  lookups, so the two lookup display options are offered on those rows and
+     *  nowhere else. Absent in compact mode, which renders a count only. */
+    @api describeByPath;
 
     /** Read-only summary instead of the editable table. */
     @api compact = false;
@@ -88,6 +89,12 @@ export default class FgridColumnConfig extends LightningElement {
                 filter: Boolean(attributes.filter),
                 wrap: Boolean(attributes.wrap),
                 flex: Boolean(attributes.flex),
+                // Lookup display options, mirroring the standard datatable. Both
+                // default ON, so the stored value is only ever an explicit opt-out.
+                isLookup: this.describeByPath?.[field]?.displayType === "REFERENCE",
+                showName: attributes.showName !== false,
+                link: attributes.link !== false,
+                isPolymorphic: Boolean(this.describeByPath?.[field]?.isPolymorphic),
                 icon: attributes.icon ?? "",
                 scale: attributes.scale ?? null,
                 type: attributes.type ?? "",
@@ -95,8 +102,7 @@ export default class FgridColumnConfig extends LightningElement {
                 typeAttribs: stringifyBlob(attributes.typeAttribs),
                 otherAttribs: stringifyBlob(attributes.otherAttribs),
                 isExpanded: this.expandedFields.includes(field),
-                expandLabel: this.expandedFields.includes(field) ? "Hide advanced" : "Advanced",
-                summary: summarize(attributes)
+                expandLabel: this.expandedFields.includes(field) ? "Hide advanced" : "Advanced"
             };
         });
     }
@@ -131,6 +137,18 @@ export default class FgridColumnConfig extends LightningElement {
     handleCheckboxChange(event) {
         const { field, attribute } = event.currentTarget.dataset;
         this.apply(field, attribute, event.target.checked ? true : null);
+    }
+
+    /**
+     * Persists a lookup display option, which defaults ON.
+     *
+     * The inverse of `handleCheckboxChange`: `false` is stored and `true` clears
+     * the key, so the saved config carries only explicit opt-outs instead of a
+     * redundant `true` on every lookup column.
+     */
+    handleLookupFlagChange(event) {
+        const { field, attribute } = event.currentTarget.dataset;
+        this.apply(field, attribute, event.target.checked ? null : false);
     }
 
     handleSelectChange(event) {
@@ -209,15 +227,4 @@ function stringifyBlob(value) {
         return "";
     }
     return typeof value === "string" ? value : JSON.stringify(value);
-}
-
-/** One-line description of a column's configured attributes, for compact mode. */
-function summarize(attributes) {
-    const parts = [...SIMPLE_KEYS, ...ADVANCED_KEYS]
-        .filter((key) => attributes[key] !== null && attributes[key] !== undefined && attributes[key] !== "")
-        .map((key) => {
-            const value = attributes[key];
-            return value === true ? key : `${key}: ${typeof value === "object" ? "{…}" : value}`;
-        });
-    return parts.length ? parts.join(" · ") : "Defaults";
 }

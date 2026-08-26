@@ -1,19 +1,35 @@
-/* Two separate concerns, previously conflated:
+/* The canvas "bleed-through" and the double-shade were ONE bug, not two, and
+   stacking was never involved in either.
 
-   1. STACKING. Flow Builder's screen canvas paints above SLDS's default modal
-      z-index token, putting its component chip and Previous/Finish chrome on top
-      of this modal. Setting z-index explicitly is the whole fix.
+   Measured in Flow Builder: this modal resolves to z-index 1000000 and the
+   canvas's selected-component highlight to 5, both positioned inside the single
+   stacking context created by Flow Builder's transformed slds-modal__container,
+   with no intervening stacking context on either branch. The modal already wins
+   the paint order outright — which is why two rounds of z-index escalation moved
+   the symptom around without ever fixing it.
 
-   2. DIMMING. This modal opens from inside Flow Builder's own screen-editor
-      modal, which already dims the page at 0.8 opacity. `slds-backdrop` here
-      stacked a second full-strength dimmer and read far too dark. Removing the
-      dim entirely was worse still — with nothing here the editor behind sits at
-      full brightness and the modal loses all separation. So: one light wash.
-      PARKED — the residual complaint is a slight double-shade where the two
-      modals do not align exactly. Revisit alongside the modal geometry. */
+   This rule previously carried a 16%-opaque wash (`rgba(8, 7, 7, 0.16)`), which
+   was 84% transparent and so showed the canvas behind it by design. Making it
+   OPAQUE was attempt three. It did NOT fix the bleed — the canvas chip and
+   Move/Delete buttons still appear over the modal — so translucency was not the
+   cause either, and something is genuinely painting above this modal in a way the
+   measurement above does not explain.
+
+   Opaque is kept anyway: it is harmless, it removes the double-shade where Flow
+   Builder's own 0.8 dim used to compound with this one, and it eliminates one
+   variable for whoever picks this up. Keep it LIGHT — a dark opaque layer is what
+   the wash was introduced to escape in the first place.
+
+   PARKED at the user's direction. Three attempts have failed: explicit z-index,
+   host elevation via the kit's `setPopoverHostActive`, and this opaque backdrop.
+   Do not try a fourth from inside this stylesheet without first identifying what
+   is actually painting above — the measurement says it should not be possible,
+   which means the bleeding element is probably NOT `.highlight.selected` and the
+   next step is to identify it directly rather than theorise. The documented
+   fallback is sizing the Studio so it never overlaps the canvas column. */
 .studio {
     z-index: 99999;
-    background-color: rgba(8, 7, 7, 0.16);
+    background-color: #e5e5e5;
 }
 
 /* Anchor for the close button, which sits inside the white header rather than
@@ -88,9 +104,17 @@
     padding: 0.5rem 0.25rem;
 }
 
+/* Mirrors the runtime grid's toolbar: title left, search and Filters right. */
+.preview__toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: auto;
+}
+
 .preview__search {
-    max-width: 20rem;
-    margin-bottom: 0.5rem;
+    width: 16rem;
+    max-width: 100%;
 }
 
 .preview__grid_bordered {

@@ -20,65 +20,86 @@
             </div>
         </template>
 
-        <template lwc:if={showHeader}>
+        <!-- One toolbar row: title on the left, search and Clear Selection pushed
+             to the right. The search used to sit on its own row beneath, which left
+             it a long way from the title and wasted vertical space.
+
+             Rendered whenever ANY of its parts is showing, so the search still
+             appears when the header is switched off — it simply has the row to
+             itself and stays right-aligned via the actions group's auto margin. -->
+        <template lwc:if={showToolbar}>
             <div class="grid__header">
-                <template lwc:if={hasHeaderIcon}>
-                    <lightning-icon icon-name={headerIcon} size="small" class="slds-m-right_x-small"></lightning-icon>
+                <template lwc:if={showHeader}>
+                    <template lwc:if={hasHeaderIcon}>
+                        <lightning-icon
+                            icon-name={headerIcon}
+                            size="small"
+                            class="slds-m-right_x-small"
+                        ></lightning-icon>
+                    </template>
+                    <div class="grid__header-text">
+                        <h2 class="slds-text-heading_small">{headerLabel}</h2>
+                        <template lwc:if={hasHeaderCounts}>
+                            <p class="slds-text-body_small slds-text-color_weak">{headerCounts}</p>
+                        </template>
+                    </div>
                 </template>
-                <div class="grid__header-text">
-                    <h2 class="slds-text-heading_small">{headerLabel}</h2>
-                    <template lwc:if={hasHeaderCounts}>
-                        <p class="slds-text-body_small slds-text-color_weak">{headerCounts}</p>
+
+                <div class="grid__toolbar-actions">
+                    <template lwc:if={showSearchBar}>
+                        <div class="grid__search">
+                            <lightning-input
+                                type="search"
+                                variant="label-hidden"
+                                label="Search records"
+                                placeholder="Search records..."
+                                value={searchTerm}
+                                onchange={handleSearch}
+                            ></lightning-input>
+                        </div>
+                    </template>
+                    <template lwc:if={showClearSelection}>
+                        <lightning-button
+                            variant="neutral"
+                            label="Clear Selection"
+                            onclick={handleClearSelection}
+                        ></lightning-button>
                     </template>
                 </div>
-                <template lwc:if={showClearSelection}>
-                    <lightning-button
-                        variant="neutral"
-                        label="Clear Selection"
-                        onclick={handleClearSelection}
-                    ></lightning-button>
-                </template>
             </div>
         </template>
 
         <template lwc:if={hasColumns}>
-            <template lwc:if={showSearchBar}>
-                <div class="grid__search">
-                    <lightning-input
-                        type="search"
-                        variant="label-hidden"
-                        label="Search records"
-                        placeholder="Search records..."
-                        value={searchTerm}
-                        onchange={handleSearch}
-                    ></lightning-input>
-                </div>
-            </template>
-
-            <template lwc:if={showFilterBar}>
-                <div class="grid__filters">
-                    <template for:each={filterInputs} for:item="filter">
-                        <div class="grid__filter" key={filter.key}>
-                            <lightning-input
-                                type="search"
-                                label={filter.label}
-                                data-path={filter.path}
-                                value={filter.value}
-                                onchange={handleFilterChange}
-                            ></lightning-input>
-                        </div>
-                    </template>
-                </div>
-            </template>
-
+            <!-- Filters are set from each column's header menu, so this bar is the
+                 only thing on screen that says what is currently filtered. Pills
+                 wrap onto further lines rather than growing sideways, which keeps
+                 this usable in a narrow Experience Cloud column. -->
             <template lwc:if={hasActiveFilters}>
-                <div class="grid__filter-actions">
-                    <lightning-button
-                        variant="base"
-                        label="Clear Filters"
-                        icon-name="utility:clear"
-                        onclick={handleClearFilters}
-                    ></lightning-button>
+                <div class="grid__filter-pills">
+                    <span class="grid__filter-pills-label">Filters</span>
+                    <template for:each={filterPills} for:item="pill">
+                        <span class="grid__pill" key={pill.path}>
+                            <button
+                                type="button"
+                                class="grid__pill-label"
+                                data-path={pill.path}
+                                title="Edit this filter"
+                                onclick={handleEditPill}
+                            >
+                                {pill.label}
+                            </button>
+                            <lightning-button-icon
+                                icon-name="utility:close"
+                                variant="bare"
+                                size="xx-small"
+                                alternative-text="Remove this filter"
+                                title="Remove this filter"
+                                data-path={pill.path}
+                                onclick={handleRemovePill}
+                            ></lightning-button-icon>
+                        </span>
+                    </template>
+                    <lightning-button variant="base" label="Clear all" onclick={handleClearFilters}></lightning-button>
                 </div>
             </template>
 
@@ -90,7 +111,9 @@
 
             <template lwc:if={hasRows}>
                 <div class={wrapperClass} style={wrapperStyle}>
-                    <lightning-datatable
+                    <!-- The subclass exists only to add picklist cell types; every
+                         attribute below is the base datatable's own. -->
+                    <c-fgrid_custom-datatable
                         key-field={keyField}
                         columns={columns}
                         data={rows}
@@ -100,11 +123,16 @@
                         show-row-number-column={showRowNumbers}
                         sorted-by={sortedBy}
                         sorted-direction={sortDirection}
+                        draft-values={draftValues}
                         onrowselection={handleRowSelection}
                         onsort={handleSort}
                         onrowaction={handleRowAction}
-                        suppress-bottom-bar
-                    ></lightning-datatable>
+                        onheaderaction={handleHeaderAction}
+                        oncellchange={handleCellChange}
+                        onsave={handleInlineSave}
+                        oncancel={handleInlineCancel}
+                        suppress-bottom-bar={suppressBottomBar}
+                    ></c-fgrid_custom-datatable>
                 </div>
 
                 <template lwc:if={showPaginationBar}>
@@ -234,5 +262,15 @@
             </div>
         </section>
         <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+
+    <template lwc:if={isFilterEditorOpen}>
+        <c-fgrid_filter-editor
+            column={filterEditorColumn}
+            filter={filterEditorFilter}
+            onfiltersave={handleFilterSave}
+            onfilterremove={handleFilterRemove}
+            onfilterclose={handleFilterEditorClose}
+        ></c-fgrid_filter-editor>
     </template>
 </template>

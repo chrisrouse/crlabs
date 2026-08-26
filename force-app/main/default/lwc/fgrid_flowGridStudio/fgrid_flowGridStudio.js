@@ -23,7 +23,14 @@
  * values rather than waiting for Flow Builder to republish inputVariables.
  */
 import { LightningElement, api } from "lwc";
-import { buildColumns, buildRows, buildSampleRows, parseFieldList, parseColumnConfig } from "c/fgrid_gridModel";
+import {
+    buildColumns,
+    buildRows,
+    buildSampleRows,
+    parseFieldList,
+    parseColumnConfig,
+    withRowActionColumn
+} from "c/fgrid_gridModel";
 import { setPopoverHostActive } from "c/flowConfigPopoverUtils";
 import getGridMetadata from "@salesforce/apex/FlowGridController.getGridMetadata";
 import getPreviewRecords from "@salesforce/apex/FlowGridController.getPreviewRecords";
@@ -91,6 +98,12 @@ export default class FgridFlowGridStudio extends LightningElement {
     _sampleSignature = null;
     _isLoadingSample = false;
 
+    /** Field metadata for the column attributes table, which uses it only to tell
+     *  which columns are lookups. */
+    get describeByPath() {
+        return this._describeByPath;
+    }
+
     /* ------------------------------------------------------------------ *
      * Preview
      * ------------------------------------------------------------------ */
@@ -114,13 +127,37 @@ export default class FgridFlowGridStudio extends LightningElement {
     }
 
     get previewColumns() {
-        return buildColumns(this.columnFields, this.columnConfigObject, {
+        const columns = buildColumns(this.columnFields, this.columnConfigObject, {
             hideHeaderActions: Boolean(this.values?.hideHeaderActions),
             defaultEditable: false,
+            // The preview cannot edit anything — its search box and pagination are
+            // disabled for the same reason — so editable columns would only offer a
+            // pencil that does nothing. It also keeps custom picklist cell types out
+            // of the preview entirely: their option lists are addressed as row
+            // fields, and buildSampleRows works from field names, so a synthetic row
+            // has no options array for the editor to render.
+            forceReadOnly: true,
             describeByPath: this._describeByPath,
             // Links are inert in a preview and would invite a misclick that
             // navigates away from the editor.
             linkNameField: false
+        });
+        // Built the same way the runtime builds it, so the icon, colour, side and
+        // button variant on screen are the ones that will ship. No `onrowaction`
+        // handler is wired, which leaves the control inert like the preview's
+        // disabled search box and pagination buttons — clicking it here must not
+        // launch a flow or drop a row from the editor.
+        return withRowActionColumn(columns, {
+            actionType: this.values?.rowActionType,
+            display: this.values?.rowActionDisplay,
+            position: this.values?.rowActionPosition,
+            label: this.values?.rowActionLabel,
+            iconName: this.values?.rowActionIcon,
+            color: this.values?.rowActionColor,
+            buttonLabel: this.values?.rowActionButtonLabel,
+            buttonIcon: this.values?.rowActionButtonIcon,
+            buttonIconPosition: this.values?.rowActionButtonIconPosition,
+            buttonVariant: this.values?.rowActionButtonVariant
         });
     }
 
@@ -188,7 +225,7 @@ export default class FgridFlowGridStudio extends LightningElement {
     }
 
     get previewWrapperClass() {
-        return this.values?.showBorder ? "preview__grid preview__grid_bordered" : "preview__grid";
+        return this.values?.hideBorder ? "preview__grid" : "preview__grid preview__grid_bordered";
     }
 
     /** Honors the configured grid height so the preview reflects it. */
@@ -209,13 +246,26 @@ export default class FgridFlowGridStudio extends LightningElement {
         return Boolean(this.values?.showSearchBar);
     }
 
+    /* ----- preview toolbar ----- */
+
+    /**
+     * The preview mirrors the runtime toolbar's shape but offers no filtering:
+     * filters are set from a column's header menu, and a header menu in the
+     * preview would have nothing to act on. `buildColumns` is called without
+     * `filterActions`, so no Filter item appears there either.
+     */
+    get showPreviewToolbar() {
+        return this.showPreviewHeader || this.showSearchBar;
+    }
+
     get rowActionSummary() {
         const type = this.values?.rowActionType;
         if (!type || type === "None") {
             return null;
         }
         const display = this.values?.rowActionDisplay === "Button" ? "button" : "icon";
-        const side = (this.values?.rowActionPosition || "Right").toLowerCase();
+        // Left, matching the property default and withRowActionColumn's own.
+        const side = (this.values?.rowActionPosition || "Left").toLowerCase();
         return `${type} row action, shown as ${display === "button" ? "a button" : "an icon"} on the ${side}`;
     }
 

@@ -15,14 +15,16 @@
  * ceiling on what the grid will handle, not a ceiling on results.
  *
  * IMPLEMENTED: display, real labels and types, record links, selection and its
- * outputs, sorting, search, per-column filters, pagination, row actions
- * (standard and remove), required validation, header and counts, row cap, and
- * the user-defined-object JSON source.
- * NOT YET: inline editing and its Cancel/Save bar. `suppressBottomBar` and
- * `navigateNextOnSave` are accepted and inert until then.
+ * outputs, sorting, search, per-column filters, pagination, row actions (remove
+ * and launch-a-flow), required validation, header and counts, row cap, the
+ * user-defined-object JSON source, and inline editing — standard types plus
+ * picklist, multi-select picklist and lookup cells via `c/fgrid_customDatatable`.
+ *
+ * NOT YET: `recordTypeId` and `showAllPicklistValues` are accepted and inert, so
+ * an editable picklist offers every active value regardless of record type.
  */
 import { LightningElement, api, wire } from "lwc";
-import { FlowAttributeChangeEvent } from "lightning/flowSupport";
+import { FlowAttributeChangeEvent, FlowNavigationNextEvent } from "lightning/flowSupport";
 import getGridMetadata from "@salesforce/apex/FlowGridController.getGridMetadata";
 import runFlow from "@salesforce/apex/FlowGridController.runFlow";
 import getRecordsByIds from "@salesforce/apex/FlowGridController.getRecordsByIds";
@@ -37,17 +39,22 @@ import {
     withRowActionColumn,
     parseFieldList,
     parseColumnConfig,
+    joinMultiPicklist,
+    filterKindFor,
+    isFilterActive,
+    describeFilter,
+    FILTER_ACTION_NAME,
+    PICKLIST_OPTIONS_SUFFIX,
+    PICKLIST_SELECTED_SUFFIX,
     ROW_ACTION_NAME
 } from "c/fgrid_gridModel";
 
 export default class FgridFlowGrid extends LightningElement {
     // ----- Data source -----
     @api objectApiName;
-    @api preSelectedRecords;
     @api keyField = "Id";
     @api isUserDefinedObject = false;
     @api recordsJson;
-    @api preSelectedRecordsJson;
     @api isSerializedRecordData = false;
     @api serializedRecordData;
 
@@ -59,7 +66,7 @@ export default class FgridFlowGrid extends LightningElement {
     @api showSelectedCount = false;
     @api showRowNumbers = false;
     @api tableHeight;
-    @api showBorder;
+    @api hideBorder = false;
     @api allowOverflow = false;
 
     // ----- Selection -----
@@ -69,6 +76,9 @@ export default class FgridFlowGrid extends LightningElement {
 
     // ----- Search, filter, sort -----
     @api showSearchBar = false;
+    /* Inverted: Flow Builder drops a false Boolean, so the persistable state is
+       "whole phrase" and word mode is the absence of it. See the meta.xml note. */
+    @api searchWholePhrase = false;
     @api hideHeaderActions = false;
     @api matchCaseOnFilters = false;
     @api caseInsensitiveSort = false;
@@ -105,14 +115,14 @@ export default class FgridFlowGrid extends LightningElement {
     @api rowActionFlowModalSize = "Medium";
 
     // ----- Links and formatting -----
-    @api showNameFieldLink;
+    @api hideNameFieldLink = false;
     @api openLinkInSameTab = false;
     @api suppressCurrencyConversion = false;
 
     // ----- Picklist editing -----
     @api recordTypeId;
     @api showAllPicklistValues = false;
-    @api allowNoneToBeChosen;
+    @api hideNoneOption = false;
 
     @api flowRuntimeApiVersion;
 
@@ -167,13 +177,59 @@ export default class FgridFlowGrid extends LightningElement {
     _flowError = null;
     _flowVariables = [];
     _flowInputs = [];
+    /** Content signature of the last incoming collection. Null until first set,
+     *  so the initial assignment is not treated as a change. */
+    _recordsSignature = null;
+    _preSelectedRecords;
+    _preSelectedRecordsJson;
+    /** Pending inline edits the datatable is showing in its Cancel/Save bar. */
+    _draftValues = [];
+    /** Signature of the last applied preselection, so a user who deselects
+     *  everything does not get it silently restored. */
+    _preSelectionSignature = null;
+    /** Field path whose filter editor is open, or null. */
+    _filterEditorPath = null;
+
+    /* Reactive, so a preselection recomputed upstream reaches the grid. Both
+       accessors funnel into applyPreSelection, which decides whether the value
+       actually changed. */
+    @api
+    get preSelectedRecords() {
+        return this._preSelectedRecords;
+    }
+    set preSelectedRecords(value) {
+        this._preSelectedRecords = value;
+        this.applyPreSelection();
+    }
+
+    @api
+    get preSelectedRecordsJson() {
+        return this._preSelectedRecordsJson;
+    }
+    set preSelectedRecordsJson(value) {
+        this._preSelectedRecordsJson = value;
+        this.applyPreSelection();
+    }
 
     @api
     get records() {
         return this._records;
     }
     set records(value) {
-        this._records = Array.isArray(value) ? value : [];
+        const next = Array.isArray(value) ? value : [];
+        // Upstream data is authoritative: a genuine change to the incoming
+        // collection discards unsaved inline edits and reapplies the
+        // preselection. Compared by CONTENT, never by array identity — Flow
+        // reassigns collection arrays on virtually every re-render, so keying off
+        // identity would throw away a user's half-finished edit whenever anything
+        // else on the screen moved.
+        const signature = recordSignature(next);
+        const changed = this._recordsSignature !== null && this._recordsSignature !== signature;
+        this._recordsSignature = signature;
+        this._records = next;
+        if (changed) {
+            this.discardUnsavedEdits();
+        }
         this.applyPreSelection();
     }
 
@@ -309,7 +365,11 @@ export default class FgridFlowGrid extends LightningElement {
             // A user-defined object has no record id, so there is nothing to
             // link to.
             linkNameField: this.isNameFieldLinked && !this.isUserDefinedObject,
-            openLinksInSameTab: this.openLinkInSameTab
+            openLinksInSameTab: this.openLinkInSameTab,
+            allowNone: this.isNoneAllowed,
+            // Only the runtime offers filtering. The Studio preview shows layout and
+            // cannot filter, so a header action there would do nothing.
+            filterActions: true
         });
 
         return withRowActionColumn(columns, {
@@ -336,7 +396,7 @@ export default class FgridFlowGrid extends LightningElement {
     /** Rows surviving search and per-column filters, then sorted. */
     get matchedRows() {
         const columns = this.columns;
-        let rows = searchRows(this.cappedRows, columns, this._searchTerm, this.matchCaseOnFilters);
+        let rows = searchRows(this.cappedRows, columns, this._searchTerm, this.matchCaseOnFilters, this.isSearchByWord);
         rows = filterRows(rows, this._filters, this.matchCaseOnFilters);
         if (this._sortField) {
             rows = sortRows(rows, this._sortField, this._sortDirection, this.caseInsensitiveSort);
@@ -402,15 +462,21 @@ export default class FgridFlowGrid extends LightningElement {
     /* True-defaulting booleans: undefined means the admin never touched it. */
 
     get isBordered() {
-        return this.showBorder !== false;
+        return !this.hideBorder;
     }
 
     get isNameFieldLinked() {
-        return this.showNameFieldLink !== false;
+        return !this.hideNameFieldLink;
+    }
+
+    /** Default ON: matching each word separately is what finds a name split across
+     *  First Name and Last Name, which is the common case. */
+    get isSearchByWord() {
+        return !this.searchWholePhrase;
     }
 
     get isNoneAllowed() {
-        return this.allowNoneToBeChosen !== false;
+        return !this.hideNoneOption;
     }
 
     /* ----- selection ----- */
@@ -435,6 +501,17 @@ export default class FgridFlowGrid extends LightningElement {
         return this.isSelectable && !this.hideClearSelectionButton && this._selectedKeys.length > 0;
     }
 
+    /**
+     * Whether the toolbar row has anything in it.
+     *
+     * Note this makes Clear Selection reachable with the header switched off. It
+     * was previously nested inside the header markup, so its own conditions could
+     * all be met and the button still never rendered.
+     */
+    get showToolbar() {
+        return Boolean(this.showHeader) || Boolean(this.showSearchBar) || this.showClearSelection;
+    }
+
     /* ----- header ----- */
 
     get headerLabel() {
@@ -455,29 +532,76 @@ export default class FgridFlowGrid extends LightningElement {
         return this._searchTerm;
     }
 
-    /** Columns the admin marked filterable, as filter-row inputs. */
-    get filterInputs() {
+    /**
+     * Columns the admin marked filterable, each with the control it needs.
+     *
+     * A picklist filter offers the field's own values, so the options come from the
+     * same describe the editable cell uses.
+     */
+    get filterColumns() {
         return this.columns
             .filter((column) => column.fieldName !== ROW_ACTION_NAME)
             .map((column) => ({
-                key: column.fieldName,
-                path: column.fgridLinkFor || column.fieldName,
-                label: column.label
+                // THREE distinct keys, and they really are different things:
+                //   fieldName — what the datatable calls the column, and therefore
+                //               what `onheaderaction` reports. A linked Name column
+                //               reports the generated `Name__fgridUrl`.
+                //   configKey — where the column's attributes are stored, always the
+                //               real field path.
+                //   path      — the row field matching runs against: a lookup's
+                //               displayed name, not its stored Id.
+                // Conflating any two of them breaks a different column type.
+                fieldName: column.fieldName,
+                configKey: column.fgridLinkFor || column.fieldName,
+                path: column.fgridTextField || column.fgridLinkFor || column.fieldName,
+                label: column.label,
+                kind: filterKindFor(column),
+                options: (column.fgridPicklistOptions || []).map((option) => ({
+                    label: option.label,
+                    value: option.value
+                }))
             }))
-            .filter((entry) => this._columnConfig?.[entry.path]?.filter === true)
-            .map((entry) => ({ ...entry, value: this._filters[entry.path] || "" }));
+            .filter((entry) => this._columnConfig?.[entry.configKey]?.filter === true);
     }
 
-    get hasFilterInputs() {
-        return this.filterInputs.length > 0;
+    /** Filters that would actually narrow anything. */
+    get activeFilterCount() {
+        return Object.values(this._filters).filter((filter) => isFilterActive(filter)).length;
+    }
+
+    /**
+     * One pill per active filter, above the table.
+     *
+     * This is how a filter set from a column header menu stays visible after the
+     * menu closes — without it the grid silently hides rows with nothing on screen
+     * to explain why. Pills wrap onto further lines rather than growing sideways,
+     * which is what makes this workable in a narrow Experience Cloud column.
+     */
+    get filterPills() {
+        const byPath = new Map(this.filterColumns.map((column) => [column.path, column]));
+        return Object.entries(this._filters)
+            .filter(([, filter]) => isFilterActive(filter))
+            .map(([path, filter]) => ({
+                path,
+                label: describeFilter(byPath.get(path)?.label || path, filter)
+            }));
+    }
+
+    /** Column descriptor whose filter editor is open. */
+    get filterEditorColumn() {
+        return this.filterColumns.find((column) => column.path === this._filterEditorPath) || null;
+    }
+
+    get isFilterEditorOpen() {
+        return Boolean(this.filterEditorColumn);
+    }
+
+    get filterEditorFilter() {
+        return this._filterEditorPath ? this._filters[this._filterEditorPath] || null : null;
     }
 
     get hasActiveFilters() {
-        return Object.values(this._filters).some((value) => String(value ?? "").trim() !== "");
-    }
-
-    get showFilterBar() {
-        return this.hasFilterInputs && !this.hideHeaderActions;
+        return this.activeFilterCount > 0;
     }
 
     /* ----- pagination ----- */
@@ -698,10 +822,67 @@ export default class FgridFlowGrid extends LightningElement {
         this._page = 1;
     }
 
-    handleFilterChange(event) {
-        const path = event.target.dataset.path;
-        const value = event.target.value || "";
-        this._filters = { ...this._filters, [path]: value };
+    /**
+     * Opens the filter editor for the column whose header menu was used.
+     *
+     * `onheaderaction` reports the column by its datatable fieldName, which is not
+     * always what the filter is keyed on — a lookup filters on its displayed name,
+     * a linked Name column on its underlying value — so the path is resolved
+     * through the same descriptor list the pills use.
+     */
+    handleHeaderAction(event) {
+        const { action, columnDefinition } = event.detail;
+        if (action?.name !== FILTER_ACTION_NAME) {
+            return;
+        }
+        // Match on the datatable's own fieldName, which is what this event reports.
+        // A linked Name column reports the generated `Name__fgridUrl`, which equals
+        // neither its config key nor its match path — comparing against those left
+        // the most prominent column in a grid unable to open its own filter.
+        const name = columnDefinition?.fieldName;
+        const column = this.filterColumns.find((candidate) => candidate.fieldName === name);
+        this._filterEditorPath = column?.path || null;
+    }
+
+    handleFilterEditorClose() {
+        this._filterEditorPath = null;
+    }
+
+    handleFilterSave(event) {
+        this.applyFilter(event.detail.path, event.detail.filter);
+        this._filterEditorPath = null;
+    }
+
+    handleFilterRemove(event) {
+        this.applyFilter(event.detail.path, null);
+        this._filterEditorPath = null;
+    }
+
+    /** Reopens a pill's editor, so a filter can be corrected rather than redone. */
+    handleEditPill(event) {
+        this._filterEditorPath = event.currentTarget.dataset.path;
+    }
+
+    handleRemovePill(event) {
+        this.applyFilter(event.currentTarget.dataset.path, null);
+    }
+
+    /**
+     * Stores one column's whole filter, whatever its shape.
+     *
+     * The panel owns the shape per kind, so this does not need to know whether the
+     * payload is text, a value list, or a range. A null filter is removed outright
+     * rather than left as an inert entry, which keeps the active count honest.
+     */
+    applyFilter(path, filter) {
+        const next = { ...this._filters };
+        if (filter === null || filter === undefined) {
+            delete next[path];
+        } else {
+            next[path] = filter;
+        }
+        this._filters = next;
+        // Row one of the old page may no longer exist.
         this._page = 1;
     }
 
@@ -1022,12 +1203,90 @@ export default class FgridFlowGrid extends LightningElement {
         this.publishSelection();
     }
 
+    /* ------------------------------------------------------------------ *
+     * Inline editing
+     * ------------------------------------------------------------------ */
+
+    /** Pending edits, handed back to the datatable so it can show its bar. */
+    get draftValues() {
+        return this._draftValues;
+    }
+
+    /**
+     * Tracks in-progress edits so the datatable's Cancel/Save bar stays visible.
+     *
+     * The datatable would manage its own drafts if `draft-values` were never
+     * bound, but then there is no way to clear them after a save — the bar would
+     * sit there implying unsaved work that has already been applied.
+     */
+    handleCellChange(event) {
+        this._draftValues = event.detail?.draftValues || [];
+    }
+
+    /**
+     * Commits inline edits into the grid's working collection.
+     *
+     * Each draft arrives as `{ [keyField]: key, Field: value }`, which is the same
+     * shape a row-action flow hands back, so `upsertRecord` does the work — it
+     * already keeps only fields that genuinely differ and publishes the outputs.
+     *
+     * Nothing is written to the database here. Flow Grid never performs DML; the
+     * calling flow commits `outputEditedRecords` if it wants the change persisted.
+     */
+    handleInlineSave(event) {
+        const drafts = event.detail?.draftValues || [];
+        drafts.forEach((draft) => {
+            const key = draft?.[this.keyField];
+            if (key !== null && key !== undefined && key !== "") {
+                this.upsertRecord(this.normalizeDraft(draft));
+            }
+        });
+        // Clearing drafts dismisses the bar; the edits now live in _editsByKey and
+        // are rendered through allKnownRecords.
+        this._draftValues = [];
+
+        if (this.navigateNextOnSave) {
+            this.dispatchEvent(new FlowNavigationNextEvent());
+        }
+    }
+
+    /** Discards pending edits without touching the working collection. */
+    handleInlineCancel() {
+        this._draftValues = [];
+    }
+
+    /**
+     * Converts a draft into the shape the record stores.
+     *
+     * A multi-select picklist is edited with a checkbox group, whose value is an
+     * array, while Salesforce stores the field as a `;`-delimited string. Writing
+     * the array straight through would put an array into a text field and make
+     * every subsequent comparison report a change.
+     *
+     * Also drops the synthetic option-list and selected-array fields, which exist
+     * only to feed the edit cell and are not fields on the record.
+     */
+    normalizeDraft(draft) {
+        const multiFields = new Set(
+            this.columns.filter((column) => column.fgridIsMultiPicklist).map((column) => column.fieldName)
+        );
+        const normalized = {};
+        Object.keys(draft).forEach((field) => {
+            if (field.endsWith(PICKLIST_OPTIONS_SUFFIX) || field.endsWith(PICKLIST_SELECTED_SUFFIX)) {
+                return;
+            }
+            normalized[field] = multiFields.has(field) ? joinMultiPicklist(draft[field]) : draft[field];
+        });
+        return normalized;
+    }
+
     handleSort(event) {
         const { fieldName, sortDirection } = event.detail;
-        // A link column sorts on the underlying value, not on the generated URL,
-        // which would order rows by record id.
+        // Sort on what the column shows, not on what it stores. A link column would
+        // otherwise order rows by record id via its generated URL, and a lookup by
+        // the parent's Id rather than the parent's name.
         const column = this.columns.find((candidate) => candidate.fieldName === fieldName);
-        this._sortField = column?.fgridLinkFor || fieldName;
+        this._sortField = column?.fgridTextField || column?.fgridLinkFor || fieldName;
         this._sortDirection = sortDirection;
         // sortedBy stays the datatable's own fieldName so the arrow lands on the
         // column the user clicked.
@@ -1053,22 +1312,58 @@ export default class FgridFlowGrid extends LightningElement {
         return { isValid: true };
     }
 
-    /** Seeds the selection from preSelectedRecords once records arrive. */
+    /**
+     * Applies `preSelectedRecords` to the grid, reactively.
+     *
+     * Upstream is authoritative: when the incoming preselection genuinely
+     * changes, it replaces whatever the user had selected. Between real changes
+     * the user's own selection is left alone.
+     *
+     * The guard is a content signature, not "is anything selected". The earlier
+     * `if (this._selectedKeys.length) return` meant a user who deselected
+     * everything had the preselection silently restored the next time the
+     * collection was reassigned — their deliberate "select nothing" was
+     * indistinguishable from "not seeded yet".
+     *
+     * Unset and empty differ. `undefined`/`null` means the flow has no opinion,
+     * so the selection is untouched; `[]` is a deliberate instruction to
+     * deselect everything.
+     */
     applyPreSelection() {
-        if (this._selectedKeys.length) {
-            return;
-        }
         const source = this.isUserDefinedObject
             ? parseRecordJson(this.preSelectedRecordsJson)
             : this.preSelectedRecords;
-        if (!Array.isArray(source) || !source.length) {
+        if (!Array.isArray(source)) {
             return;
         }
+
         const keys = source.map((record) => record?.[this.keyField]).filter(Boolean);
-        if (keys.length) {
-            this._selectedKeys = keys;
-            this.publishSelection();
+        const signature = keys.join("~");
+        if (this._preSelectionSignature === signature) {
+            return;
         }
+        this._preSelectionSignature = signature;
+        this._selectedKeys = keys;
+        this.publishSelection();
+    }
+
+    /**
+     * Drops unsaved inline edits, because the incoming collection changed.
+     *
+     * Only the unsaved overlay goes. Removals and additions are the grid's own
+     * committed state, not pending user input, so they survive.
+     *
+     * Silent by design: the behaviour is documented in the Records property's
+     * help text rather than announced with a banner the user cannot act on.
+     */
+    discardUnsavedEdits() {
+        const hadEdits = Object.keys(this._editsByKey).length > 0;
+        this._draftValues = [];
+        if (!hadEdits) {
+            return;
+        }
+        this._editsByKey = {};
+        this.publishEdits();
     }
 
     /** Publishes every selection-derived output in one pass. */
@@ -1159,6 +1454,43 @@ function sameValue(before, after) {
         return JSON.stringify(before) === JSON.stringify(after);
     }
     return String(before) === String(after);
+}
+
+/**
+ * Builds a content fingerprint for an incoming record collection.
+ *
+ * Exists so "the collection changed" can be judged by VALUE rather than by array
+ * identity. Flow hands over a freshly-built array on virtually every re-render,
+ * so an identity check would report a change constantly — and the consequence of
+ * a false positive here is discarding a user's unsaved inline edits.
+ *
+ * Field names are sorted so a differently-ordered but identical record does not
+ * read as a change, and `attributes` — the SObject envelope Apex and Flow attach
+ * — is excluded for the same reason it is excluded from edit detection.
+ */
+function recordSignature(records) {
+    if (!Array.isArray(records) || !records.length) {
+        return "0";
+    }
+    const parts = records.map((record) => {
+        if (!record || typeof record !== "object") {
+            return String(record);
+        }
+        return Object.keys(record)
+            .filter((field) => field !== "attributes")
+            .sort()
+            .map((field) => `${field}=${signatureValue(record[field])}`)
+            .join(",");
+    });
+    return `${records.length}:${parts.join("~")}`;
+}
+
+/** Renders one field value for a signature, collapsing blank forms. */
+function signatureValue(value) {
+    if (value === null || value === undefined) {
+        return "";
+    }
+    return typeof value === "object" ? JSON.stringify(value) : String(value);
 }
 
 /**

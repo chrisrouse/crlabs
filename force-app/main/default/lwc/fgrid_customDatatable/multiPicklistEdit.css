@@ -1,0 +1,6 @@
+/* A picklist with many values would otherwise render a checkbox group taller
+   than the inline-edit panel, pushing the Cancel/Save buttons off screen. */
+.fgrid-multipicklist {
+    max-height: 12rem;
+    overflow-y: auto;
+}

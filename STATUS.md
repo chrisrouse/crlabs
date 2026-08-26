@@ -1,10 +1,15 @@
 # Flow Grid — status and what's left
 
-Branch `feature/flow-grid`, last commit `5dbf23f6`. Everything below is deployed
-to the **Preview Org** (`chrisrousepw-dev-ed`) and pushed to `origin`.
+Branch `feature/flow-grid`, last commit `c097a6ef`. Everything below is deployed
+to the **Preview Org** (`chris-b4pw@force.com`) and pushed to `origin`.
 
-Local checks: **280 Jest tests**, ESLint and Prettier clean, `deploy --dry-run`
+Local checks: **342 Jest tests**, ESLint and Prettier clean, full-package deploy
 succeeds.
+
+Nothing has been committed since `c097a6ef`. The working tree holds inline editing
+(standard, picklist, multi-select, lookup), editable lookups with Display Options,
+the search rework and its setting, the header-menu filter redesign, the toolbar
+layout, the Boolean-inversion fix, and the doc updates for all of it.
 
 ---
 
@@ -27,9 +32,9 @@ Open the smoke flow, click the Flow Grid element:
 - [ ] **Kit picker popovers position correctly** — open **Records** and check the
       popover is not clipped or misplaced. Never verified; it was the original
       risk when the Studio was designed.
-- [ ] Checkbox persistence: tick **Show row numbers**, click Done, reopen the
-      element, confirm it stuck. This is the one real concern from the old
-      `cb_*` properties.
+- [x] **Checkbox persistence.** Verified 2026-08-25, after four attempts — see §4.
+      A Boolean that must default ON has to be stored AND labelled negatively;
+      Flow Builder silently drops a `false` input parameter.
 - [ ] Row Action → **Run a flow** → the flow picker appears directly beneath it,
       and the rest of the section stays hidden until a flow is chosen
 - [ ] The flow list has no `Screen —` / `Autolaunched —` prefixes, no template
@@ -43,8 +48,9 @@ Open the smoke flow, click the Flow Grid element:
 - [ ] **Open Grid Studio** renders the two-pane modal
 - [ ] Preview banner is green and says "Live preview using real records"
 - [ ] Column attributes table edits round-trip
-- [ ] **Known broken:** Flow Builder's screen canvas bleeds through the modal.
-      Parked — see §3.2.
+- [ ] Backdrop is opaque: no canvas chip or Move/Delete buttons visible through
+      it, and no double-shade. Select a component on the canvas, click in and out
+      of Records, then reopen the Studio — that was the trigger. See §3.2.
 
 ### 1.3 Runtime — Debug the smoke flow
 
@@ -77,6 +83,24 @@ Open the smoke flow, click the Flow Grid element:
 - [ ] **Deleted record:** have the launched flow delete the record, then confirm
       the row leaves the grid and lands in `outputRemovedRecords`
 
+### 1.4a Runtime — inline editing
+
+- [x] **Single-select picklist edits and commits.** Verified 2026-08-25.
+- [x] **Multi-select picklist edits and commits**, array joined back to the stored
+      `A;B` form. Verified 2026-08-25. Together these confirm `data-inputable="true"`
+      is the commit path for a custom edit cell — see §2.1.
+- [ ] Standard-type columns (text, number, currency, date) edit and commit
+- [ ] `outputEditedRecords` / `editedCount` reflect inline edits, and a cell edited
+      back to its original value does **not** register
+- [ ] Cancel discards without touching the working collection
+- [ ] `navigateNextOnSave` advances the screen on Save
+- [ ] A row whose stored picklist value is inactive keeps that value as a
+      preselected option instead of losing it
+- [ ] `suppressBottomBar` hides the Cancel/Save bar (it was hardcoded on before,
+      so this path has never run)
+- [ ] Recalculate the incoming collection mid-edit and confirm unsaved edits are
+      discarded — the §2.6 rule
+
 ### 1.5 Runtime — Remove row action
 
 - [ ] Switch `rowActionType` to **Remove**, confirm removal, the 3-row cap
@@ -86,16 +110,138 @@ Open the smoke flow, click the Flow Grid element:
 
 ## 2. Not built yet
 
-### 2.1 Inline editing — the last feature
+### 2.1 Inline editing — Stage A built, Stage B outstanding
 
-Deliberately saved for last. Needs:
+Split once the docs made clear that `lightning-datatable` already provides inline
+editing *and* the Cancel/Save bar for every standard type. The subclass is only
+needed for picklists, so it is no longer a prerequisite for the feature.
 
-- `fgrid_customDatatable` — a `lightning-datatable` subclass
-- a combobox cell for picklist editing. `buildColumns` already carries
-  `fgridPicklistOptions` from the describe service, waiting for it
-- the Cancel/Save bar, and edited-row tracking merged with the existing
-  `_editsByKey` overlay
-- `suppressBottomBar` and `navigateNextOnSave` are accepted and inert until then
+**Stage A — done 2026-08-25, not yet browser-tested.** Standard types, on the
+stock `lightning-datatable`:
+
+- `draft-values` bound, with `oncellchange` / `onsave` / `oncancel`
+- `onsave` routes each draft through `upsertRecord`, which already keeps only
+  genuinely-differing fields and publishes `outputEditedRecords` / `editedCount`
+- `navigateNextOnSave` dispatches `FlowNavigationNextEvent`
+- **`suppress-bottom-bar` was hardcoded on the element**, so the bar could never
+  appear regardless of the property. Now bound to `suppressBottomBar`
+- a column is editable only when its column config sets `edit`. There is no
+  grid-level switch, and `defaultEditable` is deliberately not passed at runtime
+
+No DML, consistent with the rest of the component: the calling flow commits
+`outputEditedRecords` if it wants the change persisted.
+
+**Stage B — built and verified in Flow debug 2026-08-25.** `fgrid_customDatatable`
+extends `LightningDatatable` and registers two custom types:
+
+- `fgridPicklist` — `lightning-combobox` edit template
+- `fgridMultiPicklist` — scroll-capped `lightning-checkbox-group`. Chosen over a
+  dual listbox: one list, multi-select, no ctrl-click to discover, and two stacked
+  boxes plus move buttons do not fit an inline-edit panel
+
+Both grids use the subclass now, the runtime one and the Studio preview — a column
+config enabling edit on a picklist emits a custom cell type, which a plain
+`lightning-datatable` cannot render.
+
+Design points worth keeping:
+
+- **A custom type is used only when the column is editable.** A read-only picklist
+  is indistinguishable from text, so it stays `text` and avoids our render path.
+- **Options are addressed per row**, via `typeAttributes: { options: { fieldName } }`,
+  not passed per column. That is what allows a row holding a value no longer in the
+  active list to keep it as a selectable, preselected option instead of losing it
+  on save. Rows with in-range values all share one array instance, so only
+  genuinely stale rows allocate.
+- **`--None--` is baked into that per-row list** when `allowNoneToBeChosen` is on,
+  rather than being a separate flag the template has to interpret. Never offered
+  for multi-select, where clearing every box already says "no value".
+- **Multi-select converts on the way out.** The checkbox group's value is an array;
+  the field stores `A;B`. `normalizeDraft` joins it and also strips the synthetic
+  `__fgridOptions` / `__fgridSelected` row fields, which are not record fields and
+  would otherwise be published as edits.
+
+**The undocumented bit, now confirmed.** Salesforce documents what an edit template
+*receives* (`editedValue`, `columnLabel`, `required`, `typeAttributes`) and that the
+control needs `data-inputable="true"` for accessibility — but never documents how a
+custom edit cell reports its value *back*, deferring vaguely to the standard
+`draft-values`/`onsave` path.
+
+`data-inputable="true"` **is** the mechanism: the inline-edit machinery reads the
+committed value off the element carrying it. Verified in Flow debug 2026-08-25 —
+both single-select (`lightning-combobox`) and multi-select
+(`lightning-checkbox-group`) commit through it, including the array-to-`;`-string
+conversion in `normalizeDraft`.
+
+So the attribute is load-bearing, not decorative. Removing it from either edit
+template breaks committing, and the failure would look like "the edit silently
+does nothing" rather than an error.
+
+Still unused: `recordTypeId` and `showAllPicklistValues`. Both are accepted
+properties that nothing reads, so a picklist restricted by record type currently
+offers values the user may not be allowed to pick — see §2.5.
+
+**Stage C — editable lookups, built 2026-08-25, not yet browser-tested.** A third
+custom type, `fgridLookup`, with `lightning-record-picker` as its editor: it
+searches one object and yields a recordId, which is exactly what the field stores,
+so the draft needs no conversion.
+
+Display follows the standard datatable's two **Display Options**, per column, both
+defaulting on:
+
+- **Show record name** — display `Account.Name` instead of the raw Id. Read
+  straight off the record, so it depends on the Flow having queried the
+  relationship; falls back to the Id rather than an empty cell when it hasn't.
+- **Link to record** — make the text a link. The platform's own pattern settles the
+  click question: the text navigates, the datatable's edit pencil edits.
+
+Both live in the per-row **Advanced** block of the Studio's column table, shown
+only on lookup rows. They are stored inverted — `false` persists, `true` clears the
+key — so the saved config carries only explicit opt-outs.
+
+**Polymorphic lookups are refused.** `OwnerId`, `WhoId`, `WhatId` and friends return
+several targets from `getReferenceTo()`, and a record picker searches one object.
+Apex reports `isPolymorphic` and withholds `referenceTo`; `buildColumns` then forces
+the column read-only *even if the column config asked for editing*, and the editor
+explains why instead of appearing to ignore the setting.
+
+**Discovery worth remembering:** Apex's `NON_EDITABLE_TYPES` only sets the DEFAULT.
+`buildColumns` resolves editability as `attributes.edit ?? (isEditable && defaultEditable)`,
+so an explicit `edit` in a column's config overrides it. That is how multi-select
+picklists worked before Stage B existed — and it meant a lookup could already be
+forced into a free-text box for an 18-character Id. MULTIPICKLIST and REFERENCE have
+both been removed from that set now that real editors exist.
+
+**Search, sort and filter follow the displayed name**, not the stored Id. Columns
+can carry `fgridTextField` naming the row field that holds the text on screen;
+`searchablePaths`, `handleSort` and `filterInputs` all prefer it. This generalises
+what `fgridLinkFor` already did for a linked Name column, whose own fieldName holds
+a generated URL.
+
+One subtlety in `filterInputs`: the column config is keyed by the real field path
+while matching runs against the display field, so it now tracks `configKey` and
+`path` separately. Collapsing them back into one value would silently disable
+filtering on every lookup column.
+
+This did NOT need the broader label rework. A lookup's display text is already
+materialised per row, so pointing at it was a three-line change. Picklists are
+different — they display the stored value, so display and search already agree, and
+nothing needs doing there.
+
+### 2.2a `fgrid_flowGrid` has no Jest tests at all
+
+Worth stating plainly, because "285 tests passing" reads like coverage and is
+misleading. Five components have a `__tests__` folder; the runtime grid — the
+largest and most complex component, and the only one holding mutable state — has
+none. Every runtime behaviour is currently verified only by browser testing.
+
+The riskiest uncovered path is the §2.6 signature comparison, because its failure
+mode is silent destruction of a user's unsaved edits: if `recordSignature` ever
+reports a change where the content is identical, edits vanish on an unrelated
+re-render. One test asserting "same content, new array identity ⇒ edits survive"
+would pin the behaviour that matters most.
+
+Deferred by decision — build first, test later — but this is the gap to close
+first when tests come back into scope.
 
 ### 2.2 Apex test coverage — blocks packaging
 
@@ -131,14 +277,18 @@ If this ever wants to become the Screen Action-style list — enumerate the flow
 inputs, toggle each, Missing badges — that needs discovery back in the editor.
 `FlowGridController.getFlowVariables` is still there and tested by hand.
 
-### 2.4 Resource-capable Boolean properties
+### 2.4 Resource-capable Boolean properties — DROPPED 2026-08-25
 
-`markActionedRows` renders as a checkbox, so it cannot be bound to
+Every checkbox in the editor stores a literal, so none can be bound to
 `$GlobalConstant.True` or a Flow formula the way the platform's own Boolean
-properties can. This is the deferred "booleans can't take a Flow reference" item;
-`markActionedRows` is now a concrete reason to do it. Roughly a day: a new control
-type using the kit's literal-or-resource input, plus runtime handling for a
-property that may arrive as either.
+properties can. This was logged as work because `markActionedRows` needed it —
+and that property has since been deleted, so the item lost its only concrete
+justification.
+
+Dropped by decision. The limitation is real but nothing currently needs it.
+Reinstate if a property turns up that has to take a Flow reference; the shape of
+the fix is a control type using the kit's literal-or-resource input, plus runtime
+handling for a value that may arrive as either.
 
 ---
 
@@ -162,6 +312,17 @@ Nothing here is scheduled. Deferred by decision, not oversight.
 
 ### Missing behaviour, roughly by risk
 
+0. **Record-type-aware picklist values — not implemented.** `recordTypeId` and
+   `showAllPicklistValues` are accepted properties that nothing reads.
+   `FlowGridColumnService.picklistOptionsOf` returns every *active* value on the
+   field, org-wide, so an editable picklist on an object with record types offers
+   values the user is not allowed to pick — and saving one produces a validation
+   failure at DML time, away from the grid. Fixing it means decoding `validFor`
+   bitmaps in Apex; `getPicklistValues` from `uiObjectInfoApi` is the cleaner tool
+   but needs one wire per field, which does not work for N dynamic columns.
+   Dependent picklists (a controlling field filtering the options) are a separate,
+   larger piece and explicitly out of scope.
+
 1. **Timezone offset on Date and Time fields — not implemented.** The highest-risk
    gap, because it is silent data corruption rather than cosmetics. The baseline
    adjusts Date fields by the running user's offset to keep the correct day, moved
@@ -173,9 +334,11 @@ Nothing here is scheduled. Deferred by decision, not oversight.
    exists as a property but nothing implements conversion. The baseline converts
    currency values to the user's currency and supports currency rollup and formula
    fields in multi-currency orgs. Only matters if the target org is multi-currency.
-3. **Lookup fields are not links.** Only the object's own Name field links to its
-   record. The baseline resolves lookup columns and links them to the related
-   record. Lookups in a grid are common, so this is likely to be noticed.
+3. ~~**Lookup fields are not links.**~~ **CLOSED 2026-08-25.** Lookup columns now
+   show the related record's name and link to it, both as per-column Display
+   Options matching the standard datatable, and are editable through a record
+   picker. See §2.1 Stage C. Remaining caveat: the name is read off the record, so
+   a Flow that never queried the relationship still shows the Id.
 4. **Rich text renders as escaped markup.** The baseline ships a dedicated rich
    text cell type; Flow Grid maps TEXTAREA to `text`.
 5. **No runtime Clip/Wrap per column.** The baseline lets the user toggle
@@ -189,19 +352,21 @@ Nothing here is scheduled. Deferred by decision, not oversight.
 
 ### Open questions
 
-- **Apex-defined types.** The baseline treats these as a first-class mode:
+- **Apex-defined types — DECIDED 2026-08-25: genuine support is needed.** Not an
+  open question any more. The baseline treats these as a first-class mode:
   reactivity, editing, and "unable to edit Apex-Defined columns unless Type was
   specified". Flow Grid's user-defined-object mode takes serialized JSON, which
-  covers the data shape but is not the same as a Flow Apex-Defined variable. Is
-  genuine Apex-defined support needed, or is JSON enough? This decides how much
-  work that mode still is.
+  covers the data shape but is not the same as a Flow Apex-Defined variable.
+  Scoped as its own piece of work, to be planned separately — it needs a real
+  design pass, not an incremental patch, and it interacts with inline editing
+  (which is where the baseline's own Apex-defined support struggled). Sequenced
+  after inline editing for that reason.
 - **Filters: header actions or a filter row?** The baseline puts Set Filter and
   Clear Filter in each column's header menu. Flow Grid uses a filter row above the
   table — simpler and more discoverable, but a different mental model for anyone
   migrating.
-- **Reactive `preSelectedRecords`.** The baseline made this reactive. Flow Grid
-  seeds the selection once and then guards against re-applying, so a later
-  reactive change does not take effect. Deliberate at the time; may be wrong.
+- **Reactive `preSelectedRecords` — DECIDED 2026-08-25: make it reactive.**
+  Resolved into the wider "incoming data is authoritative" rule. See §2.6.
 
 ### Deliberately not carried over
 
@@ -210,6 +375,142 @@ Nothing here is scheduled. Deferred by decision, not oversight.
 - **The `YYYY-MM-DD` search format note** — the baseline had to document it. Flow
   Grid substring-matches raw values and dates arrive as ISO strings, so the same
   format works incidentally. No action, but the constraint is the same.
+
+---
+
+## 2.8 Filters: header menu, operators, and pills
+
+Rebuilt twice on 2026-08-25. The first attempt was a collapsible panel holding one
+control per filterable column; it was rejected as a design and is gone
+(`fgrid_filterPanel` deleted from the repo and the org). What shipped follows list
+views and report builder instead.
+
+**Entry point: the column's own header menu.** `column.actions` adds a "Filter…"
+item and `onheaderaction` reports which column it came from. Native, costs no
+horizontal space — which is the binding constraint in an Experience Cloud column —
+and it is the only per-column affordance `lightning-datatable` actually offers.
+There is no header-icon API; taking over the header would mean rebuilding column
+resizing and the sort affordance by hand.
+
+**Editor: `c/fgrid_filterEditor`, a narrow modal.** Operator plus Value — no Field
+picker, because the column you opened the menu on IS the field. A popover anchored
+to a header cell is not something the datatable supports, and hand-positioning one
+inside a scrolling table lands in the same stacking trap as §3.2.
+
+**Reporting: pills above the table.** This is the half of the feature that was
+missing before. Each active filter renders as `Industry is one of Apparel ×`; the
+label reopens its editor, the × removes it, and Clear all removes everything. Pills
+wrap onto further lines rather than growing sideways. Without them a filter set from
+a header menu is invisible the moment the menu closes.
+
+Operators by kind, from `operatorsFor`:
+
+| Kind | Fields | Operators |
+| --- | --- | --- |
+| text | text, email, phone, url, lookup | equals, not equal to, contains, does not contain, starts with |
+| picklist | picklist, multi-select | is one of, is none of |
+| number | Currency, Number, Percent | equals, not equal to, <, >, ≤, ≥ |
+| date | Date, Datetime | the six comparisons, plus is today / this week / last 30 days / this year |
+| boolean | Checkbox | equals True or False |
+
+Plus **is blank / is not blank on every kind except boolean** — a Salesforce
+checkbox is never null, so an "is blank" there could never match, and offering it
+would be a lie. That is the one deliberate departure from "blanks on every type".
+
+Decisions worth keeping:
+
+- **One filter per column.** The header action edits that column's single filter and
+  each column contributes at most one pill.
+- **Picklist values combine with OR** ("is one of"); different columns combine with
+  AND. `is none of` inverts the whole match, so a row holding any excluded value is
+  dropped.
+- **Dates compare on the date part only**, so a Datetime at 23:45 still counts as
+  that day. A raw string comparison pushes it into the next one — there is a test
+  pinning exactly this.
+- **Relative dates are operators**, not a separate control, and they carry the
+  `{ from, to }` they resolved to when chosen. `filterRows` therefore never consults
+  the clock and the range cannot shift under the user mid-session. `resolveDatePreset`
+  takes `today` as an argument so it is testable without freezing time.
+- **Blankness is judged before type handling**, so every kind agrees on what empty
+  means, and every value-bearing operator excludes blank rows — including negated
+  ones, where "not equal to X" on an empty field would otherwise match.
+- **Apply is disabled** rather than saving a filter with no value.
+- **A bare string is still accepted** as a `contains` text filter, so a value stored
+  before filters carried operators keeps working.
+
+**Filtering and editing on the same column was never a real limitation** here. That
+was an artifact of the old table putting filters in the header menu *in place of*
+other actions; they are independent column attributes in Flow Grid.
+
+The Studio preview mirrors the toolbar shape but offers no filtering: `buildColumns`
+is called without `filterActions`, so no Filter item appears in a preview header
+menu that would have nothing to act on.
+
+---
+
+## 2.7 Search: word mode vs phrase mode
+
+New property `searchEachWord`, added 2026-08-25. Default ON, shown under Search
+only when a search bar is enabled.
+
+**Word mode (on).** The term is split on whitespace and every word must appear in
+at least one searchable field, in any column and in any order.
+
+**Phrase mode (off).** The whole term must appear within a single column — the
+behaviour before this existed.
+
+The reason word mode is the default: a Contact grid showing FirstName and LastName
+as separate columns can never find "Chris Smith" in phrase mode, because that
+string is in no single field. Word mode finds it, and a single Full Name column
+still matches too, since both words are found within that one field.
+
+A single-word search is identical in both modes. Word mode's tradeoff is that words
+may match across different columns, so "Chris Smith" also matches a row whose
+FirstName is Chris and whose Company is "Smith Ltd" — normal for a search box, and
+the filter row still gives per-column precision. That is what the setting is for.
+
+Pinned by tests in `fgrid_gridModel.test.js`: both modes, both name shapes, word
+order, blank terms, and that single-word behaviour did not change.
+
+**Note on the property name.** The stored property is `searchWholePhrase`, not
+`searchEachWord`, and it defaults false. Word mode has to be the *absence* of a
+stored value, because Flow Builder drops a `false` Boolean and a defaults-on setting
+therefore cannot be stored positively — see §4. The editor still shows one positive
+checkbox labelled "Search across columns" and inverts it.
+
+---
+
+## 2.6 Incoming data is authoritative — DECIDED 2026-08-25
+
+Agreed rule, wider than the `preSelectedRecords` question that prompted it:
+
+> The record collection feeding the table comes from somewhere upstream. If that
+> collection changes, the table updates. **Unsaved changes in the table are
+> discarded.** No on-screen warning — the behaviour is documented in the help text
+> of the input property.
+
+So on a genuine change to the incoming collection: rebuild the rows, reapply the
+preselection over whatever the user had selected, and drop the unsaved inline-edit
+overlay (`_editsByKey`). Upstream wins.
+
+**"Genuine" means the content differs, not the array identity.** This is the one
+place the implementation must not take the rule literally. Flow reassigns
+collection arrays on virtually every re-render, so keying off identity would
+discard a user's in-progress edits on unrelated screen activity — which is the
+opposite of the intent. Compare a content signature.
+
+Empty vs unset are different: `[]` for `preSelectedRecords` is a deliberate
+instruction to deselect everything; `undefined`/`null` means "no opinion, leave
+the selection alone", so a flow that ignores the property never disturbs it.
+
+**Bug this also fixes.** `applyPreSelection` currently guards with
+`if (this._selectedKeys.length) return` — that asks "is anything selected right
+now", not "have I seeded already". A user who deselects everything gets the
+preselection silently restored the next time the collection is reassigned. The
+signature check replaces that guard.
+
+Sequenced with inline editing, because the overlay being discarded is the thing
+inline editing builds.
 
 ---
 
@@ -223,27 +524,55 @@ for its selected-check icon, inside its shadow DOM. A styling hook
 guarantee honouring it. If it still looks indented, the fix is a custom listbox
 rather than `lightning-combobox`.
 
-### 3.2 Grid Studio modal — canvas bleed-through
+### 3.2 Grid Studio modal — canvas bleed-through — STILL OPEN, PARKED
 
-Flow Builder's screen canvas paints over the Studio modal, intermittently, and
-opening devtools shifts the layout so it moves off-screen. Two attempts failed:
-an explicit `z-index`, then elevating the host with the kit's
-`setPopoverHostActive`. Flow Builder uses transformed ancestors, which create a
-stacking context, so CSS inside the component may simply be unable to win.
+Three attempts have failed. Stacking is not the lever, and neither was backdrop
+translucency.
 
-Deliberately parked. If it needs solving, the fallback is sizing the Studio so it
-does not overlap the canvas column.
+Measured in Flow Builder with a shadow-piercing walk over both DOM branches: the
+Studio resolves to `z-index: 1000000` and the canvas's selected-component
+highlight (`.highlight.selected`) to `5`, both positioned inside the *same*
+stacking context — the one created by Flow Builder's transformed
+`.slds-modal__container` — with no intervening stacking context on either branch.
+The modal already won the paint order outright. That is why two earlier attempts,
+an explicit `z-index` and then host elevation via `setPopoverHostActive`, only
+moved the symptom around: neither was the lever.
 
-### 3.3 Studio double-shade
+Attempt three targeted the Studio's own backdrop: `.studio` carried
+`background-color: rgba(8, 7, 7, 0.16)`, a 16%-opaque wash over the whole modal
+box, which at 84% transparent showed the canvas behind it by design. Making it
+opaque (`#e5e5e5`) **did not fix the bleed** — so translucency was not the cause
+either, and something is genuinely painting above the modal in a way the
+measurement above does not account for.
 
-A faint double dim where the Studio modal and Flow Builder's own modal do not
-align. Both extremes were tried — a full `slds-backdrop` was far too dark,
-removing the dim entirely lost all separation — so a light wash is the current
-compromise. The CSS comment records both failures.
+The opaque backdrop is kept regardless: harmless, it removes the double-shade
+that used to arise from Flow Builder's own 0.8 dim compounding with this one
+(previously logged separately as §3.3), and it eliminates one variable.
+
+**Next step, when this is picked up again.** Stop theorising about stacking. The
+measurement says the canvas highlight cannot paint above the modal, so the
+bleeding element is probably not `.highlight.selected` at all. Identify it
+directly — reproduce the bleed, then hit-test the visible pixels
+(`document.elementFromPoint` at the chip's coordinates, walking shadow roots) to
+name the element rather than assuming it. The documented fallback, if it resists,
+is sizing the Studio so it never overlaps the canvas column.
+
+Failed so far: explicit `z-index`; host elevation via the kit's
+`setPopoverHostActive`; opaque backdrop.
 
 ---
 
 ## 4. Things that will bite during testing
+
+- **Deploying an LWC while Flow Builder is open produces a phantom "Something went
+  wrong".** The open page keeps the module graph it loaded. If a deploy adds a new
+  component or changes another's exports, the next re-render that touches them
+  fails and Flow Builder's error boundary fires — with the generic "check your
+  component configuration for invalid values" message, which points at the wrong
+  thing entirely. It survives until a hard refresh, and it is not a defect.
+  Observed 2026-08-25 while selecting a multi-select picklist field, right after
+  `fgrid_customDatatable` was deployed for the first time. Hard-refresh after every
+  deploy before trusting an error.
 
 - **A draft flow cannot be launched.** The row-action picker only lists active
   flows for this reason. `FlowGrid_Edit_Account` is deployed Active.
@@ -264,12 +593,57 @@ compromise. The CSS comment records both failures.
   come from `SELECT Id, VersionNumber, Definition.DeveloperName FROM Flow`.
   Also note LWC requires every property in `targetConfigs` to have a matching
   `@api`, so the contract and the JS have to change together.
-- **Property defaults cannot be removed once a flow references them.**
-  `rowActionFlowRecordVariable` and `rowActionFlowIdVariable` default to `record`
-  and `recordId`, and Salesforce refuses to drop a default that an existing flow
-  version uses — an empty string counts as removal, and flow versions are
-  immutable. That is why the runtime validates names against the flow instead of
-  relying on the properties being empty.
+- **Flow Builder does not persist a `false` Boolean input parameter. It drops it.**
+  The most expensive thing in this file: four attempts, three wrong diagnoses.
+  Verified, not inferred — reading a saved flow's element with
+  `SELECT Metadata FROM Flow` via the Tooling API showed only
+  `showHeader/showSearchBar/showRecordCount/showSelectedCount/showPagination`, all
+  `true`, and **no `false` anywhere in the flow**. Confirmed fixed 2026-08-25.
+
+  The consequence: **a setting that must default ON cannot be stored positively.**
+  The editor writes `false`, nothing is stored, and on reopen the absence reads back
+  as the default — so the checkbox is uncheckable. No editor-side fix can help;
+  removing `default="true"` from the contract does not help either.
+
+  Why it looked like one broken checkbox: every other Boolean defaults **false**, so
+  for them "not stored" and "false" render identically. They were equally
+  unpersisted, just invisibly. `showBorder` was simply the only defaults-on Boolean
+  in the Table Display section.
+
+  **The fix is to store the negative.** `hideBorder`, `hideNameFieldLink`,
+  `hideNoneOption` and `searchWholePhrase` replaced their positive counterparts on
+  2026-08-25. The editor keeps the positive label and inverts on read and write via
+  `invert: true` in `fgrid_propertySchema`, so nothing changed for the admin. This is
+  the same reason `hideHeaderActions`, `hideClearSelectionButton`,
+  `suppressBottomBar` and `suppressCurrencyConversion` were already framed
+  negatively — the pattern was there, it just was not understood as load-bearing.
+
+  **Rule for any new Boolean: if it should default ON, name it negatively, and give
+  it a negative LABEL too.**
+
+  That second half was learned the hard way. Renaming the properties was necessary
+  but not sufficient: the first version kept positive labels ("Show a border around
+  the grid") and inverted for display with an `invert: true` flag in the schema. It
+  did not work, and it re-created the original bug — `dataset.invert` is a string,
+  so when the attribute did not render, `inverted` evaluated false and unchecking
+  published `false` all over again. The inversion layer was deleted.
+
+  The shape that works is the plainest one, identical to `showRecordCount`:
+  `Boolean` with `default="false"` in the contract, `@api hideX = false` at runtime,
+  a plain checkbox descriptor, no `DEFAULTS` entry, and a label that states the
+  negative. No display translation anywhere. `hideHeaderActions`,
+  `hideClearSelectionButton`, `suppressBottomBar` and `suppressCurrencyConversion`
+  had always been this shape, which is why they always worked.
+
+  Accepted consequence: a defaults-on setting cannot show a positive label. Current
+  labels are "Hide the border around the grid", "Do not link the Name field", "Hide
+  --None-- in editable picklists" and "Limit search to a single column".
+- **Property defaults cannot be removed once a flow references them.** Salesforce
+  refuses to drop a default that an existing flow version uses — an empty string
+  counts as removal, and flow versions are immutable. The removals above deployed
+  cleanly only because no flow referenced those properties at the time. If this
+  bites, delete the blocking flow versions by id through the Tooling API (see
+  below).
 - **The grid re-reads the actioned row after every flow action.** One query does
   three jobs: a record that has gone means the flow deleted it, a record returned
   when the flow handed nothing back supplies the refresh, and a record returned

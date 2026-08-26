@@ -169,8 +169,10 @@ describe("optimistic values", () => {
         const { values } = element.shadowRoot.querySelector("c-fgrid_property-controls");
         expect(values.selectionMode).toBe("Multiple");
         expect(values.rowActionType).toBe("None");
-        expect(values.showBorder).toBe(true);
-        expect(values.showNameFieldLink).toBe(true);
+        // The defaults-on booleans are stored negatively, so "nothing saved" means
+        // the negative is absent, and the positive control reads as checked.
+        expect(values.hideBorder).toBeFalsy();
+        expect(values.hideNameFieldLink).toBeFalsy();
         expect(values.keyField).toBe("Id");
     });
 
@@ -329,5 +331,48 @@ describe("escaping Flow Builder's stacking context", () => {
         await Promise.resolve();
         expect(element.style.position).toBe("");
         expect(element.style.zIndex).toBe("");
+    });
+});
+
+describe("booleans that must default on", () => {
+    // Flow Builder does not persist a false Boolean input parameter — verified by
+    // reading a saved flow's inputParameters, where every stored Boolean was true
+    // and no false existed. So a defaults-on setting is stored NEGATIVELY and the
+    // editor inverts it for display. These tests pin that round trip.
+    const INVERTED = ["hideBorder", "hideNameFieldLink", "hideNoneOption", "searchWholePhrase"];
+
+    it.each(INVERTED)("reads %s as unset when nothing is saved", async (property) => {
+        const element = build();
+        await Promise.resolve();
+
+        expect(element.shadowRoot.querySelector("c-fgrid_property-controls").values[property]).toBeFalsy();
+    });
+
+    it.each(INVERTED)("keeps %s true after Flow Builder republishes without it", async (property) => {
+        const element = build();
+        await Promise.resolve();
+
+        // Turning the feature OFF writes the negative as true, which is the value
+        // Flow Builder actually stores.
+        changeProperty(element, { property, value: true, dataType: "Boolean" });
+        await Promise.resolve();
+
+        element.inputVariables = [{ name: "tableLabel", value: "Accounts", valueDataType: "String" }];
+        await Promise.resolve();
+
+        expect(element.shadowRoot.querySelector("c-fgrid_property-controls").values[property]).toBe(true);
+    });
+
+    it("still lets Flow Builder win once it publishes the property itself", async () => {
+        const element = build();
+        await Promise.resolve();
+
+        changeProperty(element, { property: "hideBorder", value: true, dataType: "Boolean" });
+        await Promise.resolve();
+
+        element.inputVariables = [{ name: "hideBorder", value: false, valueDataType: "Boolean" }];
+        await Promise.resolve();
+
+        expect(element.shadowRoot.querySelector("c-fgrid_property-controls").values.hideBorder).toBe(false);
     });
 });

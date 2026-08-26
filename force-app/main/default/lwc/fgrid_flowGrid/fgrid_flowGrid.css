@@ -40,27 +40,68 @@
     color: #ea001e;
 }
 
-.grid__search {
-    max-width: 20rem;
-    margin-bottom: 0.5rem;
+/* Pushed right whether or not a title is present, so the search lines up with the
+   table's right edge in both cases. */
+.grid__toolbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: auto;
 }
 
-.grid__filters {
+.grid__search {
+    width: 20rem;
+    max-width: 100%;
+}
+
+/* Filter pills. Wrapping is the point: horizontal space is the scarce resource
+   in an Experience Cloud column, vertical space is not. */
+.grid__filter-pills {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.5rem;
+    align-items: center;
+    gap: 0.375rem;
     margin-bottom: 0.5rem;
 }
 
-.grid__filter {
-    flex: 0 1 12rem;
-    min-width: 0;
+.grid__filter-pills-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: #444;
+    text-transform: uppercase;
+    letter-spacing: 0.0625rem;
 }
 
-.grid__filter-actions {
-    display: flex;
-    justify-content: flex-end;
-    margin-bottom: 0.25rem;
+.grid__pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.125rem;
+    max-width: 100%;
+    padding: 0.125rem 0.25rem 0.125rem 0.5rem;
+    background-color: #eef4ff;
+    border: 1px solid #c9d8f0;
+    border-radius: 1rem;
+}
+
+/* A button, not a span: the whole label reopens the filter, so it has to be
+   reachable by keyboard. Styled back down to look like text. */
+.grid__pill-label {
+    max-width: 20rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    font-size: 0.75rem;
+    color: #032d60;
+    cursor: pointer;
+}
+
+.grid__pill-label:hover,
+.grid__pill-label:focus {
+    text-decoration: underline;
 }
 
 .grid__pagination {

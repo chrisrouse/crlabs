@@ -102,9 +102,6 @@ export const EDITOR_MANAGED_PROPERTIES = [
 export const DEFAULTS = {
     keyField: "Id",
     selectionMode: "Multiple",
-    showBorder: true,
-    showNameFieldLink: true,
-    allowNoneToBeChosen: true,
     rowActionType: "None",
     rowActionDisplay: "Icon",
     rowActionPosition: "Left",
@@ -128,6 +125,7 @@ export const VISIBILITY = {
     selectable: (v) => v.selectionMode !== "None",
     singleSelect: (v) => v.selectionMode === "Single",
     paginated: (v) => Boolean(v.showPagination),
+    searchable: (v) => Boolean(v.showSearchBar),
     // Named explicitly rather than "not None", so a configuration left over from
     // the removed Standard action does not show sub-options for an action that no
     // longer exists.
@@ -150,7 +148,7 @@ export const VISIBILITY = {
 /** Named predicates that grey a control out instead of hiding it. */
 export const DISABLED = {
     bottomBarHidden: (v) => Boolean(v.suppressBottomBar),
-    nameFieldNotLinked: (v) => !v.showNameFieldLink
+    nameFieldNotLinked: (v) => Boolean(v.hideNameFieldLink)
 };
 
 /**
@@ -181,7 +179,7 @@ export const SECTIONS = [
                 acceptedTypes: "SObject",
                 collection: "only",
                 when: ["sobjectSource"],
-                help: "Record collection to display. Choosing this sets the grid's object and resets the column selection."
+                help: "Record collection to display. Choosing this sets the grid's object and resets the column selection. If this collection changes while the screen is open — because something upstream recalculated it — the grid reloads from the new data and any unsaved inline edits are discarded."
             },
             {
                 property: "preSelectedRecords",
@@ -190,7 +188,7 @@ export const SECTIONS = [
                 acceptedTypes: "SObject",
                 collection: "only",
                 when: ["sobjectSource"],
-                help: "Records to show as already selected when the screen loads."
+                help: "Records to show as already selected. Reapplied whenever this collection changes, replacing whatever the user had selected. Leave it unset to let the user's selection stand; set it to an empty collection to clear the selection."
             },
             {
                 property: "keyField",
@@ -205,13 +203,14 @@ export const SECTIONS = [
                 label: "Records (JSON)",
                 required: true,
                 when: ["userDefinedSource"],
-                help: "Text variable holding a serialized collection of objects."
+                help: "Text variable holding a serialized collection of objects. If this value changes while the screen is open, the grid reloads from the new data and any unsaved inline edits are discarded."
             },
             {
                 property: "preSelectedRecordsJson",
                 type: CONTROL.TEXT,
                 label: "Pre-selected records (JSON)",
-                when: ["userDefinedSource"]
+                when: ["userDefinedSource"],
+                help: "Serialized collection of the rows to show as already selected. Reapplied whenever this value changes, replacing whatever the user had selected."
             },
             {
                 property: "isSerializedRecordData",
@@ -263,7 +262,7 @@ export const SECTIONS = [
                 when: ["headerShown"]
             },
             { property: "showRowNumbers", type: CONTROL.CHECKBOX, label: "Show row numbers" },
-            { property: "showBorder", type: CONTROL.CHECKBOX, label: "Show a border around the grid" },
+            { property: "hideBorder", type: CONTROL.CHECKBOX, label: "Hide the border around the grid" },
             {
                 property: "allowOverflow",
                 type: CONTROL.CHECKBOX,
@@ -303,6 +302,13 @@ export const SECTIONS = [
         label: "Search, Filter & Sort",
         controls: [
             { property: "showSearchBar", type: CONTROL.CHECKBOX, label: "Show a search bar" },
+            {
+                property: "searchWholePhrase",
+                type: CONTROL.CHECKBOX,
+                label: "Limit search to a single column",
+                when: ["searchable"],
+                help: "Off (the default): every word typed must appear somewhere in the row, in any column and in any order — so a full name is found even when first and last name are separate columns. On: the whole phrase must appear within a single column, which is stricter but cannot match a value split across two fields."
+            },
             {
                 property: "hideHeaderActions",
                 type: CONTROL.CHECKBOX,
@@ -452,7 +458,7 @@ export const SECTIONS = [
         name: "formatting",
         label: "Links & Formatting",
         controls: [
-            { property: "showNameFieldLink", type: CONTROL.CHECKBOX, label: "Link the Name field to its record" },
+            { property: "hideNameFieldLink", type: CONTROL.CHECKBOX, label: "Do not link the Name field" },
             {
                 property: "openLinkInSameTab",
                 type: CONTROL.CHECKBOX,
@@ -483,7 +489,7 @@ export const SECTIONS = [
                 label: "Show every picklist value",
                 help: "Ignores record-type filtering on editable picklist columns."
             },
-            { property: "allowNoneToBeChosen", type: CONTROL.CHECKBOX, label: "Offer --None-- in editable picklists" }
+            { property: "hideNoneOption", type: CONTROL.CHECKBOX, label: "Hide --None-- in editable picklists" }
         ]
     }
 ];

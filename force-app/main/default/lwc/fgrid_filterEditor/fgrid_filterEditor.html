@@ -1,0 +1,98 @@
+<template>
+    <section
+        role="dialog"
+        tabindex="-1"
+        aria-modal="true"
+        aria-labelledby="filter-heading"
+        class="slds-modal slds-fade-in-open editor"
+        onkeydown={handleKeyDown}
+    >
+        <div class="slds-modal__container editor__container">
+            <header class="slds-modal__header">
+                <h1 id="filter-heading" class="slds-modal__title slds-hyphenate">{heading}</h1>
+            </header>
+
+            <div class="slds-modal__content slds-p-around_medium">
+                <lightning-combobox
+                    label="Operator"
+                    value={draft.operator}
+                    options={operatorOptions}
+                    onchange={handleOperator}
+                ></lightning-combobox>
+
+                <!-- Hidden rather than disabled for blankness checks and relative
+                     dates: those operators are complete on their own, so an empty
+                     input would only invite the question of what to put in it. -->
+                <div class="editor__value">
+                    <template lwc:if={isText}>
+                        <lightning-input
+                            type="text"
+                            label="Value"
+                            value={draft.value}
+                            onchange={handleValue}
+                        ></lightning-input>
+                    </template>
+
+                    <template lwc:elseif={isPicklist}>
+                        <!-- Checkbox group rather than a dual listbox: one column of
+                             controls survives a narrow Experience Cloud layout. -->
+                        <div class="editor__values">
+                            <lightning-checkbox-group
+                                label="Values"
+                                options={picklistOptions}
+                                value={draft.values}
+                                onchange={handlePicklistValues}
+                            ></lightning-checkbox-group>
+                        </div>
+                    </template>
+
+                    <template lwc:elseif={isNumber}>
+                        <lightning-input
+                            type="number"
+                            label="Value"
+                            value={draft.value}
+                            onchange={handleValue}
+                        ></lightning-input>
+                    </template>
+
+                    <template lwc:elseif={isDate}>
+                        <lightning-input
+                            type="date"
+                            label="Value"
+                            value={draft.value}
+                            onchange={handleValue}
+                        ></lightning-input>
+                    </template>
+
+                    <template lwc:elseif={isBoolean}>
+                        <lightning-combobox
+                            label="Value"
+                            value={booleanValue}
+                            options={booleanOptions}
+                            onchange={handleBoolean}
+                        ></lightning-combobox>
+                    </template>
+                </div>
+            </div>
+
+            <footer class="slds-modal__footer editor__footer">
+                <template lwc:if={canRemove}>
+                    <lightning-button
+                        variant="destructive-text"
+                        label="Remove filter"
+                        onclick={handleRemove}
+                        class="editor__remove"
+                    ></lightning-button>
+                </template>
+                <lightning-button variant="neutral" label="Cancel" onclick={handleCancel}></lightning-button>
+                <lightning-button
+                    variant="brand"
+                    label="Apply"
+                    disabled={isApplyDisabled}
+                    onclick={handleApply}
+                    class="slds-m-left_x-small"
+                ></lightning-button>
+            </footer>
+        </div>
+    </section>
+</template>

@@ -70,38 +70,51 @@
                         </div>
 
                         <template lwc:if={hasColumns}>
-                            <template lwc:if={showPreviewHeader}>
+                            <!-- Same toolbar shape as the runtime grid: title left,
+                                 search right. The search is inert — the preview
+                                 shows layout, it does not search or filter. -->
+                            <template lwc:if={showPreviewToolbar}>
                                 <div class="preview__header">
-                                    <template lwc:if={hasPreviewHeaderIcon}>
-                                        <lightning-icon
-                                            icon-name={previewHeaderIcon}
-                                            size="small"
-                                            class="slds-m-right_x-small"
-                                        ></lightning-icon>
+                                    <template lwc:if={showPreviewHeader}>
+                                        <template lwc:if={hasPreviewHeaderIcon}>
+                                            <lightning-icon
+                                                icon-name={previewHeaderIcon}
+                                                size="small"
+                                                class="slds-m-right_x-small"
+                                            ></lightning-icon>
+                                        </template>
+                                        <div>
+                                            <h2 class="slds-text-heading_small">{previewHeaderLabel}</h2>
+                                            <template lwc:if={hasPreviewCountLabel}>
+                                                <p class="slds-text-body_small slds-text-color_weak">
+                                                    {previewCountLabel}
+                                                </p>
+                                            </template>
+                                        </div>
                                     </template>
-                                    <div>
-                                        <h2 class="slds-text-heading_small">{previewHeaderLabel}</h2>
-                                        <template lwc:if={hasPreviewCountLabel}>
-                                            <p class="slds-text-body_small slds-text-color_weak">{previewCountLabel}</p>
+
+                                    <div class="preview__toolbar-actions">
+                                        <template lwc:if={showSearchBar}>
+                                            <div class="preview__search">
+                                                <lightning-input
+                                                    type="search"
+                                                    variant="label-hidden"
+                                                    label="Search"
+                                                    placeholder="Search…"
+                                                    disabled
+                                                ></lightning-input>
+                                            </div>
                                         </template>
                                     </div>
                                 </div>
                             </template>
 
-                            <template lwc:if={showSearchBar}>
-                                <div class="preview__search">
-                                    <lightning-input
-                                        type="search"
-                                        variant="label-hidden"
-                                        label="Search"
-                                        placeholder="Search…"
-                                        disabled
-                                    ></lightning-input>
-                                </div>
-                            </template>
-
                             <div class={previewWrapperClass} style={previewGridStyle}>
-                                <lightning-datatable
+                                <!-- The subclass, not the base datatable: a column
+                                     config that enables editing on a picklist emits
+                                     a custom cell type, which a plain
+                                     lightning-datatable cannot render. -->
+                                <c-fgrid_custom-datatable
                                     key-field={previewKeyField}
                                     columns={previewColumns}
                                     data={previewRows}
@@ -109,7 +122,7 @@
                                     max-row-selection={previewMaxRowSelection}
                                     show-row-number-column={values.showRowNumbers}
                                     suppress-bottom-bar
-                                ></lightning-datatable>
+                                ></c-fgrid_custom-datatable>
                             </div>
 
                             <template lwc:if={showPaginationChrome}>
@@ -151,6 +164,7 @@
                                 column-fields={values.columnFields}
                                 column-config={values.columnConfig}
                                 object-api-name={objectApiName}
+                                describe-by-path={describeByPath}
                                 oncolumnconfigchange={handleColumnConfigChange}
                             ></c-fgrid_column-config>
                         </template>

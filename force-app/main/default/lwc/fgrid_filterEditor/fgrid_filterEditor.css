@@ -1,0 +1,35 @@
+/* Opaque, for the reason recorded in fgrid_flowGridStudio.css: a translucent
+   backdrop lets whatever is behind show through, which reads as a rendering fault
+   rather than as dimming. */
+.editor {
+    background-color: rgba(8, 7, 7, 0.6);
+}
+
+/* Narrow on purpose. Two controls do not need a wide dialog, and this has to be
+   usable in an Experience Cloud column. */
+.editor__container {
+    max-width: 28rem;
+    min-width: 0;
+    width: 90vw;
+}
+
+.editor__value {
+    margin-top: 0.75rem;
+}
+
+/* A picklist with many values would otherwise push the footer off screen. */
+.editor__values {
+    max-height: 14rem;
+    overflow-y: auto;
+}
+
+.editor__footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+}
+
+/* Remove sits apart from Cancel/Apply so it is not mistaken for either. */
+.editor__remove {
+    margin-right: auto;
+}

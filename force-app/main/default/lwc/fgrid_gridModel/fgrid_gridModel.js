@@ -114,6 +114,28 @@ export function defaultLabel(fieldPath) {
  */
 export const LINK_SUFFIX = "__fgridUrl";
 
+/** Row field holding the option list for an editable picklist cell. */
+export const PICKLIST_OPTIONS_SUFFIX = "__fgridOptions";
+
+/** Row field holding a multi-picklist's value as an array, for the checkbox
+ *  group, whose `value` is an array while the record stores a `;` string. */
+export const PICKLIST_SELECTED_SUFFIX = "__fgridSelected";
+
+/** Separator Salesforce uses inside a multi-select picklist value. */
+export const MULTI_PICKLIST_SEPARATOR = ";";
+
+/** Row field holding the text shown in a lookup cell — the parent record's name
+ *  when it is available, otherwise the raw Id. */
+export const LOOKUP_LABEL_SUFFIX = "__fgridLookupLabel";
+
+/** Header-menu action name that opens the filter editor for a column. */
+export const FILTER_ACTION_NAME = "fgridFilter";
+
+/** Name field assumed on a lookup's target object. Correct for the overwhelming
+ *  majority; objects keyed on something else (CaseNumber, Subject) would need the
+ *  target's own describe, which is not worth a describe call per lookup column. */
+const LOOKUP_NAME_FIELD = "Name";
+
 /**
  * Builds `lightning-datatable` columns.
  *
@@ -135,7 +157,10 @@ export function buildColumns(fields, config = {}, options = {}) {
         defaultEditable = false,
         describeByPath = null,
         linkNameField = false,
-        openLinksInSameTab = false
+        openLinksInSameTab = false,
+        allowNone = true,
+        forceReadOnly = false,
+        filterActions = false
     } = options;
 
     return (fields || []).map((field) => {
@@ -149,7 +174,9 @@ export function buildColumns(fields, config = {}, options = {}) {
             // A field the describe says is unsortable can never be sorted, no
             // matter what the grid-level flags say.
             sortable: allowSort && !hideHeaderActions && describe?.isSortable !== false,
-            editable: attributes.edit ?? (describe ? describe.isEditable && defaultEditable : defaultEditable),
+            editable: forceReadOnly
+                ? false
+                : (attributes.edit ?? (describe ? describe.isEditable && defaultEditable : defaultEditable)),
             wrapText: Boolean(attributes.wrap),
             hideDefaultActions: Boolean(hideHeaderActions)
         };
@@ -159,9 +186,79 @@ export function buildColumns(fields, config = {}, options = {}) {
         if (describe?.picklistOptions?.length) {
             column.fgridPicklistOptions = describe.picklistOptions;
         }
+
+        // Filtering is entered from the column's own header menu, which is the one
+        // per-column affordance lightning-datatable actually supports — there is no
+        // header-icon API, and it costs no horizontal space, which matters in a
+        // narrow Experience Cloud column.
+        //
+        // The menu item is deliberately stateless: what IS filtered is reported by
+        // the pills above the table, so this label never has to change and
+        // buildColumns stays free of runtime filter state.
+        if (filterActions && attributes.filter === true && !hideHeaderActions) {
+            column.actions = [{ label: "Filter…", name: FILTER_ACTION_NAME, iconName: "utility:filterList" }];
+        }
+
+        // A custom cell type ONLY when the column is editable. A read-only
+        // picklist renders identically to text, so routing it through our own
+        // template would add a rendering path for no visible gain.
+        //
+        // The option list is addressed as a ROW field rather than passed inline,
+        // because a row whose stored value is no longer a valid option needs that
+        // value added to its own list — see picklistCellOptions. Rows with
+        // in-range values all share one array instance, so this costs nothing
+        // except where a stale value actually exists.
+        if (column.editable && describe?.picklistOptions?.length) {
+            const isMulti = describe.displayType === "MULTIPICKLIST";
+            column.type = isMulti ? "fgridMultiPicklist" : "fgridPicklist";
+            column.fgridIsMultiPicklist = isMulti;
+            // --None-- is meaningless for a checkbox group, where clearing every
+            // box already expresses "no value".
+            column.fgridAllowNone = allowNone && !isMulti;
+            column.typeAttributes = {
+                ...(column.typeAttributes || {}),
+                options: { fieldName: field + PICKLIST_OPTIONS_SUFFIX },
+                selected: { fieldName: field + PICKLIST_SELECTED_SUFFIX }
+            };
+        }
         if (describe && describe.isAccessible === false) {
             column.fgridInaccessible = true;
             column.fgridError = describe.errorMessage || null;
+        }
+
+        // Lookups get their own cell type so the parent's NAME can be shown while
+        // the cell still stores and edits the Id. The two display options mirror
+        // the standard datatable's: "Show record name" and "Link to record", both
+        // on by default, both per column.
+        if (describe?.displayType === "REFERENCE") {
+            const showName = attributes.showName !== false;
+            const linkToRecord = attributes.link !== false;
+            column.type = "fgridLookup";
+            // Null relationship means "display the Id", either because the admin
+            // turned the name off or because the field has no relationship name.
+            column.fgridLookupRelationship = showName ? describe.relationshipName || null : null;
+            column.fgridLookupLink = linkToRecord;
+            // Search, sort and filter run against the text the user can actually
+            // see, not the stored Id. Without this, typing a visible account name
+            // into the search box matches nothing.
+            column.fgridTextField = field + LOOKUP_LABEL_SUFFIX;
+            column.typeAttributes = {
+                ...(column.typeAttributes || {}),
+                label: { fieldName: field + LOOKUP_LABEL_SUFFIX },
+                url: { fieldName: field + LINK_SUFFIX },
+                link: linkToRecord,
+                objectApiName: describe.referenceTo || null
+            };
+            // A record picker searches one object. Without a single target there is
+            // nothing to search, so editing is refused even if the column config
+            // asked for it — a polymorphic lookup would otherwise get an editor
+            // that cannot work.
+            if (!describe.referenceTo) {
+                column.editable = false;
+                column.fgridNotEditableReason = describe.isPolymorphic
+                    ? "This lookup points at more than one object, so it cannot be edited in the grid."
+                    : null;
+            }
         }
 
         // Render the object's Name field as a link to the record.
@@ -237,6 +334,10 @@ export function buildRows(records, columns, keyField = "Id") {
         return [];
     }
     const paths = (columns || []).map((column) => column.fgridLinkFor || column.fieldName).filter(Boolean);
+    const picklistColumns = (columns || []).filter(
+        (column) => column.type === "fgridPicklist" || column.type === "fgridMultiPicklist"
+    );
+    const lookupColumns = (columns || []).filter((column) => column.type === "fgridLookup");
 
     return records.map((record, index) => {
         const row = {};
@@ -256,8 +357,75 @@ export function buildRows(records, columns, keyField = "Id") {
             }
         });
 
+        lookupColumns.forEach((column) => {
+            const id = row[column.fieldName];
+            // The parent's name is read straight off the record when the Flow
+            // queried the relationship. Flow's "automatically store all fields"
+            // covers direct fields only, so it is often absent — hence the Id
+            // fallback rather than an empty cell.
+            const name = column.fgridLookupRelationship
+                ? resolvePath(record, `${column.fgridLookupRelationship}.${LOOKUP_NAME_FIELD}`)
+                : null;
+            row[column.fieldName + LOOKUP_LABEL_SUFFIX] = name ?? id ?? "";
+            row[column.fieldName + LINK_SUFFIX] = column.fgridLookupLink && id ? `/${id}` : null;
+        });
+
+        picklistColumns.forEach((column) => {
+            const value = row[column.fieldName];
+            row[column.fieldName + PICKLIST_OPTIONS_SUFFIX] = picklistCellOptions(column, value);
+            if (column.fgridIsMultiPicklist) {
+                row[column.fieldName + PICKLIST_SELECTED_SUFFIX] = splitMultiPicklist(value);
+            }
+        });
+
         return row;
     });
+}
+
+/**
+ * Splits a stored multi-select picklist value into the array a checkbox group
+ * expects.
+ */
+export function splitMultiPicklist(value) {
+    return String(value ?? "")
+        .split(MULTI_PICKLIST_SEPARATOR)
+        .map((entry) => entry.trim())
+        .filter(Boolean);
+}
+
+/** Joins selected values back into the form Salesforce stores. */
+export function joinMultiPicklist(values) {
+    return Array.isArray(values) ? values.join(MULTI_PICKLIST_SEPARATOR) : (values ?? "");
+}
+
+/**
+ * Option list for one picklist cell, including any value the record already
+ * holds that is no longer offered.
+ *
+ * A stored value can fall outside the active list — the value was deactivated,
+ * or it is not valid for the row's record type. Without this, opening the editor
+ * on such a row shows nothing selected, and saving silently overwrites real data
+ * with whatever the user picked or with nothing at all.
+ *
+ * The in-range case returns the column's own array by reference, so every row
+ * shares one instance and only genuinely stale rows allocate.
+ */
+function picklistCellOptions(column, value) {
+    const options = column.fgridPicklistOptions || [];
+    const current = column.fgridIsMultiPicklist
+        ? splitMultiPicklist(value)
+        : [value].filter((entry) => entry !== null && entry !== undefined && entry !== "");
+
+    const known = new Set(options.map((option) => option.value));
+    const missing = current.filter((entry) => !known.has(entry));
+    const none = column.fgridAllowNone ? [{ label: "--None--", value: "" }] : [];
+
+    if (!missing.length && !none.length) {
+        return options;
+    }
+    // Label is the raw stored value: inventing a decorated label here would show
+    // the user text that is not what gets saved.
+    return [...none, ...missing.map((entry) => ({ label: entry, value: entry })), ...options];
 }
 
 /**
@@ -405,24 +573,45 @@ function isPlainObject(value) {
  * @param {string} term text to look for
  * @param {boolean} caseSensitive compare without lowering case
  */
-export function searchRows(rows, columns, term, caseSensitive = false) {
+export function searchRows(rows, columns, term, caseSensitive = false, eachWord = true) {
     const needle = String(term ?? "").trim();
     if (!Array.isArray(rows) || !needle) {
         return rows || [];
     }
-    const target = caseSensitive ? needle : needle.toLowerCase();
     const paths = searchablePaths(columns);
+    const normalize = (value) => (caseSensitive ? String(value) : String(value).toLowerCase());
 
-    return rows.filter((row) =>
-        paths.some((path) => {
+    const textsOf = (row) =>
+        paths.map((path) => {
             const value = row?.[path];
-            if (value === null || value === undefined) {
-                return false;
-            }
-            const text = caseSensitive ? String(value) : String(value).toLowerCase();
-            return text.includes(target);
-        })
-    );
+            return value === null || value === undefined ? "" : normalize(value);
+        });
+
+    // PHRASE mode. The whole term must appear within a single column. Stricter, and
+    // structurally unable to match a value split across two fields — which is why
+    // it is not the default. Kept for the case where a column legitimately holds
+    // multi-word text and the admin wants an exact run of characters.
+    if (!eachWord) {
+        const target = normalize(needle);
+        return rows.filter((row) => textsOf(row).some((text) => text.includes(target)));
+    }
+
+    // WORD mode, the default. EVERY word must appear in AT LEAST ONE searchable
+    // field, in any column and in any order. Contact names are the reason: with
+    // FirstName and LastName as separate columns, "Chris Smith" is in no single
+    // field, so phrase matching finds nothing. A single Full Name column still
+    // matches, because both words are found within that one field.
+    //
+    // A single-word search is identical in both modes. The tradeoff of word mode is
+    // that words may match across different columns, so "Chris Smith" also matches
+    // a row whose FirstName is Chris and whose Company is "Smith Ltd" — normal for
+    // a search box, and the filter row still offers per-column precision.
+    const tokens = needle.split(/\s+/).filter(Boolean).map(normalize);
+
+    return rows.filter((row) => {
+        const texts = textsOf(row);
+        return tokens.every((token) => texts.some((text) => text.includes(token)));
+    });
 }
 
 /**
@@ -437,22 +626,378 @@ export function filterRows(rows, filters, caseSensitive = false) {
     if (!Array.isArray(rows) || !filters) {
         return rows || [];
     }
-    const active = Object.entries(filters).filter(([, value]) => String(value ?? "").trim() !== "");
+    const active = Object.entries(filters).filter(([, filter]) => isFilterActive(filter));
     if (!active.length) {
         return rows;
     }
 
-    return rows.filter((row) =>
-        active.every(([path, filterValue]) => {
-            const raw = row?.[path];
-            if (raw === null || raw === undefined) {
-                return false;
-            }
-            const value = caseSensitive ? String(raw) : String(raw).toLowerCase();
-            const term = caseSensitive ? String(filterValue).trim() : String(filterValue).trim().toLowerCase();
+    return rows.filter((row) => active.every(([path, filter]) => matchesFilter(row?.[path], filter, caseSensitive)));
+}
+
+/** Filter shapes, one per family of field type. */
+export const FILTER_KIND = {
+    TEXT: "text",
+    PICKLIST: "picklist",
+    DATE: "date",
+    NUMBER: "number",
+    BOOLEAN: "boolean"
+};
+
+/**
+ * Filter operators, named the way list views and report builder name them so an
+ * admin recognises them.
+ *
+ * `NO_VALUE_OPERATORS` are complete on their own — blankness checks, and the
+ * relative date ranges — so the editor hides its value control for them.
+ */
+export const FILTER_OPERATOR = {
+    EQUALS: "equals",
+    NOT_EQUALS: "notEquals",
+    CONTAINS: "contains",
+    NOT_CONTAINS: "notContains",
+    STARTS_WITH: "startsWith",
+    LESS: "lessThan",
+    GREATER: "greaterThan",
+    LESS_EQUAL: "lessOrEqual",
+    GREATER_EQUAL: "greaterOrEqual",
+    TODAY: "today",
+    THIS_WEEK: "thisWeek",
+    LAST_30: "last30",
+    THIS_YEAR: "thisYear",
+    BLANK: "isBlank",
+    NOT_BLANK: "isNotBlank"
+};
+
+const BLANK_OPERATORS = [
+    { label: "is blank", value: FILTER_OPERATOR.BLANK },
+    { label: "is not blank", value: FILTER_OPERATOR.NOT_BLANK }
+];
+
+const COMPARISON_OPERATORS = [
+    { label: "equals", value: FILTER_OPERATOR.EQUALS },
+    { label: "not equal to", value: FILTER_OPERATOR.NOT_EQUALS },
+    { label: "less than", value: FILTER_OPERATOR.LESS },
+    { label: "greater than", value: FILTER_OPERATOR.GREATER },
+    { label: "less or equal", value: FILTER_OPERATOR.LESS_EQUAL },
+    { label: "greater or equal", value: FILTER_OPERATOR.GREATER_EQUAL }
+];
+
+/** Relative ranges, expressed as operators rather than a separate control. */
+const RELATIVE_DATE_OPERATORS = [
+    { label: "is today", value: FILTER_OPERATOR.TODAY },
+    { label: "is this week", value: FILTER_OPERATOR.THIS_WEEK },
+    { label: "is in the last 30 days", value: FILTER_OPERATOR.LAST_30 },
+    { label: "is this year", value: FILTER_OPERATOR.THIS_YEAR }
+];
+
+const OPERATORS_BY_KIND = {
+    [FILTER_KIND.TEXT]: [
+        { label: "equals", value: FILTER_OPERATOR.EQUALS },
+        { label: "not equal to", value: FILTER_OPERATOR.NOT_EQUALS },
+        { label: "contains", value: FILTER_OPERATOR.CONTAINS },
+        { label: "does not contain", value: FILTER_OPERATOR.NOT_CONTAINS },
+        { label: "starts with", value: FILTER_OPERATOR.STARTS_WITH },
+        ...BLANK_OPERATORS
+    ],
+    [FILTER_KIND.PICKLIST]: [
+        { label: "is one of", value: FILTER_OPERATOR.EQUALS },
+        { label: "is none of", value: FILTER_OPERATOR.NOT_EQUALS },
+        ...BLANK_OPERATORS
+    ],
+    [FILTER_KIND.NUMBER]: [...COMPARISON_OPERATORS, ...BLANK_OPERATORS],
+    [FILTER_KIND.DATE]: [...COMPARISON_OPERATORS, ...RELATIVE_DATE_OPERATORS, ...BLANK_OPERATORS],
+    // A Salesforce checkbox is never null, so blankness has no meaning here — an
+    // "is blank" that could never match would be worse than its absence.
+    [FILTER_KIND.BOOLEAN]: [{ label: "equals", value: FILTER_OPERATOR.EQUALS }]
+};
+
+/** Operators that are complete without a value, so the editor hides its input. */
+export const NO_VALUE_OPERATORS = new Set([
+    FILTER_OPERATOR.BLANK,
+    FILTER_OPERATOR.NOT_BLANK,
+    FILTER_OPERATOR.TODAY,
+    FILTER_OPERATOR.THIS_WEEK,
+    FILTER_OPERATOR.LAST_30,
+    FILTER_OPERATOR.THIS_YEAR
+]);
+
+/** Operators offered for a filter kind, as combobox options. */
+export function operatorsFor(kind) {
+    return OPERATORS_BY_KIND[kind] || OPERATORS_BY_KIND[FILTER_KIND.TEXT];
+}
+
+/** Human label for one operator, for the pill summary. */
+export function operatorLabel(kind, operator) {
+    return operatorsFor(kind).find((option) => option.value === operator)?.label || operator;
+}
+
+/** Default operator when a filter is first created for a kind. */
+export function defaultOperatorFor(kind) {
+    if (kind === FILTER_KIND.TEXT) {
+        return FILTER_OPERATOR.CONTAINS;
+    }
+    return FILTER_OPERATOR.EQUALS;
+}
+
+/**
+ * Chooses the filter shape for a built column.
+ *
+ * Driven by the datatable type rather than the raw describe, so a column whose
+ * type was overridden in its config filters the way it renders.
+ */
+export function filterKindFor(column) {
+    const type = column?.type;
+    if (type === "fgridPicklist" || type === "fgridMultiPicklist" || column?.fgridPicklistOptions?.length) {
+        return FILTER_KIND.PICKLIST;
+    }
+    if (type === "date" || type === "date-local") {
+        return FILTER_KIND.DATE;
+    }
+    if (type === "currency" || type === "number" || type === "percent") {
+        return FILTER_KIND.NUMBER;
+    }
+    if (type === "boolean") {
+        return FILTER_KIND.BOOLEAN;
+    }
+    // text, email, phone, url and lookups all filter as text.
+    return FILTER_KIND.TEXT;
+}
+
+/**
+ * Whether a filter would narrow anything.
+ *
+ * A plain string is accepted as a text filter so a value saved before filters
+ * carried operators still works.
+ */
+export function isFilterActive(filter) {
+    if (typeof filter === "string") {
+        return filter.trim() !== "";
+    }
+    if (!filter || typeof filter !== "object" || !filter.operator) {
+        return false;
+    }
+    if (NO_VALUE_OPERATORS.has(filter.operator)) {
+        return true;
+    }
+    if (filter.kind === FILTER_KIND.PICKLIST) {
+        return Array.isArray(filter.values) && filter.values.length > 0;
+    }
+    if (filter.kind === FILTER_KIND.BOOLEAN) {
+        return filter.value === true || filter.value === false;
+    }
+    return isPresent(filter.value);
+}
+
+/**
+ * One-line description of a filter, for the pill above the table.
+ *
+ * Reporting what is filtered is half the feature: a filter set from a column
+ * header menu is otherwise invisible once the menu closes.
+ */
+export function describeFilter(label, filter) {
+    const spec = normalizeFilter(filter);
+    if (!spec) {
+        return label;
+    }
+    const operator = operatorLabel(spec.kind, spec.operator);
+    if (NO_VALUE_OPERATORS.has(spec.operator)) {
+        return `${label} ${operator}`;
+    }
+    if (spec.kind === FILTER_KIND.PICKLIST) {
+        const values = Array.isArray(spec.values) ? spec.values : [];
+        // Naming every value makes a long pill; past three, count instead.
+        const shown = values.length > 3 ? `${values.length} values` : values.join(", ");
+        return `${label} ${operator} ${shown}`;
+    }
+    if (spec.kind === FILTER_KIND.BOOLEAN) {
+        return `${label} ${operator} ${spec.value ? "True" : "False"}`;
+    }
+    return `${label} ${operator} ${spec.value}`;
+}
+
+/** Accepts the pre-operator string shape as a `contains` text filter. */
+function normalizeFilter(filter) {
+    if (typeof filter === "string") {
+        return { kind: FILTER_KIND.TEXT, operator: FILTER_OPERATOR.CONTAINS, value: filter };
+    }
+    return filter && typeof filter === "object" && filter.operator ? filter : null;
+}
+
+function isPresent(value) {
+    return value !== null && value !== undefined && String(value).trim() !== "";
+}
+
+function matchesFilter(raw, filter, caseSensitive) {
+    const spec = normalizeFilter(filter);
+    if (!spec) {
+        return true;
+    }
+
+    // Blankness is asked of the stored value directly, before any type handling:
+    // every kind agrees on what empty means.
+    const isBlankValue = raw === null || raw === undefined || String(raw).trim() === "";
+    if (spec.operator === FILTER_OPERATOR.BLANK) {
+        return isBlankValue;
+    }
+    if (spec.operator === FILTER_OPERATOR.NOT_BLANK) {
+        return !isBlankValue;
+    }
+    // Every other operator asks something of a value, so a blank row cannot match.
+    if (isBlankValue) {
+        return false;
+    }
+
+    switch (spec.kind) {
+        case FILTER_KIND.PICKLIST:
+            return matchesPicklistFilter(raw, spec);
+        case FILTER_KIND.DATE:
+            return matchesDateFilter(raw, spec);
+        case FILTER_KIND.NUMBER:
+            return matchesNumberFilter(raw, spec);
+        case FILTER_KIND.BOOLEAN:
+            return Boolean(raw) === Boolean(spec.value);
+        default:
+            return matchesTextFilter(raw, spec, caseSensitive);
+    }
+}
+
+function matchesTextFilter(raw, spec, caseSensitive) {
+    const fold = (value) => (caseSensitive ? String(value) : String(value).toLowerCase());
+    const value = fold(raw);
+    const term = fold(spec.value).trim();
+
+    switch (spec.operator) {
+        case FILTER_OPERATOR.EQUALS:
+            return value === term;
+        case FILTER_OPERATOR.NOT_EQUALS:
+            return value !== term;
+        case FILTER_OPERATOR.NOT_CONTAINS:
+            return !value.includes(term);
+        case FILTER_OPERATOR.STARTS_WITH:
+            return value.startsWith(term);
+        default:
             return value.includes(term);
-        })
-    );
+    }
+}
+
+/**
+ * Selected values combine with OR, which is what "is one of" means: picking two
+ * industries shows both.
+ *
+ * A multi-select picklist stores several values in one field, so the stored value
+ * is split before comparing — a row holding "Hot;Warm" matches a filter on "Warm".
+ */
+function matchesPicklistFilter(raw, spec) {
+    const wanted = new Set(spec.values || []);
+    const held = splitMultiPicklist(raw);
+    const hit = held.some((value) => wanted.has(value));
+    return spec.operator === FILTER_OPERATOR.NOT_EQUALS ? !hit : hit;
+}
+
+/**
+ * Compared on the date part only, so a Datetime late in the day still counts as
+ * that day. A raw string comparison would push it into the next one.
+ *
+ * Relative operators carry the range they resolved to when the admin chose them —
+ * see `resolveDatePreset` — which keeps this function pure.
+ */
+function matchesDateFilter(raw, spec) {
+    const value = datePart(raw);
+    if (!value) {
+        return false;
+    }
+
+    if (NO_VALUE_OPERATORS.has(spec.operator)) {
+        return (
+            (!isPresent(spec.from) || value >= datePart(spec.from)) &&
+            (!isPresent(spec.to) || value <= datePart(spec.to))
+        );
+    }
+
+    const target = datePart(spec.value);
+    switch (spec.operator) {
+        case FILTER_OPERATOR.NOT_EQUALS:
+            return value !== target;
+        case FILTER_OPERATOR.LESS:
+            return value < target;
+        case FILTER_OPERATOR.GREATER:
+            return value > target;
+        case FILTER_OPERATOR.LESS_EQUAL:
+            return value <= target;
+        case FILTER_OPERATOR.GREATER_EQUAL:
+            return value >= target;
+        default:
+            return value === target;
+    }
+}
+
+/** Leading `YYYY-MM-DD` of an ISO date or datetime, which sorts lexically. */
+function datePart(value) {
+    const text = String(value ?? "").trim();
+    return text ? text.slice(0, 10) : "";
+}
+
+/** Relative date choices, offered as operators. */
+export const DATE_PRESETS = [
+    { label: "Today", value: FILTER_OPERATOR.TODAY },
+    { label: "This week", value: FILTER_OPERATOR.THIS_WEEK },
+    { label: "Last 30 days", value: FILTER_OPERATOR.LAST_30 },
+    { label: "This year", value: FILTER_OPERATOR.THIS_YEAR }
+];
+
+/**
+ * Turns a relative operator into the concrete `{ from, to }` it means today.
+ *
+ * Resolved when the admin picks it rather than at match time, so `filterRows`
+ * stays a pure function of its arguments — no hidden dependency on the clock, and
+ * the range cannot shift under them mid-session.
+ *
+ * `today` is injected so this is testable without freezing time.
+ */
+export function resolveDatePreset(preset, today = new Date()) {
+    const iso = (date) => date.toISOString().slice(0, 10);
+    const shifted = (days) => {
+        const copy = new Date(today.getTime());
+        copy.setDate(copy.getDate() + days);
+        return copy;
+    };
+
+    switch (preset) {
+        case FILTER_OPERATOR.TODAY:
+            return { from: iso(today), to: iso(today) };
+        case FILTER_OPERATOR.THIS_WEEK: {
+            // Week starts Sunday, matching Salesforce's own default.
+            return { from: iso(shifted(-today.getDay())), to: iso(shifted(6 - today.getDay())) };
+        }
+        case FILTER_OPERATOR.LAST_30:
+            return { from: iso(shifted(-29)), to: iso(today) };
+        case FILTER_OPERATOR.THIS_YEAR:
+            return { from: `${today.getFullYear()}-01-01`, to: `${today.getFullYear()}-12-31` };
+        default:
+            return { from: null, to: null };
+    }
+}
+
+function matchesNumberFilter(raw, spec) {
+    const value = Number(raw);
+    const target = Number(spec.value);
+    if (Number.isNaN(value) || Number.isNaN(target)) {
+        return false;
+    }
+    switch (spec.operator) {
+        case FILTER_OPERATOR.NOT_EQUALS:
+            return value !== target;
+        case FILTER_OPERATOR.LESS:
+            return value < target;
+        case FILTER_OPERATOR.GREATER:
+            return value > target;
+        case FILTER_OPERATOR.LESS_EQUAL:
+            return value <= target;
+        case FILTER_OPERATOR.GREATER_EQUAL:
+            return value >= target;
+        default:
+            return value === target;
+    }
 }
 
 /**
@@ -605,10 +1150,18 @@ function colorClass(color) {
 }
 
 /** Field paths worth searching: real data columns, not generated link URLs. */
+/**
+ * Row fields the search box looks at.
+ *
+ * `fgridTextField` wins where a column displays something other than what it
+ * stores — a lookup shows the parent's name over an Id — so a search matches the
+ * text on screen. `fgridLinkFor` does the same job for a linked Name column, whose
+ * own fieldName holds a generated URL.
+ */
 function searchablePaths(columns) {
     return (columns || [])
         .filter((column) => column.fieldName !== ROW_ACTION_NAME)
-        .map((column) => column.fgridLinkFor || column.fieldName)
+        .map((column) => column.fgridTextField || column.fgridLinkFor || column.fieldName)
         .filter(Boolean);
 }
 

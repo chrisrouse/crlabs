@@ -27,6 +27,10 @@ const GENERIC_TYPE = "T";
 
 const MAX_RECORDS_PER_PAGE = 200;
 
+/** Properties stored as a `{!Reference}` rather than a literal, so they must be
+ *  read back in reference form for the kit's resource picker. */
+const REFERENCE_PROPERTIES = new Set(["records", "preSelectedRecords"]);
+
 export default class FgridFlowGridEditor extends FlowConfigEditorBase {
     sections = SECTIONS;
 
@@ -71,15 +75,47 @@ export default class FgridFlowGridEditor extends FlowConfigEditorBase {
     }
 
     /**
-     * Flow Builder republishes `inputVariables` in response to our own change
-     * events, so once it does, its copy is authoritative and the optimistic
-     * layer can be dropped wholesale.
+     * Retires optimistic values as Flow Builder confirms them, one property at a
+     * time.
+     *
+     * This used to drop `pending` wholesale on any `inputVariables` republish, on
+     * the assumption that Flow Builder's copy was then authoritative for
+     * everything. It is not: Flow Builder republishes in response to whatever it
+     * just processed, so a key it had not yet echoed was thrown away too — and
+     * `resolve` then fell through to the schema DEFAULT.
+     *
+     * The symptom was a value published, wiped a moment later, and re-read as its
+     * schema default — most visible on a checkbox defaulting to true, which then
+     * could not be unchecked.
+     *
+     * NOTE: this was NOT the whole story for `showBorder`. That one also declared
+     * `default="true"` in the component's meta.xml, which made Flow Builder itself
+     * re-assert true; no editor-side change could survive that. The declared
+     * defaults were removed for the four affected booleans. This fix stands on its
+     * own — the race it closes is real — but do not expect it to rescue a property
+     * whose contract declares a default.
+     *
+     * A pending entry is therefore retired on PRESENCE, not on matching values: as
+     * soon as Flow Builder publishes the property at all, its copy wins, whatever
+     * it says. Only keys it has not mentioned are held on to.
+     *
+     * Presence rather than equality matters in both directions. Equality would make
+     * the editor ignore Flow Builder whenever it legitimately reports something
+     * different — a value it transformed, or an edit from elsewhere — which is the
+     * whole reason the original cleared wholesale.
      */
     configurationChanged(source) {
         super.configurationChanged(source);
-        if (source === "inputVariables" && Object.keys(this.pending).length) {
-            this.pending = {};
+        if (source !== "inputVariables" || !Object.keys(this.pending).length) {
+            return;
         }
+        const remaining = {};
+        Object.keys(this.pending).forEach((name) => {
+            if (!this.inputVariable(name)) {
+                remaining[name] = this.pending[name];
+            }
+        });
+        this.pending = remaining;
     }
 
     /**
@@ -88,10 +124,9 @@ export default class FgridFlowGridEditor extends FlowConfigEditorBase {
      * what the kit's resource picker expects.
      */
     get values() {
-        const referenceProperties = new Set(["records", "preSelectedRecords"]);
         const resolved = {};
         [...schemaProperties(), ...EDITOR_MANAGED_PROPERTIES].forEach((name) => {
-            resolved[name] = this.resolve(name, referenceProperties.has(name));
+            resolved[name] = this.resolve(name, REFERENCE_PROPERTIES.has(name));
         });
         resolved.objectApiName = this.objectApiName;
         return resolved;

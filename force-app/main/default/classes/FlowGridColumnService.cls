@@ -28,6 +28,18 @@ public with sharing class FlowGridColumnService {
     /**
      * Display types a `lightning-datatable` cell cannot meaningfully edit,
      * regardless of whether the field itself is updateable.
+     *
+     * MULTIPICKLIST and REFERENCE were both here and have been removed: Flow Grid
+     * now ships a checkbox-group editor for the first and a record picker for the
+     * second. REFERENCE is still refused case by case, in `isEditable`, when the
+     * lookup is polymorphic.
+     *
+     * NOTE: this set only decides the DEFAULT. `buildColumns` resolves editability
+     * as `attributes.edit ?? (isEditable && defaultEditable)`, so an explicit
+     * `edit` in a column's config overrides everything here. Adding a type back to
+     * this set therefore hides it from the default, but does not prevent an admin
+     * from turning editing on — which is exactly how a lookup used to end up with a
+     * free-text box for an 18-character Id.
      */
     private static final Set<Schema.DisplayType> NON_EDITABLE_TYPES = new Set<Schema.DisplayType>{
         Schema.DisplayType.ADDRESS,
@@ -36,9 +48,7 @@ public with sharing class FlowGridColumnService {
         Schema.DisplayType.DATACATEGORYGROUPREFERENCE,
         Schema.DisplayType.ENCRYPTEDSTRING,
         Schema.DisplayType.ID,
-        Schema.DisplayType.LOCATION,
-        Schema.DisplayType.MULTIPICKLIST,
-        Schema.DisplayType.REFERENCE
+        Schema.DisplayType.LOCATION
     };
 
     /** Object-level facts the grid header and record links need. */
@@ -92,6 +102,17 @@ public with sharing class FlowGridColumnService {
         public Integer scale;
         @AuraEnabled
         public List<PicklistOption> picklistOptions;
+        /** Sole target object of a lookup, or null when there is none or several. */
+        @AuraEnabled
+        public String referenceTo;
+        /** Relationship name of a lookup, e.g. `Account` for `AccountId`. Lets the
+         *  grid read the parent's name from a record that already carries it. */
+        @AuraEnabled
+        public String relationshipName;
+        /** True for a lookup pointing at more than one object, which no single
+         *  record picker can edit. */
+        @AuraEnabled
+        public Boolean isPolymorphic;
         @AuraEnabled
         public String errorMessage;
     }
@@ -242,6 +263,7 @@ public with sharing class FlowGridColumnService {
         column.isAccessible = true;
         column.isNameField = isDirectField && field.getName() == nameField;
         column.scale = scaleOf(field);
+        applyLookupFacts(column, field);
         column.isEditable = isEditable(field);
         column.picklistOptions = picklistOptionsOf(field);
         return column;
@@ -299,6 +321,14 @@ public with sharing class FlowGridColumnService {
         if (NON_EDITABLE_TYPES.contains(field.getType())) {
             return false;
         }
+        // A lookup is editable through a record picker, which searches exactly one
+        // object. A polymorphic field has no single object to search, and guessing
+        // the first target would offer the wrong list for a value that may point
+        // somewhere else entirely.
+        if (field.getType() == Schema.DisplayType.REFERENCE) {
+            List<Schema.SObjectType> targets = field.getReferenceTo();
+            return targets != null && targets.size() == 1;
+        }
         // Long text and rich text are reported as non-sortable TEXTAREA fields
         // and cannot be edited inline.
         if (field.getType() == Schema.DisplayType.TEXTAREA && !field.isSortable()) {
@@ -316,6 +346,34 @@ public with sharing class FlowGridColumnService {
             when else {
                 return null;
             }
+        }
+    }
+
+    /**
+     * Records what the grid needs to show and edit a lookup.
+     *
+     * `referenceTo` is populated only for a single-target lookup, because a record
+     * picker searches one object. A polymorphic field — `OwnerId`, `WhoId`,
+     * `WhatId` — is flagged instead, so the editor can say why it is read-only
+     * rather than appearing to ignore the setting.
+     *
+     * `relationshipName` is what lets the parent's name be displayed without a
+     * query: `AccountId` carries relationship `Account`, so a record that already
+     * holds `Account.Name` can be read directly.
+     */
+    private static void applyLookupFacts(ColumnInfo column, Schema.DescribeFieldResult field) {
+        if (field.getType() != Schema.DisplayType.REFERENCE) {
+            return;
+        }
+        column.relationshipName = field.getRelationshipName();
+
+        List<Schema.SObjectType> targets = field.getReferenceTo();
+        if (targets == null || targets.isEmpty()) {
+            return;
+        }
+        column.isPolymorphic = targets.size() > 1;
+        if (targets.size() == 1) {
+            column.referenceTo = targets[0].getDescribe().getName();
         }
     }
 

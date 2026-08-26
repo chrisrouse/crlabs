@@ -164,7 +164,8 @@ describe("disabled state", () => {
     });
 
     it("greys same-tab links when the name field is not linked", () => {
-        const [, sameTab] = resolveSection(section("formatting"), { showNameFieldLink: false });
+        // Stored negatively: hideNameFieldLink true IS "not linked".
+        const [, sameTab] = resolveSection(section("formatting"), { hideNameFieldLink: true });
         expect(sameTab.property).toBe("openLinkInSameTab");
         expect(sameTab.disabled).toBe(true);
     });

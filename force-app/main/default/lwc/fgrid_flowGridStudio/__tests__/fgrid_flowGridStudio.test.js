@@ -38,7 +38,7 @@ function build(values = {}) {
 }
 
 function datatable(element) {
-    return element.shadowRoot.querySelector("lightning-datatable");
+    return element.shadowRoot.querySelector("c-fgrid_custom-datatable");
 }
 
 afterEach(() => {

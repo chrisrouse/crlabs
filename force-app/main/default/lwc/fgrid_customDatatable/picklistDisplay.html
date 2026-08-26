@@ -1,0 +1,7 @@
+<!-- Read-only rendering is deliberately identical to a text cell. Showing the
+     picklist LABEL instead of the stored value is a separate, agreed change that
+     also has to rework search, sort and filter to match — until then, displaying
+     a label the search box cannot find would be worse than showing the value. -->
+<template>
+    <span class="slds-truncate" title={value}>{value}</span>
+</template>

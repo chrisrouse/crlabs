@@ -1,0 +1,20 @@
+<!-- data-inputable="true" is required for accessibility in the standard cell
+     layout, and is also what the datatable's inline-edit machinery reads the
+     committed value from. Do not remove it.
+
+     The option list arrives per row (typeAttributes.options points at a row
+     field), so a value that is no longer active is still present and preselected
+     rather than silently dropped on save. --None-- is included in that list when
+     the grid allows it, which is why there is no separate flag here. -->
+<template>
+    <lightning-combobox
+        name="fgridPicklist"
+        label={columnLabel}
+        variant="label-hidden"
+        value={editedValue}
+        options={typeAttributes.options}
+        required={required}
+        dropdown-alignment="auto"
+        data-inputable="true"
+    ></lightning-combobox>
+</template>

@@ -1,0 +1,20 @@
+<!-- The cell stores an Id but shows the parent record's NAME, so the text comes
+     from typeAttributes.label rather than from `value`. c/fgrid_gridModel resolves
+     that label per row, falling back to the Id when the Flow never queried the
+     relationship.
+
+     Two display options, both per column and both mirroring the standard
+     datatable: "Show record name" decides whether the label is the name or the Id,
+     and "Link to record" decides which branch below renders. Keeping the link on
+     the text is what lets a cell be both clickable and editable — the text
+     navigates, the datatable's own edit pencil edits. -->
+<template>
+    <template lwc:if={typeAttributes.link}>
+        <a href={typeAttributes.url} target="_blank" rel="noopener noreferrer" title={typeAttributes.label}>
+            <span class="slds-truncate">{typeAttributes.label}</span>
+        </a>
+    </template>
+    <template lwc:else>
+        <span class="slds-truncate" title={typeAttributes.label}>{typeAttributes.label}</span>
+    </template>
+</template>

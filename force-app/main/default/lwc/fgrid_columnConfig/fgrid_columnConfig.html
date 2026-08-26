@@ -1,17 +1,13 @@
 <template>
     <template lwc:if={hasFields}>
-        <!-- ===================== Compact: narrow panel ===================== -->
+        <!-- ===================== Compact: narrow panel =====================
+             A count only. This used to list every column with its configured
+             attributes, which grew a full screen tall on a real grid and pushed
+             the rest of the panel out of reach. The detail belongs in the Studio's
+             editable table, which is one click away. -->
         <template lwc:if={compact}>
             <div class="summary">
-                <p class="slds-text-title_caps slds-m-bottom_xx-small">{countLabel}</p>
-                <ul class="slds-has-dividers_bottom-space">
-                    <template for:each={rows} for:item="row">
-                        <li key={row.key} class="slds-item summary__item">
-                            <span class="summary__field">{row.field}</span>
-                            <span class="summary__detail">{row.summary}</span>
-                        </li>
-                    </template>
-                </ul>
+                <p class="slds-text-title_caps">{countLabel}</p>
             </div>
         </template>
 
@@ -151,6 +147,44 @@
                                 <tr key={row.field} class="grid__advanced">
                                     <td colspan="10">
                                         <div class="advanced">
+                                            <!-- Lookup-only, and mirroring the
+                                                 standard datatable's Display
+                                                 Options. Both default on, so the
+                                                 stored attribute is only ever an
+                                                 explicit opt-out. -->
+                                            <template lwc:if={row.isLookup}>
+                                                <div class="advanced__col">
+                                                    <p class="slds-text-title_bold slds-m-bottom_xx-small">
+                                                        Display Options
+                                                    </p>
+                                                    <lightning-input
+                                                        type="checkbox"
+                                                        label="Show record name"
+                                                        data-field={row.field}
+                                                        data-attribute="showName"
+                                                        checked={row.showName}
+                                                        field-level-help="Show the related record's name instead of its Id. The name is read from the record, so the Flow's Get Records must have queried the relationship — otherwise the Id is shown."
+                                                        onchange={handleLookupFlagChange}
+                                                    ></lightning-input>
+                                                    <lightning-input
+                                                        type="checkbox"
+                                                        label="Link to record"
+                                                        data-field={row.field}
+                                                        data-attribute="link"
+                                                        checked={row.link}
+                                                        field-level-help="Make the text a link to the related record. The link opens the record; the edit pencil still edits the cell."
+                                                        onchange={handleLookupFlagChange}
+                                                    ></lightning-input>
+                                                    <template lwc:if={row.isPolymorphic}>
+                                                        <p
+                                                            class="slds-text-body_small slds-text-color_weak slds-m-top_xx-small"
+                                                        >
+                                                            This lookup points at more than one object, so it cannot be
+                                                            edited in the grid.
+                                                        </p>
+                                                    </template>
+                                                </div>
+                                            </template>
                                             <div class="advanced__col">
                                                 <c-fgrid_icon-picker
                                                     label="Column icon"
