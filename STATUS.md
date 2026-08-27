@@ -105,8 +105,21 @@ Open the smoke flow, click the Flow Grid element:
   set. Assigning `event.detail.draftValues` wholesale discarded every earlier edit as
   soon as a second cell was touched, and because `draft-values` is bound back to the
   table the first cell visibly reverted too. Drafts merge per row.
-- [ ] `outputEditedRecords` / `editedCount` reflect inline edits, and a cell edited
-      back to its original value does **not** register
+- [x] **`outputEditedRecords` drives a real database write.** Verified 2026-08-27,
+      end to end: edited Date Test to Oct 6 2026, Save, then an Update Records element
+      fed by `outputEditedRecords` ("Use the IDs and all field values from a record
+      collection"). SOQL confirms `Date_Test__c = 2026-10-06` stored. The full records
+      the output carries — CreatedDate, SystemModstamp, BillingAddress and the rest —
+      did NOT cause a non-updateable-field error, so no sparse-record change is needed.
+
+  **The Flow debug panel lies about Date fields.** It rendered the stored
+  `2026-10-06` as "October 5, 2026 at 8:00 PM", parsing a date-only value as midnight
+  UTC and formatting it in a UTC-4 user zone. Exactly the shift the
+  lightning-formatted-date-time doc warns of, but in Flow's own debug UI — the value
+  never had a time to shift. Trust the JSON payload or SOQL, not the formatted debug
+  display, and do not "fix" a shift that only appears there.
+- [ ] A cell edited back to its original value does **not** register as an edit
+- [ ] `editedCount` reflects inline edits
 - [x] **Cancel discards without touching the working collection.** Verified
       2026-08-27, including the layered case that actually proves it:
       null -> edit -> Save -> edit again -> Cancel restores the **saved** value, not
