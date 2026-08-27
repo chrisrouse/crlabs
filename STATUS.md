@@ -1,15 +1,11 @@
 # Flow Grid — status and what's left
 
-Branch `feature/flow-grid`, last commit `c097a6ef`. Everything below is deployed
-to the **Preview Org** (`chris-b4pw@force.com`) and pushed to `origin`.
+Branch `feature/flow-grid`. Everything below is deployed to the **Preview Org**
+(`chris-b4pw@force.com`). The branch is committed but **not pushed** — around twenty
+commits are local only.
 
-Local checks: **342 Jest tests**, ESLint and Prettier clean, full-package deploy
-succeeds.
-
-Nothing has been committed since `c097a6ef`. The working tree holds inline editing
-(standard, picklist, multi-select, lookup), editable lookups with Display Options,
-the search rework and its setting, the header-menu filter redesign, the toolbar
-layout, the Boolean-inversion fix, and the doc updates for all of it.
+Local checks: **411 Jest tests**, ESLint and Prettier clean, zero SLDS linter
+violations, full-package deploy succeeds.
 
 ---
 
@@ -409,10 +405,18 @@ Nothing here is scheduled. Deferred by decision, not oversight.
    Five tests in `fgrid_gridModel.test.js` ("date and datetime formatting") cover both
    defaults, both admin overrides, and the UTC pin.
 
-   **Still unverified, and only in the browser:** the DATETIME *edit* round-trip. A
-   `date` column converts for display, so a committed edit has to return as UTC. Test
-   by editing a Datetime near midnight and comparing the saved value in the debug
-   panel. A DATE edit, on `date-local`, should round-trip untouched.
+   **VERIFIED 2026-08-27 — the gap is closed.** All three types were edited and saved
+   against a debug payload:
+
+   - DATE — saved `"2026-09-03"`, displayed `Sep 3, 2026`. Untouched, as `date-local`
+     promises.
+   - DATETIME — saved `"2026-09-02T19:45:00.000Z"`, displayed `03:45 PM` in a UTC-4
+     user zone. The edit went in as local wall-clock time and came back out as correct
+     UTC, with no arithmetic on our side.
+   - TIME — saved `"01:00:00.000"`, displayed `1:00:00 AM`.
+
+   This settles it: the offset arithmetic this entry once demanded would have
+   introduced a shift into a round-trip that is already correct. Leave it alone.
 2. **Multi-currency conversion — accepted and ignored.** `suppressCurrencyConversion`
    exists as a property but nothing implements conversion. The baseline converts
    currency values to the user's currency and supports currency rollup and formula

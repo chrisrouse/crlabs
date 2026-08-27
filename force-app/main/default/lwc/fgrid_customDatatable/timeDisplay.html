@@ -2,8 +2,8 @@
      It accepts HH:mm, HH:mm:ss and HH:mm:ss.SSS, formats to the user's locale, and
      documents that "time is always displayed in Universal Time" with offsets ignored
      — `14:30+05:00` is treated as `14:30`. That is the correct reading of a Time
-     field, whose value is a wall-clock time of day; the trailing Z Apex emits is an
-     artifact of its serializer, not a timezone. -->
+     field, whose value is a wall-clock time of day. Apex serializes the field as
+     `HH:mm:ss.SSS` — verified 2026-08-27, "01:00:00.000", with no trailing Z. -->
 <template>
     <lightning-formatted-time value={value}></lightning-formatted-time>
 </template>

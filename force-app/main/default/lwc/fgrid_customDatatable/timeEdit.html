@@ -1,5 +1,6 @@
-<!-- lightning-input type="time" emits exactly the `HH:mm:ss.SSSZ` form Apex uses for
-     a Time field, so the value round-trips with no conversion on either side.
+<!-- lightning-input type="time" emits the same `HH:mm:ss.SSS` form Apex uses for a
+     Time field, so the value round-trips with no conversion on either side. Verified
+     2026-08-27: an edit saved as "01:00:00.000" and displayed as 1:00:00 AM.
 
      data-inputable="true" is how the inline-edit machinery reads the committed
      value. Load-bearing; see fgrid_customDatatable. -->
