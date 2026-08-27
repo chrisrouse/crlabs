@@ -3,8 +3,12 @@
  *
  * The base datatable has no picklist type, so a PICKLIST column would otherwise
  * fall back to `text` — and its inline editor to a free-text box, which lets a
- * user type any string into a restricted field. These two custom types are the
- * whole reason this subclass exists.
+ * user type any string into a restricted field. That was the original reason this
+ * subclass exists; lookups and long text followed for the same shape of reason.
+ *
+ * Long text needs its own cell because the datatable's text editor is a single
+ * line: editing a 32,000-character field through one would flatten every newline
+ * and save it back that way.
  *
  * Both are registered with `standardCellLayout: true` so the cell keeps the
  * datatable's own padding, truncation and edit-pencil affordance; only the inner
@@ -32,6 +36,8 @@ import multiPicklistDisplay from "./multiPicklistDisplay.html";
 import multiPicklistEdit from "./multiPicklistEdit.html";
 import lookupDisplay from "./lookupDisplay.html";
 import lookupEdit from "./lookupEdit.html";
+import longTextDisplay from "./longTextDisplay.html";
+import longTextEdit from "./longTextEdit.html";
 
 export default class FgridCustomDatatable extends LightningDatatable {
     static customTypes = {
@@ -52,6 +58,12 @@ export default class FgridCustomDatatable extends LightningDatatable {
             editTemplate: lookupEdit,
             standardCellLayout: true,
             typeAttributes: ["label", "url", "link", "objectApiName"]
+        },
+        fgridLongText: {
+            template: longTextDisplay,
+            editTemplate: longTextEdit,
+            standardCellLayout: true,
+            typeAttributes: ["maxLength"]
         }
     };
 }

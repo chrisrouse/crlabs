@@ -114,6 +114,12 @@ public with sharing class FlowGridColumnService {
         public Boolean isAccessible;
         @AuraEnabled
         public Integer scale;
+        /** Field length, so a long text editor can bound its input. */
+        @AuraEnabled
+        public Integer length;
+        /** True for a Long Text Area: a non-sortable TEXTAREA that is not HTML. */
+        @AuraEnabled
+        public Boolean isLongText;
         @AuraEnabled
         public List<PicklistOption> picklistOptions;
         /** Sole target object of a lookup, or null when there is none or several. */
@@ -277,6 +283,11 @@ public with sharing class FlowGridColumnService {
         column.isAccessible = true;
         column.isNameField = isDirectField && field.getName() == nameField;
         column.scale = scaleOf(field);
+        column.length = field.getLength();
+        column.isLongText =
+            field.getType() == Schema.DisplayType.TEXTAREA &&
+            !field.isSortable() &&
+            !field.isHtmlFormatted();
         applyLookupFacts(column, field);
         column.isEditable = isEditable(field);
         column.picklistOptions = picklistOptionsOf(field);
@@ -343,9 +354,16 @@ public with sharing class FlowGridColumnService {
             List<Schema.SObjectType> targets = field.getReferenceTo();
             return targets != null && targets.size() == 1;
         }
-        // Long text and rich text are reported as non-sortable TEXTAREA fields
-        // and cannot be edited inline.
-        if (field.getType() == Schema.DisplayType.TEXTAREA && !field.isSortable()) {
+        // Long Text Area and Rich Text both present as non-sortable TEXTAREA. They
+        // are not the same problem.
+        //
+        // Long text IS editable — Flow Grid ships a textarea cell for it, because the
+        // datatable's own text editor is a single line and would flatten newlines out
+        // of a 32,000-character field and save them back that way.
+        //
+        // Rich text stores HTML. A plain textarea would show and re-save raw markup,
+        // so it stays read-only until there is a rich text editor (§2.5 gap 4).
+        if (field.getType() == Schema.DisplayType.TEXTAREA && field.isHtmlFormatted()) {
             return false;
         }
         return true;

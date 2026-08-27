@@ -691,3 +691,52 @@ describe("editability", () => {
         expect(column.editable).toBe(false);
     });
 });
+
+describe("long text columns", () => {
+    const longText = (extra = {}) => ({
+        Description: {
+            label: "Description",
+            dataType: "text",
+            displayType: "TEXTAREA",
+            isEditable: true,
+            isLongText: true,
+            length: 32000,
+            ...extra
+        }
+    });
+
+    it("uses the textarea cell when editable, bounded by the field length", () => {
+        // The datatable's own text editor is a single line, which would flatten the
+        // newlines out of a long text field and save it back that way.
+        const [column] = buildColumns(["Description"], { Description: { edit: true } }, { describeByPath: longText() });
+        expect(column.type).toBe("fgridLongText");
+        expect(column.typeAttributes.maxLength).toBe(32000);
+    });
+
+    it("stays plain text when not editable", () => {
+        // Read-only, the custom cell would add a render path for no visible gain.
+        const [column] = buildColumns(["Description"], {}, { describeByPath: longText() });
+        expect(column.type).toBe("text");
+    });
+
+    it("leaves rich text read-only, since Apex reports it non-editable", () => {
+        // Rich text stores HTML; a plain textarea would re-save raw markup.
+        const [column] = buildColumns(
+            ["Body"],
+            { Body: { edit: true } },
+            {
+                describeByPath: {
+                    Body: {
+                        label: "Body",
+                        dataType: "text",
+                        displayType: "TEXTAREA",
+                        isEditable: false,
+                        isLongText: false
+                    }
+                }
+            }
+        );
+        expect(column.editable).toBe(false);
+        expect(column.type).toBe("text");
+    });
+});

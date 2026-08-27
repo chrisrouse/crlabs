@@ -363,6 +363,19 @@ export function buildColumns(fields, config = {}, options = {}) {
             column.fgridError = describe.errorMessage || null;
         }
 
+        // Long text gets its own cell ONLY when editable, for the same reason
+        // picklists do: read-only it is indistinguishable from text, and the point of
+        // the custom type is the textarea editor rather than the display.
+        if (column.editable && describe?.isLongText) {
+            column.type = "fgridLongText";
+            column.typeAttributes = {
+                ...(column.typeAttributes || {}),
+                // From the field's own describe, so the editor cannot accept more
+                // than the field will store.
+                maxLength: describe.length || null
+            };
+        }
+
         // Lookups get their own cell type so the parent's NAME can be shown while
         // the cell still stores and edits the Id. The two display options mirror
         // the standard datatable's: "Show record name" and "Link to record", both

@@ -560,6 +560,34 @@ It also closes parity gap §2.5.5 for free: the datatable supplies Wrap text / C
 text in the header menu natively, so runtime per-column control was never missing —
 only `hideHeaderActions` suppresses it.
 
+### Long text — editable via a textarea cell, 2026-08-27
+
+`Description` came back from describe as `updateable=true` but `ourIsEditable=false`:
+blocked by a rule refusing every non-sortable `TEXTAREA`. Third instance of the same
+mistake in two days — refusing a field the platform allows.
+
+Half-right, though. The datatable has no `textarea` cell type, so simply unblocking
+it would give a SINGLE-LINE input over a 32,000-character field, flattening every
+newline and saving it back that way. Silent data loss on a field whose purpose is
+multi-line content.
+
+`fgridLongText` is a fourth custom cell type: `lightning-textarea` as the edit
+template, `maxLength` from the field's own describe rather than a guess. Applied only
+when the column is editable, like the picklist cells — read-only it is
+indistinguishable from text.
+
+**Rich text stays read-only.** `isHtmlFormatted()` separates the two: Long Text Area
+and Rich Text both present as non-sortable `TEXTAREA`, but rich text stores HTML and a
+plain textarea would show and re-save raw markup. Blocked until §2.5 gap 4 has a real
+editor.
+
+**On the three SLDS warnings this raised.** 22rem, 6rem and an existing 12rem have no
+hook equivalent. Rather than keep literals or delete the constraints, each was nudged
+to the nearest step on the SLDS sizing scale — 20rem, 5rem, 10rem. Deleting a
+constraint to satisfy the linter is what previously let the rows per page control
+stretch across an entire grid track; the scale exists so sizes stay consistent, and
+using it is better than either extreme.
+
 ### Attributes now wired
 
 `column-widths-mode` (with min/max), `resize-column-disabled`, `wrap-table-header`,
