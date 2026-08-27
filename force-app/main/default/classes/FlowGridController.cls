@@ -44,7 +44,6 @@ public with sharing class FlowGridController {
      * @param fieldPaths ordered column field paths, as persisted in the
      *        component's `columnFields` property (a JSON array of API names)
      * @return object facts plus one column entry per requested path
-     * @throws AuraHandledException when the object API name is blank
      *
      * @example
      * // In the LWC:
@@ -67,17 +66,15 @@ public with sharing class FlowGridController {
             return empty;
         }
 
-        try {
-            GridMetadata metadata = new GridMetadata();
-            metadata.objectInfo = FlowGridColumnService.describeObject(objectApiName);
-            metadata.columns = FlowGridColumnService.describeColumns(objectApiName, fieldPaths);
-            metadata.userTimeZone = UserInfo.getTimeZone().getID();
-            return metadata;
-        } catch (Exception error) {
-            // Surface the reason to the admin; the raw stack trace is not useful
-            // in a Flow screen and may leak metadata names.
-            throw new AuraHandledException('Unable to describe ' + objectApiName + ': ' + error.getMessage());
-        }
+        // No try/catch: FlowGridColumnService contains no throw and no catch, and
+        // reports an unknown object or field as inaccessible rather than failing. An
+        // unknown object, a dotted object name, a trailing dot, a doubled dot and a
+        // four-level relationship path were all probed and all returned normally.
+        GridMetadata metadata = new GridMetadata();
+        metadata.objectInfo = FlowGridColumnService.describeObject(objectApiName);
+        metadata.columns = FlowGridColumnService.describeColumns(objectApiName, fieldPaths);
+        metadata.userTimeZone = UserInfo.getTimeZone().getID();
+        return metadata;
     }
 
     /**
@@ -97,11 +94,10 @@ public with sharing class FlowGridController {
         if (String.isBlank(objectApiName)) {
             return new List<SObject>();
         }
-        try {
-            return FlowGridPreviewService.queryPreviewRecords(objectApiName, fieldPaths, recordLimit);
-        } catch (Exception error) {
-            throw new AuraHandledException('Unable to load preview records: ' + error.getMessage());
-        }
+        // No try/catch: queryPreviewRecords already catches around its own query and
+        // returns an empty list, which the caller renders as fabricated rows. Nothing
+        // can propagate to be translated.
+        return FlowGridPreviewService.queryPreviewRecords(objectApiName, fieldPaths, recordLimit);
     }
 
     /**
@@ -114,6 +110,9 @@ public with sharing class FlowGridController {
      */
     @AuraEnabled(cacheable=true)
     public static List<FlowGridFlowService.FlowSummary> getFlows() {
+        // Reachable, and verified: FlowDefinitionView throws System.QueryException for
+        // a user without access to it, so the editor gets a reason instead of a raw
+        // platform error.
         try {
             return FlowGridFlowService.listFlows();
         } catch (Exception error) {
@@ -173,6 +172,9 @@ public with sharing class FlowGridController {
      */
     @AuraEnabled
     public static List<SObject> getRecordsByIds(String objectApiName, List<String> fieldPaths, List<String> recordIds) {
+        // Reachable BY DESIGN. fetchRecords deliberately lets a query failure
+        // propagate, because an empty result there means "the record is gone" and the
+        // grid acts on it. Not deterministically testable, so it stays uncovered.
         try {
             return FlowGridRecordService.fetchRecords(objectApiName, fieldPaths, recordIds);
         } catch (Exception error) {
@@ -192,6 +194,7 @@ public with sharing class FlowGridController {
         if (String.isBlank(flowApiName)) {
             return new List<FlowGridFlowService.FlowVariable>();
         }
+        // Same as getFlows: the flow views throw for a user who cannot read them.
         try {
             return FlowGridFlowService.listFlowVariables(flowApiName);
         } catch (Exception error) {

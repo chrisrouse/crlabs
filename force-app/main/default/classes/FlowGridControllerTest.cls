@@ -145,4 +145,74 @@ private class FlowGridControllerTest {
 
         Assert.isTrue(threw, 'An unknown flow should not fail silently');
     }
+
+    @IsTest
+    static void getFlowsTranslatesAQueryFailureForAUserWhoCannotReadFlows() {
+        // FlowDefinitionView throws System.QueryException for a user without access to
+        // it, which is what makes this catch worth having — the editor shows a reason
+        // instead of a raw platform error. Verified by probe before the test was
+        // written, rather than assumed.
+        User restricted = buildMinimumAccessUser();
+        if (restricted == null) {
+            return; // No suitable profile in this org; nothing to assert.
+        }
+
+        System.runAs(restricted) {
+            Boolean threw = false;
+            try {
+                FlowGridController.getFlows();
+            } catch (Exception error) {
+                threw = true;
+                Assert.isInstanceOfType(error, AuraHandledException.class, 'Aura callers need a handled exception');
+            }
+            Assert.isTrue(threw, 'A user who cannot read the flow views should get a reported failure');
+        }
+    }
+
+    @IsTest
+    static void getFlowVariablesTranslatesAQueryFailureForAUserWhoCannotReadFlows() {
+        User restricted = buildMinimumAccessUser();
+        if (restricted == null) {
+            return;
+        }
+
+        System.runAs(restricted) {
+            Boolean threw = false;
+            try {
+                FlowGridController.getFlowVariables('Any_Flow_Name');
+            } catch (Exception error) {
+                threw = true;
+                Assert.isInstanceOfType(error, AuraHandledException.class, 'Aura callers need a handled exception');
+            }
+            Assert.isTrue(threw, 'The flow views are unreadable, so this must report rather than return empty');
+        }
+    }
+
+    /** A user with no access to the flow views, or null when the org has no such profile. */
+    private static User buildMinimumAccessUser() {
+        List<Profile> profiles = [
+            SELECT Id
+            FROM Profile
+            WHERE Name IN ('Minimum Access - Salesforce', 'Standard Platform User')
+            ORDER BY Name
+            LIMIT 1
+        ];
+        if (profiles.isEmpty()) {
+            return null;
+        }
+
+        User restricted = new User(
+            ProfileId = profiles[0].Id,
+            LastName = 'FlowGrid',
+            Email = 'flowgrid.controller@example.invalid',
+            Username = 'flowgrid.controller.' + DateTime.now().getTime() + '@example.invalid',
+            Alias = 'fgctl',
+            TimeZoneSidKey = 'America/New_York',
+            LocaleSidKey = 'en_US',
+            EmailEncodingKey = 'UTF-8',
+            LanguageLocaleKey = 'en_US'
+        );
+        insert restricted;
+        return restricted;
+    }
 }

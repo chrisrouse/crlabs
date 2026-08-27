@@ -293,12 +293,12 @@ first when tests come back into scope.
 | Class | Was | Now |
 | --- | --- | --- |
 | `FlowGridColumnService` | 94% | 88% |
-| `FlowGridController` | 23% | **80%** |
+| `FlowGridController` | 23% | **95%** |
 | `FlowGridFlowService` | 0% | **93%** |
 | `FlowGridPreviewService` | 0% | **89%** |
-| `FlowGridRecordService` | 0% | **95%** |
+| `FlowGridRecordService` | 0% | **100%** |
 
-57 Apex tests, 100% pass. Every class is at or above the org's 80% floor, so this no
+59 Apex tests, 100% pass. Every class is at or above the org's 80% floor, so this no
 longer blocks packaging. Three new test classes:
 `FlowGridFlowServiceTest`, `FlowGridPreviewServiceTest`, `FlowGridRecordServiceTest`.
 
@@ -315,44 +315,40 @@ active flow it found, which declared no variables, so the mapping loop never ran
 the test passed while covering nothing. It now searches for a flow that actually
 declares variables. **A test that passes is not evidence that it tested anything.**
 
-#### What is deliberately still uncovered
+#### Unreachable code was removed rather than tolerated — 2026-08-27
 
-- **`FlowGridController` 76, 79, 102, 103, 119, 120, 178, 179, 197, 198** — every one
-  is a `catch` block, and all are unreachable BY DESIGN: each service swallows its own
-  errors and returns an empty result, so the delegate never throws. Only `runFlow`'s
-  catch is reachable, and it is covered. This is a real observation about the
-  controller, not a test gap: its defensive error translation is mostly dead code.
-  Left in place because a future service that does throw should be translated rather
-  than reaching the component raw. Note the consequence — the controller sits exactly
-  ON the 80% floor, so adding an unreachable catch would push it under.
-- **`FlowGridFlowService` 185, 189-191, 194** — `interview.start()` and the
-  output-reading loop. Covering these needs an active AUTOLAUNCHED flow to invoke; the
-  org's row-action flow is a screen flow, which `Flow.Interview` cannot run. Shipping a
-  test-only flow in the package to reach five lines is the wrong trade. **The headless
-  row-action path therefore has no automated coverage at all** — see §1.4, which still
-  has it unchecked in the browser too.
-- **`FlowGridPreviewService` 62, 65** — the catch around its query. A preview is a
-  convenience and an empty result unambiguously means "fall back to fabricated rows",
-  so swallowing is the right call here and the stakes are cosmetic.
+The first pass left ten uncovered `catch` blocks in the controller and called them
+"unreachable by design". Leaving unreachable code is not a design; it also contradicts
+the standing rule against error handling for impossible scenarios. So each one was
+probed with a throwaway test class to establish reachability with evidence, then either
+deleted or covered.
 
-#### A swallowed exception WAS hiding a bug — fixed 2026-08-27
+**Probe results, all measured rather than reasoned:**
 
-`FlowGridRecordService.fetchRecords` used to catch its query exception and return an
-empty list, with a comment claiming the row would be "left as it was rather than
-dropped". It was not. An empty result already MEANS something to the caller: the
-record is gone. So `reconcileRow` removed the row, told the user "That record no
-longer exists", and published it through `outputRemovedRecords` — and a flow wired to
-delete that collection would have deleted a live record on a transient query failure.
+| Path | Finding | Action |
+| --- | --- | --- |
+| `getGridMetadata` | `FlowGridColumnService` has no `throw` and no `catch`. A trailing dot, leading dot, doubled dot, four-level path, unknown relationship and dotted object name were all probed: every one returned normally. | catch DELETED |
+| `getPreviewRecords` | The service catches around its own query and returns empty. Nothing can escape. | catch DELETED |
+| `getFlows` | Throws `System.QueryException` for a minimum-access user. | kept, now COVERED |
+| `getFlowVariables` | Same — `System.QueryException`. | kept, now COVERED |
+| `getRecordsByIds` | Reachable by design since `fetchRecords` stopped swallowing. | kept, uncovered |
+| `runFlow` | Reachable — an unknown flow cannot start. | already covered |
 
-The component's own guard was already correct — `reconcileRow` catches and returns
-without touching the row — and the Apex swallow defeated it. Errors now propagate.
-Coverage went 95% -> 100% as a side effect, because the dead catch is gone.
+Result: `FlowGridController` 80% -> **95%**, with only lines 180-181 uncovered, and
+those are the one catch that has to exist — `fetchRecords` deliberately propagates so
+the grid does not mistake a query failure for a deletion. Not deterministically
+testable, and correct to keep.
 
-**The rule this establishes.** Swallow an exception only when the fallback value is
-UNAMBIGUOUS and the consequence is cosmetic. Never swallow when the fallback already
-carries meaning: conflating "I failed" with "it is gone" hands the caller a false fact
-it will act on. An unreachable catch block is a smell worth chasing — either it is
-dead code, or something below it is hiding the error it was written to handle.
+**`FlowGridFlowService` 185, 189-191, 194** stay uncovered: `interview.start()` and the
+output-reading loop need an active AUTOLAUNCHED flow to invoke, and the org's
+row-action flow is a screen flow, which `Flow.Interview` cannot run. Shipping a
+test-only flow to reach five lines is the wrong trade. **The headless row-action path
+therefore has no automated coverage at all** — see §1.4, still unchecked in the browser.
+
+**`FlowGridPreviewService` 62, 65** stay too: that swallow is the correct one. A
+preview is a convenience, an empty result unambiguously means "fall back to fabricated
+rows", and the consequence is cosmetic. It is also precisely why the controller's
+wrapper around it was dead.
 
 Org-wide coverage reads 19%, which is unrelated: this dev org holds the vendored kit
 and other unofficialSF classes. Per-class is what packaging enforces.
