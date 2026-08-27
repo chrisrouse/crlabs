@@ -135,6 +135,25 @@ export const LOOKUP_LABEL_SUFFIX = "__fgridLookupLabel";
  */
 const WRAP_UNSUPPORTED_TYPES = new Set(["action", "boolean", "button", "button-icon", "date-local"]);
 
+/**
+ * Decides whether a column can be edited.
+ *
+ * Two gates, and the order matters: the config opts a column IN, and the describe
+ * can always veto. A field Salesforce reports as non-editable — a record Id, a
+ * formula, an auto-number, a compound Address, a polymorphic lookup — stays
+ * read-only no matter what the column config says.
+ */
+function resolveEditable(attributes, describe, defaultEditable, forceReadOnly) {
+    if (forceReadOnly) {
+        return false;
+    }
+    const requested = attributes.edit ?? (describe ? describe.isEditable && defaultEditable : defaultEditable);
+    if (!requested) {
+        return false;
+    }
+    return describe ? describe.isEditable !== false : true;
+}
+
 /** Consecutive pages shown around the current one before truncating. */
 export const PAGE_WINDOW = 4;
 
@@ -276,9 +295,22 @@ export function buildColumns(fields, config = {}, options = {}) {
             // A field the describe says is unsortable can never be sorted, no
             // matter what the grid-level flags say.
             sortable: allowSort && !hideHeaderActions && describe?.isSortable !== false,
-            editable: forceReadOnly
-                ? false
-                : (attributes.edit ?? (describe ? describe.isEditable && defaultEditable : defaultEditable)),
+            // `edit` in a column's config OPTS IN; it cannot overrule the describe.
+            //
+            // It used to override outright, which is how a record Id ended up with a
+            // working text box over an 18-character key, and how a Date column got an
+            // edit pencil the datatable refuses to honour. Adding types to Apex's
+            // NON_EDITABLE_TYPES only moved the DEFAULT, so an explicit tick still
+            // produced a broken cell.
+            //
+            // The override existed because MULTIPICKLIST and REFERENCE were once in
+            // that set and needed forcing past. Both have real editors now, so nothing
+            // legitimately needs to overrule the describe any more.
+            //
+            // Absent a describe — a user-defined object, or the Studio preview before
+            // Apex answers — the config is still trusted, because there is nothing to
+            // check it against.
+            editable: resolveEditable(attributes, describe, defaultEditable, forceReadOnly),
             hideDefaultActions: Boolean(hideHeaderActions),
             // Distinct from fieldName, which a linked Name column rewrites to a
             // generated URL field. Also what keeps two columns on the SAME field

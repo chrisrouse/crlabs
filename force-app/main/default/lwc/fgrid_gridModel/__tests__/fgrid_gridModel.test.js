@@ -598,3 +598,75 @@ describe("rowsPerPageOptions", () => {
         expect(values(50, 3)).toEqual([3]);
     });
 });
+
+describe("editability", () => {
+    const describeFor = (extra) => ({ Field: { label: "Field", dataType: "text", ...extra } });
+
+    it("lets the column config opt a field in", () => {
+        const [column] = buildColumns(
+            ["Field"],
+            { Field: { edit: true } },
+            {
+                describeByPath: describeFor({ isEditable: true })
+            }
+        );
+        expect(column.editable).toBe(true);
+    });
+
+    it("refuses a record Id even when the config asks for it", () => {
+        // A working text box over an 18-character key. Apex reports ID as
+        // non-editable; the config used to override that outright.
+        const [column] = buildColumns(
+            ["Id"],
+            { Id: { edit: true } },
+            {
+                describeByPath: { Id: { label: "Account ID", dataType: "text", displayType: "ID", isEditable: false } }
+            }
+        );
+        expect(column.editable).toBe(false);
+    });
+
+    it("refuses a Date, which the datatable cannot inline-edit at all", () => {
+        // Adding DATE to Apex's non-editable set only moved the default; an explicit
+        // tick still produced an edit pencil that did nothing.
+        const [column] = buildColumns(
+            ["Due"],
+            { Due: { edit: true } },
+            {
+                describeByPath: {
+                    Due: { label: "Due", dataType: "date-local", displayType: "DATE", isEditable: false }
+                }
+            }
+        );
+        expect(column.editable).toBe(false);
+    });
+
+    it("refuses a formula or auto-number field", () => {
+        const [column] = buildColumns(
+            ["Field"],
+            { Field: { edit: true } },
+            {
+                describeByPath: describeFor({ isEditable: false })
+            }
+        );
+        expect(column.editable).toBe(false);
+    });
+
+    it("still trusts the config when there is no describe to check against", () => {
+        // A user-defined object, or the Studio preview before Apex answers.
+        const [column] = buildColumns(["Anything"], { Anything: { edit: true } }, {});
+        expect(column.editable).toBe(true);
+    });
+
+    it("keeps forceReadOnly absolute", () => {
+        const [column] = buildColumns(
+            ["Field"],
+            { Field: { edit: true } },
+            {
+                describeByPath: describeFor({ isEditable: true }),
+                forceReadOnly: true
+            }
+        );
+        expect(column.editable).toBe(false);
+    });
+});

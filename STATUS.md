@@ -489,6 +489,23 @@ Read the component reference against what was built. Three defects found and fix
   fields. `NON_EDITABLE_TYPES` blocked LOCATION but not DATE/DATETIME/TIME, so
   `isEditable` said true, the column config offered Edit, and the cell rendered a
   pencil that did nothing.
+
+  **This fix was incomplete, corrected 2026-08-27.** Adding types to that set only
+  moves the DEFAULT — `buildColumns` resolved editability as
+  `attributes.edit ?? (isEditable && defaultEditable)`, so an explicit tick still
+  overrode it and still produced a broken cell. Found when a record Id column
+  rendered a working text box over an 18-character key.
+
+  The config now OPTS IN and the describe can VETO: `resolveEditable` refuses any
+  field Salesforce reports as non-editable, whatever the column config says. That
+  covers record Ids, formulas, auto-numbers, compound Address and Location fields,
+  polymorphic lookups, and the date types. Absent a describe — a user-defined object,
+  or the Studio preview before Apex answers — the config is still trusted, because
+  there is nothing to check it against.
+
+  The override existed only because MULTIPICKLIST and REFERENCE were once in that set
+  and needed forcing past. Both have real editors now, so nothing legitimately needs
+  to overrule the describe.
 - **The `errors` attribute was unused.** Every failure was a banner above the grid,
   which cannot say WHICH row failed. `tableErrors` now attributes a failed row-action
   flow to its own row, and a describe failure to the table.
