@@ -584,6 +584,34 @@ Nothing here is scheduled. Deferred by decision, not oversight.
 
 ---
 
+## 2.11 `allowOverflow` removed — 2026-08-27
+
+**The property did nothing.** "Allow content to overflow the grid" added a class
+setting `overflow: visible`, which is the CSS initial value, to a wrapper whose only
+style is an inline `height`. There is no `.grid__wrapper` base rule and no inline
+`overflow`, so the class overrode nothing.
+
+It was live once: `wrapperStyle` used to emit `overflow: auto`, and the class beat it.
+Removing that inline overflow (to fix the double scrollbar gutter, §2.10) silently
+turned the property into dead configuration.
+
+**It could not have worked in any case.** A clipped editor is clipped by
+`lightning-datatable`'s OWN scroll container, inside its shadow DOM. Styling our outer
+wrapper cannot affect it, so no value of this checkbox could ever have changed a
+clipped dropdown.
+
+**And the risk it claimed to mitigate has not appeared.** Every editor type has been
+exercised in the browser with the setting off, and none was clipped: picklist and
+multi-select (`lightning-combobox`), lookup (`lightning-record-picker`), long text
+(textarea, scrolls internally), and the Date popup, which was confirmed working when
+date editing was re-enabled. These are base components that own their own overflow —
+a combobox repositions its dropdown rather than escaping its container.
+
+If clipping ever does appear, this wrapper is not the lever. The options would be the
+datatable's own behaviour, or not giving it a fixed-height scroll container at all —
+and the latter conflicts with §2.10, where the fixed height is what makes infinite
+scrolling fire and keeps the layout stable between pages.
+
 ## 2.10 Performance, row loading, and pagination — 2026-08-27
 
 ### The 300-record slowdown
@@ -667,7 +695,9 @@ move the footer as page contents differ in height. Do not revisit without a reas
 has a definite height, so adding `overflow: auto` stacked a second scroll container
 outside the first, and the outer one reserved its own scrollbar gutter — visible as
 dead space down the right edge beyond the scrollbar. Removing it also dissolved the
-conflict with `allowOverflow`, which no longer has an inline value to fight.
+conflict with `allowOverflow` — and, unnoticed at the time, made that property a
+no-op, since it set `overflow: visible` (the CSS default) on a wrapper that no longer
+declares any overflow. `allowOverflow` was removed 2026-08-27; see §2.11.
 
 ---
 

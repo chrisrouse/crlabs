@@ -9,12 +9,6 @@
     min-width: 0;
 }
 
-/* Editable picklist and lookup cells are clipped by the datatable's own
-   scroll container; opting out of clipping is what allowOverflow buys. */
-.grid__wrapper_overflow {
-    overflow: visible;
-}
-
 .grid__footer {
     display: flex;
     justify-content: flex-end;

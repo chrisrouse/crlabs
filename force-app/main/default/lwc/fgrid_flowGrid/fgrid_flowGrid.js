@@ -85,7 +85,6 @@ export default class FgridFlowGrid extends LightningElement {
     @api showSelectedCount = false;
     @api showRowNumbers = false;
     @api tableHeight;
-    @api allowOverflow = false;
     @api autoColumnWidths = false;
     @api minColumnWidth;
     @api maxColumnWidth;
@@ -1071,14 +1070,6 @@ export default class FgridFlowGrid extends LightningElement {
 
     /* ----- layout ----- */
 
-    get wrapperClass() {
-        const classes = ["grid__wrapper"];
-        if (this.allowOverflow) {
-            classes.push("grid__wrapper_overflow");
-        }
-        return classes.join(" ");
-    }
-
     /**
      * Always emits a height, falling back to 30rem.
      *
@@ -1094,9 +1085,11 @@ export default class FgridFlowGrid extends LightningElement {
      * reserved its own scrollbar gutter, which showed as dead space down the right
      * edge beyond the visible scrollbar.
      *
-     * Leaving overflow alone also settles the conflict with `allowOverflow`: there is
-     * no longer an inline value to beat its `overflow: visible` class, so the two are
-     * no longer mutually exclusive.
+     * That also removed the point of the old `allowOverflow` property, which set
+     * `overflow: visible` — the CSS default — on a wrapper that no longer declares
+     * any overflow, and so did nothing. It could not have worked regardless: a
+     * clipped dropdown is clipped by the datatable's OWN scroll container, inside its
+     * shadow DOM, which our CSS cannot reach.
      */
     get wrapperStyle() {
         return `height: ${this.tableHeight || DEFAULT_TABLE_HEIGHT};`;

@@ -166,9 +166,6 @@ describe("row loading", () => {
         // as dead space down the right edge beyond the visible scrollbar.
         const element = build({ records: records(300) });
         expect(element.shadowRoot.querySelector("[class*='grid__wrapper']").style.overflow).toBe("");
-
-        const open = build({ records: records(10), allowOverflow: true });
-        expect(open.shadowRoot.querySelector("[class*='grid__wrapper']").style.overflow).toBe("");
     });
 });
 

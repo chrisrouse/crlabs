@@ -299,12 +299,6 @@ export const SECTIONS = [
             },
             { property: "showRowNumbers", type: CONTROL.CHECKBOX, label: "Show row numbers" },
             {
-                property: "allowOverflow",
-                type: CONTROL.CHECKBOX,
-                label: "Allow content to overflow the grid",
-                help: "Needed when an editable picklist or lookup would otherwise be clipped."
-            },
-            {
                 property: "autoColumnWidths",
                 type: CONTROL.CHECKBOX,
                 label: "Size columns to their content",
