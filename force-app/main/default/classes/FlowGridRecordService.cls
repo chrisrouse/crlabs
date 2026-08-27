@@ -16,6 +16,10 @@
  * mode — a record the running user cannot see is therefore reported as missing,
  * which is the conservative answer for a grid about to stop displaying it.
  *
+ * ERRORS PROPAGATE. Because a missing record is meaningful, a failure to query must
+ * not look like one. Query exceptions are left to reach the caller, which leaves the
+ * row exactly as it was.
+ *
  * @see FlowGridController
  */
 public with sharing class FlowGridRecordService {
@@ -55,12 +59,16 @@ public with sharing class FlowGridRecordService {
             token.getDescribe().getName() +
             ' WHERE Id IN :ids';
 
-        try {
-            return Database.queryWithBinds(soql, new Map<String, Object>{ 'ids' => ids }, AccessLevel.USER_MODE);
-        } catch (Exception error) {
-            // A row the grid cannot re-read is left as it was rather than dropped.
-            return records;
-        }
+        // DELIBERATELY UNCAUGHT. An empty result already means something here — the
+        // record is gone, so the grid removes the row and reports it through
+        // outputRemovedRecords. Returning empty on a query failure would make a
+        // transient error indistinguishable from a deletion, and the caller would act
+        // on it: the row disappears, the user is told the record no longer exists, and
+        // a flow wired to delete outputRemovedRecords would delete a live record.
+        //
+        // The component already handles a thrown error correctly, leaving the row
+        // untouched (see reconcileRow). Swallowing here defeated that guard.
+        return Database.queryWithBinds(soql, new Map<String, Object>{ 'ids' => ids }, AccessLevel.USER_MODE);
     }
 
     /**

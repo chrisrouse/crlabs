@@ -331,9 +331,28 @@ declares variables. **A test that passes is not evidence that it tested anything
   test-only flow in the package to reach five lines is the wrong trade. **The headless
   row-action path therefore has no automated coverage at all** — see §1.4, which still
   has it unchecked in the browser too.
-- **`FlowGridPreviewService` 62, 65 and `FlowGridRecordService` 60, 62** — the catch
-  around each query. Unreachable for the same reason: paths are validated through
-  describe before the query is built, so it cannot fail on a bad identifier.
+- **`FlowGridPreviewService` 62, 65** — the catch around its query. A preview is a
+  convenience and an empty result unambiguously means "fall back to fabricated rows",
+  so swallowing is the right call here and the stakes are cosmetic.
+
+#### A swallowed exception WAS hiding a bug — fixed 2026-08-27
+
+`FlowGridRecordService.fetchRecords` used to catch its query exception and return an
+empty list, with a comment claiming the row would be "left as it was rather than
+dropped". It was not. An empty result already MEANS something to the caller: the
+record is gone. So `reconcileRow` removed the row, told the user "That record no
+longer exists", and published it through `outputRemovedRecords` — and a flow wired to
+delete that collection would have deleted a live record on a transient query failure.
+
+The component's own guard was already correct — `reconcileRow` catches and returns
+without touching the row — and the Apex swallow defeated it. Errors now propagate.
+Coverage went 95% -> 100% as a side effect, because the dead catch is gone.
+
+**The rule this establishes.** Swallow an exception only when the fallback value is
+UNAMBIGUOUS and the consequence is cosmetic. Never swallow when the fallback already
+carries meaning: conflating "I failed" with "it is gone" hands the caller a false fact
+it will act on. An unreachable catch block is a smell worth chasing — either it is
+dead code, or something below it is hiding the error it was written to handle.
 
 Org-wide coverage reads 19%, which is unrelated: this dev org holds the vendored kit
 and other unofficialSF classes. Per-class is what packaging enforces.
