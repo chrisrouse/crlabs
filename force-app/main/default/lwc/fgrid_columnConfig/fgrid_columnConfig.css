@@ -30,8 +30,9 @@
 .grid__col-num {
     width: 2.5rem;
 }
-/* The field is an API name and the label is capped at 40 characters, so neither
-   needs the space they were taking — the label input alone was a third of the row. */
+/* Neither needs the space it was taking — the label input alone was a third of the
+   row. A long label still fits: the input scrolls, and a narrow box is the honest
+   signal that a 255-character column header is the admin's problem to judge. */
 .grid__col-field {
     width: 11rem;
 }

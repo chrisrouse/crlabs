@@ -620,9 +620,11 @@ accepts a Flow resource — the value can arrive from a formula that no markup
 constrains. Blank or unusable leaves the attribute unset, which wraps without
 truncating. Headers always wrap in full; the limit is cells only.
 
-**Also tidied:** a custom Label is capped at 40 characters, matching the platform's own
-field-label limit, and the Field and Label columns were narrowed — the label input alone
-had been taking about a third of the row.
+**Also tidied:** a custom Label is capped at 255 characters and the Field and Label
+columns were narrowed — the label input alone had been taking about a third of the row.
+The cap was briefly 40, on the assumption that field labels are limited to 40; some
+objects allow up to 255, so the component does not second-guess it. Whether a header
+that long looks right is the admin's call.
 
 Column attributes now read: Field, Label, Width, Align, Edit, Filter, Wrap.
 
