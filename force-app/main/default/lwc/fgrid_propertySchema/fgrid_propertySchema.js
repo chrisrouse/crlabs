@@ -46,14 +46,6 @@ export const SELECTION_MODES = [
     { label: "None (read only)", value: "None" }
 ];
 
-/** `wrap-table-header` values. Blank leaves the datatable's own default. */
-const HEADER_WRAP_MODES = [
-    { label: "Default", value: "" },
-    { label: "Never wrap", value: "none" },
-    { label: "Wrap all headers", value: "all" },
-    { label: "Wrap per column", value: "by-column" }
-];
-
 const ROW_ACTION_TYPES = [
     { label: "None", value: "None" },
     { label: "Remove row", value: "Remove" },
@@ -298,15 +290,9 @@ export const SECTIONS = [
             },
             { property: "showRowNumbers", type: CONTROL.CHECKBOX, label: "Show row numbers" },
             {
-                property: "wrapTableHeader",
-                type: CONTROL.SELECT,
-                label: "Wrap column headers",
-                options: HEADER_WRAP_MODES
-            },
-            {
                 property: "wrapTextMaxLines",
                 type: CONTROL.NUMBER,
-                label: "Maximum wrapped lines",
+                label: "Wrapped lines",
                 help: "Lines a wrapped cell shows before it truncates. Cells wrap by default; leave blank for no limit."
             },
             {

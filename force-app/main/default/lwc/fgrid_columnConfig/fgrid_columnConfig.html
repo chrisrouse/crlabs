@@ -38,7 +38,7 @@
                                 <div class="slds-truncate" title="Filterable">Filter</div>
                             </th>
                             <th class="grid__col-flag" scope="col">
-                                <div class="slds-truncate" title="Wrap text">Wrap</div>
+                                <div class="slds-truncate" title="Wrap this column's cells and its header">Wrap</div>
                             </th>
                             <th class="grid__col-actions" scope="col"><div class="slds-truncate">&nbsp;</div></th>
                         </tr>
@@ -58,6 +58,7 @@
                                         data-field={row.field}
                                         data-attribute="label"
                                         placeholder="Default"
+                                        max-length="40"
                                         value={row.label}
                                         onchange={handleTextChange}
                                     ></lightning-input>

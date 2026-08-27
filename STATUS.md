@@ -600,6 +600,32 @@ width survive a rebuild (§2.9). If a case for locking columns turns up — a to
 layout where drag handles interfere is the most plausible — this is the property to
 reinstate.
 
+### Text wrapping — one per-column checkbox, 2026-08-27
+
+`Wrap` in Column attributes now controls that column's cells AND its header. The
+grid-level "Wrap column headers" combobox is gone; `wrap-table-header` is hardcoded to
+`by-column`.
+
+**Why it collapses to one control.** The reference: "`by-column` wraps the header for
+columns that have the Wrap text setting enabled and clips the header for columns that
+have the Clip text setting enabled." There is exactly ONE per-column wrap flag
+(`wrapText`), so separate "Wrap Header" and "Wrap Column" checkboxes would both write
+to the same property. Header wrapping IS per-column — it just cannot be set
+independently of the cells.
+
+`wrap-text-max-lines` is table-level, so **Wrapped lines stays a grid setting**, not a
+column one. It is clamped to 1-10 in the component rather than with `min`/`max` on the
+input, because the editor routes a number through the kit's value input, which also
+accepts a Flow resource — the value can arrive from a formula that no markup
+constrains. Blank or unusable leaves the attribute unset, which wraps without
+truncating. Headers always wrap in full; the limit is cells only.
+
+**Also tidied:** a custom Label is capped at 40 characters, matching the platform's own
+field-label limit, and the Field and Label columns were narrowed — the label input alone
+had been taking about a third of the row.
+
+Column attributes now read: Field, Label, Width, Align, Edit, Filter, Wrap.
+
 ### Column widths — simplified to one control, 2026-08-27
 
 **A column's Width is now the only width setting.** `auto` (blank, the default) or a

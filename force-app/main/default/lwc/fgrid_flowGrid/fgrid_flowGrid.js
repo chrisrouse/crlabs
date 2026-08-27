@@ -63,6 +63,10 @@ const SCROLL_BATCH_SIZE = 50;
  *  boundary to exist before `loadmore` will ever fire. */
 const DEFAULT_TABLE_HEIGHT = "30rem";
 
+/** Range a wrapped cell's line count is held to. */
+const WRAPPED_LINES_MIN = 1;
+const WRAPPED_LINES_MAX = 10;
+
 export default class FgridFlowGrid extends LightningElement {
     // ----- Data source -----
     @api objectApiName;
@@ -85,7 +89,6 @@ export default class FgridFlowGrid extends LightningElement {
     @api showSelectedCount = false;
     @api showRowNumbers = false;
     @api tableHeight;
-    @api wrapTableHeader;
     @api wrapTextMaxLines;
     @api showReadOnlyIcon = false;
 
@@ -1087,6 +1090,21 @@ export default class FgridFlowGrid extends LightningElement {
      * clipped dropdown is clipped by the datatable's OWN scroll container, inside its
      * shadow DOM, which our CSS cannot reach.
      */
+    /**
+     * Lines a wrapped cell shows before truncating, clamped to 1-10.
+     *
+     * Clamped here rather than with `min`/`max` on the input, because the property
+     * editor routes a number through the kit's value input, which also accepts a Flow
+     * resource — so the value can arrive from a formula that no markup constrains.
+     */
+    get wrappedLines() {
+        const requested = Number(this.wrapTextMaxLines);
+        if (!Number.isFinite(requested) || requested <= 0) {
+            return undefined;
+        }
+        return Math.min(Math.max(Math.trunc(requested), WRAPPED_LINES_MIN), WRAPPED_LINES_MAX);
+    }
+
     get wrapperStyle() {
         return `height: ${this.tableHeight || DEFAULT_TABLE_HEIGHT};`;
     }

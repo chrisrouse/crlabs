@@ -61,8 +61,7 @@
                  read and write (see `invert` in fgrid_propertySchema), so nothing
                  changes for the admin. Same reason hideHeaderActions,
                  hideClearSelectionButton and suppressBottomBar are framed this way. -->
-            <property name="wrapTableHeader" type="String" label="Wrap Column Headers" role="inputOnly" description="none, all, or by-column. Leave blank for the datatable's default." />
-            <property name="wrapTextMaxLines" type="Integer" label="Maximum Wrapped Lines" role="inputOnly" description="Lines shown before a wrapped cell truncates." />
+            <property name="wrapTextMaxLines" type="Integer" label="Wrapped Lines" role="inputOnly" description="Lines of text shown in a wrapped cell before it truncates with an ellipsis. 1 to 10; anything outside that range is clamped. Applies to cells only — a wrapped header always wraps in full." />
             <property name="showReadOnlyIcon" type="Boolean" label="Show a Lock on Read-Only Columns" default="false" role="inputOnly" />
 
             <!-- ============================= Selection =============================

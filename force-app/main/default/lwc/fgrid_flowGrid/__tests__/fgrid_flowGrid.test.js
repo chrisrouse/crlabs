@@ -458,3 +458,39 @@ describe("actioned record ids accumulate", () => {
         expect(element.outputActionedRecordIds).toEqual([first.Id, second.Id]);
     });
 });
+
+describe("wrapped lines", () => {
+    // Clamped in the component rather than with min/max on the input, because the
+    // property editor routes a number through the kit's value input, which also
+    // accepts a Flow resource — the value can arrive from a formula.
+    function linesFor(props) {
+        const element = build({ records: records(1), ...props });
+        return element.shadowRoot.querySelector("c-fgrid_custom-datatable").wrapTextMaxLines;
+    }
+
+    it("passes a value inside the range through", async () => {
+        expect(linesFor({ wrapTextMaxLines: 3 })).toBe(3);
+    });
+
+    it("clamps above the maximum", async () => {
+        expect(linesFor({ wrapTextMaxLines: 99 })).toBe(10);
+    });
+
+    it("clamps a fraction down to a whole number of lines", async () => {
+        expect(linesFor({ wrapTextMaxLines: 2.7 })).toBe(2);
+    });
+
+    it("leaves the attribute unset when nothing usable is given", async () => {
+        // Unset means the datatable's own behaviour: wrap without truncating.
+        for (const value of [undefined, null, 0, -4, "abc"]) {
+            expect(linesFor({ wrapTextMaxLines: value })).toBeUndefined();
+        }
+    });
+
+    it("wraps headers by column, following each column's own Wrap setting", async () => {
+        const element = build({ records: records(1) });
+        await Promise.resolve();
+
+        expect(element.shadowRoot.querySelector("c-fgrid_custom-datatable").wrapTableHeader).toBe("by-column");
+    });
+});

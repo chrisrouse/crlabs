@@ -30,6 +30,14 @@
 .grid__col-num {
     width: 2.5rem;
 }
+/* The field is an API name and the label is capped at 40 characters, so neither
+   needs the space they were taking — the label input alone was a third of the row. */
+.grid__col-field {
+    width: 11rem;
+}
+.grid__col-label {
+    width: 15rem;
+}
 .grid__col-width,
 .grid__col-align {
     width: 6rem;
