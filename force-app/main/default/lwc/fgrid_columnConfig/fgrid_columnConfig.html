@@ -40,9 +40,6 @@
                             <th class="grid__col-flag" scope="col">
                                 <div class="slds-truncate" title="Wrap text">Wrap</div>
                             </th>
-                            <th class="grid__col-flag" scope="col">
-                                <div class="slds-truncate" title="Flexible width">Flex</div>
-                            </th>
                             <th class="grid__col-actions" scope="col"><div class="slds-truncate">&nbsp;</div></th>
                         </tr>
                     </thead>
@@ -120,19 +117,6 @@
                                         data-attribute="wrap"
                                         checked={row.wrap}
                                         onchange={handleDefaultOnFlagChange}
-                                    ></lightning-input>
-                                </td>
-                                <td class="grid__cell-flag">
-                                    <lightning-input
-                                        type="checkbox"
-                                        variant="label-hidden"
-                                        label="Flexible width"
-                                        data-field={row.field}
-                                        data-attribute="flex"
-                                        checked={row.flex}
-                                        disabled={row.flexDisabled}
-                                        title={row.flexHint}
-                                        onchange={handleCheckboxChange}
                                     ></lightning-input>
                                 </td>
                                 <td class="grid__cell-actions">

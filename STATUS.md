@@ -831,61 +831,47 @@ Read the component reference against what was built. Three defects found and fix
 - **No `aria-label` on the datatable.** A screen reader announced an unlabelled grid.
   Now named from `tableLabel`, falling back to the object's plural label.
 
-### `flex` implemented
+### `flex` REMOVED — 2026-08-27
 
-Offered since the beginning and never read. The reference explains the model:
+Implemented earlier in the session on a misreading, then removed the same day once the
+original component's release notes surfaced. Worth keeping the whole arc, because the
+mistake was subtle and cost several rounds of browser testing.
 
-| | Resizable | Notes |
-| --- | --- | --- |
-| `initialWidth` | yes | a starting width the user can drag |
-| `fixedWidth` | no | exact, and overrides `initialWidth` |
+**What Flex means, from the original author's v4.1.0 notes:**
 
-So a width with **Flex on** is a starting point; **Flex off** locks it. Behaviour
-change: a width set before this shipped was resizable and is now locked.
+> "When selected, all flexed columns' widths will evenly expand or contract to fill the
+> available space... more control over columns that you specifically want to be narrow
+> or wide while allowing the other columns to find the best fit."
 
-**What Flex means — revised 2026-08-27, and NOT yet confirmed in a browser.**
+So **Flex on = this column has no width of its own, share the space. Flex off = keep my
+specific width.** The baseline implements exactly that — `setWidth` does
+`flex_checked ? 0 : sizes[colNum]` and assigns `initialWidth` in both cases, never
+`fixedWidth`. Flex and Width are two expressions of one idea.
 
-Be careful with the confidence levels here, because they differ:
+**Why it is redundant here.** The baseline's Config Mode wizard MEASURES and stores a
+width for every column, so it needed a per-column way to say "not this one". Our editor
+never populates Width — it is blank, showing a placeholder of `auto`, unless an admin
+types a number. An empty Width field already says everything Flex said.
 
-- **OBSERVED.** Flex on and Flex off produce identical tables while Width is blank, in
-  both width modes. Four browser configurations.
-- **LITERAL CODE.** We assign `initialWidth` when Flex is on and `fixedWidth` when it
-  is off. The baseline assigns `initialWidth` in both cases, zeroing the width when
-  flexed (`datatable.js` `setWidth`: `flex_checked ? 0 : sizes[colNum]`); it never uses
-  `fixedWidth` at all.
-- **DOC-DERIVED, UNVERIFIED.** That `initialWidth` reflows when the window or container
-  changes while `fixedWidth` does not. The reference says "`fixedWidth` ... makes the
-  column non-resizable" and "the columns automatically resize... when the browser window
-  is resized", but nobody has watched it happen here.
+**What the misreading cost.** Flex was implemented as `initialWidth` when on and
+`fixedWidth` when off — resizable versus locked. Two things were wrong:
 
-That last bullet is the load-bearing claim, and everything below rests on it. Treat the
-table as a hypothesis until the browser test at the end of this entry is run.
+1. It invented a locked, non-reflowing column the original never had. `fixedWidth` is
+   exact and refuses to reflow, so narrowing the window past the sum of the pinned
+   columns forces horizontal overflow. Observed in the org.
+2. It was a silent regression, recorded here at the time without the consequence being
+   noticed: "a width set before this shipped was resizable and is now locked."
 
-**This is NOT the baseline semantic** — that part IS certain, being a direct reading of
-the baseline source — and the earlier claim here that it was "exactly what the checkbox
-was always describing" was wrong. The baseline zeroes the width when
-flexed (`datatable.js` `setWidth`: `flex_checked ? 0 : sizes[colNum]`) and assigns
-`initialWidth` in BOTH cases — it never uses `fixedWidth`, so both of its states still
-reflow. Its Flex only decides whether a starting width exists. It needed that escape
-hatch because its Config Mode wizard measures and stores a width for EVERY column;
-our editor leaves Width blank unless an admin types a number.
+**Now:** a Width is ALWAYS `initialWidth` — a starting width that still expands and
+contracts with the window or parent container. `fixedWidth` is not used anywhere. A
+stored `flex` value is ignored, so old column configs need no migration.
 
-| Intent | Baseline | Flow Grid |
-| --- | --- | --- |
-| No pinned width, share space, reflow | Flex on | Width blank |
-| Starting width, still reflows | Flex off | Width + Flex on |
-| Exact width, frozen | not available | Width + Flex off |
-
-Ours is a superset: the baseline forces a choice between a starting width and flexing,
-we allow both, plus a true freeze it never offered. The name is right; only the
-explanation was wrong, so the label stays and the hover text now says what it does.
-
-**THE TEST THAT SETTLES IT:** two columns at Width 300, one Flex on and one off, then
-narrow the browser window. If the Flex-on column moves and the Flex-off one holds at
-exactly 300, the model above is right. If both move, `fixedWidth` is not behaving as
-documented and the label and hover text need rethinking again. If neither moves,
-`initialWidth` is being treated as fixed and Flex does nothing even with a width — in
-which case it should be removed, not relabelled.
+**Lesson.** Three separate accounts of this attribute were given before the right one:
+that it matched the reference's resizable/locked model, then that it was about container
+reflow, then the correct one. All three were derived from OUR code and the platform
+reference. The answer was in the original component's release notes the whole time —
+read the source component's own documentation before reinterpreting one of its
+attributes.
 
 ### Wrapping is on by default
 

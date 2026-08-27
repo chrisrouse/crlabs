@@ -456,19 +456,22 @@ export function buildColumns(fields, config = {}, options = {}) {
             };
         }
 
-        // `flex` finally does something. The reference distinguishes two width
-        // properties, and this is the difference the checkbox was always describing:
-        //   initialWidth — a starting width the user can then drag
-        //   fixedWidth   — an exact width that cannot be resized, and which
-        //                  overrides initialWidth
-        // So a width with Flex on is a starting point; without it, it is locked.
+        // ALWAYS initialWidth, never fixedWidth. A width is a starting point that
+        // still expands and contracts with the window or parent container; a
+        // `fixedWidth` column is exact and refuses to reflow, which shows up as
+        // horizontal overflow the moment the window narrows past the sum of the
+        // pinned columns.
+        //
+        // This used to branch on a `flex` attribute — initialWidth when set,
+        // fixedWidth when not — on a misreading of what Flex meant. It means "this
+        // column has no width of its own, so share the space", which in this editor
+        // is what an empty Width field already says. The attribute was redundant, and
+        // the fixedWidth half was a regression: the original component never used
+        // fixedWidth at all, so a width that had always been flexible became locked.
+        // A stored `flex` value is now ignored.
         const width = Number(attributes.width);
         if (Number.isFinite(width) && width > 0) {
-            if (attributes.flex) {
-                column.initialWidth = width;
-            } else {
-                column.fixedWidth = width;
-            }
+            column.initialWidth = width;
         }
 
         const cellAttributes = {};

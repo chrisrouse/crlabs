@@ -93,19 +93,6 @@ export default class FgridColumnConfig extends LightningElement {
                 // is the opt-out. Column config is JSON inside a String property,
                 // so a stored `false` survives — unlike a Flow Boolean parameter.
                 wrap: attributes.wrap !== false,
-                flex: Boolean(attributes.flex),
-                // Flex is a MODIFIER ON WIDTH, not an independent setting. It picks
-                // between initialWidth — a starting width that reflows when the window
-                // or container changes — and fixedWidth, which the reference calls
-                // exact and non-resizable. With no width there is nothing to pick, and
-                // an unpinned column already reflows, so the checkbox is asking for
-                // what it already has. It ships checked, which made it look as though
-                // it were doing the work. Disabled until a width is set.
-                flexDisabled: !(Number(attributes.width) > 0),
-                flexHint:
-                    Number(attributes.width) > 0
-                        ? "On: a starting width that still flexes as the window or container resizes. Off: exactly this many pixels, frozen."
-                        : "Set a width first. With no width the column already flexes, which is what Flex would ask for.",
                 // Lookup display options, mirroring the standard datatable. Both
                 // default ON, so the stored value is only ever an explicit opt-out.
                 isLookup: this.describeByPath?.[field]?.displayType === "REFERENCE",

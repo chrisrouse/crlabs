@@ -80,16 +80,18 @@ describe("buildColumns", () => {
         expect(column.cellAttributes).toEqual({ alignment: "right", iconName: "standard:account" });
     });
 
-    it("locks a width unless the column is flexible", () => {
-        // fixedWidth cannot be dragged and overrides initialWidth; that is exactly
-        // what "not flexible" means, and what the Flex checkbox now controls.
-        const [locked] = buildColumns(["Name"], { Name: { width: 220 } });
-        expect(locked.fixedWidth).toBe(220);
-        expect(locked.initialWidth).toBeUndefined();
+    it("treats a width as a starting width that still reflows", () => {
+        // Never fixedWidth. An exact width refuses to reflow, so narrowing the window
+        // past the sum of the pinned columns forces horizontal overflow. A stored
+        // `flex` value is ignored: it meant "no width of its own", which an empty
+        // Width field already says.
+        const [column] = buildColumns(["Name"], { Name: { width: 220 } });
+        expect(column.initialWidth).toBe(220);
+        expect(column.fixedWidth).toBeUndefined();
 
-        const [flexible] = buildColumns(["Name"], { Name: { width: 220, flex: true } });
-        expect(flexible.initialWidth).toBe(220);
-        expect(flexible.fixedWidth).toBeUndefined();
+        const [ignored] = buildColumns(["Name"], { Name: { width: 220, flex: false } });
+        expect(ignored.initialWidth).toBe(220);
+        expect(ignored.fixedWidth).toBeUndefined();
     });
 
     it("wraps text by default, and only on types that support it", () => {
