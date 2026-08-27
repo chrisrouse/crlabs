@@ -107,7 +107,12 @@ Open the smoke flow, click the Flow Grid element:
   table the first cell visibly reverted too. Drafts merge per row.
 - [ ] `outputEditedRecords` / `editedCount` reflect inline edits, and a cell edited
       back to its original value does **not** register
-- [ ] Cancel discards without touching the working collection
+- [x] **Cancel discards without touching the working collection.** Verified
+      2026-08-27, including the layered case that actually proves it:
+      null -> edit -> Save -> edit again -> Cancel restores the **saved** value, not
+      the original null. Cancel reverts to whatever `_editsByKey` last committed
+      rather than to the source record, which is the distinction that would have
+      silently thrown away a committed edit had it been wrong.
 - [ ] `navigateNextOnSave` advances the screen on Save
 - [ ] A row whose stored picklist value is inactive keeps that value as a
       preselected option instead of losing it
