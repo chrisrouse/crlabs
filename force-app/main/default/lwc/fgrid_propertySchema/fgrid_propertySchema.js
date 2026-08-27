@@ -302,7 +302,7 @@ export const SECTIONS = [
                 property: "autoColumnWidths",
                 type: CONTROL.CHECKBOX,
                 label: "Size columns to their content",
-                help: "Off: columns split the available width equally. On: each column is sized to what it contains, within the minimum and maximum below. Content sizing needs a plain block container — it does not work inside a flex layout."
+                help: "Off: columns split the available width equally. On: each column is sized to what it contains, within the minimum and maximum below. Salesforce supports content sizing only in a block container, so it may not work inside a Flow screen section, which lays its columns out with flex."
             },
             {
                 property: "minColumnWidth",
@@ -318,7 +318,6 @@ export const SECTIONS = [
                 when: ["autoWidths"],
                 placeholder: "1000"
             },
-            { property: "disableColumnResize", type: CONTROL.CHECKBOX, label: "Prevent column resizing" },
             {
                 property: "wrapTableHeader",
                 type: CONTROL.SELECT,

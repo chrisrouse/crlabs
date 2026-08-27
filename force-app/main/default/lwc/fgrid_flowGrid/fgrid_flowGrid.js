@@ -88,7 +88,6 @@ export default class FgridFlowGrid extends LightningElement {
     @api autoColumnWidths = false;
     @api minColumnWidth;
     @api maxColumnWidth;
-    @api disableColumnResize = false;
     @api wrapTableHeader;
     @api wrapTextMaxLines;
     @api showReadOnlyIcon = false;

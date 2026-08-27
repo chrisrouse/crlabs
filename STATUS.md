@@ -584,6 +584,40 @@ Nothing here is scheduled. Deferred by decision, not oversight.
 
 ---
 
+## 2.12 `disableColumnResize` removed — 2026-08-27
+
+Unlike `allowOverflow` (§2.11) this property WORKED — it is a documented pass-through
+to `resize-column-disabled`. Removing it was a product decision, not dead-code
+cleanup, and reverting is five lines.
+
+The reasoning: it only ever removes capability from the end user. A dragged width is
+per-session and non-destructive, nothing in the grid depends on resizing being
+off, and the reference notes the table keeps adapting to container width even when the
+attribute is set — so it never protected a layout, it only stopped a drag.
+
+Resizing itself stays, along with the `_columnWidths` persistence that makes a dragged
+width survive a rebuild (§2.9). If a case for locking columns turns up — a touch
+layout where drag handles interfere is the most plausible — this is the property to
+reinstate.
+
+### Auto column widths — checked against the reference, 2026-08-27
+
+Two things settled while auditing this:
+
+- **The flex caveat in the help text is correct**, and is the reference's own wording:
+  "Auto width mode is supported for containers with block display... doesn't fully
+  support containers with `display:inline-block` or flex properties."
+- **Persisted drag widths do NOT conflict with auto mode**, contrary to what was
+  suspected. The reference is explicit: "Specify your own widths for particular columns
+  using the `fixedWidth` or `initialWidth` properties. The widths of the columns
+  without these properties are calculated based on the width of the content." So the
+  §2.9 resize-persistence fix is correct in both modes and needs no special case.
+
+**What is still unverified:** whether auto mode works at all inside a Flow screen
+SECTION. Flow lays a section's columns out with flex, which is the container type the
+reference says is not fully supported. The help text now says "may not work" rather
+than asserting either way. Worth a browser check before anyone relies on it.
+
 ## 2.11 `allowOverflow` removed — 2026-08-27
 
 **The property did nothing.** "Allow content to overflow the grid" added a class

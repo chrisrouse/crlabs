@@ -64,7 +64,6 @@
             <property name="autoColumnWidths" type="Boolean" label="Size Columns to Content" default="false" role="inputOnly" description="Calculates each column's width from its content instead of splitting the available space equally." />
             <property name="minColumnWidth" type="Integer" label="Minimum Column Width" role="inputOnly" />
             <property name="maxColumnWidth" type="Integer" label="Maximum Column Width" role="inputOnly" />
-            <property name="disableColumnResize" type="Boolean" label="Prevent Column Resizing" default="false" role="inputOnly" />
             <property name="wrapTableHeader" type="String" label="Wrap Column Headers" role="inputOnly" description="none, all, or by-column. Leave blank for the datatable's default." />
             <property name="wrapTextMaxLines" type="Integer" label="Maximum Wrapped Lines" role="inputOnly" description="Lines shown before a wrapped cell truncates." />
             <property name="showReadOnlyIcon" type="Boolean" label="Show a Lock on Read-Only Columns" default="false" role="inputOnly" />
