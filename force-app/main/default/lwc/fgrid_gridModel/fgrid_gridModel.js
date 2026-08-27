@@ -151,31 +151,6 @@ export const MULTI_PICKLIST_SEPARATOR = ";";
  *  when it is available, otherwise the raw Id. */
 export const LOOKUP_LABEL_SUFFIX = "__fgridLookupLabel";
 
-/** Row field holding a Time value trimmed to HH:mm for display. */
-export const TIME_DISPLAY_SUFFIX = "__fgridTimeDisplay";
-
-/**
- * Trims a Time value to `HH:mm` so the cell shows "7:00 AM", not "7:00:00 AM".
- *
- * `lightning-formatted-time` renders whatever precision it is handed and exposes
- * no attributes to control the format — it accepts `HH:mm`, `HH:mm:ss` and
- * `HH:mm:ss.SSS` and formats to the user's locale. Apex serializes a Time field
- * with milliseconds, hence the seconds on screen. Trimming the input is therefore
- * the only lever, and it keeps the locale formatting the component does well.
- *
- * The trim is display-only: the row's real field keeps full precision, so an
- * inline edit still starts from the stored value rather than a rounded one.
- * Seconds are truncated rather than rounded, matching how the platform shows a
- * Time elsewhere.
- */
-export function timeWithoutSeconds(value) {
-    if (typeof value !== "string") {
-        return value ?? null;
-    }
-    const match = /^(\d{1,2}):(\d{2})/.exec(value.trim());
-    return match ? `${match[1].padStart(2, "0")}:${match[2]}` : value;
-}
-
 /**
  * Datatable types that cannot wrap, per the component reference: wrapping is not
  * supported for row numbers, `action`, `boolean`, `button`, `button-icon` or
@@ -420,12 +395,6 @@ export function buildColumns(fields, config = {}, options = {}) {
         if (describe?.displayType === "TIME") {
             column.type = "fgridTime";
             column.fgridIsTime = true;
-            // Display reads the trimmed field; `value` stays the real one so the
-            // editor and every draft still work off full precision.
-            column.typeAttributes = {
-                ...(column.typeAttributes || {}),
-                display: { fieldName: field + TIME_DISPLAY_SUFFIX }
-            };
         }
 
         // Long text gets its own cell ONLY when editable, for the same reason
@@ -644,7 +613,6 @@ export function buildRows(records, columns, keyField = "Id") {
         }));
     const lookupColumns = (columns || []).filter((column) => column.type === "fgridLookup");
     const percentColumns = (columns || []).filter((column) => column.type === "percent");
-    const timeColumns = (columns || []).filter((column) => column.type === "fgridTime");
 
     return records.map((record, index) => {
         const row = {};
@@ -669,10 +637,6 @@ export function buildRows(records, columns, keyField = "Id") {
             if (value !== null && value !== undefined && value !== "") {
                 row[column.fieldName] = percentToFraction(value);
             }
-        });
-
-        timeColumns.forEach((column) => {
-            row[column.fieldName + TIME_DISPLAY_SUFFIX] = timeWithoutSeconds(row[column.fieldName]);
         });
 
         lookupColumns.forEach((column) => {

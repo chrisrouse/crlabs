@@ -17,9 +17,7 @@ import {
     rowsPerPageOptions,
     buildRows,
     percentToFraction,
-    fractionToPercent,
-    timeWithoutSeconds,
-    TIME_DISPLAY_SUFFIX
+    fractionToPercent
 } from "c/fgrid_gridModel";
 
 describe("inferType", () => {
@@ -803,12 +801,10 @@ describe("time columns", () => {
         expect(row.Start__c).toBe("14:30:00.000Z");
     });
 
-    it("adds exactly one synthetic row field for a time column", () => {
-        // Display-only, and the trimmed one: hiding the seconds needs a value the
-        // real field cannot carry without costing the editor its precision.
+    it("adds no synthetic row fields for a time column", () => {
         const columns = buildColumns(["Start__c"], {}, { describeByPath: describeTime });
         const [row] = buildRows([{ Id: "a", Start__c: "14:30:00.000Z" }], columns, "Id");
-        expect(Object.keys(row).filter((key) => key.includes("fgridTime"))).toEqual(["Start__c" + TIME_DISPLAY_SUFFIX]);
+        expect(Object.keys(row).filter((key) => key.includes("fgridTime"))).toEqual([]);
     });
 });
 
@@ -891,38 +887,5 @@ describe("datetime timezone", () => {
     it("omits the timezone when the org did not supply one", () => {
         const [column] = buildColumns(["When__c"], {}, { describeByPath: datetime });
         expect(column.typeAttributes.timeZone).toBeUndefined();
-    });
-});
-
-describe("time display precision", () => {
-    const time = { Start__c: { label: "Start", dataType: "time", displayType: "TIME", isEditable: true } };
-
-    it("trims the seconds Apex serializes onto a Time field", () => {
-        // The cell read "7:00:00 AM" because lightning-formatted-time renders
-        // whatever precision it is handed and offers no formatting attributes.
-        expect(timeWithoutSeconds("07:00:00.000Z")).toBe("07:00");
-    });
-
-    it("truncates rather than rounds", () => {
-        expect(timeWithoutSeconds("07:00:45.000Z")).toBe("07:00");
-    });
-
-    it("leaves an already-trimmed value alone and passes through blanks", () => {
-        expect(timeWithoutSeconds("07:00")).toBe("07:00");
-        expect(timeWithoutSeconds(null)).toBeNull();
-        expect(timeWithoutSeconds(undefined)).toBeNull();
-    });
-
-    it("keeps full precision on the real field so an edit starts from the stored value", () => {
-        const [column] = buildColumns(["Start__c"], {}, { describeByPath: time });
-        const [row] = buildRows([{ Id: "a01", Start__c: "07:00:30.000Z" }], [column], "Id");
-        expect(row.Start__c).toBe("07:00:30.000Z");
-        expect(row["Start__c" + TIME_DISPLAY_SUFFIX]).toBe("07:00");
-    });
-
-    it("points the display typeAttribute at the trimmed field", () => {
-        const [column] = buildColumns(["Start__c"], {}, { describeByPath: time });
-        expect(column.type).toBe("fgridTime");
-        expect(column.typeAttributes.display).toEqual({ fieldName: "Start__c" + TIME_DISPLAY_SUFFIX });
     });
 });
