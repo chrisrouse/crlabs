@@ -517,7 +517,8 @@ export default class FgridFlowGrid extends LightningElement {
             // Only the runtime offers filtering. The Studio preview shows layout and
             // cannot filter, so a header action there would do nothing.
             filterActions: true,
-            readOnlyIcon: Boolean(this.showReadOnlyIcon)
+            readOnlyIcon: Boolean(this.showReadOnlyIcon),
+            userTimeZone: this._metadata?.userTimeZone
         });
 
         // Re-apply anything the user dragged. Rebuilding `columns` on every render
@@ -1616,9 +1617,33 @@ export default class FgridFlowGrid extends LightningElement {
      * The datatable would manage its own drafts if `draft-values` were never
      * bound, but then there is no way to clear them after a save — the bar would
      * sit there implying unsaved work that has already been applied.
+     *
+     * MERGE, NEVER REPLACE. `cellchange` reports only the cell that just changed,
+     * not the accumulated draft set. Assigning it wholesale therefore threw away
+     * every earlier edit the moment a second cell was touched — and because
+     * `draft-values` is bound straight back to the table, the first cell visibly
+     * reverted too. Drafts are merged per row so editing three cells leaves three
+     * fields pending on one draft record.
      */
     handleCellChange(event) {
-        this._draftValues = event.detail?.draftValues || [];
+        const incoming = event.detail?.draftValues || [];
+        if (!incoming.length) {
+            return;
+        }
+        const merged = this._draftValues.map((draft) => ({ ...draft }));
+        incoming.forEach((draft) => {
+            const key = draft?.[this.keyField];
+            const existing =
+                key === null || key === undefined
+                    ? undefined
+                    : merged.find((candidate) => candidate[this.keyField] === key);
+            if (existing) {
+                Object.assign(existing, draft);
+            } else {
+                merged.push({ ...draft });
+            }
+        });
+        this._draftValues = merged;
     }
 
     /**

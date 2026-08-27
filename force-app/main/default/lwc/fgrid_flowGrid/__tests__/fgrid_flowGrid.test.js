@@ -170,3 +170,55 @@ describe("row loading", () => {
         expect(open.shadowRoot.querySelector("[class*='grid__wrapper']").style.overflow).toBe("");
     });
 });
+
+describe("draft accumulation across cells", () => {
+    // `cellchange` reports only the cell that just changed. Replacing the draft set
+    // with it discarded every earlier edit as soon as a second cell was touched, and
+    // because draft-values is bound back to the table the first cell visibly
+    // reverted — inline editing lost work on every move to the next field.
+    function change(element, drafts) {
+        element.shadowRoot
+            .querySelector("c-fgrid_custom-datatable")
+            .dispatchEvent(new CustomEvent("cellchange", { detail: { draftValues: drafts } }));
+    }
+
+    it("keeps an earlier field when a second field on the same row is edited", async () => {
+        const element = build({ records: records(2) });
+        await Promise.resolve();
+
+        change(element, [{ Id: records(2)[0].Id, Name: "Edited name" }]);
+        await Promise.resolve();
+        change(element, [{ Id: records(2)[0].Id, Industry: "Banking" }]);
+        await Promise.resolve();
+
+        const table = element.shadowRoot.querySelector("c-fgrid_custom-datatable");
+        expect(table.draftValues).toEqual([{ Id: records(2)[0].Id, Name: "Edited name", Industry: "Banking" }]);
+    });
+
+    it("keeps a separate draft per row", async () => {
+        const element = build({ records: records(2) });
+        await Promise.resolve();
+        const [first, second] = records(2);
+
+        change(element, [{ Id: first.Id, Name: "One" }]);
+        await Promise.resolve();
+        change(element, [{ Id: second.Id, Name: "Two" }]);
+        await Promise.resolve();
+
+        const table = element.shadowRoot.querySelector("c-fgrid_custom-datatable");
+        expect(table.draftValues).toHaveLength(2);
+    });
+
+    it("ignores an empty cellchange rather than clearing the bar", async () => {
+        const element = build({ records: records(1) });
+        await Promise.resolve();
+
+        change(element, [{ Id: records(1)[0].Id, Name: "Kept" }]);
+        await Promise.resolve();
+        change(element, []);
+        await Promise.resolve();
+
+        const table = element.shadowRoot.querySelector("c-fgrid_custom-datatable");
+        expect(table.draftValues).toEqual([{ Id: records(1)[0].Id, Name: "Kept" }]);
+    });
+});

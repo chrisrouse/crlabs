@@ -20,6 +20,18 @@ public with sharing class FlowGridController {
         public FlowGridColumnService.ObjectInfo objectInfo;
         @AuraEnabled
         public List<FlowGridColumnService.ColumnInfo> columns;
+        /**
+         * Running user's Salesforce timezone, e.g. `America/Los_Angeles`.
+         *
+         * A Datetime column has to render in the user's Salesforce timezone, not
+         * whatever zone their computer happens to be set to. Passing it explicitly
+         * to lightning-formatted-date-time removes the guess: the two zones differ
+         * whenever someone travels, or runs a laptop on a different clock from
+         * their Salesforce user record, and the cell would then disagree with every
+         * other date in the org by the difference between them.
+         */
+        @AuraEnabled
+        public String userTimeZone;
     }
 
     /**
@@ -51,6 +63,7 @@ public with sharing class FlowGridController {
             GridMetadata empty = new GridMetadata();
             empty.objectInfo = FlowGridColumnService.describeObject(objectApiName);
             empty.columns = new List<FlowGridColumnService.ColumnInfo>();
+            empty.userTimeZone = UserInfo.getTimeZone().getID();
             return empty;
         }
 
@@ -58,6 +71,7 @@ public with sharing class FlowGridController {
             GridMetadata metadata = new GridMetadata();
             metadata.objectInfo = FlowGridColumnService.describeObject(objectApiName);
             metadata.columns = FlowGridColumnService.describeColumns(objectApiName, fieldPaths);
+            metadata.userTimeZone = UserInfo.getTimeZone().getID();
             return metadata;
         } catch (Exception error) {
             // Surface the reason to the admin; the raw stack trace is not useful

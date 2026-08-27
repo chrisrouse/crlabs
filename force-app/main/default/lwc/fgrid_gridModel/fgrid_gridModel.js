@@ -304,7 +304,8 @@ export function buildColumns(fields, config = {}, options = {}) {
         allowNone = true,
         forceReadOnly = false,
         filterActions = false,
-        readOnlyIcon = false
+        readOnlyIcon = false,
+        userTimeZone = null
     } = options;
 
     return (fields || []).map((field, index) => {
@@ -509,6 +510,15 @@ export function buildColumns(fields, config = {}, options = {}) {
                 hour: "2-digit",
                 minute: "2-digit"
             });
+        }
+
+        // Render in the user's SALESFORCE timezone, not their computer's. The two
+        // disagree whenever a laptop clock differs from the user record — travel, or
+        // simply never having changed it — and the cell would then be out by the
+        // difference from every other date in the org. Stating the zone removes the
+        // guess. Only ever a default: an explicit typeAttribs timeZone still wins.
+        if (column.type === "date" && userTimeZone && !typeAttributes.timeZone) {
+            typeAttributes.timeZone = userTimeZone;
         }
 
         // A Date column asked to format itself has to move to `date`, because

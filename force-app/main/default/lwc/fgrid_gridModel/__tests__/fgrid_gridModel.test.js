@@ -860,3 +860,32 @@ describe("date and datetime formatting", () => {
         expect(column.typeAttributes.timeZone).toBe("America/New_York");
     });
 });
+
+describe("datetime timezone", () => {
+    const datetime = { When__c: { label: "When", dataType: "date", displayType: "DATETIME", isEditable: true } };
+
+    it("renders a Datetime in the user's Salesforce timezone", () => {
+        // Not the browser's. The two disagree whenever a laptop clock differs from
+        // the user record, and the cell would be out by the difference.
+        const [column] = buildColumns(
+            ["When__c"],
+            {},
+            { describeByPath: datetime, userTimeZone: "America/Los_Angeles" }
+        );
+        expect(column.typeAttributes.timeZone).toBe("America/Los_Angeles");
+    });
+
+    it("lets an explicit timezone win over the user's", () => {
+        const [column] = buildColumns(
+            ["When__c"],
+            { When__c: { typeAttribs: { timeZone: "UTC" } } },
+            { describeByPath: datetime, userTimeZone: "America/Los_Angeles" }
+        );
+        expect(column.typeAttributes.timeZone).toBe("UTC");
+    });
+
+    it("omits the timezone when the org did not supply one", () => {
+        const [column] = buildColumns(["When__c"], {}, { describeByPath: datetime });
+        expect(column.typeAttributes.timeZone).toBeUndefined();
+    });
+});
