@@ -34,12 +34,12 @@ public with sharing class FlowGridColumnService {
      * second. REFERENCE is still refused case by case, in `isEditable`, when the
      * lookup is polymorphic.
      *
-     * NOTE: this set only decides the DEFAULT. `buildColumns` resolves editability
-     * as `attributes.edit ?? (isEditable && defaultEditable)`, so an explicit
-     * `edit` in a column's config overrides everything here. Adding a type back to
-     * this set therefore hides it from the default, but does not prevent an admin
-     * from turning editing on — which is exactly how a lookup used to end up with a
-     * free-text box for an 18-character Id.
+     * This set is now BINDING, not merely a default. `buildColumns` used to resolve
+     * editability as `attributes.edit ?? (isEditable && defaultEditable)`, so a tick
+     * in a column's config overrode everything here — which is how a lookup once got
+     * a free-text box for an 18-character Id, and how a record Id column got a
+     * working editor over its primary key. Since 2026-08-27 the config only opts a
+     * column IN and `isEditable` can always veto.
      */
     private static final Set<Schema.DisplayType> NON_EDITABLE_TYPES = new Set<Schema.DisplayType>{
         Schema.DisplayType.ADDRESS,
@@ -48,14 +48,21 @@ public with sharing class FlowGridColumnService {
         Schema.DisplayType.DATACATEGORYGROUPREFERENCE,
         Schema.DisplayType.ENCRYPTEDSTRING,
         Schema.DisplayType.ID,
-        Schema.DisplayType.LOCATION,
-        // The datatable itself refuses to inline-edit these: "Inline editing is not
-        // supported for date and location fields." Without them here, isEditable
-        // said true, the column config offered Edit, and the cell rendered a pencil
-        // that silently did nothing.
-        Schema.DisplayType.DATE,
-        Schema.DisplayType.DATETIME,
-        Schema.DisplayType.TIME
+        Schema.DisplayType.LOCATION
+        // DATE, DATETIME and TIME were added here on 2026-08-26 on the strength of a
+        // line in the component reference — "Inline editing is not supported for date
+        // and location fields" — and removed again on 2026-08-27 because it is not
+        // true. The date picker opens, the edit commits, and the grid shows the new
+        // value. That doc line predates the datatable gaining date editing.
+        //
+        // Audit fields need no entry here: CreatedDate, LastModifiedDate and
+        // SystemModstamp all report isUpdateable() false, which isEditable already
+        // honours. Verified by describe in the org rather than assumed.
+        //
+        // CAUTION: editing a Date is functional but not yet SAFE. Flow Grid does not
+        // apply the running user's timezone offset (§2.5 gap 1), which is exactly
+        // where the component this replaces had repeated bugs — a date near midnight
+        // can save a day out.
     };
 
     /** Object-level facts the grid header and record links need. */

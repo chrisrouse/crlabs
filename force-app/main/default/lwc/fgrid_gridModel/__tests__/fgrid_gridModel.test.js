@@ -626,15 +626,36 @@ describe("editability", () => {
         expect(column.editable).toBe(false);
     });
 
-    it("refuses a Date, which the datatable cannot inline-edit at all", () => {
-        // Adding DATE to Apex's non-editable set only moved the default; an explicit
-        // tick still produced an edit pencil that did nothing.
+    it("allows an updateable Date, which the datatable can edit after all", () => {
+        // A line in the component reference claims dates cannot be inline-edited.
+        // Observed behaviour says otherwise: the picker opens and the edit commits.
         const [column] = buildColumns(
             ["Due"],
             { Due: { edit: true } },
             {
                 describeByPath: {
-                    Due: { label: "Due", dataType: "date-local", displayType: "DATE", isEditable: false }
+                    Due: { label: "Due", dataType: "date-local", displayType: "DATE", isEditable: true }
+                }
+            }
+        );
+        expect(column.editable).toBe(true);
+    });
+
+    it("refuses an audit field, because it is not updateable", () => {
+        // CreatedDate, LastModifiedDate and SystemModstamp all report isUpdateable
+        // false, so no extra type list is needed to keep them read-only. Confirmed by
+        // describe in the org.
+        const [column] = buildColumns(
+            ["CreatedDate"],
+            { CreatedDate: { edit: true } },
+            {
+                describeByPath: {
+                    CreatedDate: {
+                        label: "Created Date",
+                        dataType: "date",
+                        displayType: "DATETIME",
+                        isEditable: false
+                    }
                 }
             }
         );

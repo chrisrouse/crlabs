@@ -484,13 +484,30 @@ Read the component reference against what was built. Three defects found and fix
 
 ### Defects fixed
 
-- **Date and Datetime columns could be marked editable but could not be edited.**
-  The reference is explicit: inline editing is not supported for date or location
-  fields. `NON_EDITABLE_TYPES` blocked LOCATION but not DATE/DATETIME/TIME, so
-  `isEditable` said true, the column config offered Edit, and the cell rendered a
-  pencil that did nothing.
+- **Date editing: REVERSED 2026-08-27. Dates ARE editable.**
+  On 2026-08-26 DATE/DATETIME/TIME were added to `NON_EDITABLE_TYPES` on the strength
+  of a line in the component reference: *"Inline editing is not supported for date and
+  location fields."* That line is wrong, or at least stale — the date picker opens, the
+  edit commits, and the grid shows the new value. Removed again.
 
-  **This fix was incomplete, corrected 2026-08-27.** Adding types to that set only
+  The lesson is the mistake, not the line: a documentation statement was treated as
+  authoritative over testable behaviour, and a working feature was blocked as a
+  result. Where the two disagree, test.
+
+  **Audit fields need no list of their own.** Verified by describe in the org rather
+  than assumed: `CreatedDate`, `LastModifiedDate`, `SystemModstamp`, `CreatedById`,
+  `LastModifiedById` and `Id` all report `isUpdateable() == false`, which `isEditable`
+  already honours — and since the veto below, a config tick cannot override that.
+  The same check exposed `SLAExpirationDate__c` as `updateable=true` but blocked by
+  the DATE entry, which is what proved the entry wrong.
+
+  **CAUTION — functional but not yet safe.** Flow Grid still does not apply the
+  running user's timezone offset (§2.5 gap 1), which is exactly where the component
+  this replaces had repeated bugs. An edited date near midnight can save a day out.
+  That gap matters more now that date editing is reachable.
+
+- **A column config could override the describe and force a broken editor.**
+  Fixed 2026-08-27. Adding types to that set only
   moves the DEFAULT — `buildColumns` resolved editability as
   `attributes.edit ?? (isEditable && defaultEditable)`, so an explicit tick still
   overrode it and still produced a broken cell. Found when a record Id column
