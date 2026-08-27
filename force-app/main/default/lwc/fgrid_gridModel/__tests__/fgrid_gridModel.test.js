@@ -807,3 +807,56 @@ describe("time columns", () => {
         expect(Object.keys(row).filter((key) => key.includes("fgridTime"))).toEqual([]);
     });
 });
+
+describe("date and datetime formatting", () => {
+    const datetime = { When__c: { label: "When", dataType: "date", displayType: "DATETIME", isEditable: true } };
+    const dateOnly = { Due__c: { label: "Due", dataType: "date-local", displayType: "DATE", isEditable: true } };
+
+    it("shows the time on a Datetime column", () => {
+        // With no typeAttributes the component uses a medium DATE format, so a
+        // Datetime rendered as "Apr 18, 2024" and the time was invisible.
+        const [column] = buildColumns(["When__c"], {}, { describeByPath: datetime });
+        expect(column.type).toBe("date");
+        expect(column.typeAttributes).toMatchObject({ hour: "2-digit", minute: "2-digit" });
+    });
+
+    it("lets an admin's typeAttribs win over the datetime defaults", () => {
+        const [column] = buildColumns(
+            ["When__c"],
+            { When__c: { typeAttribs: { year: "2-digit" } } },
+            { describeByPath: datetime }
+        );
+        expect(column.typeAttributes.year).toBe("2-digit");
+        expect(column.typeAttributes.hour).toBeUndefined();
+    });
+
+    it("leaves a plain Date column on date-local with no typeAttributes", () => {
+        // date-local performs no timezone conversion, which is what keeps a
+        // YYYY-MM-DD value showing the same day everywhere.
+        const [column] = buildColumns(["Due__c"], {}, { describeByPath: dateOnly });
+        expect(column.type).toBe("date-local");
+        expect(column.typeAttributes).toBeUndefined();
+    });
+
+    it("moves a formatted Date column to date and pins it to UTC", () => {
+        // date-local ignores typeAttributes, so custom formatting means switching to
+        // `date` — which converts to the user's zone and can show the wrong day
+        // unless the timezone is pinned, exactly as the reference prescribes.
+        const [column] = buildColumns(
+            ["Due__c"],
+            { Due__c: { typeAttribs: { month: "long" } } },
+            { describeByPath: dateOnly }
+        );
+        expect(column.type).toBe("date");
+        expect(column.typeAttributes).toMatchObject({ month: "long", timeZone: "UTC" });
+    });
+
+    it("does not override a timezone the admin set deliberately", () => {
+        const [column] = buildColumns(
+            ["Due__c"],
+            { Due__c: { typeAttribs: { timeZone: "America/New_York" } } },
+            { describeByPath: dateOnly }
+        );
+        expect(column.typeAttributes.timeZone).toBe("America/New_York");
+    });
+});

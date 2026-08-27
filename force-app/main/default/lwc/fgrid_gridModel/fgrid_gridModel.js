@@ -483,10 +483,43 @@ export function buildColumns(fields, config = {}, options = {}) {
 
         // Merge onto whatever is already there: a link column set typeAttributes
         // above, and clobbering it would drop the link label and target.
+        const hasTypeOverrides =
+            isPlainObject(attributes.typeAttribs) && Object.keys(attributes.typeAttribs).length > 0;
         const typeAttributes = {
             ...(column.typeAttributes || {}),
-            ...(isPlainObject(attributes.typeAttribs) ? attributes.typeAttribs : {})
+            ...(hasTypeOverrides ? attributes.typeAttribs : {})
         };
+
+        // ------------------------------ DATES ------------------------------
+        //
+        // `date` and `date-local` are both lightning-formatted-date-time, and the
+        // difference is the whole reason a Date and a Datetime are typed apart:
+        //   date-local  no timezone conversion, and it IGNORES typeAttributes
+        //   date        converts to the running user's zone, and honours them
+        //
+        // A DATETIME needs the time shown. With no typeAttributes the component uses
+        // a medium DATE format, so a Datetime rendered as just "Apr 18, 2024" and the
+        // time was simply invisible. Defaults are supplied rather than forced, so an
+        // admin's own typeAttribs still win.
+        if (column.type === "date" && !hasTypeOverrides) {
+            Object.assign(typeAttributes, {
+                year: "numeric",
+                month: "short",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit"
+            });
+        }
+
+        // A Date column asked to format itself has to move to `date`, because
+        // date-local ignores typeAttributes entirely — and plain `date` would then
+        // convert a date-only value into the user's zone and can show the wrong day.
+        // `timeZone: "UTC"` is exactly what the component reference prescribes for a
+        // date-only value, so the day survives the switch.
+        if (column.type === "date-local" && hasTypeOverrides) {
+            column.type = "date";
+            typeAttributes.timeZone = typeAttributes.timeZone || "UTC";
+        }
         const scale = firstNumber(attributes.scale, describe?.scale);
         if (scale !== null) {
             typeAttributes.minimumFractionDigits = scale;

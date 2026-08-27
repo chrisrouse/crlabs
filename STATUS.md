@@ -369,6 +369,31 @@ Nothing here is scheduled. Deferred by decision, not oversight.
 
    Do NOT port the baseline's offset arithmetic without first proving a defect. It
    would introduce the shift it was written to cancel.
+
+   **Implemented 2026-08-27, once the docs settled what the types actually do**
+   (`fgrid_gridModel.js`, buildColumns):
+
+   - A DATETIME column now defaults to `year`/`month`/`day`/`hour`/`minute`
+     typeAttributes. Without them the component uses a medium **date** format, so a
+     Datetime displayed as "Apr 18, 2024" and its time was simply invisible — visible
+     in the Created Date column of the org. Defaults, not overrides: an admin's own
+     `typeAttribs` still win.
+   - A DATE column given `typeAttribs` switches from `date-local` to `date` with
+     `timeZone: "UTC"` forced (unless the admin set a timezone deliberately).
+     `date-local` **ignores typeAttributes entirely**, so custom formatting has to move
+     to `date` — and plain `date` converts a date-only value into the running user's
+     zone, which is the one case where the wrong day really can show. Pinning to UTC is
+     what the reference prescribes for a date-only value.
+   - A plain DATE column stays on `date-local` with no typeAttributes at all. That is
+     the no-conversion path and it is the default, so the common case is untouched.
+
+   Five tests in `fgrid_gridModel.test.js` ("date and datetime formatting") cover both
+   defaults, both admin overrides, and the UTC pin.
+
+   **Still unverified, and only in the browser:** the DATETIME *edit* round-trip. A
+   `date` column converts for display, so a committed edit has to return as UTC. Test
+   by editing a Datetime near midnight and comparing the saved value in the debug
+   panel. A DATE edit, on `date-local`, should round-trip untouched.
 2. **Multi-currency conversion — accepted and ignored.** `suppressCurrencyConversion`
    exists as a property but nothing implements conversion. The baseline converts
    currency values to the user's currency and supports currency rollup and formula
