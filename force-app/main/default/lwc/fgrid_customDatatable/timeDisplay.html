@@ -1,0 +1,7 @@
+<!-- The formatted text, not the stored value: a Time arrives from Apex as
+     `14:30:00.000Z`, which is what a text cell would render verbatim. There is no
+     `time` column type and no lightning-formatted-time, so c/fgrid_gridModel formats
+     it per row and this reads the result. -->
+<template>
+    <span title={typeAttributes.display}>{typeAttributes.display}</span>
+</template>

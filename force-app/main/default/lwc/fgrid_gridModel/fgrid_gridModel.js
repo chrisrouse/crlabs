@@ -121,6 +121,53 @@ export const PICKLIST_OPTIONS_SUFFIX = "__fgridOptions";
  *  group, whose `value` is an array while the record stores a `;` string. */
 export const PICKLIST_SELECTED_SUFFIX = "__fgridSelected";
 
+/**
+ * Salesforce stores a Percent field as whole percent — 25 means 25% — while the
+ * datatable's `percent` type multiplies by 100 to display. Left alone, a stored 25
+ * renders as "2500%".
+ *
+ * So the value is divided on the way in and multiplied on the way back out, which is
+ * what the component this replaces does. Exported so the runtime can reverse it when
+ * an edit is saved.
+ */
+export const PERCENT_DISPLAY_DIVISOR = 100;
+
+/** Converts a stored percent to the fraction the datatable renders. */
+export function percentToFraction(value) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number / PERCENT_DISPLAY_DIVISOR : value;
+}
+
+/** Converts an edited fraction back to the whole percent the field stores. */
+export function fractionToPercent(value) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number * PERCENT_DISPLAY_DIVISOR : value;
+}
+
+/** Row field holding a Time value formatted for display. */
+export const TIME_LABEL_SUFFIX = "__fgridTime";
+
+/**
+ * Formats a Salesforce Time for display.
+ *
+ * Apex serializes a Time as `14:30:00.000Z`, which is what the datatable would
+ * otherwise render verbatim. There is no `time` column type and no
+ * `lightning-formatted-time`, so the text is built here.
+ *
+ * Formatted as UTC deliberately. The trailing `Z` is an artifact of Apex's
+ * serializer, not a timezone: a Time field holds a wall-clock time of day, so
+ * applying a zone would shift 14:30 to some other hour. The user's LOCALE still
+ * decides 12- versus 24-hour.
+ */
+export function formatTimeValue(value) {
+    const match = /^(\d{1,2}):(\d{2})/.exec(String(value ?? ""));
+    if (!match) {
+        return value ?? "";
+    }
+    const asDate = new Date(Date.UTC(1970, 0, 1, Number(match[1]), Number(match[2])));
+    return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit", timeZone: "UTC" }).format(asDate);
+}
+
 /** Separator Salesforce uses inside a multi-select picklist value. */
 export const MULTI_PICKLIST_SEPARATOR = ";";
 
@@ -363,6 +410,18 @@ export function buildColumns(fields, config = {}, options = {}) {
             column.fgridError = describe.errorMessage || null;
         }
 
+        // TIME always gets its own cell, unlike the picklist and long text cells which
+        // only apply when editable. A read-only Time is NOT indistinguishable from
+        // text: unformatted it renders as `14:30:00.000Z`.
+        if (describe?.displayType === "TIME") {
+            column.type = "fgridTime";
+            column.fgridIsTime = true;
+            column.typeAttributes = {
+                ...(column.typeAttributes || {}),
+                display: { fieldName: field + TIME_LABEL_SUFFIX }
+            };
+        }
+
         // Long text gets its own cell ONLY when editable, for the same reason
         // picklists do: read-only it is indistinguishable from text, and the point of
         // the custom type is the textarea editor rather than the display.
@@ -536,6 +595,8 @@ export function buildRows(records, columns, keyField = "Id") {
             none: column.fgridAllowNone ? [{ label: "--None--", value: "" }] : []
         }));
     const lookupColumns = (columns || []).filter((column) => column.type === "fgridLookup");
+    const percentColumns = (columns || []).filter((column) => column.type === "percent");
+    const timeColumns = (columns || []).filter((column) => column.type === "fgridTime");
 
     return records.map((record, index) => {
         const row = {};
@@ -552,6 +613,17 @@ export function buildRows(records, columns, keyField = "Id") {
         (columns || []).forEach((column) => {
             if (column.fgridLinkFor && row.Id) {
                 row[column.fgridLinkFor + LINK_SUFFIX] = `/${row.Id}`;
+            }
+        });
+
+        timeColumns.forEach((column) => {
+            row[column.fieldName + TIME_LABEL_SUFFIX] = formatTimeValue(row[column.fieldName]);
+        });
+
+        percentColumns.forEach((column) => {
+            const value = row[column.fieldName];
+            if (value !== null && value !== undefined && value !== "") {
+                row[column.fieldName] = percentToFraction(value);
             }
         });
 

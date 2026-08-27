@@ -14,7 +14,11 @@ import {
     FILTER_KIND,
     FILTER_OPERATOR,
     paginationItems,
-    rowsPerPageOptions
+    rowsPerPageOptions,
+    buildRows,
+    percentToFraction,
+    fractionToPercent,
+    formatTimeValue
 } from "c/fgrid_gridModel";
 
 describe("inferType", () => {
@@ -738,5 +742,75 @@ describe("long text columns", () => {
         );
         expect(column.editable).toBe(false);
         expect(column.type).toBe("text");
+    });
+});
+
+describe("percent scaling", () => {
+    const columns = buildColumns(["Margin"], { Margin: { type: "percent" } });
+
+    it("divides a stored percent for display", () => {
+        // Salesforce stores 25 for 25%; the datatable's percent type multiplies by
+        // 100 to render, so an unconverted 25 would show as 2500%.
+        const [row] = buildRows([{ Id: "a", Margin: 25 }], columns, "Id");
+        expect(row.Margin).toBe(0.25);
+    });
+
+    it("round-trips through the display and back", () => {
+        expect(fractionToPercent(percentToFraction(25))).toBe(25);
+        expect(fractionToPercent(0.075)).toBeCloseTo(7.5);
+    });
+
+    it("leaves a blank percent alone rather than turning it into zero", () => {
+        const [row] = buildRows([{ Id: "a", Margin: null }], columns, "Id");
+        expect(row.Margin).toBeNull();
+    });
+
+    it("passes a non-numeric value through untouched", () => {
+        expect(percentToFraction("n/a")).toBe("n/a");
+        expect(fractionToPercent(undefined)).toBe(undefined);
+    });
+
+    it("does not touch a currency or number column", () => {
+        const money = buildColumns(["Amount"], { Amount: { type: "currency" } });
+        const [row] = buildRows([{ Id: "a", Amount: 25 }], money, "Id");
+        expect(row.Amount).toBe(25);
+    });
+});
+
+describe("time columns", () => {
+    const describeTime = { Start__c: { label: "Start", dataType: "text", displayType: "TIME", isEditable: true } };
+
+    it("uses the time cell, so the raw value is never rendered", () => {
+        // A Time arrives from Apex as 14:30:00.000Z, which a text cell shows verbatim.
+        const [column] = buildColumns(["Start__c"], {}, { describeByPath: describeTime });
+        expect(column.type).toBe("fgridTime");
+    });
+
+    it("uses the time cell even when read-only", () => {
+        // Unlike picklists, a read-only Time is not indistinguishable from text.
+        const [column] = buildColumns(["Start__c"], { Start__c: { edit: false } }, { describeByPath: describeTime });
+        expect(column.type).toBe("fgridTime");
+        expect(column.editable).toBe(false);
+    });
+
+    it("formats without shifting the hour", () => {
+        // The trailing Z is an artifact of Apex's serializer, not a timezone: a Time
+        // holds a wall-clock time of day, so 14:30 must stay 14:30.
+        expect(formatTimeValue("14:30:00.000Z")).toMatch(/2:30|14:30/);
+        expect(formatTimeValue("09:05:00.000Z")).toMatch(/9:05/);
+        expect(formatTimeValue("00:00:00.000Z")).toMatch(/12:00|00:00/);
+    });
+
+    it("puts the formatted text on the row for the cell to read", () => {
+        const columns = buildColumns(["Start__c"], {}, { describeByPath: describeTime });
+        const [row] = buildRows([{ Id: "a", Start__c: "14:30:00.000Z" }], columns, "Id");
+        expect(row.Start__c__fgridTime).toMatch(/2:30|14:30/);
+        // The stored value is left intact, so sorting still orders correctly.
+        expect(row.Start__c).toBe("14:30:00.000Z");
+    });
+
+    it("passes an unparseable or empty value through rather than throwing", () => {
+        expect(formatTimeValue(null)).toBe("");
+        expect(formatTimeValue("not a time")).toBe("not a time");
     });
 });

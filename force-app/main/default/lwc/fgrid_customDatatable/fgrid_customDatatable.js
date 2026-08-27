@@ -38,6 +38,8 @@ import lookupDisplay from "./lookupDisplay.html";
 import lookupEdit from "./lookupEdit.html";
 import longTextDisplay from "./longTextDisplay.html";
 import longTextEdit from "./longTextEdit.html";
+import timeDisplay from "./timeDisplay.html";
+import timeEdit from "./timeEdit.html";
 
 export default class FgridCustomDatatable extends LightningDatatable {
     static customTypes = {
@@ -64,6 +66,12 @@ export default class FgridCustomDatatable extends LightningDatatable {
             editTemplate: longTextEdit,
             standardCellLayout: true,
             typeAttributes: ["maxLength"]
+        },
+        fgridTime: {
+            template: timeDisplay,
+            editTemplate: timeEdit,
+            standardCellLayout: true,
+            typeAttributes: ["display"]
         }
     };
 }

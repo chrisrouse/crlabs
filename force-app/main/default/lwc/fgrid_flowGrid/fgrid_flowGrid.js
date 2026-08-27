@@ -40,6 +40,7 @@ import {
     parseFieldList,
     parseColumnConfig,
     joinMultiPicklist,
+    fractionToPercent,
     filterKindFor,
     isFilterActive,
     describeFilter,
@@ -458,7 +459,18 @@ export default class FgridFlowGrid extends LightningElement {
      */
     get editedRecords() {
         const keys = new Set(Object.keys(this._editsByKey));
-        return keys.size ? this.allKnownRecords.filter((record) => keys.has(String(record?.[this.keyField]))) : [];
+        if (!keys.size) {
+            return [];
+        }
+        // A row the user has since REMOVED is not reported as edited, matching the
+        // component this replaces. Otherwise a row edited and then removed appears in
+        // both outputEditedRecords and outputRemovedRecords, and a flow told to update
+        // it and delete it has been given contradictory instructions.
+        const removed = new Set(this._removedKeys.map((key) => String(key)));
+        return this.allKnownRecords.filter((record) => {
+            const key = String(record?.[this.keyField]);
+            return keys.has(key) && !removed.has(key);
+        });
     }
 
     get columns() {
@@ -1656,12 +1668,23 @@ export default class FgridFlowGrid extends LightningElement {
         const multiFields = new Set(
             this.columns.filter((column) => column.fgridIsMultiPicklist).map((column) => column.fieldName)
         );
+        // A percent cell is edited as the fraction the datatable displays, so the
+        // draft comes back as 0.25 for 25%. Stored unconverted it would be 100x out.
+        const percentFields = new Set(
+            this.columns.filter((column) => column.type === "percent").map((column) => column.fieldName)
+        );
         const normalized = {};
         Object.keys(draft).forEach((field) => {
             if (field.endsWith(PICKLIST_OPTIONS_SUFFIX) || field.endsWith(PICKLIST_SELECTED_SUFFIX)) {
                 return;
             }
-            normalized[field] = multiFields.has(field) ? joinMultiPicklist(draft[field]) : draft[field];
+            if (multiFields.has(field)) {
+                normalized[field] = joinMultiPicklist(draft[field]);
+            } else if (percentFields.has(field)) {
+                normalized[field] = fractionToPercent(draft[field]);
+            } else {
+                normalized[field] = draft[field];
+            }
         });
         return normalized;
     }
