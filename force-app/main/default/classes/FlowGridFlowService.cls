@@ -77,6 +77,7 @@ public with sharing class FlowGridFlowService {
      * AutoLaunchedFlow, and TriggerType is what separates one the platform fires
      * from one we can invoke ourselves.
      */
+    @TestVisible
     private static String resolveLaunchMode(String processType, String triggerType) {
         if (processType == SCREEN_FLOW) {
             return MODE_SCREEN;

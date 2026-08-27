@@ -288,25 +288,55 @@ would pin the behaviour that matters most.
 Deferred by decision — build first, test later — but this is the gap to close
 first when tests come back into scope.
 
-### 2.2 Apex test coverage — blocks packaging
+### 2.2 Apex test coverage — CLEARED 2026-08-27
 
-| Class | Coverage |
-| --- | --- |
-| `FlowGridColumnService` | 94% |
-| `FlowGridController` | **23%** |
-| `FlowGridFlowService` | **0%** |
-| `FlowGridPreviewService` | **0%** |
-| `FlowGridRecordService` | **0%** |
+| Class | Was | Now |
+| --- | --- | --- |
+| `FlowGridColumnService` | 94% | 88% |
+| `FlowGridController` | 23% | **80%** |
+| `FlowGridFlowService` | 0% | **93%** |
+| `FlowGridPreviewService` | 0% | **89%** |
+| `FlowGridRecordService` | 0% | **95%** |
 
-The controller regressed from 85% when `getFlows`, `runFlow`, `getFlowVariables`
-and `getExistingRecordIds` were added without tests. Fine for dev-org deploys,
-which do not enforce per-class coverage, but **this blocks packaging and any
-production deploy**, and the org's floor is 80%.
+57 Apex tests, 100% pass. Every class is at or above the org's 80% floor, so this no
+longer blocks packaging. Three new test classes:
+`FlowGridFlowServiceTest`, `FlowGridPreviewServiceTest`, `FlowGridRecordServiceTest`.
 
-`FlowGridFlowService` is the awkward one: its tests need an active flow to exist,
-so they should either query for a suitable flow and skip when none is found (the
-pattern `FlowGridColumnServiceTest` already uses for its FLS test) or depend on
-`FlowGrid_Edit_Account` being deployed.
+**`FlowGridFlowService` was the awkward one, as predicted.** Its inputs are metadata,
+not data — a test cannot insert a flow. Resolved by splitting the problem:
+`resolveLaunchMode` carries the branching that actually matters (which flows Flow Grid
+can launch), so it was made `@TestVisible` and is exercised directly and
+deterministically across all four process/trigger combinations. The query methods are
+called for real and asserted on their contract, then skipped when the org has no
+suitable flow — the pattern `FlowGridColumnServiceTest` already used for FLS.
+
+One trap worth recording: the first version of the variables test picked the first
+active flow it found, which declared no variables, so the mapping loop never ran and
+the test passed while covering nothing. It now searches for a flow that actually
+declares variables. **A test that passes is not evidence that it tested anything.**
+
+#### What is deliberately still uncovered
+
+- **`FlowGridController` 76, 79, 102, 103, 119, 120, 178, 179, 197, 198** — every one
+  is a `catch` block, and all are unreachable BY DESIGN: each service swallows its own
+  errors and returns an empty result, so the delegate never throws. Only `runFlow`'s
+  catch is reachable, and it is covered. This is a real observation about the
+  controller, not a test gap: its defensive error translation is mostly dead code.
+  Left in place because a future service that does throw should be translated rather
+  than reaching the component raw. Note the consequence — the controller sits exactly
+  ON the 80% floor, so adding an unreachable catch would push it under.
+- **`FlowGridFlowService` 185, 189-191, 194** — `interview.start()` and the
+  output-reading loop. Covering these needs an active AUTOLAUNCHED flow to invoke; the
+  org's row-action flow is a screen flow, which `Flow.Interview` cannot run. Shipping a
+  test-only flow in the package to reach five lines is the wrong trade. **The headless
+  row-action path therefore has no automated coverage at all** — see §1.4, which still
+  has it unchecked in the browser too.
+- **`FlowGridPreviewService` 62, 65 and `FlowGridRecordService` 60, 62** — the catch
+  around each query. Unreachable for the same reason: paths are validated through
+  describe before the query is built, so it cannot fail on a bad identifier.
+
+Org-wide coverage reads 19%, which is unrelated: this dev org holds the vendored kit
+and other unofficialSF classes. Per-class is what packaging enforces.
 
 ### 2.3 Variable mapping is text, by choice
 
