@@ -155,6 +155,7 @@
             <property name="outputRemovedRecords" type="{T[]}" label="Removed Records" role="outputOnly" />
             <property name="outputRemainingRecords" type="{T[]}" label="Remaining Records" role="outputOnly" />
             <property name="outputActionedRecord" type="{T}" label="Actioned Record" role="outputOnly" />
+            <property name="outputActionedRecordIds" type="String[]" label="Actioned Record Ids" role="outputOnly" description="Key value of every row whose action has been clicked, in click order, with repeats collapsed. Actioned Record above holds only the most recent one and is overwritten by the next click; this accumulates them for the whole screen." />
 
             <!-- JSON output mirrors, for the user-defined-object source -->
             <property name="outputSelectedRecordsJson" type="String" label="Selected Records (JSON)" role="outputOnly" />

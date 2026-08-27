@@ -405,3 +405,59 @@ describe("a row-action flow that saves its own changes", () => {
         expect(element.editedCount).toBe(1);
     });
 });
+
+describe("actioned record ids accumulate", () => {
+    // Actioned Record holds only the most recent click, which is what makes it useful
+    // for reacting on the same screen and useless for reporting afterwards. The
+    // collection answers the other question: which rows were actioned in total.
+    function clickRowAction(element, row) {
+        element.shadowRoot.querySelector("c-fgrid_custom-datatable").dispatchEvent(
+            new CustomEvent("rowaction", {
+                detail: { action: { name: "fgridRowAction" }, row }
+            })
+        );
+        return Promise.resolve();
+    }
+
+    it("collects one id per actioned row, in click order", async () => {
+        const element = build({ records: records(3), rowActionType: "Remove" });
+        await Promise.resolve();
+        const [first, second, third] = records(3);
+
+        await clickRowAction(element, third);
+        await clickRowAction(element, first);
+        await clickRowAction(element, second);
+
+        expect(element.outputActionedRecordIds).toEqual([third.Id, first.Id, second.Id]);
+    });
+
+    it("collapses a repeated action on the same row", async () => {
+        // It records which rows were actioned, not how many times.
+        const element = build({
+            records: records(2),
+            rowActionType: "Flow",
+            rowActionFlowApiName: "Some_Flow"
+        });
+        await Promise.resolve();
+        const [first] = records(2);
+
+        await clickRowAction(element, first);
+        await clickRowAction(element, first);
+        await clickRowAction(element, first);
+
+        expect(element.outputActionedRecordIds).toEqual([first.Id]);
+    });
+
+    it("keeps the single output pointing at the most recent click", async () => {
+        // Both outputs coexist; neither replaces the other.
+        const element = build({ records: records(2), rowActionType: "Remove" });
+        await Promise.resolve();
+        const [first, second] = records(2);
+
+        await clickRowAction(element, first);
+        await clickRowAction(element, second);
+
+        expect(element.outputActionedRecord.Id).toBe(second.Id);
+        expect(element.outputActionedRecordIds).toEqual([first.Id, second.Id]);
+    });
+});

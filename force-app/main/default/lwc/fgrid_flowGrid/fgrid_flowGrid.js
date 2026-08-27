@@ -175,6 +175,7 @@ export default class FgridFlowGrid extends LightningElement {
     @api outputEditedRecordsJson;
     @api outputRemovedRecordsJson;
     @api outputRemainingRecordsJson;
+    @api outputActionedRecordIds;
     @api outputActionedRecordJson;
 
     @api selectedCount = 0;
@@ -236,6 +237,9 @@ export default class FgridFlowGrid extends LightningElement {
      * `_editsByKey` is what the calling flow should save, this is what the user sees.
      */
     _savedByKey = {};
+
+    /** Keys of every row whose action has been clicked, in click order, deduped. */
+    _actionedKeys = [];
     /** Records the flow returned whose key was not already in the grid. */
     _addedRecords = [];
     /** The record currently open in the row-action flow modal. */
@@ -1916,6 +1920,20 @@ export default class FgridFlowGrid extends LightningElement {
         const snapshot = { ...record };
         this.publish("outputActionedRecord", this.isUserDefinedObject ? null : snapshot);
         this.publish("outputActionedRecordJson", JSON.stringify(snapshot));
+
+        // The single output above answers "which row just now", and is overwritten by
+        // the next click — useful for reacting on the same screen, useless for
+        // reporting afterwards. The collection answers "which rows in total". Repeats
+        // collapse because it records WHICH rows were actioned, not how many clicks.
+        const key = record?.Id ?? record?.[this.keyField];
+        if (key === undefined || key === null || key === "") {
+            return;
+        }
+        const id = String(key);
+        if (!this._actionedKeys.includes(id)) {
+            this._actionedKeys = [...this._actionedKeys, id];
+            this.publish("outputActionedRecordIds", this._actionedKeys);
+        }
     }
 
     /** Publishes the edited-records outputs. */

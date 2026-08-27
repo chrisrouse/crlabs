@@ -416,6 +416,13 @@ The distinction that matters: **Edited Records is what changed. Actioned Record 
 what the user clicked.** They answer different questions and neither substitutes for
 the other.
 
+**A collection was added alongside it, 2026-08-27.** `outputActionedRecordIds`
+(`String[]`) accumulates the key of every actioned row, in click order, with repeats
+collapsed — it records WHICH rows were actioned, not how many clicks. The single
+`outputActionedRecord` was deliberately kept: it holds only the most recent click,
+which is what makes it useful for reacting to on the same screen and useless for
+reporting afterwards. Two questions, two outputs, neither replacing the other.
+
 ### 2.4 Resource-capable Boolean properties — DROPPED 2026-08-25
 
 Every checkbox in the editor stores a literal, so none can be bound to
