@@ -222,3 +222,43 @@ describe("draft accumulation across cells", () => {
         expect(table.draftValues).toEqual([{ Id: records(1)[0].Id, Name: "Kept" }]);
     });
 });
+
+describe("drafts keyed by columnKey", () => {
+    // Columns carry a columnKey so a dragged width survives a rebuild, and the
+    // datatable then reports drafts under it rather than under fieldName. Writing
+    // the draft key straight onto the record created a phantom field — the edit was
+    // detected as a change but the real field never received it, so the cell
+    // appeared to clear on save.
+    function save(element, drafts) {
+        element.shadowRoot
+            .querySelector("c-fgrid_custom-datatable")
+            .dispatchEvent(new CustomEvent("save", { detail: { draftValues: drafts } }));
+    }
+
+    it("writes the edit to the real field, not to the columnKey", async () => {
+        const element = build({ records: records(1) });
+        await Promise.resolve();
+        const table = element.shadowRoot.querySelector("c-fgrid_custom-datatable");
+        const nameColumn = table.columns.find((column) => column.fieldName === "Name");
+        expect(nameColumn.columnKey).not.toBe("Name");
+
+        save(element, [{ Id: records(1)[0].Id, [nameColumn.columnKey]: "Renamed" }]);
+        await Promise.resolve();
+
+        const row = table.data.find((candidate) => candidate.Id === records(1)[0].Id);
+        expect(row.Name).toBe("Renamed");
+        expect(row[nameColumn.columnKey]).toBeUndefined();
+    });
+
+    it("still accepts a draft already keyed by fieldName", async () => {
+        const element = build({ records: records(1) });
+        await Promise.resolve();
+
+        save(element, [{ Id: records(1)[0].Id, Name: "Direct" }]);
+        await Promise.resolve();
+
+        const table = element.shadowRoot.querySelector("c-fgrid_custom-datatable");
+        const row = table.data.find((candidate) => candidate.Id === records(1)[0].Id);
+        expect(row.Name).toBe("Direct");
+    });
+});

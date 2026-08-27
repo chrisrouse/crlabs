@@ -1690,6 +1690,15 @@ export default class FgridFlowGrid extends LightningElement {
      * only to feed the edit cell and are not fields on the record.
      */
     normalizeDraft(draft) {
+        // Drafts are keyed by columnKey, NOT fieldName. Columns carry a columnKey so
+        // a dragged width survives a rebuild, and the datatable then reports edits
+        // under it — an edit to Date_Test__c arrived as `Date_Test__c__3`, which was
+        // written to the record verbatim. The real field kept its old value while a
+        // phantom one held the edit, so the cell appeared to clear on save even
+        // though a change was correctly detected.
+        const fieldByColumnKey = new Map(
+            this.columns.filter((column) => column.columnKey).map((column) => [column.columnKey, column.fieldName])
+        );
         const multiFields = new Set(
             this.columns.filter((column) => column.fgridIsMultiPicklist).map((column) => column.fieldName)
         );
@@ -1699,16 +1708,18 @@ export default class FgridFlowGrid extends LightningElement {
             this.columns.filter((column) => column.type === "percent").map((column) => column.fieldName)
         );
         const normalized = {};
-        Object.keys(draft).forEach((field) => {
+        Object.keys(draft).forEach((key) => {
+            // The key field and anything without a columnKey pass through unchanged.
+            const field = fieldByColumnKey.get(key) || key;
             if (field.endsWith(PICKLIST_OPTIONS_SUFFIX) || field.endsWith(PICKLIST_SELECTED_SUFFIX)) {
                 return;
             }
             if (multiFields.has(field)) {
-                normalized[field] = joinMultiPicklist(draft[field]);
+                normalized[field] = joinMultiPicklist(draft[key]);
             } else if (percentFields.has(field)) {
-                normalized[field] = fractionToPercent(draft[field]);
+                normalized[field] = fractionToPercent(draft[key]);
             } else {
-                normalized[field] = draft[field];
+                normalized[field] = draft[key];
             }
         });
         return normalized;
