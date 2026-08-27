@@ -229,7 +229,7 @@ describe("Flex depends on Width", () => {
 
         const flex = cell(element, "Name", "flex");
         expect(flex.disabled).toBe(false);
-        expect(flex.title).toContain("drag this column");
+        expect(flex.title).toContain("flexes as the window or container resizes");
     });
 
     it.each([0, null, "", "abc"])("treats %p as no width", async (width) => {
