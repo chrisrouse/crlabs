@@ -86,10 +86,18 @@
             <property name="matchCaseOnFilters" type="Boolean" label="Match Case on Filters" default="false" role="inputOnly" />
             <property name="caseInsensitiveSort" type="Boolean" label="Case-Insensitive Sort" default="false" role="inputOnly" />
 
-            <!-- ============================ Pagination ============================= -->
-            <property name="showPagination" type="Boolean" label="Show Pagination" default="false" role="inputOnly" />
+            <!-- ====================== Row loading and paging ======================= -->
+            <property name="rowLoading" type="String" label="Row Loading" role="inputOnly" description="Scroll (default): render a batch of rows and grow as the user scrolls. Paginate: a fixed page size with First/Previous/Next/Last. There is deliberately no default here — it lives in the runtime getter, so it is not pinned by the platform." />
+            <!-- DEPRECATED, and kept only because flows already reference it: an input
+                 property cannot be removed while any flow version uses it. Superseded
+                 by rowLoading and no longer read. -->
+            <property name="showPagination" type="Boolean" label="Show Pagination (deprecated)" default="false" role="inputOnly" />
             <property name="recordsPerPage" type="Integer" label="Records Per Page" role="inputOnly" />
-            <property name="showFirstLastButtons" type="Boolean" label="Show First/Last Buttons" default="false" role="inputOnly" />
+            <!-- DEPRECATED: the truncated navigation always shows page 1 and the last
+                 page, so explicit First/Last buttons are redundant. Kept only because
+                 a referenced property cannot be removed. -->
+            <property name="showFirstLastButtons" type="Boolean" label="Show First/Last Buttons (deprecated)" default="false" role="inputOnly" />
+            <property name="showRowsPerPage" type="Boolean" label="Let Users Change the Page Size" default="false" role="inputOnly" description="Adds a Rows per page picker offering 10, 25, 50 and 100, bounded by the maximum row count." />
             <property name="maxNumberOfRows" type="Integer" label="Maximum Records to Display" role="inputOnly" />
 
             <!-- ========================== Inline editing =========================== -->

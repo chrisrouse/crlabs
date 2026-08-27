@@ -1,0 +1,518 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Flow Grid — pagination mockups</title>
+        <link
+            rel="stylesheet"
+            href="https://unpkg.com/@salesforce-ux/design-system@2.24.2/assets/styles/salesforce-lightning-design-system.min.css"
+        />
+        <style>
+            /* ------------------------------------------------------------------------
+     STATIC MOCKUP — no behaviour. Nothing here is wired to state; each row
+     below is hand-authored to show one configuration.
+
+     SLDS has no pagination blueprint (verified against the blueprint set), and
+     its button-group blueprint explicitly excludes navigation. So this is
+     custom markup on verified global styling hooks, in a nav landmark.
+
+     Custom classes are prefixed `fgrid-pg-` per SLDS naming guidance; no
+     `.slds-*` class is overridden anywhere.
+     ------------------------------------------------------------------------ */
+
+            body {
+                background: var(--slds-g-color-surface-2, #f3f3f3);
+                padding: 2rem;
+            }
+            .demo {
+                max-width: 68rem;
+                margin: 0 auto;
+            }
+            .demo h1 {
+                font-size: var(--slds-g-font-scale-4, 1.5rem);
+                margin-bottom: 0.25rem;
+            }
+            .demo h2 {
+                font-size: var(--slds-g-font-scale-2, 1.125rem);
+                margin: 2.5rem 0 0.25rem;
+                padding-top: 1.5rem;
+                border-top: 1px solid var(--slds-g-color-border-1, #e5e5e5);
+            }
+            .demo h3 {
+                font-size: var(--slds-g-font-scale-1, 1rem);
+                margin: 1.5rem 0 0.5rem;
+            }
+            .demo p.note {
+                font-size: var(--slds-g-font-scale-neg-1, 0.75rem);
+                color: var(--slds-g-color-on-surface-3, #5c5c5c);
+                max-width: 44rem;
+                margin: 0 0 1rem;
+            }
+            .stage {
+                background: var(--slds-g-color-surface-1, #fff);
+                border: 1px solid var(--slds-g-color-border-1, #e5e5e5);
+                border-radius: var(--slds-g-radius-border-2, 0.25rem);
+                padding: var(--slds-g-spacing-4, 1rem);
+                margin-bottom: 0.75rem;
+            }
+            .stage__label {
+                font-size: var(--slds-g-font-scale-neg-1, 0.75rem);
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.0625rem;
+                color: var(--slds-g-color-on-surface-3, #5c5c5c);
+                margin-bottom: 0.5rem;
+            }
+            .narrow {
+                max-width: 22rem;
+            }
+
+            /* ===================== shared pagination primitives ===================== */
+
+            .fgrid-pg {
+                display: flex;
+                align-items: center;
+                gap: var(--slds-g-spacing-4, 1rem);
+                flex-wrap: wrap;
+            }
+            .fgrid-pg__summary {
+                font-size: var(--slds-g-font-scale-neg-1, 0.75rem);
+                color: var(--slds-g-color-on-surface-3, #5c5c5c);
+                white-space: nowrap;
+            }
+            .fgrid-pg__spacer {
+                flex: 1 1 auto;
+            }
+
+            /* Page list. A list, not a button group: this is navigation. */
+            .fgrid-pg__list {
+                display: flex;
+                align-items: center;
+                gap: var(--slds-g-spacing-1, 0.25rem);
+                list-style: none;
+                margin: 0;
+                padding: 0;
+            }
+
+            .fgrid-pg__item {
+                min-width: 2rem;
+                height: 2rem;
+                padding: 0 var(--slds-g-spacing-2, 0.5rem);
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                border: 1px solid transparent;
+                border-radius: var(--slds-g-radius-border-2, 0.25rem);
+                background: transparent;
+                color: var(--slds-g-color-accent-1, #0176d3);
+                font-size: var(--slds-g-font-scale-neg-1, 0.8125rem);
+                cursor: pointer;
+            }
+            .fgrid-pg__item:hover {
+                background: var(--slds-g-color-surface-2, #f3f3f3);
+            }
+            .fgrid-pg__item:focus-visible {
+                outline: 2px solid var(--slds-g-color-accent-1, #0176d3);
+                outline-offset: 2px;
+            }
+            /* Current page: not colour alone — it also carries aria-current and weight. */
+            .fgrid-pg__item[aria-current="page"] {
+                background: var(--slds-g-color-surface-2, #f3f3f3);
+                border-color: var(--slds-g-color-border-2, #c9c9c9);
+                color: var(--slds-g-color-on-surface-2, #181818);
+                font-weight: 700;
+                cursor: default;
+            }
+            .fgrid-pg__item[disabled] {
+                color: var(--slds-g-color-on-surface-3, #a8a8a8);
+                cursor: not-allowed;
+                background: transparent;
+            }
+            .fgrid-pg__ellipsis {
+                min-width: 1.5rem;
+                text-align: center;
+                color: var(--slds-g-color-on-surface-3, #5c5c5c);
+                font-size: var(--slds-g-font-scale-neg-1, 0.8125rem);
+                user-select: none;
+            }
+            .fgrid-pg__icon {
+                width: 0.875rem;
+                height: 0.875rem;
+                fill: currentColor;
+            }
+
+            /* --------------------------- Option A: bar --------------------------- */
+            .fgrid-pg_bar {
+                border: 1px solid var(--slds-g-color-border-1, #e5e5e5);
+                border-radius: var(--slds-g-radius-border-4, 0.5rem);
+                background: var(--slds-g-color-surface-1, #fff);
+                padding: var(--slds-g-spacing-2, 0.5rem) var(--slds-g-spacing-4, 1rem);
+            }
+            .fgrid-pg_bar .fgrid-pg__item {
+                border-radius: var(--slds-g-radius-border-circle, 50%);
+            }
+            .fgrid-pg_bar .fgrid-pg__item_wide {
+                border-radius: var(--slds-g-radius-border-2, 0.25rem);
+            }
+
+            /* ------------------------ Option B: plain footer ------------------------ */
+            .fgrid-pg_footer {
+                padding-top: var(--slds-g-spacing-2, 0.5rem);
+            }
+
+            /* --------------------------- rows per page --------------------------- */
+            .fgrid-pg__perpage {
+                display: flex;
+                align-items: center;
+                gap: var(--slds-g-spacing-2, 0.5rem);
+                font-size: var(--slds-g-font-scale-neg-1, 0.75rem);
+                color: var(--slds-g-color-on-surface-3, #5c5c5c);
+                white-space: nowrap;
+            }
+            .fgrid-pg__select {
+                height: 2rem;
+                border: 1px solid var(--slds-g-color-border-2, #c9c9c9);
+                border-radius: var(--slds-g-radius-border-2, 0.25rem);
+                background: var(--slds-g-color-surface-1, #fff);
+                color: var(--slds-g-color-on-surface-2, #181818);
+                padding: 0 var(--slds-g-spacing-2, 0.5rem);
+                font-size: var(--slds-g-font-scale-neg-1, 0.8125rem);
+            }
+        </style>
+    </head>
+    <body>
+        <div class="demo">
+            <h1>Flow Grid — pagination controls</h1>
+            <p class="note">
+                Static mockups for review. No behaviour is wired; each row is hand-authored to show one state. SLDS
+                ships no pagination blueprint, and its button-group blueprint excludes navigation, so these are custom
+                <code>fgrid-pg-*</code> classes over verified global styling hooks inside a <code>&lt;nav&gt;</code>
+                landmark. Colours, spacing, radii and type all read from hooks, so an org's branding carries through —
+                that is why the numbers are brand-coloured here.
+            </p>
+
+            <!-- ============================ TRUNCATION ============================ -->
+            <h2>1. Truncation states</h2>
+            <p class="note">
+                My reading of your rule, shown so you can correct it: <strong>page 1</strong> gets one ellipsis on the
+                right, the <strong>last page</strong> gets one on the left, and
+                <strong>anywhere in the middle</strong> gets both. First and last page numbers are always visible, so
+                total page count is always readable and both ends are one click away.
+            </p>
+
+            <div class="stage">
+                <div class="stage__label">Page 1 of 10 — ellipsis right only</div>
+                <nav class="fgrid-pg fgrid-pg_bar" aria-label="Pagination">
+                    <span class="fgrid-pg__summary">314 items</span>
+                    <span class="fgrid-pg__spacer"></span>
+                    <ul class="fgrid-pg__list">
+                        <li>
+                            <button class="fgrid-pg__item" disabled aria-disabled="true">
+                                <svg class="fgrid-pg__icon" viewBox="0 0 52 52" aria-hidden="true">
+                                    <path
+                                        d="M34 8.6L16.6 26 34 43.4c.6.6.6 1.5 0 2.1l-2.8 2.8c-.6.6-1.5.6-2.1 0L8.6 27.1c-.6-.6-.6-1.5 0-2.1L29.1 4.5c.6-.6 1.5-.6 2.1 0l2.8 2.1c.6.6.6 1.4 0 2z"
+                                    />
+                                </svg>
+                                <span class="slds-assistive-text">Previous page</span>
+                            </button>
+                        </li>
+                        <li><button class="fgrid-pg__item" aria-current="page">1</button></li>
+                        <li><button class="fgrid-pg__item">2</button></li>
+                        <li><button class="fgrid-pg__item">3</button></li>
+                        <li><span class="fgrid-pg__ellipsis" aria-hidden="true">…</span></li>
+                        <li><button class="fgrid-pg__item">10</button></li>
+                        <li>
+                            <button class="fgrid-pg__item">
+                                <svg class="fgrid-pg__icon" viewBox="0 0 52 52" aria-hidden="true">
+                                    <path
+                                        d="M18 43.4L35.4 26 18 8.6c-.6-.6-.6-1.5 0-2.1l2.8-2.8c.6-.6 1.5-.6 2.1 0l20.5 20.4c.6.6.6 1.5 0 2.1L22.9 47.5c-.6.6-1.5.6-2.1 0L18 45.4c-.6-.5-.6-1.4 0-2z"
+                                    />
+                                </svg>
+                                <span class="slds-assistive-text">Next page</span>
+                            </button>
+                        </li>
+                    </ul>
+                    <span class="fgrid-pg__spacer"></span>
+                    <div class="fgrid-pg__perpage">
+                        <label for="pp1">Rows per page</label>
+                        <select class="fgrid-pg__select" id="pp1">
+                            <option>10</option>
+                            <option>25</option>
+                            <option>50</option>
+                        </select>
+                    </div>
+                </nav>
+            </div>
+
+            <div class="stage">
+                <div class="stage__label">Page 5 of 10 — ellipsis both sides</div>
+                <nav class="fgrid-pg fgrid-pg_bar" aria-label="Pagination">
+                    <span class="fgrid-pg__summary">314 items</span>
+                    <span class="fgrid-pg__spacer"></span>
+                    <ul class="fgrid-pg__list">
+                        <li>
+                            <button class="fgrid-pg__item">
+                                <svg class="fgrid-pg__icon" viewBox="0 0 52 52" aria-hidden="true">
+                                    <path
+                                        d="M34 8.6L16.6 26 34 43.4c.6.6.6 1.5 0 2.1l-2.8 2.8c-.6.6-1.5.6-2.1 0L8.6 27.1c-.6-.6-.6-1.5 0-2.1L29.1 4.5c.6-.6 1.5-.6 2.1 0l2.8 2.1c.6.6.6 1.4 0 2z"
+                                    />
+                                </svg>
+                                <span class="slds-assistive-text">Previous page</span>
+                            </button>
+                        </li>
+                        <li><button class="fgrid-pg__item">1</button></li>
+                        <li><span class="fgrid-pg__ellipsis" aria-hidden="true">…</span></li>
+                        <li><button class="fgrid-pg__item">4</button></li>
+                        <li><button class="fgrid-pg__item" aria-current="page">5</button></li>
+                        <li><button class="fgrid-pg__item">6</button></li>
+                        <li><span class="fgrid-pg__ellipsis" aria-hidden="true">…</span></li>
+                        <li><button class="fgrid-pg__item">10</button></li>
+                        <li>
+                            <button class="fgrid-pg__item">
+                                <svg class="fgrid-pg__icon" viewBox="0 0 52 52" aria-hidden="true">
+                                    <path
+                                        d="M18 43.4L35.4 26 18 8.6c-.6-.6-.6-1.5 0-2.1l2.8-2.8c.6-.6 1.5-.6 2.1 0l20.5 20.4c.6.6.6 1.5 0 2.1L22.9 47.5c-.6.6-1.5.6-2.1 0L18 45.4c-.6-.5-.6-1.4 0-2z"
+                                    />
+                                </svg>
+                                <span class="slds-assistive-text">Next page</span>
+                            </button>
+                        </li>
+                    </ul>
+                    <span class="fgrid-pg__spacer"></span>
+                    <div class="fgrid-pg__perpage">
+                        <label for="pp2">Rows per page</label>
+                        <select class="fgrid-pg__select" id="pp2">
+                            <option>10</option>
+                            <option>25</option>
+                            <option>50</option>
+                        </select>
+                    </div>
+                </nav>
+            </div>
+
+            <div class="stage">
+                <div class="stage__label">Page 10 of 10 — ellipsis left only</div>
+                <nav class="fgrid-pg fgrid-pg_bar" aria-label="Pagination">
+                    <span class="fgrid-pg__summary">314 items</span>
+                    <span class="fgrid-pg__spacer"></span>
+                    <ul class="fgrid-pg__list">
+                        <li>
+                            <button class="fgrid-pg__item">
+                                <svg class="fgrid-pg__icon" viewBox="0 0 52 52" aria-hidden="true">
+                                    <path
+                                        d="M34 8.6L16.6 26 34 43.4c.6.6.6 1.5 0 2.1l-2.8 2.8c-.6.6-1.5.6-2.1 0L8.6 27.1c-.6-.6-.6-1.5 0-2.1L29.1 4.5c.6-.6 1.5-.6 2.1 0l2.8 2.1c.6.6.6 1.4 0 2z"
+                                    />
+                                </svg>
+                                <span class="slds-assistive-text">Previous page</span>
+                            </button>
+                        </li>
+                        <li><button class="fgrid-pg__item">1</button></li>
+                        <li><span class="fgrid-pg__ellipsis" aria-hidden="true">…</span></li>
+                        <li><button class="fgrid-pg__item">8</button></li>
+                        <li><button class="fgrid-pg__item">9</button></li>
+                        <li><button class="fgrid-pg__item" aria-current="page">10</button></li>
+                        <li>
+                            <button class="fgrid-pg__item" disabled aria-disabled="true">
+                                <svg class="fgrid-pg__icon" viewBox="0 0 52 52" aria-hidden="true">
+                                    <path
+                                        d="M18 43.4L35.4 26 18 8.6c-.6-.6-.6-1.5 0-2.1l2.8-2.8c.6-.6 1.5-.6 2.1 0l20.5 20.4c.6.6.6 1.5 0 2.1L22.9 47.5c-.6.6-1.5.6-2.1 0L18 45.4c-.6-.5-.6-1.4 0-2z"
+                                    />
+                                </svg>
+                                <span class="slds-assistive-text">Next page</span>
+                            </button>
+                        </li>
+                    </ul>
+                    <span class="fgrid-pg__spacer"></span>
+                    <div class="fgrid-pg__perpage">
+                        <label for="pp3">Rows per page</label>
+                        <select class="fgrid-pg__select" id="pp3">
+                            <option>10</option>
+                            <option>25</option>
+                            <option>50</option>
+                        </select>
+                    </div>
+                </nav>
+            </div>
+
+            <!-- ========================= FIRST / LAST ========================= -->
+            <h2>2. First and last buttons</h2>
+            <p class="note">
+                Redundant with truncation, since page 1 and page 10 are always rendered — but explicit, and a shorter
+                tab path to either end. Uses <code>utility:jump_to_left</code> and <code>utility:jump_to_right</code>,
+                the double chevrons in your reference.
+            </p>
+
+            <div class="stage">
+                <div class="stage__label">With first / last — page 5 of 10</div>
+                <nav class="fgrid-pg fgrid-pg_bar" aria-label="Pagination">
+                    <span class="fgrid-pg__summary">Showing page 5 of 10</span>
+                    <span class="fgrid-pg__spacer"></span>
+                    <ul class="fgrid-pg__list">
+                        <li>
+                            <button class="fgrid-pg__item">
+                                <svg class="fgrid-pg__icon" viewBox="0 0 52 52" aria-hidden="true">
+                                    <path
+                                        d="M27.3 26L44.4 8.9c.6-.6.6-1.5 0-2.1l-2.7-2.7c-.6-.6-1.5-.6-2.1 0L20 23.7c-1.3 1.3-1.3 3.3 0 4.6l19.6 19.6c.6.6 1.5.6 2.1 0l2.7-2.7c.6-.6.6-1.5 0-2.1L27.3 26zM12.5 4h-4c-.8 0-1.5.7-1.5 1.5v41c0 .8.7 1.5 1.5 1.5h4c.8 0 1.5-.7 1.5-1.5v-41c0-.8-.7-1.5-1.5-1.5z"
+                                    />
+                                </svg>
+                                <span class="slds-assistive-text">First page</span>
+                            </button>
+                        </li>
+                        <li>
+                            <button class="fgrid-pg__item">
+                                <svg class="fgrid-pg__icon" viewBox="0 0 52 52" aria-hidden="true">
+                                    <path
+                                        d="M34 8.6L16.6 26 34 43.4c.6.6.6 1.5 0 2.1l-2.8 2.8c-.6.6-1.5.6-2.1 0L8.6 27.1c-.6-.6-.6-1.5 0-2.1L29.1 4.5c.6-.6 1.5-.6 2.1 0l2.8 2.1c.6.6.6 1.4 0 2z"
+                                    />
+                                </svg>
+                                <span class="slds-assistive-text">Previous page</span>
+                            </button>
+                        </li>
+                        <li><button class="fgrid-pg__item">1</button></li>
+                        <li><span class="fgrid-pg__ellipsis" aria-hidden="true">…</span></li>
+                        <li><button class="fgrid-pg__item">4</button></li>
+                        <li><button class="fgrid-pg__item" aria-current="page">5</button></li>
+                        <li><button class="fgrid-pg__item">6</button></li>
+                        <li><span class="fgrid-pg__ellipsis" aria-hidden="true">…</span></li>
+                        <li><button class="fgrid-pg__item">10</button></li>
+                        <li>
+                            <button class="fgrid-pg__item">
+                                <svg class="fgrid-pg__icon" viewBox="0 0 52 52" aria-hidden="true">
+                                    <path
+                                        d="M18 43.4L35.4 26 18 8.6c-.6-.6-.6-1.5 0-2.1l2.8-2.8c.6-.6 1.5-.6 2.1 0l20.5 20.4c.6.6.6 1.5 0 2.1L22.9 47.5c-.6.6-1.5.6-2.1 0L18 45.4c-.6-.5-.6-1.4 0-2z"
+                                    />
+                                </svg>
+                                <span class="slds-assistive-text">Next page</span>
+                            </button>
+                        </li>
+                        <li>
+                            <button class="fgrid-pg__item">
+                                <svg class="fgrid-pg__icon" viewBox="0 0 52 52" aria-hidden="true">
+                                    <path
+                                        d="M24.7 26L7.6 43.1c-.6.6-.6 1.5 0 2.1l2.7 2.7c.6.6 1.5.6 2.1 0L32 28.3c1.3-1.3 1.3-3.3 0-4.6L12.4 4.1c-.6-.6-1.5-.6-2.1 0L7.6 6.8c-.6.6-.6 1.5 0 2.1L24.7 26zM39.5 48h4c.8 0 1.5-.7 1.5-1.5v-41c0-.8-.7-1.5-1.5-1.5h-4c-.8 0-1.5.7-1.5 1.5v41c0 .8.7 1.5 1.5 1.5z"
+                                    />
+                                </svg>
+                                <span class="slds-assistive-text">Last page</span>
+                            </button>
+                        </li>
+                    </ul>
+                    <span class="fgrid-pg__spacer"></span>
+                    <div class="fgrid-pg__perpage">
+                        <label for="pp4">Rows per page</label>
+                        <select class="fgrid-pg__select" id="pp4">
+                            <option>10</option>
+                            <option>25</option>
+                            <option>50</option>
+                        </select>
+                    </div>
+                </nav>
+            </div>
+
+            <!-- ============================= LOOKS ============================= -->
+            <h2>3. Two looks to choose between</h2>
+
+            <h3>Look A — contained bar</h3>
+            <p class="note">
+                Closest to your reference: a bordered, rounded container that reads as a distinct toolbar under the
+                table. Round page buttons. Holds its shape on a wide grid.
+            </p>
+            <div class="stage">
+                <nav class="fgrid-pg fgrid-pg_bar" aria-label="Pagination">
+                    <span class="fgrid-pg__summary">Showing page 3 of 10</span>
+                    <span class="fgrid-pg__spacer"></span>
+                    <ul class="fgrid-pg__list">
+                        <li><button class="fgrid-pg__item">1</button></li>
+                        <li><button class="fgrid-pg__item">2</button></li>
+                        <li><button class="fgrid-pg__item" aria-current="page">3</button></li>
+                        <li><button class="fgrid-pg__item">4</button></li>
+                        <li><span class="fgrid-pg__ellipsis" aria-hidden="true">…</span></li>
+                        <li><button class="fgrid-pg__item">10</button></li>
+                    </ul>
+                    <span class="fgrid-pg__spacer"></span>
+                    <div class="fgrid-pg__perpage">
+                        <label for="pp5">Rows per page</label>
+                        <select class="fgrid-pg__select" id="pp5">
+                            <option>10</option>
+                        </select>
+                    </div>
+                </nav>
+            </div>
+
+            <h3>Look B — plain footer</h3>
+            <p class="note">
+                No container. Reads as part of the table rather than a separate toolbar, which matches how SLDS list
+                views end. Square page buttons, count on the left, controls right. Lighter, and one less border stacked
+                under the grid.
+            </p>
+            <div class="stage">
+                <nav class="fgrid-pg fgrid-pg_footer" aria-label="Pagination">
+                    <span class="fgrid-pg__summary">21–30 of 314</span>
+                    <span class="fgrid-pg__spacer"></span>
+                    <ul class="fgrid-pg__list">
+                        <li><button class="fgrid-pg__item">1</button></li>
+                        <li><button class="fgrid-pg__item">2</button></li>
+                        <li><button class="fgrid-pg__item" aria-current="page">3</button></li>
+                        <li><button class="fgrid-pg__item">4</button></li>
+                        <li><span class="fgrid-pg__ellipsis" aria-hidden="true">…</span></li>
+                        <li><button class="fgrid-pg__item">10</button></li>
+                    </ul>
+                    <span class="fgrid-pg__perpage">
+                        <label for="pp6">Rows per page</label>
+                        <select class="fgrid-pg__select" id="pp6">
+                            <option>10</option>
+                        </select>
+                    </span>
+                </nav>
+            </div>
+
+            <h3>Narrow column — both looks collapse the same way</h3>
+            <p class="note">
+                Experience Cloud constraint. Page numbers are the first thing to go; the summary becomes the wayfinding,
+                and prev/next remain. Shown at 22rem.
+            </p>
+            <div class="stage narrow">
+                <nav class="fgrid-pg fgrid-pg_bar" aria-label="Pagination">
+                    <ul class="fgrid-pg__list">
+                        <li>
+                            <button class="fgrid-pg__item">
+                                <svg class="fgrid-pg__icon" viewBox="0 0 52 52" aria-hidden="true">
+                                    <path
+                                        d="M34 8.6L16.6 26 34 43.4c.6.6.6 1.5 0 2.1l-2.8 2.8c-.6.6-1.5.6-2.1 0L8.6 27.1c-.6-.6-.6-1.5 0-2.1L29.1 4.5c.6-.6 1.5-.6 2.1 0l2.8 2.1c.6.6.6 1.4 0 2z"
+                                    />
+                                </svg>
+                                <span class="slds-assistive-text">Previous page</span>
+                            </button>
+                        </li>
+                        <li><span class="fgrid-pg__summary">Page 3 of 10</span></li>
+                        <li>
+                            <button class="fgrid-pg__item">
+                                <svg class="fgrid-pg__icon" viewBox="0 0 52 52" aria-hidden="true">
+                                    <path
+                                        d="M18 43.4L35.4 26 18 8.6c-.6-.6-.6-1.5 0-2.1l2.8-2.8c.6-.6 1.5-.6 2.1 0l20.5 20.4c.6.6.6 1.5 0 2.1L22.9 47.5c-.6.6-1.5.6-2.1 0L18 45.4c-.6-.5-.6-1.4 0-2z"
+                                    />
+                                </svg>
+                                <span class="slds-assistive-text">Next page</span>
+                            </button>
+                        </li>
+                        <li><span class="fgrid-pg__spacer"></span></li>
+                        <li>
+                            <select class="fgrid-pg__select" aria-label="Rows per page">
+                                <option>10</option>
+                            </select>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+
+            <h2>Accessibility built in</h2>
+            <p class="note">
+                <code>&lt;nav aria-label="Pagination"&gt;</code> landmark; page numbers in a real list;
+                <code>aria-current="page"</code> on the current one, which is also bolded and bordered so colour is
+                never the only signal; <code>disabled</code> plus <code>aria-disabled</code> at the ends; every
+                icon-only button carries <code>slds-assistive-text</code>; the ellipsis is <code>aria-hidden</code> and
+                unfocusable; visible <code>:focus-visible</code> outline on every control.
+            </p>
+        </div>
+    </body>
+</html>

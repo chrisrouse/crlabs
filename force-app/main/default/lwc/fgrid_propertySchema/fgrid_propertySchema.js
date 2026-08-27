@@ -60,6 +60,16 @@ const ROW_ACTION_TYPES = [
     { label: "Run a flow", value: "Flow" }
 ];
 
+/**
+ * Row loading strategies. There is no "render everything" option: the standard
+ * datatable has no such mode, and it was the old default — which is what made a
+ * 300-record grid render 300 rows of DOM before it could be touched.
+ */
+const ROW_LOADING_MODES = [
+    { label: "Load as you scroll", value: "Scroll" },
+    { label: "Paginate", value: "Paginate" }
+];
+
 const MODAL_SIZES = [
     { label: "Small", value: "Small" },
     { label: "Medium", value: "Medium" },
@@ -109,6 +119,7 @@ export const EDITOR_MANAGED_PROPERTIES = [
 /** Values Flow Grid assumes when an admin has not set the property. */
 export const DEFAULTS = {
     keyField: "Id",
+    rowLoading: "Scroll",
     selectionMode: "Multiple",
     rowActionType: "None",
     rowActionDisplay: "Icon",
@@ -132,7 +143,7 @@ export const VISIBILITY = {
     headerShown: (v) => Boolean(v.showHeader),
     selectable: (v) => v.selectionMode !== "None",
     singleSelect: (v) => v.selectionMode === "Single",
-    paginated: (v) => Boolean(v.showPagination),
+    paginated: (v) => v.rowLoading === "Paginate",
     searchable: (v) => Boolean(v.showSearchBar),
     autoWidths: (v) => Boolean(v.autoColumnWidths),
     // Named explicitly rather than "not None", so a configuration left over from
@@ -393,13 +404,20 @@ export const SECTIONS = [
         name: "pagination",
         label: "Pagination",
         controls: [
-            { property: "showPagination", type: CONTROL.CHECKBOX, label: "Paginate the grid" },
+            {
+                property: "rowLoading",
+                type: CONTROL.SELECT,
+                label: "Row loading",
+                options: ROW_LOADING_MODES,
+                help: "Load as you scroll renders a batch of rows and grows as the user scrolls, which keeps a large collection responsive. Paginate shows a fixed page size with First/Previous/Next/Last. Either way the grid needs a height — 30rem is used when none is set."
+            },
             { property: "recordsPerPage", type: CONTROL.NUMBER, label: "Records per page", when: ["paginated"] },
             {
-                property: "showFirstLastButtons",
+                property: "showRowsPerPage",
                 type: CONTROL.CHECKBOX,
-                label: "Show First and Last buttons",
-                when: ["paginated"]
+                label: "Let users change the page size",
+                when: ["paginated"],
+                help: "Adds a Rows per page picker to the pagination footer, offering 10, 25, 50 and 100. Options above the maximum row count are left out, since each would produce a single page, and the page size you set here is always included even if it is not one of those steps."
             },
             {
                 property: "maxNumberOfRows",

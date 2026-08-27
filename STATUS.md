@@ -390,6 +390,93 @@ Nothing here is scheduled. Deferred by decision, not oversight.
 
 ---
 
+## 2.10 Performance, row loading, and pagination — 2026-08-27
+
+### The 300-record slowdown
+
+Several seconds before a 300-record grid would respond. Two independent causes.
+
+**Repeated recomputation.** LWC does not memoize getters, and the row pipeline is a
+deep chain with eight template entry points — `rows`, `hasRows`, `isFilteredEmpty`,
+`showPaginationBar`, `pageSummary`, `isFirstPage`, `isLastPage`, `headerCounts` —
+each re-entering from the top. That meant `buildRows` running about nine times per
+render over 300 records, `buildColumns` more than ten, each rebuilding
+`describeByPath` from scratch. Now memoized per level, keyed on dependency identity,
+which works because every mutable piece of state here is replaced rather than mutated.
+
+The `columns` dependency list is long and explicit on purpose: a missing entry would
+serve stale columns after a property-panel edit. That is the failure mode memoization
+invites, so if a column setting stops taking effect, look there first.
+
+Also hoisted a per-row allocation: `picklistCellOptions` built a `Set` of known
+values for every row to answer a per-column question — 300 rows across two picklists
+was 600 Sets per pass, times nine passes.
+
+**Rendering every row.** `showPagination` defaulted to false, and with it off the grid
+handed the datatable every matched row. The default configuration therefore rendered
+300 rows of DOM. Replaced by `rowLoading`.
+
+### Row loading: Scroll or Paginate
+
+`rowLoading` — Scroll (default) or Paginate. There is deliberately no third
+"render everything" mode: the standard datatable has none, and it was the old default.
+
+Scroll renders 50 rows and grows by 50 on `loadmore`, synchronously — the records are
+already in memory, so it is a rendering window, not a fetch. `enableInfiniteLoading`
+switches off once the window covers everything. The window resets on search, filter,
+clear, sort, and a genuinely new collection.
+
+**Infinite loading would NOT have fixed the original slowness** and on its own is
+slower: it is designed for server-side paging, and all 300 records are already in the
+browser. What it fixes is the DOM cost of rendering everything.
+
+`rowLoading` has no default in the contract — it lives in the runtime getter, per §4.
+`showPagination` and `showFirstLastButtons` are deprecated and no longer read; both
+remain declared only because a referenced property cannot be removed.
+
+### Pagination controls
+
+`c/fgrid_pagination`. SLDS ships no pagination blueprint — verified — and its
+button-group blueprint explicitly excludes navigation, so this is the hierarchy's
+"custom with hooks" tier: a `nav` landmark with list semantics, every value from a
+verified `--slds-g-*` hook so org branding carries through. Zero SLDS linter
+violations.
+
+Truncation and page sizes are pure functions in `fgrid_gridModel`, testable without a
+DOM:
+
+- **Window of four** consecutive pages, leaning one before and two after — an even
+  window cannot centre the current page. Page 1 and the last page are always shown.
+- **No truncation at eight pages or fewer.** Not taste: the widest truncated form is
+  eight slots (first, ellipsis, four window pages, ellipsis, last), so below nine
+  pages truncating hides pages and saves nothing.
+- **No ellipsis that hides nothing** — at page 2 the window already follows page 1.
+- **Rows per page: 10, 25, 50, 100.** Stops short of list views' 200 because 200 rows
+  is the DOM cost scroll mode exists to avoid. Options above `maxNumberOfRows` are
+  dropped, since each would yield a single page. The admin's configured size is
+  inserted if it is not a step, so a configured 15 stays representable rather than
+  silently snapping to another value. Off by default via `showRowsPerPage`.
+
+Numbers are centred with three grid tracks, not flexbox: with flex they drifted as
+the summary text changed length between "1–10 of 314" and "311–314 of 314".
+
+### Grid height — DECIDED 2026-08-27: stays fixed
+
+`tableHeight` now always applies, defaulting to 30rem; it was previously only
+PLACEHOLDER text, so the field looked populated while nothing was enforced.
+
+Fixed rather than `max-height`, by decision: a stable layout on a page is worth more
+than the blank space below a short page. `max-height` would remove the dead space but
+move the footer as page contents differ in height. Do not revisit without a reason.
+
+**No `overflow` is emitted.** `lightning-datatable` scrolls itself once its container
+has a definite height, so adding `overflow: auto` stacked a second scroll container
+outside the first, and the outer one reserved its own scrollbar gutter — visible as
+dead space down the right edge beyond the scrollbar. Removing it also dissolved the
+conflict with `allowOverflow`, which no longer has an inline value to fight.
+
+---
+
 ## 2.9 Reviewed against the lightning-datatable reference — 2026-08-26
 
 Read the component reference against what was built. Three defects found and fixed,

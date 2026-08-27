@@ -99,23 +99,9 @@
     text-decoration: underline;
 }
 
-.grid__pagination {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    padding-top: 0.5rem;
-}
-
-.grid__page-summary {
-    font-size: 0.75rem;
-    color: #706e6b;
-}
-
-.grid__page-buttons {
-    display: flex;
-    gap: 0.5rem;
-}
+/* The pagination footer's layout moved into c/fgrid_pagination, which owns its own
+   styling from SLDS hooks. The three rules that lived here dressed the old
+   First/Previous/Next/Last button row. */
 
 /* Row-action icon colours. The datatable's button-icon variant cannot express an
    arbitrary colour, so withRowActionColumn passes one of these classes through

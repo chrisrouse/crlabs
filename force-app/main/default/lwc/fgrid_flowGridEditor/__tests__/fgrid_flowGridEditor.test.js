@@ -274,7 +274,7 @@ describe("validate()", () => {
             inputVariables: [
                 { name: "records", value: "accountList", valueDataType: "reference" },
                 { name: "columnFields", value: '["Name"]', valueDataType: "String" },
-                { name: "showPagination", value: true, valueDataType: "Boolean" },
+                { name: "rowLoading", value: "Paginate", valueDataType: "String" },
                 { name: "recordsPerPage", value: 5000, valueDataType: "Number" }
             ],
             genericTypeMappings: [{ typeName: "T", typeValue: "Account" }]
@@ -289,7 +289,7 @@ describe("validate()", () => {
             inputVariables: [
                 { name: "records", value: "accountList", valueDataType: "reference" },
                 { name: "columnFields", value: '["Name"]', valueDataType: "String" },
-                { name: "showPagination", value: true, valueDataType: "Boolean" },
+                { name: "rowLoading", value: "Paginate", valueDataType: "String" },
                 { name: "recordsPerPage", value: "pageSize", valueDataType: "reference" }
             ],
             genericTypeMappings: [{ typeName: "T", typeValue: "Account" }]

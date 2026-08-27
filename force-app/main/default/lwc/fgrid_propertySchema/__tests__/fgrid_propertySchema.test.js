@@ -111,8 +111,10 @@ describe("conditional sections", () => {
     });
 
     it("shows page settings only when pagination is on", () => {
-        expect(visible("pagination", {})).toEqual(["showPagination", "maxNumberOfRows"]);
-        expect(visible("pagination", { showPagination: true })).toContain("recordsPerPage");
+        expect(visible("pagination", {})).toEqual(["rowLoading", "maxNumberOfRows"]);
+        // Page size and First/Last only mean something in Paginate mode.
+        expect(visible("pagination", { rowLoading: "Paginate" })).toContain("recordsPerPage");
+        expect(visible("pagination", { rowLoading: "Scroll" })).not.toContain("recordsPerPage");
     });
 });
 

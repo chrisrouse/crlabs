@@ -256,7 +256,7 @@ export default class FgridFlowGridEditor extends FlowConfigEditorBase {
             errors.push({ key: "columnFields", errorString: "Select at least one column." });
         }
 
-        if (values.showPagination && this.valueDataTypes.recordsPerPage !== "reference") {
+        if (values.rowLoading === "Paginate" && this.valueDataTypes.recordsPerPage !== "reference") {
             const perPage = Number(values.recordsPerPage);
             if (!Number.isFinite(perPage) || perPage < 1 || perPage > MAX_RECORDS_PER_PAGE) {
                 errors.push({

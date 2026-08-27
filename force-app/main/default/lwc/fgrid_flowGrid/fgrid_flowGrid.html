@@ -134,6 +134,8 @@
                         wrap-table-header={wrapTableHeader}
                         wrap-text-max-lines={wrapTextMaxLines}
                         single-row-selection-mode={singleRowSelectionMode}
+                        enable-infinite-loading={enableInfiniteLoading}
+                        onloadmore={handleLoadMore}
                         onrowselection={handleRowSelection}
                         onsort={handleSort}
                         onrowaction={handleRowAction}
@@ -145,37 +147,19 @@
                         suppress-bottom-bar={suppressBottomBar}
                     ></c-fgrid_custom-datatable>
                 </div>
-
                 <template lwc:if={showPaginationBar}>
-                    <div class="grid__pagination">
-                        <span class="grid__page-summary">{pageSummary}</span>
-                        <div class="grid__page-buttons">
-                            <template lwc:if={showFirstLastButtons}>
-                                <lightning-button
-                                    label="First"
-                                    disabled={isFirstPage}
-                                    onclick={handleFirstPage}
-                                ></lightning-button>
-                            </template>
-                            <lightning-button
-                                label="Previous"
-                                disabled={isFirstPage}
-                                onclick={handlePreviousPage}
-                            ></lightning-button>
-                            <lightning-button
-                                label="Next"
-                                disabled={isLastPage}
-                                onclick={handleNextPage}
-                            ></lightning-button>
-                            <template lwc:if={showFirstLastButtons}>
-                                <lightning-button
-                                    label="Last"
-                                    disabled={isLastPage}
-                                    onclick={handleLastPage}
-                                ></lightning-button>
-                            </template>
-                        </div>
-                    </div>
+                    <c-fgrid_pagination
+                        page={currentPage}
+                        total-pages={totalPages}
+                        total-rows={totalRows}
+                        first-row={firstRow}
+                        last-row={lastRow}
+                        records-per-page={effectiveRecordsPerPage}
+                        max-number-of-rows={maxNumberOfRows}
+                        show-rows-per-page={showRowsPerPage}
+                        onpagechange={handlePageChange}
+                        onrowsperpagechange={handleRowsPerPageChange}
+                    ></c-fgrid_pagination>
                 </template>
 
                 <!-- Clear Selection lives in the header when one is shown. -->

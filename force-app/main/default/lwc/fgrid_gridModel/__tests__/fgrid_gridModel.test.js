@@ -12,7 +12,9 @@ import {
     operatorsFor,
     defaultOperatorFor,
     FILTER_KIND,
-    FILTER_OPERATOR
+    FILTER_OPERATOR,
+    paginationItems,
+    rowsPerPageOptions
 } from "c/fgrid_gridModel";
 
 describe("inferType", () => {
@@ -511,5 +513,88 @@ describe("describeFilter", () => {
     it("counts rather than lists a long picklist selection", () => {
         const many = { kind: FILTER_KIND.PICKLIST, operator: FILTER_OPERATOR.EQUALS, values: ["a", "b", "c", "d"] };
         expect(describeFilter("Industry", many)).toBe("Industry is one of 4 values");
+    });
+});
+
+describe("paginationItems", () => {
+    const render = (current, total) =>
+        paginationItems(current, total)
+            .map((item) => (item.isGap ? "…" : String(item.page)))
+            .join(" ");
+
+    it("shows every page up to the truncation threshold", () => {
+        // Eight is the point at which truncating stops saving width, so below it
+        // nothing is hidden.
+        expect(render(3, 7)).toBe("1 2 3 4 5 6 7");
+        expect(render(4, 8)).toBe("1 2 3 4 5 6 7 8");
+    });
+
+    it("truncates on the right on the first page", () => {
+        expect(render(1, 32)).toBe("1 2 3 4 … 32");
+    });
+
+    it("truncates on both sides in the middle", () => {
+        // Window leans one before, two after.
+        expect(render(5, 32)).toBe("1 … 4 5 6 7 … 32");
+    });
+
+    it("truncates on the left on the last page", () => {
+        expect(render(32, 32)).toBe("1 … 29 30 31 32");
+    });
+
+    it("never renders an ellipsis that hides nothing", () => {
+        // At page 2 the window starts at 1, so there is no left gap to mark.
+        expect(render(2, 32)).toBe("1 2 3 4 … 32");
+        // Symmetrically at the far end.
+        expect(render(31, 32)).toBe("1 … 29 30 31 32");
+    });
+
+    it("never exceeds eight slots", () => {
+        for (let total = 9; total <= 60; total += 1) {
+            for (let page = 1; page <= total; page += 1) {
+                expect(paginationItems(page, total).length).toBeLessThanOrEqual(8);
+            }
+        }
+    });
+
+    it("always includes the first and last page", () => {
+        const items = paginationItems(17, 40)
+            .filter((item) => !item.isGap)
+            .map((item) => item.page);
+        expect(items).toContain(1);
+        expect(items).toContain(40);
+    });
+
+    it("marks exactly one page current, and clamps a page out of range", () => {
+        expect(paginationItems(5, 32).filter((item) => item.isCurrent)).toHaveLength(1);
+        expect(paginationItems(99, 10).find((item) => item.isCurrent).page).toBe(10);
+        expect(paginationItems(0, 10).find((item) => item.isCurrent).page).toBe(1);
+    });
+
+    it("survives nonsense input", () => {
+        expect(render(1, 0)).toBe("1");
+        expect(render(undefined, undefined)).toBe("1");
+    });
+});
+
+describe("rowsPerPageOptions", () => {
+    const values = (...args) => rowsPerPageOptions(...args).map((option) => Number(option.value));
+
+    it("offers the fixed steps", () => {
+        expect(values(10, null)).toEqual([10, 25, 50, 100]);
+    });
+
+    it("drops options above the row cap, since each would yield one page", () => {
+        expect(values(10, 30)).toEqual([10, 25]);
+    });
+
+    it("includes the admin's own page size when it is not a step", () => {
+        // Otherwise the select cannot represent 15 and would silently change it.
+        expect(values(15, null)).toEqual([10, 15, 25, 50, 100]);
+    });
+
+    it("never returns an empty list, even below the smallest step", () => {
+        expect(values(5, 5)).toEqual([5]);
+        expect(values(50, 3)).toEqual([3]);
     });
 });

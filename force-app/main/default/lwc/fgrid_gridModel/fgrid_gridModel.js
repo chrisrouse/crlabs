@@ -135,6 +135,100 @@ export const LOOKUP_LABEL_SUFFIX = "__fgridLookupLabel";
  */
 const WRAP_UNSUPPORTED_TYPES = new Set(["action", "boolean", "button", "button-icon", "date-local"]);
 
+/** Consecutive pages shown around the current one before truncating. */
+export const PAGE_WINDOW = 4;
+
+/**
+ * Page count at or below which every number is shown.
+ *
+ * Not a taste call. The widest truncated form is eight slots — first, ellipsis, four
+ * window pages, ellipsis, last — so at eight pages or fewer, listing every page is
+ * never wider. Truncating there would hide pages and save nothing.
+ */
+export const MAX_PAGES_WITHOUT_TRUNCATION = 8;
+
+/** Page sizes the runtime selector offers. Deliberately stops at 100: 200 rows is
+ *  the DOM cost scroll mode exists to avoid. An admin can still set 200 directly. */
+export const ROWS_PER_PAGE_STEPS = [10, 25, 50, 100];
+
+/**
+ * Builds the page navigation: numbers plus ellipsis markers.
+ *
+ * Page 1 and the last page are always present, so the total is always readable and
+ * either end is one click away.
+ *
+ * The window is EVEN, so it cannot centre the current page. It leans one before and
+ * two after — page 5 of 32 gives 4 5 6 7 — biasing toward where the user is heading.
+ *
+ * @param {number} current 1-based current page
+ * @param {number} totalPages total page count
+ * @returns {object[]} `{ key, isGap, page, isCurrent }` in render order
+ */
+export function paginationItems(current, totalPages) {
+    const total = Math.max(1, Math.floor(Number(totalPages) || 1));
+    const page = Math.min(total, Math.max(1, Math.floor(Number(current) || 1)));
+
+    const pageItem = (value) => ({
+        key: `page-${value}`,
+        isGap: false,
+        page: value,
+        isCurrent: value === page
+    });
+
+    if (total <= MAX_PAGES_WITHOUT_TRUNCATION) {
+        return Array.from({ length: total }, (_, i) => pageItem(i + 1));
+    }
+
+    // Clamped so the window never runs past either end.
+    const start = Math.min(Math.max(page - 1, 1), total - PAGE_WINDOW + 1);
+    const end = start + PAGE_WINDOW - 1;
+
+    const items = [];
+    if (start > 1) {
+        items.push(pageItem(1));
+        // Only a gap when something is actually skipped: at start === 2 the window
+        // already follows page 1, and an ellipsis hiding nothing reads as a bug.
+        if (start > 2) {
+            items.push({ key: "gap-start", isGap: true });
+        }
+    }
+    for (let value = start; value <= end; value += 1) {
+        items.push(pageItem(value));
+    }
+    if (end < total) {
+        if (end < total - 1) {
+            items.push({ key: "gap-end", isGap: true });
+        }
+        items.push(pageItem(total));
+    }
+    return items;
+}
+
+/**
+ * Page sizes to offer, given what the admin configured and the row cap.
+ *
+ * Two rules beyond the fixed steps. Options above `maxNumberOfRows` are dropped,
+ * because every one of them would produce a single page and appear to do nothing.
+ * And the admin's own `recordsPerPage` is inserted if it is not a step, so a
+ * configured 15 is representable — otherwise the select would show blank or snap to
+ * another value and silently change their page size on load.
+ */
+export function rowsPerPageOptions(configured, maxRows) {
+    const capRaw = Number(maxRows);
+    const cap = Number.isFinite(capRaw) && capRaw > 0 ? capRaw : Infinity;
+
+    const values = new Set(ROWS_PER_PAGE_STEPS.filter((step) => step <= cap));
+    const current = Number(configured);
+    if (Number.isFinite(current) && current > 0 && current <= cap) {
+        values.add(current);
+    }
+    // A cap smaller than every step would otherwise leave nothing to choose from.
+    if (!values.size) {
+        values.add(Number.isFinite(cap) ? cap : ROWS_PER_PAGE_STEPS[0]);
+    }
+    return [...values].sort((a, b) => a - b).map((value) => ({ label: String(value), value: String(value) }));
+}
+
 /** Header-menu action name that opens the filter editor for a column. */
 export const FILTER_ACTION_NAME = "fgridFilter";
 
@@ -384,9 +478,18 @@ export function buildRows(records, columns, keyField = "Id") {
         return [];
     }
     const paths = (columns || []).map((column) => column.fgridLinkFor || column.fieldName).filter(Boolean);
-    const picklistColumns = (columns || []).filter(
-        (column) => column.type === "fgridPicklist" || column.type === "fgridMultiPicklist"
-    );
+    // The known-value set and the --None-- entry are per COLUMN, not per row. Built
+    // once here rather than inside picklistCellOptions, which runs for every row of
+    // every picklist column — 300 rows across two picklists was allocating 600 Sets
+    // to answer the same question.
+    const picklistColumns = (columns || [])
+        .filter((column) => column.type === "fgridPicklist" || column.type === "fgridMultiPicklist")
+        .map((column) => ({
+            column,
+            options: column.fgridPicklistOptions || [],
+            known: new Set((column.fgridPicklistOptions || []).map((option) => option.value)),
+            none: column.fgridAllowNone ? [{ label: "--None--", value: "" }] : []
+        }));
     const lookupColumns = (columns || []).filter((column) => column.type === "fgridLookup");
 
     return records.map((record, index) => {
@@ -420,11 +523,11 @@ export function buildRows(records, columns, keyField = "Id") {
             row[column.fieldName + LINK_SUFFIX] = column.fgridLookupLink && id ? `/${id}` : null;
         });
 
-        picklistColumns.forEach((column) => {
-            const value = row[column.fieldName];
-            row[column.fieldName + PICKLIST_OPTIONS_SUFFIX] = picklistCellOptions(column, value);
-            if (column.fgridIsMultiPicklist) {
-                row[column.fieldName + PICKLIST_SELECTED_SUFFIX] = splitMultiPicklist(value);
+        picklistColumns.forEach((entry) => {
+            const value = row[entry.column.fieldName];
+            row[entry.column.fieldName + PICKLIST_OPTIONS_SUFFIX] = picklistCellOptions(entry, value);
+            if (entry.column.fgridIsMultiPicklist) {
+                row[entry.column.fieldName + PICKLIST_SELECTED_SUFFIX] = splitMultiPicklist(value);
             }
         });
 
@@ -460,22 +563,20 @@ export function joinMultiPicklist(values) {
  * The in-range case returns the column's own array by reference, so every row
  * shares one instance and only genuinely stale rows allocate.
  */
-function picklistCellOptions(column, value) {
-    const options = column.fgridPicklistOptions || [];
+function picklistCellOptions(entry, value) {
+    const { column, options, known, none } = entry;
     const current = column.fgridIsMultiPicklist
         ? splitMultiPicklist(value)
-        : [value].filter((entry) => entry !== null && entry !== undefined && entry !== "");
+        : [value].filter((held) => held !== null && held !== undefined && held !== "");
 
-    const known = new Set(options.map((option) => option.value));
-    const missing = current.filter((entry) => !known.has(entry));
-    const none = column.fgridAllowNone ? [{ label: "--None--", value: "" }] : [];
+    const missing = current.filter((held) => !known.has(held));
 
     if (!missing.length && !none.length) {
         return options;
     }
     // Label is the raw stored value: inventing a decorated label here would show
     // the user text that is not what gets saved.
-    return [...none, ...missing.map((entry) => ({ label: entry, value: entry })), ...options];
+    return [...none, ...missing.map((held) => ({ label: held, value: held })), ...options];
 }
 
 /**

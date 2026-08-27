@@ -49,6 +49,19 @@ import {
     ROW_ACTION_NAME
 } from "c/fgrid_gridModel";
 
+/**
+ * Rows rendered per batch in scroll mode, and the amount each `loadmore` adds.
+ *
+ * The records are already in memory — a Flow hands over the whole collection — so
+ * this is a RENDERING window, not a fetch size. Growing the window is what keeps the
+ * DOM small; there is nothing to load from the server.
+ */
+const SCROLL_BATCH_SIZE = 50;
+
+/** Applied when no grid height is set, because infinite scrolling needs a scroll
+ *  boundary to exist before `loadmore` will ever fire. */
+const DEFAULT_TABLE_HEIGHT = "30rem";
+
 export default class FgridFlowGrid extends LightningElement {
     // ----- Data source -----
     @api objectApiName;
@@ -95,10 +108,20 @@ export default class FgridFlowGrid extends LightningElement {
     @api matchCaseOnFilters = false;
     @api caseInsensitiveSort = false;
 
-    // ----- Pagination -----
+    // ----- Row loading and paging -----
+    /** Scroll | Paginate. Default resolved in `rowLoadingMode`, not here. */
+    @api rowLoading;
+    /** Deprecated, superseded by rowLoading. Still declared because the contract
+     *  cannot drop a property a flow references, but no longer read. */
     @api showPagination = false;
     @api recordsPerPage;
+    /** Deprecated: the truncated navigation always shows page 1 and the last page,
+     *  so explicit First/Last buttons are redundant. Kept only because the contract
+     *  cannot drop a property a flow references. */
     @api showFirstLastButtons = false;
+    /** Lets the user change page size at runtime. Off by default, so a screen sized
+     *  around a fixed page size stays that way. */
+    @api showRowsPerPage = false;
     @api maxNumberOfRows;
 
     // ----- Inline editing -----
@@ -158,6 +181,25 @@ export default class FgridFlowGrid extends LightningElement {
     @api sortedBy;
     @api sortDirection;
 
+    /**
+     * Returns a cached derived value, recomputing only when a dependency changes.
+     *
+     * Dependencies are compared by identity, which works because every mutable
+     * piece of state here is replaced rather than mutated — `_filters`,
+     * `_editsByKey`, `_removedKeys` and friends are all reassigned to new objects.
+     * A dependency list that misses an input would serve a stale value, so each
+     * call site lists them explicitly rather than relying on a coarser key.
+     */
+    memoized(name, deps, compute) {
+        const cached = this._memo[name];
+        if (cached && cached.deps.length === deps.length && cached.deps.every((dep, i) => dep === deps[i])) {
+            return cached.value;
+        }
+        const value = compute();
+        this._memo[name] = { deps, value };
+        return value;
+    }
+
     /* ------------------------------------------------------------------ *
      * Reactive inputs
      * ------------------------------------------------------------------ */
@@ -207,6 +249,26 @@ export default class FgridFlowGrid extends LightningElement {
     _columnWidths = {};
     /** Page the grid last scrolled to the top for. */
     _scrolledForPage = 1;
+    /** Rows rendered so far in scroll mode. Reset whenever the result set changes,
+     *  or the grid would keep showing a window sized for the previous results. */
+    _visibleCount = SCROLL_BATCH_SIZE;
+    /** Page size the user picked at runtime, overriding the configured one. */
+    _userRecordsPerPage = null;
+    /**
+     * Derived-value cache, keyed by dependency identity.
+     *
+     * LWC getters are not memoized, and this component's row pipeline is a deep
+     * chain with many entry points: the template alone reads rows, hasRows,
+     * isFilteredEmpty, showPaginationBar, pageSummary, isFirstPage, isLastPage and
+     * headerCounts, and each one re-entered the chain from the top. With 300 records
+     * that meant buildRows running about nine times per render and buildColumns more
+     * than ten, each rebuilding describeByPath from scratch — several seconds before
+     * the table would respond.
+     *
+     * Mutated in place rather than reassigned, so LWC does not treat filling the
+     * cache during render as a state change and re-render because of it.
+     */
+    _memo = {};
 
     /* Reactive, so a preselection recomputed upstream reaches the grid. Both
        accessors funnel into applyPreSelection, which decides whether the value
@@ -247,6 +309,7 @@ export default class FgridFlowGrid extends LightningElement {
         this._records = next;
         if (changed) {
             this.discardUnsavedEdits();
+            this.resetVisibleRows();
         }
         this.applyPreSelection();
     }
@@ -309,14 +372,16 @@ export default class FgridFlowGrid extends LightningElement {
 
     /** Describe keyed by field path, for buildColumns. */
     get describeByPath() {
-        const columns = this._metadata?.columns;
-        if (!columns) {
-            return null;
-        }
-        return columns.reduce((map, column) => {
-            map[column.fieldPath] = column;
-            return map;
-        }, {});
+        return this.memoized("describeByPath", [this._metadata], () => {
+            const columns = this._metadata?.columns;
+            if (!columns) {
+                return null;
+            }
+            return columns.reduce((map, column) => {
+                map[column.fieldPath] = column;
+                return map;
+            }, {});
+        });
     }
 
     /**
@@ -330,9 +395,19 @@ export default class FgridFlowGrid extends LightningElement {
         if (!this.isUserDefinedObject) {
             return this._records;
         }
-        const raw =
-            this.isSerializedRecordData && this.serializedRecordData ? this.serializedRecordData : this.recordsJson;
-        return parseRecordJson(raw);
+        // Memoized because this parses JSON, and an unmemoized parse per read was
+        // multiplied by every entry into the row pipeline.
+        return this.memoized(
+            "sourceRecords",
+            [this.isSerializedRecordData, this.serializedRecordData, this.recordsJson],
+            () => {
+                const raw =
+                    this.isSerializedRecordData && this.serializedRecordData
+                        ? this.serializedRecordData
+                        : this.recordsJson;
+                return parseRecordJson(raw);
+            }
+        );
     }
 
     /**
@@ -349,19 +424,29 @@ export default class FgridFlowGrid extends LightningElement {
      * after it has been taken out of the grid.
      */
     get allKnownRecords() {
-        const all = this._addedRecords.length ? [...this.sourceRecords, ...this._addedRecords] : this.sourceRecords;
-        return all.map((record) => {
-            const patch = this._editsByKey[record?.[this.keyField]];
-            return patch ? { ...record, ...patch } : record;
-        });
+        return this.memoized(
+            "allKnownRecords",
+            [this.sourceRecords, this._addedRecords, this._editsByKey, this.keyField],
+            () => {
+                const all = this._addedRecords.length
+                    ? [...this.sourceRecords, ...this._addedRecords]
+                    : this.sourceRecords;
+                return all.map((record) => {
+                    const patch = this._editsByKey[record?.[this.keyField]];
+                    return patch ? { ...record, ...patch } : record;
+                });
+            }
+        );
     }
 
     get remainingRecords() {
         if (!this._removedKeys.length) {
             return this.allKnownRecords;
         }
-        const removed = new Set(this._removedKeys);
-        return this.allKnownRecords.filter((record) => !removed.has(record?.[this.keyField]));
+        return this.memoized("remainingRecords", [this.allKnownRecords, this._removedKeys, this.keyField], () => {
+            const removed = new Set(this._removedKeys);
+            return this.allKnownRecords.filter((record) => !removed.has(record?.[this.keyField]));
+        });
     }
 
     /**
@@ -377,6 +462,38 @@ export default class FgridFlowGrid extends LightningElement {
     }
 
     get columns() {
+        // Every scalar that feeds buildColumns or withRowActionColumn is listed, so a
+        // configuration change still rebuilds. Missing one here would show stale
+        // columns after an edit in the property panel.
+        return this.memoized(
+            "columns",
+            [
+                this._columnPaths,
+                this._columnConfig,
+                this.describeByPath,
+                this._columnWidths,
+                this.hideHeaderActions,
+                this.isNameFieldLinked,
+                this.isUserDefinedObject,
+                this.openLinkInSameTab,
+                this.isNoneAllowed,
+                this.showReadOnlyIcon,
+                this.rowActionType,
+                this.rowActionDisplay,
+                this.rowActionPosition,
+                this.rowActionLabel,
+                this.rowActionIcon,
+                this.rowActionColor,
+                this.rowActionButtonLabel,
+                this.rowActionButtonIcon,
+                this.rowActionButtonIconPosition,
+                this.rowActionButtonVariant
+            ],
+            () => this.buildGridColumns()
+        );
+    }
+
+    buildGridColumns() {
         const columns = buildColumns(this._columnPaths, this._columnConfig, {
             hideHeaderActions: this.hideHeaderActions,
             describeByPath: this.describeByPath,
@@ -423,38 +540,118 @@ export default class FgridFlowGrid extends LightningElement {
 
     /** Every row available after removals and the display cap. */
     get cappedRows() {
-        const rows = buildRows(this.remainingRecords, this.columns, this.keyField);
-        const cap = Number(this.maxNumberOfRows);
-        return Number.isFinite(cap) && cap > 0 ? rows.slice(0, cap) : rows;
+        return this.memoized(
+            "cappedRows",
+            [this.remainingRecords, this.columns, this.keyField, this.maxNumberOfRows],
+            () => {
+                const rows = buildRows(this.remainingRecords, this.columns, this.keyField);
+                const cap = Number(this.maxNumberOfRows);
+                return Number.isFinite(cap) && cap > 0 ? rows.slice(0, cap) : rows;
+            }
+        );
     }
 
     /** Rows surviving search and per-column filters, then sorted. */
     get matchedRows() {
-        const columns = this.columns;
-        let rows = searchRows(this.cappedRows, columns, this._searchTerm, this.matchCaseOnFilters, this.isSearchByWord);
-        rows = filterRows(rows, this._filters, this.matchCaseOnFilters);
-        if (this._sortField) {
-            rows = sortRows(rows, this._sortField, this._sortDirection, this.caseInsensitiveSort);
-        }
-        return rows;
+        return this.memoized(
+            "matchedRows",
+            [
+                this.cappedRows,
+                this.columns,
+                this._searchTerm,
+                this._filters,
+                this._sortField,
+                this._sortDirection,
+                this.matchCaseOnFilters,
+                this.isSearchByWord,
+                this.caseInsensitiveSort
+            ],
+            () => {
+                const columns = this.columns;
+                let rows = searchRows(
+                    this.cappedRows,
+                    columns,
+                    this._searchTerm,
+                    this.matchCaseOnFilters,
+                    this.isSearchByWord
+                );
+                rows = filterRows(rows, this._filters, this.matchCaseOnFilters);
+                if (this._sortField) {
+                    rows = sortRows(rows, this._sortField, this._sortDirection, this.caseInsensitiveSort);
+                }
+                return rows;
+            }
+        );
+    }
+
+    /**
+     * Scroll or Paginate, defaulting to Scroll.
+     *
+     * The default lives here rather than in the contract, following the rule in §4:
+     * a declared default is re-asserted by Flow Builder and cannot be changed later.
+     *
+     * There is no third "render everything" mode. The standard datatable has no such
+     * behaviour, and it was the previous default — which is what made a 300-record
+     * grid render 300 rows of DOM before anyone could touch it.
+     */
+    get rowLoadingMode() {
+        return this.rowLoading === "Paginate" ? "Paginate" : "Scroll";
+    }
+
+    get isPaginated() {
+        return this.rowLoadingMode === "Paginate";
+    }
+
+    get isScrolling() {
+        return this.rowLoadingMode === "Scroll";
+    }
+
+    /**
+     * Whether the datatable should keep asking for more rows.
+     *
+     * Turned off once the window covers everything, so the datatable stops firing
+     * `loadmore` at the bottom of a fully rendered list.
+     */
+    get enableInfiniteLoading() {
+        return this.isScrolling && this._visibleCount < this.matchedRows.length;
+    }
+
+    /**
+     * Page size in force: the user's runtime choice if they made one, otherwise the
+     * configured value.
+     */
+    get effectiveRecordsPerPage() {
+        return this._userRecordsPerPage || this.recordsPerPage;
     }
 
     /** Page state for the current result set. */
     get pageState() {
-        if (!this.showPagination) {
-            const rows = this.matchedRows;
-            return {
-                rows,
-                page: 1,
-                totalPages: 1,
-                totalRows: rows.length,
-                firstRow: rows.length ? 1 : 0,
-                lastRow: rows.length,
-                isFirstPage: true,
-                isLastPage: true
-            };
+        return this.memoized(
+            "pageState",
+            [this.matchedRows, this.rowLoadingMode, this._page, this.effectiveRecordsPerPage, this._visibleCount],
+            () => this.computePageState()
+        );
+    }
+
+    computePageState() {
+        if (this.isPaginated) {
+            return paginate(this.matchedRows, this._page, this.effectiveRecordsPerPage);
         }
-        return paginate(this.matchedRows, this._page, this.recordsPerPage);
+        // Scroll mode: a window over the matched rows, grown by `loadmore`. The page
+        // fields are filled in so every consumer of pageState keeps working, but
+        // there is only ever one "page".
+        const matched = this.matchedRows;
+        const rows = matched.length > this._visibleCount ? matched.slice(0, this._visibleCount) : matched;
+        return {
+            rows,
+            page: 1,
+            totalPages: 1,
+            totalRows: matched.length,
+            firstRow: rows.length ? 1 : 0,
+            lastRow: rows.length,
+            isFirstPage: true,
+            isLastPage: true
+        };
     }
 
     /** The rows actually handed to the datatable. */
@@ -658,20 +855,31 @@ export default class FgridFlowGrid extends LightningElement {
     /* ----- pagination ----- */
 
     get showPaginationBar() {
-        return this.showPagination && this.matchedRows.length > 0;
+        return this.isPaginated && this.matchedRows.length > 0;
     }
 
-    get pageSummary() {
-        const state = this.pageState;
-        return `${state.firstRow}-${state.lastRow} of ${state.totalRows}`;
+    /* Page facts handed to c/fgrid_pagination, which owns the summary text and the
+       first/last disabled states itself. `pageSummary`, `isFirstPage` and
+       `isLastPage` lived here for the old four-button bar and are gone with it. */
+
+    get currentPage() {
+        return this.pageState.page;
     }
 
-    get isFirstPage() {
-        return this.pageState.isFirstPage;
+    get totalPages() {
+        return this.pageState.totalPages;
     }
 
-    get isLastPage() {
-        return this.pageState.isLastPage;
+    get totalRows() {
+        return this.pageState.totalRows;
+    }
+
+    get firstRow() {
+        return this.pageState.firstRow;
+    }
+
+    get lastRow() {
+        return this.pageState.lastRow;
     }
 
     /* ----- row action flow ----- */
@@ -834,8 +1042,27 @@ export default class FgridFlowGrid extends LightningElement {
         return classes.join(" ");
     }
 
+    /**
+     * Always emits a height, falling back to 30rem.
+     *
+     * Two reasons it cannot stay optional. Infinite scrolling needs a scroll boundary
+     * or `loadmore` never fires, and a grid with no height renders every row at full
+     * length — the DOM cost scroll mode exists to avoid. The 30rem was previously only
+     * PLACEHOLDER text on the property, so the field looked populated while nothing
+     * was enforced.
+     *
+     * NO `overflow` is emitted, deliberately. `lightning-datatable` scrolls itself
+     * once its container has a definite height, so adding `overflow: auto` here
+     * stacked a SECOND scroll container outside the first — and the outer one
+     * reserved its own scrollbar gutter, which showed as dead space down the right
+     * edge beyond the visible scrollbar.
+     *
+     * Leaving overflow alone also settles the conflict with `allowOverflow`: there is
+     * no longer an inline value to beat its `overflow: visible` class, so the two are
+     * no longer mutually exclusive.
+     */
     get wrapperStyle() {
-        return this.tableHeight ? `height: ${this.tableHeight}; overflow: auto;` : "";
+        return `height: ${this.tableHeight || DEFAULT_TABLE_HEIGHT};`;
     }
 
     /** `fixed` splits the space equally; `auto` sizes each column to its content. */
@@ -939,9 +1166,35 @@ export default class FgridFlowGrid extends LightningElement {
         this.publishSelection();
     }
 
+    /**
+     * Grows the rendered window.
+     *
+     * Synchronous, because the records are already in memory: there is nothing to
+     * fetch, so no spinner and no async gap. `enableInfiniteLoading` turns itself off
+     * once the window covers everything, which stops the datatable firing this again
+     * at the bottom of a fully rendered list.
+     */
+    handleLoadMore() {
+        if (!this.isScrolling) {
+            return;
+        }
+        const total = this.matchedRows.length;
+        if (this._visibleCount >= total) {
+            return;
+        }
+        this._visibleCount = Math.min(total, this._visibleCount + SCROLL_BATCH_SIZE);
+    }
+
+    /** Back to one batch. Anything that changes the result set must call this, or the
+     *  window stays sized for results the user is no longer looking at. */
+    resetVisibleRows() {
+        this._visibleCount = SCROLL_BATCH_SIZE;
+    }
+
     handleSearch(event) {
         this._searchTerm = event.target.value || "";
         this._page = 1;
+        this.resetVisibleRows();
     }
 
     /**
@@ -1006,28 +1259,39 @@ export default class FgridFlowGrid extends LightningElement {
         this._filters = next;
         // Row one of the old page may no longer exist.
         this._page = 1;
+        this.resetVisibleRows();
     }
 
     handleClearFilters() {
         this._filters = {};
         this._searchTerm = "";
         this._page = 1;
+        this.resetVisibleRows();
     }
 
-    handleFirstPage() {
+    /** Clamped rather than trusted: a stale click could name a page that no longer
+     *  exists after a filter narrowed the results. */
+    handlePageChange(event) {
+        const requested = Number(event.detail?.page);
+        if (!Number.isFinite(requested)) {
+            return;
+        }
+        this._page = Math.min(Math.max(1, requested), this.pageState.totalPages);
+    }
+
+    /**
+     * Applies a runtime page size.
+     *
+     * Resets to page one, because page 5 of 32 at ten rows is page 2 of 7 at fifty —
+     * holding the number would land the user somewhere they did not ask for.
+     */
+    handleRowsPerPageChange(event) {
+        const size = Number(event.detail?.value);
+        if (!Number.isFinite(size) || size < 1) {
+            return;
+        }
+        this._userRecordsPerPage = size;
         this._page = 1;
-    }
-
-    handlePreviousPage() {
-        this._page = Math.max(1, this.pageState.page - 1);
-    }
-
-    handleNextPage() {
-        this._page = Math.min(this.pageState.totalPages, this.pageState.page + 1);
-    }
-
-    handleLastPage() {
-        this._page = this.pageState.totalPages;
     }
 
     /**
@@ -1414,6 +1678,7 @@ export default class FgridFlowGrid extends LightningElement {
         // column the user clicked.
         this.publish("sortedBy", fieldName);
         this.publish("sortDirection", sortDirection);
+        this.resetVisibleRows();
     }
 
     /* ------------------------------------------------------------------ *

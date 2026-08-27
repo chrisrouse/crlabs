@@ -117,7 +117,7 @@ describe("preview reflects configuration", () => {
     });
 
     it("caps rows at the smaller of page size and maximum", async () => {
-        const element = build({ showPagination: true, recordsPerPage: 2, maxNumberOfRows: 4 });
+        const element = build({ rowLoading: "Paginate", recordsPerPage: 2, maxNumberOfRows: 4 });
         await Promise.resolve();
 
         expect(datatable(element).data).toHaveLength(2);
@@ -135,11 +135,11 @@ describe("preview reflects configuration", () => {
     });
 
     it("shows pagination chrome, with First/Last only when configured", async () => {
-        const element = build({ showPagination: true, recordsPerPage: 5 });
+        const element = build({ rowLoading: "Paginate", recordsPerPage: 5 });
         await Promise.resolve();
         expect(element.shadowRoot.querySelectorAll(".preview__pagination lightning-button")).toHaveLength(2);
 
-        const withEnds = build({ showPagination: true, recordsPerPage: 5, showFirstLastButtons: true });
+        const withEnds = build({ rowLoading: "Paginate", recordsPerPage: 5, showFirstLastButtons: true });
         await Promise.resolve();
         expect(withEnds.shadowRoot.querySelectorAll(".preview__pagination lightning-button")).toHaveLength(4);
     });

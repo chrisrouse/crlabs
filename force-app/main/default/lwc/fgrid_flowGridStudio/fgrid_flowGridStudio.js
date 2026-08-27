@@ -189,7 +189,7 @@ export default class FgridFlowGridStudio extends LightningElement {
             : buildSampleRows(this.columnFields, this.columnConfigObject, PREVIEW_ROW_COUNT, keyField);
         const filtered = filterRows(rows, this._previewFilters, Boolean(this.values?.matchCaseOnFilters));
         const max = Number(this.values?.maxNumberOfRows);
-        const perPage = this.values?.showPagination ? Number(this.values?.recordsPerPage) : null;
+        const perPage = this.values?.rowLoading === "Paginate" ? Number(this.values?.recordsPerPage) : null;
         const limit = [max, perPage].filter((n) => Number.isFinite(n) && n > 0).sort((a, b) => a - b)[0];
         return limit ? filtered.slice(0, limit) : filtered;
     }
@@ -258,7 +258,7 @@ export default class FgridFlowGridStudio extends LightningElement {
     }
 
     get showPaginationChrome() {
-        return Boolean(this.values?.showPagination);
+        return this.values?.rowLoading === "Paginate";
     }
 
     get showFirstLast() {
