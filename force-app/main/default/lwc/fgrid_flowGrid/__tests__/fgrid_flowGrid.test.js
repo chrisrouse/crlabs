@@ -262,3 +262,47 @@ describe("drafts keyed by columnKey", () => {
         expect(row.Name).toBe("Direct");
     });
 });
+
+describe("actioned record reports the click", () => {
+    // Actioned means clicked, and nothing more. It used to wait for an outcome —
+    // a completed flow, or a removal the cap allowed — which made it a second,
+    // weaker "edited" rather than a record of what the user acted on.
+    function clickRowAction(element, row) {
+        element.shadowRoot.querySelector("c-fgrid_custom-datatable").dispatchEvent(
+            new CustomEvent("rowaction", {
+                detail: { action: { name: "fgridRowAction" }, row }
+            })
+        );
+    }
+
+    it("reports a removal that the cap refused", async () => {
+        const element = build({ records: records(3), rowActionType: "Remove", maxRemovedRows: 1 });
+        await Promise.resolve();
+        const [first, second] = records(3);
+
+        clickRowAction(element, first);
+        await Promise.resolve();
+        clickRowAction(element, second);
+        await Promise.resolve();
+
+        // The second removal is blocked, but the click still happened.
+        expect(element.outputActionedRecord.Id).toBe(second.Id);
+        expect(element.outputRemovedRecords).toHaveLength(1);
+    });
+
+    it("reports the row as soon as a flow action is launched", async () => {
+        const element = build({
+            records: records(2),
+            rowActionType: "Flow",
+            rowActionFlowName: "Some_Flow"
+        });
+        await Promise.resolve();
+        const [first] = records(2);
+
+        clickRowAction(element, first);
+        await Promise.resolve();
+
+        // Published on click, so a cancelled flow still leaves it reported.
+        expect(element.outputActionedRecord.Id).toBe(first.Id);
+    });
+});

@@ -1321,9 +1321,14 @@ export default class FgridFlowGrid extends LightningElement {
             return;
         }
 
+        // Actioned means CLICKED, and nothing more. Published here, before either
+        // branch, so it reports the row the user acted on regardless of what the
+        // action then did — a cancelled flow, a flow that changed nothing, or a
+        // removal refused by the cap all still count. It used to wait for an outcome,
+        // which made it a second, weaker "edited" rather than a record of intent.
+        this.publishActioned(record);
+
         if (this.rowActionType === "Flow") {
-            // Whether this row counts as actioned depends on what the flow
-            // reports, so recording it waits for completion.
             this.openRowActionFlow(record);
             return;
         }
@@ -1335,12 +1340,10 @@ export default class FgridFlowGrid extends LightningElement {
         // maxRemovedRows of 0 or blank means no limit.
         const cap = Number(this.maxRemovedRows);
         if (Number.isFinite(cap) && cap > 0 && this._removedKeys.length >= cap) {
-            // Nothing was removed, so nothing was actioned.
             this._removalBlockedMessage = `You can remove at most ${cap} ${cap === 1 ? "row" : "rows"}.`;
             return;
         }
         this._removalBlockedMessage = null;
-        this.publishActioned(record);
         this._removedKeys = [...this._removedKeys, key];
         // A removed row cannot stay selected, and the current page may no longer
         // exist once the result set shrinks.
@@ -1451,10 +1454,7 @@ export default class FgridFlowGrid extends LightningElement {
      * handled identically once they have finished.
      */
     async applyFlowResult(record, outputVariables) {
-        // Reported on every completion, whether or not the flow changed the row:
-        // a flow that only creates related records still worked on this one.
-        this.publishActioned(record);
-
+        // The actioned record was published on click, so nothing to report here.
         const patch = this.readFlowResult(outputVariables);
         if (patch) {
             this.upsertRecord(patch);

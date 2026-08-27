@@ -322,6 +322,22 @@ If this ever wants to become the Screen Action-style list — enumerate the flow
 inputs, toggle each, Missing badges — that needs discovery back in the editor.
 `FlowGridController.getFlowVariables` is still there and tested by hand.
 
+### 2.3a Actioned Record means CLICKED — decided 2026-08-27
+
+`outputActionedRecord` is a SINGLE record ({T}), not a collection. The collection and
+`markActionedRows` both went in `5b92d6a5`; if Flow Builder still offers a collection,
+that is a stale component definition in the flow, not the current metadata.
+
+It now publishes on **click**, before either row-action branch, and reports the row
+the user acted on regardless of what the action then did: a cancelled flow, a flow
+that changed nothing, and a removal refused by the cap all still report. Previously it
+waited for an outcome, which made it a second, weaker "edited" — and left the
+genuinely useful case (the user clicked, then backed out) reporting nothing at all.
+
+The distinction that matters: **Edited Records is what changed. Actioned Record is
+what the user clicked.** They answer different questions and neither substitutes for
+the other.
+
 ### 2.4 Resource-capable Boolean properties — DROPPED 2026-08-25
 
 Every checkbox in the editor stores a literal, so none can be bound to
