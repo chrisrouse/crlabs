@@ -21,7 +21,7 @@ Test in this order — later items depend on earlier ones working.
 
 ### 1.1 Design time — the property editor
 
-Open the smoke flow, click the Flow Grid element:
+Open the smoke flow — it lives in the org, not the repo — and click the Flow Grid element:
 `/builder_platform_interaction/flowBuilder.app?flowDefId=300Ws00001Ef2jeIAB`
 
 - [ ] The custom editor loads (ten accordion sections, not a flat list of inputs)
@@ -1040,20 +1040,19 @@ Failed so far: explicit `z-index`; host elevation via the kit's
   `fgrid_customDatatable` was deployed for the first time. Hard-refresh after every
   deploy before trusting an error.
 
-- **`FlowGrid_Smoke_Test` cannot be redeployed from the repo.** The committed copy is
-  a snapshot for version control, not a deployable artifact. It still contains the
-  ORIGINAL datatable element for side-by-side comparison, and that element's
-  `official` parameter fails validation on the way back in:
+- **`FlowGrid_Smoke_Test` is no longer in the repo.** Removed 2026-08-27. It was only
+  ever a snapshot for version control, never a deployable artifact: it contains the
+  ORIGINAL datatable element for side-by-side comparison, whose `official` parameter
+  fails validation on the way back in, so it broke any whole-package deploy.
 
   ```
   official (Screen Component) - The value in "official" is either missing or
   contains multiple fields. Enter a single value.
   ```
 
-  Not our component and not our bug — a quirk of the datatable being replaced. The
-  org's copy is authoritative; treat the repo file as read-only history. Deploy with
-  the directories listed rather than `--source-dir flowgrid/force-app`, or the whole
-  deploy fails on this one component (observed 2026-08-26: 41/42).
+  The flow still exists and is maintained IN THE ORG, which is where it is edited and
+  where §1.1 and §1.3 expect to find it. Nothing was deleted from the org — only the
+  stale file. `flowgrid/force-app` now deploys as a whole.
 - **A draft flow cannot be launched.** The row-action picker only lists active
   flows for this reason. `FlowGrid_Edit_Account` is deployed Active.
 - **Relationship columns need the Flow to query them.** Flow's "automatically
@@ -1161,7 +1160,7 @@ Failed so far: explicit `z-index`; host elevation via the kit's
 ```
 flowgrid/force-app/main/default/
   classes/     FlowGridController + Column/Preview/Flow/Record services
-  flows/       FlowGrid_Smoke_Test (draft), FlowGrid_Edit_Account (active)
+  flows/       FlowGrid_Edit_Account (screen), FlowGrid_Set_Rating (autolaunched)
   lwc/
     fgrid_flowGrid           runtime grid
     fgrid_flowGridEditor     the CPE, only writer to Flow Builder
