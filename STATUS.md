@@ -89,7 +89,26 @@ Open the smoke flow, click the Flow Grid element:
 - [x] **Multi-select picklist edits and commits**, array joined back to the stored
       `A;B` form. Verified 2026-08-25. Together these confirm `data-inputable="true"`
       is the commit path for a custom edit cell — see §2.1.
-- [ ] Standard-type columns (text, number, currency, date) edit and commit
+- [x] **Standard-type columns edit and commit.** Date, Datetime and Time verified
+      2026-08-27 against a debug payload. Two defects found and fixed on the way; both
+      are recorded below because both would be easy to reintroduce.
+
+  **Drafts are keyed by `columnKey`, not `fieldName`.** This is the important one.
+  Columns carry `columnKey: fieldName__index` so a dragged width survives a rebuild
+  (§2.9), and the datatable then reports every inline edit under that key. Editing
+  `Date_Test__c` arrived as `Date_Test__c__3` and `upsertRecord` wrote it verbatim,
+  creating a phantom field. The failure is deceptive: the record genuinely differed,
+  so a change was detected and Save was enabled, but the real field never received
+  the value and the cell fell back to empty. Detected and discarded.
+
+  `normalizeDraft` resolves each draft key through a columnKey-to-fieldName map. Do
+  NOT remove that map when touching resize logic — the two features are coupled only
+  through `columnKey`, and nothing else connects them.
+
+  **`cellchange` reports only the cell that just changed**, not the accumulated draft
+  set. Assigning `event.detail.draftValues` wholesale discarded every earlier edit as
+  soon as a second cell was touched, and because `draft-values` is bound back to the
+  table the first cell visibly reverted too. Drafts merge per row.
 - [ ] `outputEditedRecords` / `editedCount` reflect inline edits, and a cell edited
       back to its original value does **not** register
 - [ ] Cancel discards without touching the working collection
