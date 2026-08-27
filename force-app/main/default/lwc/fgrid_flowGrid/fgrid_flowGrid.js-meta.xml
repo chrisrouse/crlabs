@@ -131,6 +131,7 @@
             <property name="rowActionFlowLaunchMode" type="String" label="Flow Launch Mode" role="inputOnly" description="Screen or Headless. Set by the property editor from the chosen flow's type; a screen flow opens in a modal, an autolaunched flow runs with no UI." />
             <property name="rowActionFlowRecordVariable" type="String" label="Flow Record Variable" role="inputOnly" description="Name of the flow's input variable that receives the clicked record. Leave blank to pass no record." />
             <property name="rowActionFlowIdVariable" type="String" label="Flow Record Id Variable" role="inputOnly" description="Name of the flow's input variable that receives the record Id. Leave blank to pass no Id." />
+            <property name="rowActionFlowSavesChanges" type="Boolean" label="The launched flow saves its own changes" role="inputOnly" description="Check this when the launched flow performs its own DML. The grid then compares each change against the record as re-read from the database, and reports only what is still unsaved through Edited Records. Leave unchecked and every change a flow returns is treated as pending." />
             <property name="rowActionFlowModalHeader" type="String" label="Modal Header" default="Edit Record" role="inputOnly" />
             <property name="rowActionFlowModalSize" type="String" label="Modal Size" default="Medium" role="inputOnly" description="Small, Medium, or Large." />
 

@@ -1,5 +1,6 @@
 import { createElement } from "lwc";
 import FgridFlowGrid from "c/fgrid_flowGrid";
+import getRecordsByIds from "@salesforce/apex/FlowGridController.getRecordsByIds";
 
 jest.mock(
     "@salesforce/apex/FlowGridController.getGridMetadata",
@@ -304,5 +305,103 @@ describe("actioned record reports the click", () => {
 
         // Published on click, so a cancelled flow still leaves it reported.
         expect(element.outputActionedRecord.Id).toBe(first.Id);
+    });
+});
+
+describe("a row-action flow that saves its own changes", () => {
+    // When the launched flow does its own DML the change is not pending, so it must
+    // not reach Edited Records — the calling flow would save it a second time. But
+    // the cell still has to show it, because the collection the grid was handed is
+    // now stale. Hence the display-only overlay.
+    //
+    // The grid re-reads the row after every flow action, so what the DATABASE returns
+    // is the whole test: it is what decides saved from unsaved. An earlier version of
+    // these tests left the mock returning undefined, which the grid correctly read as
+    // "the record was deleted" — it asserted nothing about this feature.
+    const target = records(2)[0];
+
+    function build_(props) {
+        return build({
+            records: records(2),
+            rowActionType: "Flow",
+            rowActionFlowApiName: "Some_Flow",
+            rowActionFlowRecordVariable: "record",
+            ...props
+        });
+    }
+
+    async function runAction(element, flowReturns) {
+        element.shadowRoot.querySelector("c-fgrid_custom-datatable").dispatchEvent(
+            new CustomEvent("rowaction", {
+                detail: { action: { name: "fgridRowAction" }, row: target }
+            })
+        );
+        await Promise.resolve();
+        const flow = element.shadowRoot.querySelector("lightning-flow");
+        flow.dispatchEvent(
+            new CustomEvent("statuschange", {
+                detail: { status: "FINISHED", outputVariables: [{ name: "record", value: flowReturns }] }
+            })
+        );
+        // Two turns: the status handler, then the awaited record re-read.
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+    }
+
+    function rowFor(element) {
+        const table = element.shadowRoot.querySelector("c-fgrid_custom-datatable");
+        return table.data.find((candidate) => candidate.Id === target.Id);
+    }
+
+    it("keeps the change pending when the database shows it was not saved", async () => {
+        getRecordsByIds.mockResolvedValue([{ ...target }]);
+        const element = build_({ rowActionFlowSavesChanges: true });
+        await Promise.resolve();
+
+        await runAction(element, { ...target, Industry: "Banking" });
+
+        // The admin said the flow saves, but it demonstrably did not, so the grid does
+        // not take their word for it.
+        expect(element.editedCount).toBe(1);
+        expect(rowFor(element).Industry).toBe("Banking");
+    });
+
+    it("drops the change when the database shows it was saved", async () => {
+        getRecordsByIds.mockResolvedValue([{ ...target, Industry: "Banking" }]);
+        const element = build_({ rowActionFlowSavesChanges: true });
+        await Promise.resolve();
+
+        await runAction(element, { ...target, Industry: "Banking" });
+
+        expect(element.editedCount).toBe(0);
+        expect(element.outputEditedRecords).toEqual([]);
+        // Still displayed, from the overlay rather than from the pending set.
+        expect(rowFor(element).Industry).toBe("Banking");
+    });
+
+    it("reports only the unsaved remainder when a flow saves some fields", async () => {
+        // All-or-nothing would be wrong in both directions here.
+        getRecordsByIds.mockResolvedValue([{ ...target, Industry: "Banking" }]);
+        const element = build_({ rowActionFlowSavesChanges: true });
+        await Promise.resolve();
+
+        await runAction(element, { ...target, Industry: "Banking", Name: "Not Saved Yet" });
+
+        expect(element.editedCount).toBe(1);
+        const [edited] = element.outputEditedRecords;
+        expect(edited.Name).toBe("Not Saved Yet");
+    });
+
+    it("leaves the change pending when the property is off", async () => {
+        // Default behaviour is unchanged: everything a flow returns is pending, even
+        // if the database already agrees.
+        getRecordsByIds.mockResolvedValue([{ ...target, Industry: "Banking" }]);
+        const element = build_({});
+        await Promise.resolve();
+
+        await runAction(element, { ...target, Industry: "Banking" });
+
+        expect(element.editedCount).toBe(1);
     });
 });

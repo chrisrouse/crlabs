@@ -528,6 +528,16 @@ export const SECTIONS = [
                 help: "Leave blank for no limit."
             },
             {
+                property: "rowActionFlowSavesChanges",
+                type: CONTROL.CHECKBOX,
+                label: "The launched flow saves its own changes",
+                when: ["flowAction", "flowConfigured"],
+                help:
+                    "Check this when the flow performs its own DML. The grid then compares each change " +
+                    "against the record as re-read from the database and reports only what is still " +
+                    "unsaved through Edited Records, so the calling flow does not save it twice."
+            },
+            {
                 property: "rowActionFlowModalHeader",
                 type: CONTROL.TEXT,
                 label: "Modal header",

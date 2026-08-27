@@ -147,6 +147,8 @@ export default class FgridFlowGrid extends LightningElement {
     @api rowActionFlowLaunchMode;
     @api rowActionFlowRecordVariable;
     @api rowActionFlowIdVariable;
+    /** The launched flow does its own DML, so its changes are not pending. */
+    @api rowActionFlowSavesChanges = false;
     @api rowActionFlowModalHeader = "Edit Record";
     @api rowActionFlowModalSize = "Medium";
 
@@ -223,6 +225,17 @@ export default class FgridFlowGrid extends LightningElement {
     _removalBlockedMessage = null;
     /** Field patches applied by the row-action flow, keyed by keyField. */
     _editsByKey = {};
+
+    /**
+     * Values confirmed to be in the database already, applied for display only.
+     *
+     * A row-action flow that does its own DML has already saved its change, so the
+     * change is not pending and must not appear in Edited Records — otherwise the
+     * calling flow saves it a second time. But the cell still has to SHOW it, and the
+     * source collection the grid was handed is now stale. Hence a second overlay:
+     * `_editsByKey` is what the calling flow should save, this is what the user sees.
+     */
+    _savedByKey = {};
     /** Records the flow returned whose key was not already in the grid. */
     _addedRecords = [];
     /** The record currently open in the row-action flow modal. */
@@ -427,14 +440,21 @@ export default class FgridFlowGrid extends LightningElement {
     get allKnownRecords() {
         return this.memoized(
             "allKnownRecords",
-            [this.sourceRecords, this._addedRecords, this._editsByKey, this.keyField],
+            [this.sourceRecords, this._addedRecords, this._editsByKey, this._savedByKey, this.keyField],
             () => {
                 const all = this._addedRecords.length
                     ? [...this.sourceRecords, ...this._addedRecords]
                     : this.sourceRecords;
                 return all.map((record) => {
-                    const patch = this._editsByKey[record?.[this.keyField]];
-                    return patch ? { ...record, ...patch } : record;
+                    const key = record?.[this.keyField];
+                    // Saved first, then pending: a later inline edit of the same
+                    // field must win over what the database happens to hold.
+                    const saved = this._savedByKey[key];
+                    const patch = this._editsByKey[key];
+                    if (!saved && !patch) {
+                        return record;
+                    }
+                    return { ...record, ...(saved || {}), ...(patch || {}) };
                 });
             }
         );
@@ -1501,6 +1521,8 @@ export default class FgridFlowGrid extends LightningElement {
         if (current) {
             if (!hadPatch) {
                 this.upsertRecord({ ...current, [this.keyField]: record[this.keyField] });
+            } else if (this.rowActionFlowSavesChanges) {
+                this.settleSavedEdits(record?.[this.keyField], current);
             }
             return;
         }
@@ -1679,6 +1701,45 @@ export default class FgridFlowGrid extends LightningElement {
     }
 
     /**
+     * Moves a row action's already-saved changes out of the pending set.
+     *
+     * Only runs when the admin has said the launched flow does its own DML, and even
+     * then it does not take their word for it: each pending field is compared against
+     * the record as re-read from the database. A field that matches was genuinely
+     * saved and moves to the display-only overlay; one that does not is still pending
+     * and stays in Edited Records. So a flow that saves some fields and returns others
+     * reports exactly the unsaved remainder rather than all or nothing.
+     */
+    settleSavedEdits(key, current) {
+        const pending = this._editsByKey[key];
+        if (!pending) {
+            return;
+        }
+        const stillPending = {};
+        const saved = {};
+        Object.keys(pending).forEach((field) => {
+            if (sameValue(current[field], pending[field])) {
+                saved[field] = pending[field];
+            } else {
+                stillPending[field] = pending[field];
+            }
+        });
+        if (!Object.keys(saved).length) {
+            return;
+        }
+
+        const nextEdits = { ...this._editsByKey };
+        if (Object.keys(stillPending).length) {
+            nextEdits[key] = stillPending;
+        } else {
+            delete nextEdits[key];
+        }
+        this._editsByKey = nextEdits;
+        this._savedByKey = { ...this._savedByKey, [key]: { ...(this._savedByKey[key] || {}), ...saved } };
+        this.publishEdits();
+    }
+
+    /**
      * Converts a draft into the shape the record stores.
      *
      * A multi-select picklist is edited with a checkbox group, whose value is an
@@ -1809,6 +1870,10 @@ export default class FgridFlowGrid extends LightningElement {
             return;
         }
         this._editsByKey = {};
+        // The display-only overlay goes too. A recalculated collection is a fresh read
+        // that already carries anything the database holds, and keeping the overlay
+        // would mask a value the source has since changed back.
+        this._savedByKey = {};
         this.publishEdits();
     }
 

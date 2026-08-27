@@ -54,11 +54,7 @@ private class FlowGridRecordServiceTest {
         List<String> requested = idsOf(accounts);
         delete accounts[0];
 
-        List<SObject> refreshed = FlowGridRecordService.fetchRecords(
-            'Account',
-            new List<String>{ 'Name' },
-            requested
-        );
+        List<SObject> refreshed = FlowGridRecordService.fetchRecords('Account', new List<String>{ 'Name' }, requested);
 
         Assert.areEqual(1, refreshed.size(), 'Only the surviving record should come back');
         Assert.areEqual(accounts[1].Id, refreshed[0].Id, 'And it should be the one that was not deleted');
@@ -77,11 +73,7 @@ private class FlowGridRecordServiceTest {
             FlowGridRecordService.fetchRecords('Account', paths, new List<String>()).size(),
             'Empty ids'
         );
-        Assert.areEqual(
-            0,
-            FlowGridRecordService.fetchRecords('NoSuchObject__c', paths, ids).size(),
-            'Unknown object'
-        );
+        Assert.areEqual(0, FlowGridRecordService.fetchRecords('NoSuchObject__c', paths, ids).size(), 'Unknown object');
     }
 
     @IsTest
@@ -120,10 +112,7 @@ private class FlowGridRecordServiceTest {
     @IsTest
     static void safePathsDeduplicatesCaseInsensitively() {
         // The same field twice would produce a duplicate select entry.
-        List<String> paths = FlowGridRecordService.safePaths(
-            'Account',
-            new List<String>{ 'Name', 'name', 'Id', 'ID' }
-        );
+        List<String> paths = FlowGridRecordService.safePaths('Account', new List<String>{ 'Name', 'name', 'Id', 'ID' });
 
         Assert.areEqual(new List<String>{ 'Id', 'Name' }, paths, 'Duplicates and Id repeats are collapsed');
     }

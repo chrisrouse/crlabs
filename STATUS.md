@@ -74,8 +74,10 @@ Open the smoke flow, click the Flow Grid element:
 - [ ] Cancel the modal instead: confirm nothing changes and no edit is recorded
 - [ ] Finish without changing anything: confirm it does **not** appear in
       `outputEditedRecords` (the value-comparison path)
-- [ ] Point the row action at an **autolaunched** flow: confirm no modal, a brief
-      "Running flow…" indicator, and outputs still fold back in
+- [x] **Point the row action at an autolaunched flow.** Verified 2026-08-27 against
+      the new `FlowGrid_Set_Rating` sample: no modal, and the table updated. Both row
+      action launch modes are now confirmed working. This also exposed §2.3b — the
+      change was reported as a pending edit even when the flow had saved it itself.
 - [ ] **Deleted record:** have the launched flow delete the record, then confirm
       the row leaves the grid and lands in `outputRemovedRecords`
 
@@ -366,6 +368,37 @@ the mapping properties carry platform defaults that cannot be removed. See §4.
 If this ever wants to become the Screen Action-style list — enumerate the flow's
 inputs, toggle each, Missing badges — that needs discovery back in the editor.
 `FlowGridController.getFlowVariables` is still there and tested by hand.
+
+### 2.3b A row action that saves its own changes — added 2026-08-27
+
+**The problem, found in the browser.** A headless row action pointed at a flow that
+performs its own DML still reported the change through `outputEditedRecords`, so the
+calling flow would have saved it a second time. Whether a row-action change is pending
+depends entirely on what the launched flow did, and only its author knows.
+
+**The decision: an admin property that gates a verification, not a suppression.**
+`rowActionFlowSavesChanges` ("The launched flow saves its own changes") is off by
+default, so nothing changed for existing configurations. When it is on, the grid does
+NOT simply discard the change — it compares each changed field against the record as
+re-read from the database (a query `reconcileRow` already performs) and moves only the
+fields that genuinely match. A flow that saves two fields and returns three reports
+exactly the one that is still unsaved.
+
+Boolean note: this one defaults OFF, so it needs no negative label or inversion — the
+§4 trap only bites a Boolean that must default ON.
+
+**Two overlays now, and the distinction matters.** `_editsByKey` is what the calling
+flow should save; `_savedByKey` is what the user sees. A change confirmed present in
+the database moves to the second, because the cell must still show it — the collection
+the grid was handed is stale by then. `allKnownRecords` applies saved first and pending
+second, so a later inline edit of the same field wins. Both are cleared when the source
+collection is recalculated (the §2.6 rule).
+
+**Test note worth keeping.** The first version of these tests left the
+`getRecordsByIds` mock returning undefined, which the grid correctly read as "the
+record was deleted". They passed while asserting nothing about the feature. What the
+database returns IS the test here. Second time today that a green test proved nothing —
+see also §2.2 on the flow-variables loop.
 
 ### 2.3a Actioned Record means CLICKED — decided 2026-08-27
 

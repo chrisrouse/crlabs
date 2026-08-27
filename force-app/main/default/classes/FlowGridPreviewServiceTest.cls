@@ -38,11 +38,7 @@ private class FlowGridPreviewServiceTest {
     static void queryPreviewRecordsClampsToTheCeiling() {
         // A preview is a sample. Whatever the caller asks for, the query must not
         // become an unbounded read of the object.
-        List<SObject> sample = FlowGridPreviewService.queryPreviewRecords(
-            'Account',
-            new List<String>{ 'Name' },
-            500
-        );
+        List<SObject> sample = FlowGridPreviewService.queryPreviewRecords('Account', new List<String>{ 'Name' }, 500);
 
         Assert.areEqual(
             FlowGridPreviewService.MAX_PREVIEW_ROWS,

@@ -192,20 +192,15 @@ private class FlowGridFlowServiceTest {
         // A record the flow cannot accept is dropped rather than failing the action
         // before it starts. Both routes to null are covered: an object name that is
         // not a type, and JSON that is not a record.
-        for (List<String> attempt : new List<List<String>>{
-            new List<String>{ 'NoSuchObject__c', '{"Name":"x"}' },
-            new List<String>{ 'Account', 'not json at all' }
-        }) {
+        for (
+            List<String> attempt : new List<List<String>>{
+                new List<String>{ 'NoSuchObject__c', '{"Name":"x"}' },
+                new List<String>{ 'Account', 'not json at all' }
+            }
+        ) {
             Boolean threw = false;
             try {
-                FlowGridFlowService.runFlow(
-                    'No_Such_Flow_Anywhere',
-                    attempt[0],
-                    attempt[1],
-                    'inputRecord',
-                    null,
-                    null
-                );
+                FlowGridFlowService.runFlow('No_Such_Flow_Anywhere', attempt[0], attempt[1], 'inputRecord', null, null);
             } catch (Exception error) {
                 // Failing at the interview is expected; failing at deserialization
                 // is not, and would have thrown before this point.
