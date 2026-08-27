@@ -1,9 +1,13 @@
-<!-- lightning-formatted-time does exactly this job, so nothing is formatted by hand.
-     It accepts HH:mm, HH:mm:ss and HH:mm:ss.SSS, formats to the user's locale, and
-     documents that "time is always displayed in Universal Time" with offsets ignored
-     — `14:30+05:00` is treated as `14:30`. That is the correct reading of a Time
-     field, whose value is a wall-clock time of day; the trailing Z Apex emits is an
-     artifact of its serializer, not a timezone. -->
+<!-- lightning-formatted-time does the locale formatting, so nothing is formatted by
+     hand. It accepts HH:mm, HH:mm:ss and HH:mm:ss.SSS, and documents that "time is
+     always displayed in Universal Time" with offsets ignored — `14:30+05:00` is
+     treated as `14:30`. That is the correct reading of a Time field, whose value is a
+     wall-clock time of day; the trailing Z Apex emits is an artifact of its
+     serializer, not a timezone.
+
+     It renders whatever precision it is given and has no attributes to control the
+     format, so seconds are hidden by handing it a trimmed value. typeAttributes.display
+     carries HH:mm while `value` keeps full precision for the editor. -->
 <template>
-    <lightning-formatted-time value={value}></lightning-formatted-time>
+    <lightning-formatted-time value={typeAttributes.display}></lightning-formatted-time>
 </template>
