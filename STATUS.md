@@ -600,6 +600,50 @@ width survive a rebuild (§2.9). If a case for locking columns turns up — a to
 layout where drag handles interfere is the most plausible — this is the property to
 reinstate.
 
+### Column widths — six browser configurations tested, 2026-08-27
+
+The full matrix was walked in the org. Per-column **Width was blank in every case**
+(the field shows a placeholder of `auto`), which is what the results turn on:
+
+| Auto sizing | Flex | Width | Result |
+| --- | --- | --- | --- |
+| off | on | blank | columns split the space equally |
+| off | off | blank | **identical** to the row above |
+| on | on | blank | each column sized to its content |
+| on | off | blank | **identical** to the row above |
+
+**Flex is inert without a per-column Width**, confirmed by the two identical pairs. It
+is a modifier that picks between `initialWidth` (resizable) and `fixedWidth` (locked),
+so with no width there is nothing to pick — and it ships CHECKED on every column, which
+made it look as though it were doing the work that the grid-level auto setting was
+actually doing.
+
+**Fixed:** the Flex checkbox is now disabled until the column has a width, with the
+reason on hover. Same category as §2.11 `allowOverflow` — a control that silently does
+nothing — except this one is conditionally meaningful rather than dead, so it is
+constrained rather than removed.
+
+**Still untested:** Width set to a number, then Flex toggled. That is the only
+configuration that exercises Flex at all, and it would also confirm that removing
+"Prevent column resizing" (§2.12) lost nothing, since Flex off IS the per-column lock.
+
+**Auto sizing works in a Flow screen** — verified at runtime, not just in the Studio.
+Whether it works inside a Flow SECTION is still open; that is the flex container the
+reference warns about.
+
+**Two observations worth keeping:**
+
+- Auto mode sizes a column to its DATA, not its header. `Account Rating` and
+  `Employees` both truncated their own labels, because the minimum column width
+  defaults to Salesforce's 50px and our Minimum/Maximum fields ship blank. Raising the
+  minimum to ~110 should clear it. Whether the component should default to ~100 rather
+  than 50 is an open product question — it would change rendering for grids already
+  configured with auto sizing on.
+- After a manual resize the table can end up NARROWER than its container, leaving dead
+  space on the right. This happens in BOTH width modes — an earlier guess that auto
+  mode would recalculate and refill was wrong. It is `lightning-datatable`'s own
+  behaviour inside its shadow DOM, and not reachable from here.
+
 ### Auto column widths — checked against the reference, 2026-08-27
 
 Two things settled while auditing this:

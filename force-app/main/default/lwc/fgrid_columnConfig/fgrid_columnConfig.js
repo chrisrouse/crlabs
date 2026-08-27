@@ -94,6 +94,16 @@ export default class FgridColumnConfig extends LightningElement {
                 // so a stored `false` survives — unlike a Flow Boolean parameter.
                 wrap: attributes.wrap !== false,
                 flex: Boolean(attributes.flex),
+                // Flex is a MODIFIER ON WIDTH, not an independent setting: it picks
+                // between initialWidth (resizable) and fixedWidth (locked). With no
+                // width there is nothing to pick, so the checkbox does nothing —
+                // and it ships checked by default, which made it look as though it
+                // did. Disabled until a width is set, with the reason on hover.
+                flexDisabled: !(Number(attributes.width) > 0),
+                flexHint:
+                    Number(attributes.width) > 0
+                        ? "On: the user can drag this column. Off: the width is locked."
+                        : "Set a width first. Flex only decides whether that width can be resized.",
                 // Lookup display options, mirroring the standard datatable. Both
                 // default ON, so the stored value is only ever an explicit opt-out.
                 isLookup: this.describeByPath?.[field]?.displayType === "REFERENCE",
