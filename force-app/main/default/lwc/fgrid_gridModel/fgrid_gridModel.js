@@ -144,30 +144,6 @@ export function fractionToPercent(value) {
     return Number.isFinite(number) ? number * PERCENT_DISPLAY_DIVISOR : value;
 }
 
-/** Row field holding a Time value formatted for display. */
-export const TIME_LABEL_SUFFIX = "__fgridTime";
-
-/**
- * Formats a Salesforce Time for display.
- *
- * Apex serializes a Time as `14:30:00.000Z`, which is what the datatable would
- * otherwise render verbatim. There is no `time` column type and no
- * `lightning-formatted-time`, so the text is built here.
- *
- * Formatted as UTC deliberately. The trailing `Z` is an artifact of Apex's
- * serializer, not a timezone: a Time field holds a wall-clock time of day, so
- * applying a zone would shift 14:30 to some other hour. The user's LOCALE still
- * decides 12- versus 24-hour.
- */
-export function formatTimeValue(value) {
-    const match = /^(\d{1,2}):(\d{2})/.exec(String(value ?? ""));
-    if (!match) {
-        return value ?? "";
-    }
-    const asDate = new Date(Date.UTC(1970, 0, 1, Number(match[1]), Number(match[2])));
-    return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit", timeZone: "UTC" }).format(asDate);
-}
-
 /** Separator Salesforce uses inside a multi-select picklist value. */
 export const MULTI_PICKLIST_SEPARATOR = ";";
 
@@ -412,14 +388,12 @@ export function buildColumns(fields, config = {}, options = {}) {
 
         // TIME always gets its own cell, unlike the picklist and long text cells which
         // only apply when editable. A read-only Time is NOT indistinguishable from
-        // text: unformatted it renders as `14:30:00.000Z`.
+        // text: the datatable has no time type, so it would print `14:30:00.000Z`
+        // verbatim. The cell's display template hands the value to
+        // lightning-formatted-time, which needs no help from here.
         if (describe?.displayType === "TIME") {
             column.type = "fgridTime";
             column.fgridIsTime = true;
-            column.typeAttributes = {
-                ...(column.typeAttributes || {}),
-                display: { fieldName: field + TIME_LABEL_SUFFIX }
-            };
         }
 
         // Long text gets its own cell ONLY when editable, for the same reason
@@ -596,7 +570,6 @@ export function buildRows(records, columns, keyField = "Id") {
         }));
     const lookupColumns = (columns || []).filter((column) => column.type === "fgridLookup");
     const percentColumns = (columns || []).filter((column) => column.type === "percent");
-    const timeColumns = (columns || []).filter((column) => column.type === "fgridTime");
 
     return records.map((record, index) => {
         const row = {};
@@ -614,10 +587,6 @@ export function buildRows(records, columns, keyField = "Id") {
             if (column.fgridLinkFor && row.Id) {
                 row[column.fgridLinkFor + LINK_SUFFIX] = `/${row.Id}`;
             }
-        });
-
-        timeColumns.forEach((column) => {
-            row[column.fieldName + TIME_LABEL_SUFFIX] = formatTimeValue(row[column.fieldName]);
         });
 
         percentColumns.forEach((column) => {

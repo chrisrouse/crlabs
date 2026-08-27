@@ -335,13 +335,40 @@ Nothing here is scheduled. Deferred by decision, not oversight.
    Dependent picklists (a controlling field filtering the options) are a separate,
    larger piece and explicitly out of scope.
 
-1. **Timezone offset on Date and Time fields — not implemented.** The highest-risk
-   gap, because it is silent data corruption rather than cosmetics. The baseline
-   adjusts Date fields by the running user's offset to keep the correct day, moved
-   the offset to noon to avoid DST edge cases, stores as `YYYY-MM-DD` because
-   datetime broke collection processors, reapplies the offset to edited records,
-   and applies it to Time fields. Flow Grid does none of it, so a date near
-   midnight can display or save a day out.
+1. **Timezone offset on Date and Time — REASSESSED 2026-08-27. Mostly not a gap, and
+   porting the baseline's fix would have made it worse.**
+
+   This was carried for weeks as the highest-risk gap, on the grounds that the
+   baseline adjusts dates by the running user's offset, pins to noon to dodge DST,
+   stores `YYYY-MM-DD`, and reapplies the offset on edit — while Flow Grid did none
+   of it. The conclusion was wrong, because the two designs are not comparable.
+
+   **The baseline's offsets compensate for its own conversion.** It turns a Date into
+   a timestamp on input (`Date.parse(value + "T12:00:00.000Z")` minus the user's
+   offset) and therefore has to undo that on output. It even tried `date-local` and
+   backed out — the code is still there, commented, at `datatable.js:1311-1314`, with
+   a later note about handling `date-local` "like regular date". Flow Grid never does
+   that conversion, so there is nothing to compensate for.
+
+   **`date-local` is the platform's own answer.** The component reference describes it
+   as `lightning-formatted-date-time` with `day`/`month`/`year` and **no timezone
+   conversion**, and the `lightning-formatted-date-time` docs say plainly: "When using
+   the component to display a date only, without time, include `time-zone="UTC"` to
+   ensure the correct date displays in all time zones." Our Apex already maps
+   `DATE → date-local` and `DATETIME → date`, which is exactly that split.
+
+   **Time needs nothing either.** `lightning-formatted-time` documents that "time is
+   always displayed in Universal Time" and that offsets are ignored — `14:30+05:00` is
+   treated as `14:30` — which is the correct reading of a wall-clock time of day.
+
+   **What is genuinely still unverified:** editing a DATETIME. That column is type
+   `date`, which DOES convert to the user's zone for display, so an edit has to return
+   to UTC. Worth testing rather than assuming, and it is a much narrower question than
+   the gap this entry used to describe. A DATE column, on `date-local`, should
+   round-trip untouched.
+
+   Do NOT port the baseline's offset arithmetic without first proving a defect. It
+   would introduce the shift it was written to cancel.
 2. **Multi-currency conversion — accepted and ignored.** `suppressCurrencyConversion`
    exists as a property but nothing implements conversion. The baseline converts
    currency values to the user's currency and supports currency rollup and formula
@@ -575,6 +602,12 @@ multi-line content.
 template, `maxLength` from the field's own describe rather than a guess. Applied only
 when the column is editable, like the picklist cells — read-only it is
 indistinguishable from text.
+
+**Time renders through `lightning-formatted-time`.** An earlier version of this cell
+hand-rolled `Intl.DateTimeFormat` on the belief that no such component existed. It
+does. Its documented behaviour — locale formatting, always UTC, offsets ignored — is
+exactly what a Time field needs, so the helper, its row field and its tests were all
+deleted rather than maintained.
 
 **Rich text stays read-only.** `isHtmlFormatted()` separates the two: Long Text Area
 and Rich Text both present as non-sortable `TEXTAREA`, but rich text stores HTML and a

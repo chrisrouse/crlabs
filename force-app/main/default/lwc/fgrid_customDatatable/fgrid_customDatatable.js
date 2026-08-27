@@ -71,7 +71,7 @@ export default class FgridCustomDatatable extends LightningDatatable {
             template: timeDisplay,
             editTemplate: timeEdit,
             standardCellLayout: true,
-            typeAttributes: ["display"]
+            typeAttributes: []
         }
     };
 }

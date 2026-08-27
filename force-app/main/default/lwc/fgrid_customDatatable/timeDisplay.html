@@ -1,7 +1,9 @@
-<!-- The formatted text, not the stored value: a Time arrives from Apex as
-     `14:30:00.000Z`, which is what a text cell would render verbatim. There is no
-     `time` column type and no lightning-formatted-time, so c/fgrid_gridModel formats
-     it per row and this reads the result. -->
+<!-- lightning-formatted-time does exactly this job, so nothing is formatted by hand.
+     It accepts HH:mm, HH:mm:ss and HH:mm:ss.SSS, formats to the user's locale, and
+     documents that "time is always displayed in Universal Time" with offsets ignored
+     — `14:30+05:00` is treated as `14:30`. That is the correct reading of a Time
+     field, whose value is a wall-clock time of day; the trailing Z Apex emits is an
+     artifact of its serializer, not a timezone. -->
 <template>
-    <span title={typeAttributes.display}>{typeAttributes.display}</span>
+    <lightning-formatted-time value={value}></lightning-formatted-time>
 </template>

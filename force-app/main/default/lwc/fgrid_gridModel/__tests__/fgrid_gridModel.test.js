@@ -17,8 +17,7 @@ import {
     rowsPerPageOptions,
     buildRows,
     percentToFraction,
-    fractionToPercent,
-    formatTimeValue
+    fractionToPercent
 } from "c/fgrid_gridModel";
 
 describe("inferType", () => {
@@ -793,24 +792,18 @@ describe("time columns", () => {
         expect(column.editable).toBe(false);
     });
 
-    it("formats without shifting the hour", () => {
-        // The trailing Z is an artifact of Apex's serializer, not a timezone: a Time
-        // holds a wall-clock time of day, so 14:30 must stay 14:30.
-        expect(formatTimeValue("14:30:00.000Z")).toMatch(/2:30|14:30/);
-        expect(formatTimeValue("09:05:00.000Z")).toMatch(/9:05/);
-        expect(formatTimeValue("00:00:00.000Z")).toMatch(/12:00|00:00/);
-    });
-
-    it("puts the formatted text on the row for the cell to read", () => {
+    it("leaves the stored value untouched for the cell to format", () => {
+        // Nothing is formatted here: the display template hands the raw value to
+        // lightning-formatted-time. Leaving it alone is also what keeps sorting
+        // correct, since HH:mm:ss orders lexically.
         const columns = buildColumns(["Start__c"], {}, { describeByPath: describeTime });
         const [row] = buildRows([{ Id: "a", Start__c: "14:30:00.000Z" }], columns, "Id");
-        expect(row.Start__c__fgridTime).toMatch(/2:30|14:30/);
-        // The stored value is left intact, so sorting still orders correctly.
         expect(row.Start__c).toBe("14:30:00.000Z");
     });
 
-    it("passes an unparseable or empty value through rather than throwing", () => {
-        expect(formatTimeValue(null)).toBe("");
-        expect(formatTimeValue("not a time")).toBe("not a time");
+    it("adds no synthetic row fields for a time column", () => {
+        const columns = buildColumns(["Start__c"], {}, { describeByPath: describeTime });
+        const [row] = buildRows([{ Id: "a", Start__c: "14:30:00.000Z" }], columns, "Id");
+        expect(Object.keys(row).filter((key) => key.includes("fgridTime"))).toEqual([]);
     });
 });
