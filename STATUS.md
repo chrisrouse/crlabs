@@ -600,97 +600,46 @@ width survive a rebuild (§2.9). If a case for locking columns turns up — a to
 layout where drag handles interfere is the most plausible — this is the property to
 reinstate.
 
-### Column widths — six browser configurations tested, 2026-08-27
+### Column widths — simplified to one control, 2026-08-27
 
-The full matrix was walked in the org. Per-column **Width was blank in every case**
-(the field shows a placeholder of `auto`), which is what the results turn on:
+**A column's Width is now the only width setting.** `auto` (blank, the default) or a
+number. Removed on the way here: the per-column `flex` checkbox, the grid-level "Size
+columns to their content", and its Minimum/Maximum column width fields.
 
-| Auto sizing | Flex | Width | Result |
-| --- | --- | --- | --- |
-| off | on | blank | columns split the space equally |
-| off | off | blank | **identical** to the row above |
-| on | on | blank | each column sized to its content |
-| on | off | blank | **identical** to the row above |
+**What each state does**
 
-**Flex is inert without a per-column Width**, confirmed by the two identical pairs. It
-is a modifier that picks between `initialWidth` (resizable) and `fixedWidth` (locked),
-so with no width there is nothing to pick — and it ships CHECKED on every column, which
-made it look as though it were doing the work that the grid-level auto setting was
-actually doing.
+- **`auto`** — the column shares the available space with the other auto columns, and
+  reflows as they are pinned or the window resizes. This is what `flex` was asking for.
+- **a number** — `initialWidth`, the admin's chosen width. Honoured exactly once there
+  is nothing left to compress.
 
-**Fixed:** the Flex checkbox is now disabled until the column has a width, with the
-reason on hover. Same category as §2.11 `allowOverflow` — a control that silently does
-nothing — except this one is conditionally meaningful rather than dead, so it is
-constrained rather than removed.
+Verified in the org: adding widths one column at a time narrowed the remaining auto
+columns, the last one stopped at the platform's 50px floor and began to overflow, and
+once every column had a value the widths were exact and the table overflowed as
+expected. Acceptable at every step, and all of it with content sizing OFF — the
+configuration that turned out to be the good one.
 
-**Still untested:** Width set to a number, then Flex toggled. That is the only
-configuration that exercises Flex at all, and it would also confirm that removing
-"Prevent column resizing" (§2.12) lost nothing, since Flex off IS the per-column lock.
+**Why the global setting went.** It decided what `auto` MEANT — equal share versus
+fit-to-content — which is a third dimension on top of a control that already reads
+`auto` or a number. It was off by default, the default behaviour is the desirable one,
+and content sizing shipped looking broken: it sizes a column to its DATA, so
+`Account Rating` and `Employees` truncated their own headers at the 50px minimum.
 
-**Auto sizing works in a Flow screen** — verified at runtime, not just in the Studio.
-Whether it works inside a Flow SECTION is still open; that is the flex container the
-reference warns about.
+**What was lost, knowingly.** Fit-to-content sizing. A per-column Width cannot
+reproduce it — an admin now types a number instead of having the table measure. Judged
+worth it: typing `100` is more predictable than hoping the measurement agrees with you,
+and content sizing was never verified inside a Flow screen SECTION, which is the flex
+container the reference says is unsupported.
 
-**Two observations worth keeping:**
+**Min/max had a visibility bug worth recording.** `min-column-width` applies in fixed
+mode too, but the editor only showed the fields when content sizing was on. They were
+hidden in the mode where the attribute was still in effect. No behaviour impact, because
+nothing was sent when hidden and the platform default of 50px applied — which is exactly
+the floor observed in testing.
 
-- Auto mode sizes a column to its DATA, not its header. `Account Rating` and
-  `Employees` both truncated their own labels, because the minimum column width
-  defaults to Salesforce's 50px and our Minimum/Maximum fields ship blank. Raising the
-  minimum to ~110 should clear it. Whether the component should default to ~100 rather
-  than 50 is an open product question — it would change rendering for grids already
-  configured with auto sizing on.
-- After a manual resize the table can end up NARROWER than its container, leaving dead
-  space on the right. This happens in BOTH width modes — an earlier guess that auto
-  mode would recalculate and refill was wrong. It is `lightning-datatable`'s own
-  behaviour inside its shadow DOM, and not reachable from here.
-
-### Auto column widths — checked against the reference, 2026-08-27
-
-Two things settled while auditing this:
-
-- **The flex caveat in the help text is correct**, and is the reference's own wording:
-  "Auto width mode is supported for containers with block display... doesn't fully
-  support containers with `display:inline-block` or flex properties."
-- **Persisted drag widths do NOT conflict with auto mode**, contrary to what was
-  suspected. The reference is explicit: "Specify your own widths for particular columns
-  using the `fixedWidth` or `initialWidth` properties. The widths of the columns
-  without these properties are calculated based on the width of the content." So the
-  §2.9 resize-persistence fix is correct in both modes and needs no special case.
-
-**What is still unverified:** whether auto mode works at all inside a Flow screen
-SECTION. Flow lays a section's columns out with flex, which is the container type the
-reference says is not fully supported. The help text now says "may not work" rather
-than asserting either way. Worth a browser check before anyone relies on it.
-
-## 2.11 `allowOverflow` removed — 2026-08-27
-
-**The property did nothing.** "Allow content to overflow the grid" added a class
-setting `overflow: visible`, which is the CSS initial value, to a wrapper whose only
-style is an inline `height`. There is no `.grid__wrapper` base rule and no inline
-`overflow`, so the class overrode nothing.
-
-It was live once: `wrapperStyle` used to emit `overflow: auto`, and the class beat it.
-Removing that inline overflow (to fix the double scrollbar gutter, §2.10) silently
-turned the property into dead configuration.
-
-**It could not have worked in any case.** A clipped editor is clipped by
-`lightning-datatable`'s OWN scroll container, inside its shadow DOM. Styling our outer
-wrapper cannot affect it, so no value of this checkbox could ever have changed a
-clipped dropdown.
-
-**And the risk it claimed to mitigate has not appeared.** Every editor type has been
-exercised in the browser with the setting off, and none was clipped: picklist and
-multi-select (`lightning-combobox`), lookup (`lightning-record-picker`), long text
-(textarea, scrolls internally), and the Date popup, which was confirmed working when
-date editing was re-enabled. These are base components that own their own overflow —
-a combobox repositions its dropdown rather than escaping its container.
-
-If clipping ever does appear, this wrapper is not the lever. The options would be the
-datatable's own behaviour, or not giving it a fixed-height scroll container at all —
-and the latter conflicts with §2.10, where the fixed height is what makes infinite
-scrolling fire and keeps the layout stable between pages.
-
-## 2.10 Performance, row loading, and pagination — 2026-08-27
+**Still true and unchanged:** after a manual resize the table can end up narrower than
+its container, leaving dead space on the right. That is `lightning-datatable`'s own
+behaviour inside its shadow DOM and is not reachable from here.
 
 ### The 300-record slowdown
 

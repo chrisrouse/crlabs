@@ -85,9 +85,6 @@ export default class FgridFlowGrid extends LightningElement {
     @api showSelectedCount = false;
     @api showRowNumbers = false;
     @api tableHeight;
-    @api autoColumnWidths = false;
-    @api minColumnWidth;
-    @api maxColumnWidth;
     @api wrapTableHeader;
     @api wrapTextMaxLines;
     @api showReadOnlyIcon = false;
@@ -1092,11 +1089,6 @@ export default class FgridFlowGrid extends LightningElement {
      */
     get wrapperStyle() {
         return `height: ${this.tableHeight || DEFAULT_TABLE_HEIGHT};`;
-    }
-
-    /** `fixed` splits the space equally; `auto` sizes each column to its content. */
-    get columnWidthsMode() {
-        return this.autoColumnWidths ? "auto" : "fixed";
     }
 
     /** Radio is the datatable's default for single select; this offers the checkbox

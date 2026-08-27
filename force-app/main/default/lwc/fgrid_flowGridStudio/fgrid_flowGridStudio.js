@@ -249,10 +249,6 @@ export default class FgridFlowGridStudio extends LightningElement {
 
     /* Datatable attributes the preview mirrors so layout choices are visible here. */
 
-    get previewColumnWidthsMode() {
-        return this.values?.autoColumnWidths ? "auto" : "fixed";
-    }
-
     get previewSingleRowSelectionMode() {
         return this.values?.singleSelectAsCheckbox ? "checkbox" : undefined;
     }
