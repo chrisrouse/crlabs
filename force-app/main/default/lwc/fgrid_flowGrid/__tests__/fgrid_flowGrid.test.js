@@ -494,3 +494,68 @@ describe("wrapped lines", () => {
         expect(element.shadowRoot.querySelector("c-fgrid_custom-datatable").wrapTableHeader).toBe("by-column");
     });
 });
+
+describe("selection limits and control", () => {
+    function table(element) {
+        return element.shadowRoot.querySelector("c-fgrid_custom-datatable");
+    }
+
+    it("caps Single at one row regardless of the maximum", async () => {
+        const element = build({ records: records(5), selectionMode: "Single", maxSelection: 4 });
+        await Promise.resolve();
+
+        expect(table(element).maxRowSelection).toBe(1);
+    });
+
+    it("applies the maximum only for Multiple, and leaves it open when blank", async () => {
+        const capped = build({ records: records(5), selectionMode: "Multiple", maxSelection: 3 });
+        await Promise.resolve();
+        expect(table(capped).maxRowSelection).toBe(3);
+
+        const open = build({ records: records(5), selectionMode: "Multiple" });
+        await Promise.resolve();
+        expect(table(open).maxRowSelection).toBeUndefined();
+    });
+
+    it("uses a checkbox for single selection only when asked", async () => {
+        // The distinction is whether the selection can be undone: a radio cannot be
+        // cleared once chosen, a checkbox can. That is why no Clear Selection button
+        // is needed any more.
+        const radio = build({ records: records(2), selectionMode: "Single" });
+        await Promise.resolve();
+        expect(table(radio).singleRowSelectionMode).toBeUndefined();
+
+        const checkbox = build({
+            records: records(2),
+            selectionMode: "Single",
+            singleSelectControl: "Checkbox"
+        });
+        await Promise.resolve();
+        expect(table(checkbox).singleRowSelectionMode).toBe("checkbox");
+    });
+
+    it("requires the minimum before the screen will advance", async () => {
+        const element = build({ records: records(5), selectionMode: "Multiple", minSelection: 2 });
+        await Promise.resolve();
+
+        const result = element.validate();
+        expect(result.isValid).toBe(false);
+        expect(result.errorMessage).toBe("Select at least 2 rows to continue.");
+    });
+
+    it("ignores the minimum for Single, where Require is the switch", async () => {
+        const element = build({ records: records(5), selectionMode: "Single", minSelection: 3 });
+        await Promise.resolve();
+
+        expect(element.validate().isValid).toBe(true);
+    });
+
+    it("still requires one row for Single when Require is on", async () => {
+        const element = build({ records: records(5), selectionMode: "Single", isRequired: true });
+        await Promise.resolve();
+
+        const result = element.validate();
+        expect(result.isValid).toBe(false);
+        expect(result.errorMessage).toBe("Select at least one row to continue.");
+    });
+});

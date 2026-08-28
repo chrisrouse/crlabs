@@ -58,13 +58,6 @@
                             ></lightning-input>
                         </div>
                     </template>
-                    <template lwc:if={showClearSelection}>
-                        <lightning-button
-                            variant="neutral"
-                            label="Clear Selection"
-                            onclick={handleClearSelection}
-                        ></lightning-button>
-                    </template>
                 </div>
             </div>
         </template>
@@ -120,6 +113,7 @@
                         selected-rows={selectedRowKeys}
                         disabled-rows={disabledRows}
                         max-row-selection={maxRowSelection}
+                        single-row-selection-mode={singleRowSelectionMode}
                         hide-checkbox-column={hideCheckboxColumn}
                         show-row-number-column={showRowNumbers}
                         sorted-by={sortedBy}
@@ -155,20 +149,6 @@
                         onpagechange={handlePageChange}
                         onrowsperpagechange={handleRowsPerPageChange}
                     ></c-fgrid_pagination>
-                </template>
-
-                <!-- Clear Selection lives in the header when one is shown. -->
-                <template lwc:if={showHeader}></template>
-                <template lwc:else>
-                    <template lwc:if={showClearSelection}>
-                        <div class="grid__footer">
-                            <lightning-button
-                                variant="base"
-                                label="Clear Selection"
-                                onclick={handleClearSelection}
-                            ></lightning-button>
-                        </div>
-                    </template>
                 </template>
             </template>
 

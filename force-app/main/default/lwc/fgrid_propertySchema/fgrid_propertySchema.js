@@ -41,9 +41,15 @@ export const DATA_TYPE_FOR = {
 };
 
 export const SELECTION_MODES = [
-    { label: "Multiple (checkboxes)", value: "Multiple" },
-    { label: "Single (radio buttons)", value: "Single" },
-    { label: "None (read only)", value: "None" }
+    { label: "Multiple", value: "Multiple" },
+    { label: "Single", value: "Single" },
+    { label: "View only", value: "None" }
+];
+
+/** How a single selection is presented, and therefore whether it can be undone. */
+export const SINGLE_SELECT_CONTROLS = [
+    { label: "Radio button", value: "Radio" },
+    { label: "Checkbox", value: "Checkbox" }
 ];
 
 const ROW_ACTION_TYPES = [
@@ -135,6 +141,7 @@ export const VISIBILITY = {
     headerShown: (v) => Boolean(v.showHeader),
     selectable: (v) => v.selectionMode !== "None",
     singleSelect: (v) => v.selectionMode === "Single",
+    multiSelect: (v) => v.selectionMode === "Multiple",
     paginated: (v) => v.rowLoading === "Paginate",
     searchable: (v) => Boolean(v.showSearchBar),
     // Named explicitly rather than "not None", so a configuration left over from
@@ -209,13 +216,6 @@ export const SECTIONS = [
                 collection: "only",
                 when: ["sobjectSource"],
                 help: "Records the user cannot select or edit. They still appear, greyed, so it is clear why a row is unavailable rather than it simply being missing. Build the collection in the Flow — for example every record whose Status is Pending. Matched to rows by the key field."
-            },
-            {
-                property: "keyField",
-                type: CONTROL.FIELD,
-                label: "Key field",
-                when: ["sobjectSource", "hasObject"],
-                help: "Unique identifier for each row. Normally Id."
             },
             {
                 property: "recordsJson",
@@ -314,21 +314,48 @@ export const SECTIONS = [
         name: "selection",
         label: "Selection",
         controls: [
-            { property: "selectionMode", type: CONTROL.SELECT, label: "Selection mode", options: SELECTION_MODES },
             {
-                property: "isRequired",
-                type: CONTROL.CHECKBOX,
-                label: "Require at least one selected row",
-                when: ["selectable"]
+                property: "selectionMode",
+                type: CONTROL.SELECT,
+                label: "Row selection mode",
+                options: SELECTION_MODES
             },
             {
-                property: "hideClearSelectionButton",
+                property: "minSelection",
+                type: CONTROL.NUMBER,
+                label: "Minimum selection",
+                when: ["multiSelect"],
+                help: "Fewest rows the user must select before the screen will advance. Blank means no minimum."
+            },
+            {
+                property: "maxSelection",
+                type: CONTROL.NUMBER,
+                label: "Maximum selection",
+                when: ["multiSelect"],
+                help: "Most rows the user can select. Blank means no limit."
+            },
+            {
+                // Single only. For Multiple, a Minimum of 1 says the same thing, and
+                // two controls meaning one thing is how a panel gets confusing.
+                property: "isRequired",
                 type: CONTROL.CHECKBOX,
-                label: "Hide the Clear Selection button",
-                // `selectable`, not `singleSelect`: the runtime shows the button for
-                // ANY selection mode, so offering the switch only for single left
-                // Multiple with a button that could not be turned off.
-                when: ["selectable"]
+                label: "Require user to make a selection",
+                when: ["singleSelect"]
+            },
+            {
+                property: "singleSelectControl",
+                type: CONTROL.SELECT,
+                label: "Selection control",
+                options: SINGLE_SELECT_CONTROLS,
+                when: ["singleSelect"],
+                help: "A radio button reads unmistakably as pick-one, but cannot be cleared once chosen. A checkbox can be unticked."
+            },
+            {
+                property: "keyField",
+                type: CONTROL.FIELD,
+                label: "Unique identifier",
+                when: ["sobjectSource", "hasObject"],
+                help: "Field that uniquely identifies each row. Normally Id."
             }
         ]
     },

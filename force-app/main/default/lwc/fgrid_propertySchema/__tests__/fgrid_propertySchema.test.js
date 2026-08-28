@@ -63,13 +63,19 @@ describe("data source visibility", () => {
             "isUserDefinedObject",
             "records",
             "preSelectedRecords",
-            "disabledRecords",
-            "keyField"
+            "disabledRecords"
         ]);
     });
 
-    it("withholds the key field until an object is known", () => {
-        expect(visible("source", {})).not.toContain("keyField");
+    it("keeps the unique identifier in Selection, not in the data source", () => {
+        // It names the field a row is identified by, which is what selection is keyed
+        // on, so it belongs beside the selection mode rather than beside the pickers.
+        expect(visible("source", { objectApiName: "Account" })).not.toContain("keyField");
+        expect(visible("selection", { objectApiName: "Account" })).toContain("keyField");
+    });
+
+    it("withholds the unique identifier until an object is known", () => {
+        expect(visible("selection", {})).not.toContain("keyField");
     });
 
     it("swaps to JSON inputs for a user-defined source", () => {
@@ -105,13 +111,20 @@ describe("conditional sections", () => {
         expect(visible("selection", { selectionMode: "None" })).toEqual(["selectionMode"]);
     });
 
-    it("offers Clear Selection wherever the button can appear", () => {
-        // The runtime shows the button for ANY selection mode, so offering the switch
-        // only for Single left Multiple with a button that could not be turned off.
-        // This test previously asserted the bug.
-        expect(visible("selection", { selectionMode: "Single" })).toContain("hideClearSelectionButton");
-        expect(visible("selection", { selectionMode: "Multiple" })).toContain("hideClearSelectionButton");
-        expect(visible("selection", { selectionMode: "None" })).not.toContain("hideClearSelectionButton");
+    it("offers min and max only for Multiple", () => {
+        const multiple = visible("selection", { selectionMode: "Multiple" });
+        expect(multiple).toContain("minSelection");
+        expect(multiple).toContain("maxSelection");
+        expect(visible("selection", { selectionMode: "Single" })).not.toContain("minSelection");
+    });
+
+    it("offers the required switch and the control choice only for Single", () => {
+        // For Multiple, a Minimum of 1 says the same thing as Require, and two
+        // controls meaning one thing is how a panel gets confusing.
+        const single = visible("selection", { selectionMode: "Single" });
+        expect(single).toContain("isRequired");
+        expect(single).toContain("singleSelectControl");
+        expect(visible("selection", { selectionMode: "Multiple" })).not.toContain("isRequired");
     });
 
     it("shows page settings only when pagination is on", () => {

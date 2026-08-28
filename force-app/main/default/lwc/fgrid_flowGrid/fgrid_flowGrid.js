@@ -95,7 +95,9 @@ export default class FgridFlowGrid extends LightningElement {
     // ----- Selection -----
     @api selectionMode = "Multiple";
     @api isRequired = false;
-    @api hideClearSelectionButton = false;
+    @api minSelection;
+    @api maxSelection;
+    @api singleSelectControl = "Radio";
 
     // ----- Search, filter, sort -----
     @api showSearchBar = false;
@@ -752,7 +754,31 @@ export default class FgridFlowGrid extends LightningElement {
     }
 
     get maxRowSelection() {
-        return this.selectionMode === "Single" ? 1 : undefined;
+        if (this.selectionMode === "Single") {
+            return 1;
+        }
+        const limit = Number(this.maxSelection);
+        return Number.isFinite(limit) && limit > 0 ? limit : undefined;
+    }
+
+    /**
+     * Radio unless the admin asked for a checkbox.
+     *
+     * The distinction is whether a single selection can be undone: a radio cannot be
+     * cleared once chosen, a checkbox can be unticked. This is the platform's own
+     * mechanism for it, and the reason no Clear Selection button is needed.
+     */
+    get singleRowSelectionMode() {
+        return this.selectionMode === "Single" && this.singleSelectControl === "Checkbox" ? "checkbox" : undefined;
+    }
+
+    /** Fewest rows that must be selected, or 0 when nothing is required. */
+    get requiredSelectionCount() {
+        if (this.selectionMode === "Single") {
+            return this.isRequired ? 1 : 0;
+        }
+        const minimum = Number(this.minSelection);
+        return Number.isFinite(minimum) && minimum > 0 ? Math.trunc(minimum) : 0;
     }
 
     get selectedRowKeys() {
@@ -779,10 +805,6 @@ export default class FgridFlowGrid extends LightningElement {
         return source.map((record) => record?.[this.keyField]).filter((key) => key !== null && key !== undefined);
     }
 
-    get showClearSelection() {
-        return this.isSelectable && !this.hideClearSelectionButton && this._selectedKeys.length > 0;
-    }
-
     /**
      * Whether the toolbar row has anything in it.
      *
@@ -791,7 +813,7 @@ export default class FgridFlowGrid extends LightningElement {
      * all be met and the button still never rendered.
      */
     get showToolbar() {
-        return Boolean(this.showHeader) || Boolean(this.showSearchBar) || this.showClearSelection;
+        return Boolean(this.showHeader) || Boolean(this.showSearchBar);
     }
 
     /* ----- header ----- */
@@ -1173,9 +1195,13 @@ export default class FgridFlowGrid extends LightningElement {
 
     /** Shown once the user has interacted and a required selection is missing. */
     get validationMessage() {
-        return this._touched && this.isRequired && this._selectedKeys.length === 0
+        const required = this.requiredSelectionCount;
+        if (!this._touched || required === 0 || this._selectedKeys.length >= required) {
+            return null;
+        }
+        return required === 1
             ? "Select at least one row to continue."
-            : null;
+            : `Select at least ${required} rows to continue.`;
     }
 
     get hasValidationMessage() {
@@ -1190,11 +1216,6 @@ export default class FgridFlowGrid extends LightningElement {
         this._touched = true;
         const selected = event.detail.selectedRows || [];
         this._selectedKeys = selected.map((row) => row[this.keyField]);
-        this.publishSelection();
-    }
-
-    handleClearSelection() {
-        this._selectedKeys = [];
         this.publishSelection();
     }
 
@@ -1811,9 +1832,16 @@ export default class FgridFlowGrid extends LightningElement {
      */
     @api
     validate() {
-        if (this.isRequired && this._selectedKeys.length === 0) {
+        const required = this.requiredSelectionCount;
+        if (required > 0 && this._selectedKeys.length < required) {
             this._touched = true;
-            return { isValid: false, errorMessage: "Select at least one row to continue." };
+            return {
+                isValid: false,
+                errorMessage:
+                    required === 1
+                        ? "Select at least one row to continue."
+                        : `Select at least ${required} rows to continue.`
+            };
         }
         return { isValid: true };
     }

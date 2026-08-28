@@ -620,6 +620,49 @@ width survive a rebuild (§2.9). If a case for locking columns turns up — a to
 layout where drag handles interfere is the most plausible — this is the property to
 reinstate.
 
+### Selection reworked to match the native panel — 2026-08-27
+
+| Control | Property | Shown when |
+| --- | --- | --- |
+| Row selection mode | `selectionMode` | always — Multiple / Single / **View only** |
+| Minimum selection | `minSelection` *(new)* | Multiple |
+| Maximum selection | `maxSelection` *(new)* | Multiple |
+| Require user to make a selection | `isRequired` | **Single only** |
+| Selection control | `singleSelectControl` *(new)* | Single — Radio button / Checkbox |
+| Unique identifier | `keyField` | moved here from the data source |
+
+`maxRowSelection` was a derived getter (1 for Single, unlimited otherwise); it now
+honours `maxSelection` for Multiple. `validate()` and the inline message understand a
+minimum, so Multiple can demand N rows rather than just one.
+
+**`isRequired` is Single-only now.** For Multiple, a Minimum of 1 says exactly the same
+thing, and two controls meaning one thing is how a panel gets confusing.
+
+**The Clear Selection button is gone entirely**, and with it
+`hideClearSelectionButton`. The reasoning, arrived at by working backwards from where
+it was needed:
+
+- **Multiple** — the datatable's own header checkbox selects and clears all. The button
+  was redundant.
+- **Single** — a radio CANNOT be cleared once chosen, in the datatable or in plain HTML,
+  and it lives in the shadow DOM so no handler can intercept the click. The button was
+  the only escape. But `single-row-selection-mode="checkbox"` is the platform's own
+  answer to that, which is what the Selection control now exposes.
+
+So every mode is clearable by native means and no bespoke selection UI remains. An
+admin who picks Radio and wants clearing has no way — the same position the native
+datatable takes.
+
+**A reversal worth naming.** `singleSelectAsCheckbox` was removed earlier the same day
+as redundant with Clear Selection. That was wrong: the two were alternative answers to
+one problem, not a workaround and a fix. It returns as `singleSelectControl`, a
+Radio/Checkbox choice rather than a Boolean.
+
+**And a test that asserted a bug.** "Offers Clear Selection only for single-row
+selection" pinned the editor hiding a switch for a button the runtime showed in every
+mode. Third time today a green test proved nothing — see also the flow-variables loop
+and the `getRecordsByIds` mock.
+
 ### Width has no helper actions — decided 2026-08-27
 
 Two were built and both removed the same hour. Recorded so neither is proposed again
