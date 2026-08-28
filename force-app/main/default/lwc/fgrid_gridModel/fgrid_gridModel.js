@@ -271,6 +271,9 @@ export function rowsPerPageOptions(configured, maxRows) {
 /** Header-menu action name that opens the filter editor for a column. */
 export const FILTER_ACTION_NAME = "fgridFilter";
 
+/** Header-menu action that moves blank values to the top of a sort. */
+export const BLANKS_FIRST_ACTION_NAME = "fgridBlanksFirst";
+
 /** Name field assumed on a lookup's target object. Correct for the overwhelming
  *  majority; objects keyed on something else (CaseNumber, Subject) would need the
  *  target's own describe, which is not worth a describe call per lookup column. */
@@ -302,6 +305,7 @@ export function buildColumns(fields, config = {}, options = {}) {
         forceReadOnly = false,
         filterActions = false,
         readOnlyIcon = false,
+        blanksFirstFields = [],
         userTimeZone = null
     } = options;
 
@@ -362,8 +366,21 @@ export function buildColumns(fields, config = {}, options = {}) {
         // The menu item is deliberately stateless: what IS filtered is reported by
         // the pills above the table, so this label never has to change and
         // buildColumns stays free of runtime filter state.
+        const actions = [];
         if (filterActions && attributes.filter === true && !hideHeaderActions) {
-            column.actions = [{ label: "Filter…", name: FILTER_ACTION_NAME, iconName: "utility:filterList" }];
+            actions.push({ label: "Filter…", name: FILTER_ACTION_NAME, iconName: "utility:filterList" });
+        }
+        // Offered on any sortable column, because it changes nothing until that
+        // column is the one being sorted. `checked` is what draws the tick.
+        if (column.sortable && !hideHeaderActions) {
+            actions.push({
+                label: "Show Blanks First",
+                name: BLANKS_FIRST_ACTION_NAME,
+                checked: blanksFirstFields.includes(field)
+            });
+        }
+        if (actions.length) {
+            column.actions = actions;
         }
 
         // A custom cell type ONLY when the column is editable. A read-only
@@ -741,7 +758,7 @@ function picklistCellOptions(entry, value) {
  * @param {string} direction `asc` or `desc`
  * @param {boolean} caseInsensitive compare text without regard to case
  */
-export function sortRows(rows, fieldName, direction = "asc") {
+export function sortRows(rows, fieldName, direction = "asc", blanksFirst = false) {
     if (!Array.isArray(rows) || !fieldName) {
         return rows || [];
     }
@@ -751,16 +768,18 @@ export function sortRows(rows, fieldName, direction = "asc") {
         const a = normalizeForSort(left?.[fieldName]);
         const b = normalizeForSort(right?.[fieldName]);
 
+        // Blanks are grouped, not sorted: they go to one end regardless of
+        // direction, so reversing the sort does not scatter them through the middle.
         const aBlank = a === null || a === "";
         const bBlank = b === null || b === "";
         if (aBlank && bBlank) {
             return 0;
         }
         if (aBlank) {
-            return 1;
+            return blanksFirst ? -1 : 1;
         }
         if (bBlank) {
-            return -1;
+            return blanksFirst ? 1 : -1;
         }
         if (a === b) {
             return 0;

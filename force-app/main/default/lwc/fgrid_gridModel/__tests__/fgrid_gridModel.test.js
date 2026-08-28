@@ -18,7 +18,8 @@ import {
     buildRows,
     percentToFraction,
     fractionToPercent,
-    sortRows
+    sortRows,
+    BLANKS_FIRST_ACTION_NAME
 } from "c/fgrid_gridModel";
 
 describe("inferType", () => {
@@ -982,5 +983,40 @@ describe("sorting ignores case", () => {
     it("leaves numbers alone", () => {
         const numeric = [{ N: 10 }, { N: 2 }, { N: 33 }];
         expect(sortRows(numeric, "N", "asc").map((r) => r.N)).toEqual([2, 10, 33]);
+    });
+});
+
+describe("show blanks first", () => {
+    const rows = [{ Name: "Zebra" }, { Name: null }, { Name: "acme" }, { Name: "" }];
+
+    it("sends blanks to the bottom by default, in both directions", () => {
+        // Blanks are grouped rather than sorted, so reversing does not scatter them
+        // through the middle.
+        expect(sortRows(rows, "Name", "asc").map((r) => r.Name)).toEqual(["acme", "Zebra", null, ""]);
+        expect(sortRows(rows, "Name", "desc").map((r) => r.Name)).toEqual(["Zebra", "acme", null, ""]);
+    });
+
+    it("sends them to the top when asked", () => {
+        expect(sortRows(rows, "Name", "asc", true).map((r) => r.Name)).toEqual([null, "", "acme", "Zebra"]);
+        expect(sortRows(rows, "Name", "desc", true).map((r) => r.Name)).toEqual([null, "", "Zebra", "acme"]);
+    });
+
+    it("offers the action on any sortable column, ticked only where it is on", () => {
+        const describeFor = { Name: { label: "Name", dataType: "text", isSortable: true } };
+        const [plain] = buildColumns(["Name"], {}, { describeByPath: describeFor });
+        const [ticked] = buildColumns(["Name"], {}, { describeByPath: describeFor, blanksFirstFields: ["Name"] });
+
+        const find = (column) => column.actions.find((a) => a.name === BLANKS_FIRST_ACTION_NAME);
+        expect(find(plain).checked).toBe(false);
+        expect(find(ticked).checked).toBe(true);
+    });
+
+    it("offers no actions at all when header actions are hidden", () => {
+        const [column] = buildColumns(
+            ["Name"],
+            {},
+            { describeByPath: { Name: { label: "Name", dataType: "text" } }, hideHeaderActions: true }
+        );
+        expect(column.actions).toBeUndefined();
     });
 });

@@ -45,6 +45,7 @@ import {
     isFilterActive,
     describeFilter,
     FILTER_ACTION_NAME,
+    BLANKS_FIRST_ACTION_NAME,
     PICKLIST_OPTIONS_SUFFIX,
     PICKLIST_SELECTED_SUFFIX,
     ROW_ACTION_NAME
@@ -221,6 +222,12 @@ export default class FgridFlowGrid extends LightningElement {
     _metadataError;
     _sortField;
     _sortDirection = "asc";
+
+    /** Column the table draws its sort arrow on; see tableSortedBy. */
+    _tableSortedBy = null;
+
+    /** Fields whose sort puts blanks at the top, toggled from the header menu. */
+    _blanksFirst = [];
     _touched = false;
     _searchTerm = "";
     /** Per-column filter text, keyed by field path. */
@@ -528,7 +535,8 @@ export default class FgridFlowGrid extends LightningElement {
                 this.rowActionButtonLabel,
                 this.rowActionButtonIcon,
                 this.rowActionButtonIconPosition,
-                this.rowActionButtonVariant
+                this.rowActionButtonVariant,
+                this._blanksFirst
             ],
             () => this.buildGridColumns()
         );
@@ -547,6 +555,7 @@ export default class FgridFlowGrid extends LightningElement {
             // cannot filter, so a header action there would do nothing.
             filterActions: true,
             readOnlyIcon: Boolean(this.showReadOnlyIcon),
+            blanksFirstFields: this._blanksFirst,
             userTimeZone: this._metadata?.userTimeZone
         });
 
@@ -605,7 +614,8 @@ export default class FgridFlowGrid extends LightningElement {
                 this._sortField,
                 this._sortDirection,
                 this.matchCaseOnFilters,
-                this.isSearchByWord
+                this.isSearchByWord,
+                this._blanksFirst
             ],
             () => {
                 const columns = this.columns;
@@ -618,7 +628,12 @@ export default class FgridFlowGrid extends LightningElement {
                 );
                 rows = filterRows(rows, this._filters, this.matchCaseOnFilters);
                 if (this._sortField) {
-                    rows = sortRows(rows, this._sortField, this._sortDirection);
+                    rows = sortRows(
+                        rows,
+                        this._sortField,
+                        this._sortDirection,
+                        this._blanksFirst.includes(this._sortField)
+                    );
                 }
                 return rows;
             }
@@ -1265,6 +1280,21 @@ export default class FgridFlowGrid extends LightningElement {
      */
     handleHeaderAction(event) {
         const { action, columnDefinition } = event.detail;
+
+        if (action?.name === BLANKS_FIRST_ACTION_NAME) {
+            // Keyed by the field the column SORTS on, which for a linked Name column
+            // or a lookup is not the field the datatable reports.
+            const sorted = this.columns.find((candidate) => candidate.fieldName === columnDefinition?.fieldName);
+            const field = sorted?.fgridTextField || sorted?.fgridLinkFor || columnDefinition?.fieldName;
+            if (!field) {
+                return;
+            }
+            this._blanksFirst = this._blanksFirst.includes(field)
+                ? this._blanksFirst.filter((candidate) => candidate !== field)
+                : [...this._blanksFirst, field];
+            return;
+        }
+
         if (action?.name !== FILTER_ACTION_NAME) {
             return;
         }
@@ -1826,6 +1856,24 @@ export default class FgridFlowGrid extends LightningElement {
         return normalized;
     }
 
+    /**
+     * The column the datatable should draw its arrow on, and which way.
+     *
+     * Deliberately NOT the `sortedBy` / `sortDirection` output properties, even
+     * though they hold the same values. Those belong to Flow: it owns them, may
+     * write them back on its own schedule, and an outputOnly property is not a
+     * dependable place to keep view state. Binding the table to them meant the
+     * table could not see its own current direction, so every click reported `asc`
+     * and the sort would never invert.
+     */
+    get tableSortedBy() {
+        return this._tableSortedBy;
+    }
+
+    get tableSortDirection() {
+        return this._sortDirection;
+    }
+
     handleSort(event) {
         const { fieldName, sortDirection } = event.detail;
         // Sort on what the column shows, not on what it stores. A link column would
@@ -1834,8 +1882,10 @@ export default class FgridFlowGrid extends LightningElement {
         const column = this.columns.find((candidate) => candidate.fieldName === fieldName);
         this._sortField = column?.fgridTextField || column?.fgridLinkFor || fieldName;
         this._sortDirection = sortDirection;
-        // sortedBy stays the datatable's own fieldName so the arrow lands on the
-        // column the user clicked.
+        // The datatable's own fieldName, so the arrow lands on the column the user
+        // clicked — a linked Name column reports its generated URL field, which is
+        // what the table matches against.
+        this._tableSortedBy = fieldName;
         this.publish("sortedBy", fieldName);
         this.publish("sortDirection", sortDirection);
         this.resetVisibleRows();
