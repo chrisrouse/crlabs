@@ -144,9 +144,29 @@ Open the smoke flow — it lives in the org, not the repo — and click the Flow
       buttons while row 5 stayed selectable.
       This verifies the kit patch end to end as well — the Collection Filter output is
       not merely visible in the picker, it is consumed as a real input at runtime.
-- [ ] A disabled row also refuses inline editing, not just selection. The reference
-      describes these as rows the user "cannot modify", so it should, but that half is
-      unconfirmed.
+- [x] **Answered by the reference, 2026-08-27: it does NOT.** "Use the `disabled-rows`
+      attribute to prevent users from changing the **selection status** of specified
+      rows." Selection only — a disabled row can still be inline-edited and its row
+      action still fires. An earlier note here guessed otherwise from the phrase
+      "cannot modify"; that was wrong. See the decision below.
+
+#### Disabled rows stay editable and actionable — DECIDED 2026-08-27
+
+Two options were proposed and both declined: "Prevent editing disabled records" and
+"Prevent row actions on disabled records".
+
+The row-action half was clean — `button` and `button-icon` both accept `disabled` as a
+typeAttribute, which resolves per row via `{ fieldName }`, so the control would render
+greyed and genuinely refuse the click.
+
+The editing half was not. `editable` is per COLUMN with no per-row override, so the
+pencil would still appear on a disabled row and the only enforcement point is the
+commit: drop the draft and flag the row through `errors`. That is "you may start the
+edit and it will be refused", not "you cannot start it". Declined on that basis rather
+than shipping half a guarantee, and the row-action option went with it rather than
+leaving a partial story.
+
+Reinstating either means accepting that ceiling; the platform is unlikely to move.
 
 ### 1.5 Runtime — Remove row action
 
