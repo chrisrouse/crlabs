@@ -166,10 +166,7 @@ const WRAP_UNSUPPORTED_TYPES = new Set(["action", "boolean", "button", "button-i
  * formula, an auto-number, a compound Address, a polymorphic lookup — stays
  * read-only no matter what the column config says.
  */
-function resolveEditable(attributes, describe, defaultEditable, forceReadOnly) {
-    if (forceReadOnly) {
-        return false;
-    }
+function resolveEditable(attributes, describe, defaultEditable) {
     const requested = attributes.edit ?? (describe ? describe.isEditable && defaultEditable : defaultEditable);
     if (!requested) {
         return false;
@@ -311,6 +308,10 @@ export function buildColumns(fields, config = {}, options = {}) {
     return (fields || []).map((field, index) => {
         const attributes = config?.[field] || {};
         const describe = describeByPath?.[field] || null;
+        // What the admin configured, before the Studio preview's blanket read-only is
+        // applied. The lock icon reads this so the preview shows the same locks the
+        // runtime will.
+        const configuredEditable = resolveEditable(attributes, describe, defaultEditable);
 
         const column = {
             label: attributes.label || describe?.label || defaultLabel(field),
@@ -334,7 +335,12 @@ export function buildColumns(fields, config = {}, options = {}) {
             // Absent a describe — a user-defined object, or the Studio preview before
             // Apex answers — the config is still trusted, because there is nothing to
             // check it against.
-            editable: resolveEditable(attributes, describe, defaultEditable, forceReadOnly),
+            // forceReadOnly is the Studio preview, which cannot edit anything. It is
+            // applied HERE rather than inside resolveEditable so the read-only lock
+            // below can still ask whether the column is configured as editable — the
+            // preview used to put a lock on every column, including the ones an admin
+            // had just ticked Edit on.
+            editable: !forceReadOnly && configuredEditable,
             hideDefaultActions: Boolean(hideHeaderActions),
             // Distinct from fieldName, which a linked Name column rewrites to a
             // generated URL field. Also what keeps two columns on the SAME field
@@ -573,7 +579,7 @@ export function buildColumns(fields, config = {}, options = {}) {
 
         // A lock on a read-only column, but only worth showing on a grid where
         // something else IS editable — otherwise every column wears one.
-        if (readOnlyIcon && !column.editable) {
+        if (readOnlyIcon && !configuredEditable) {
             column.displayReadOnlyIcon = true;
         }
 

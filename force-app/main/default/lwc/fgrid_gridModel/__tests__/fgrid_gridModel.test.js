@@ -891,3 +891,36 @@ describe("datetime timezone", () => {
         expect(column.typeAttributes.timeZone).toBeUndefined();
     });
 });
+
+describe("read-only lock reflects configuration, not the preview", () => {
+    const describeFor = {
+        Name: { label: "Name", dataType: "text", isEditable: true },
+        CreatedDate: { label: "Created", dataType: "date", isEditable: false }
+    };
+
+    it("locks only the columns that are not configured as editable", () => {
+        const [name, created] = buildColumns(
+            ["Name", "CreatedDate"],
+            { Name: { edit: true } },
+            { describeByPath: describeFor, readOnlyIcon: true }
+        );
+
+        expect(name.displayReadOnlyIcon).toBeUndefined();
+        expect(created.displayReadOnlyIcon).toBe(true);
+    });
+
+    it("keeps those same locks in the Studio preview", () => {
+        // The preview forces every column read-only because it cannot edit anything,
+        // which used to put a lock on all of them — including a column the admin had
+        // just ticked Edit on.
+        const [name, created] = buildColumns(
+            ["Name", "CreatedDate"],
+            { Name: { edit: true } },
+            { describeByPath: describeFor, readOnlyIcon: true, forceReadOnly: true }
+        );
+
+        expect(name.editable).toBe(false);
+        expect(name.displayReadOnlyIcon).toBeUndefined();
+        expect(created.displayReadOnlyIcon).toBe(true);
+    });
+});
