@@ -56,7 +56,13 @@ export const DATA_TYPE_FOR = {
     [CONTROL.FIELD]: "String",
     [CONTROL.FIELDS]: "String",
     [CONTROL.RESOURCE]: "reference",
-    [CONTROL.INTEGER]: "Integer"
+    // "Number", NOT "Integer". Flow's value data types are String, Number, Boolean,
+    // Date, DateTime and reference; "Integer" is a PROPERTY type in js-meta.xml and
+    // not one of them. Sending it made Flow Builder fail to build the element at all:
+    // "can't access property 1, Object.entries(...).find(...) is undefined" from
+    // builder_platform_interaction:elementFactory, on save. The kit's own number input
+    // sends "Number", which is the path that has always worked.
+    [CONTROL.INTEGER]: "Number"
     // TEXT and NUMBER take their data type from the picker's event, because the
     // admin may supply either a literal or a Flow reference.
 };

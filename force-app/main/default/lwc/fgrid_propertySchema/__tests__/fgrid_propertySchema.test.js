@@ -4,7 +4,8 @@ import {
     resolveSection,
     schemaProperties,
     CONTROL,
-    EDITOR_MANAGED_PROPERTIES
+    EDITOR_MANAGED_PROPERTIES,
+    DATA_TYPE_FOR
 } from "c/fgrid_propertySchema";
 
 function section(name) {
@@ -300,5 +301,15 @@ describe("integer controls", () => {
         for (const values of [{ selectionMode: "Multiple" }, { selectionMode: "Multiple", minSelection: null }]) {
             expect(resolveSection(section("rows"), values).find((c) => c.property === "maxSelection").min).toBe(1);
         }
+    });
+});
+
+describe("integer values are typed for Flow", () => {
+    it("sends Number, never Integer", () => {
+        // Flow's value data types are String, Number, Boolean, Date, DateTime and
+        // reference. "Integer" is a property type in js-meta.xml and not one of them:
+        // sending it made Flow Builder fail to build the element on save.
+        expect(DATA_TYPE_FOR[CONTROL.INTEGER]).toBe("Number");
+        expect(Object.values(DATA_TYPE_FOR)).not.toContain("Integer");
     });
 });

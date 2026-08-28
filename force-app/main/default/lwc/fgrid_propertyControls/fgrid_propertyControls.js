@@ -75,7 +75,10 @@ export default class FgridPropertyControls extends LightningElement {
         if (!Number.isFinite(parsed) || parsed < 0) {
             return;
         }
-        this.publish(property, Math.trunc(parsed), DATA_TYPE_FOR[CONTROL.INTEGER]);
+        // Published as a STRING, matching what the kit's number input sends. Flow
+        // stores a literal as text and declares the property as Integer, so it coerces
+        // on the way into the component.
+        this.publish(property, String(Math.trunc(parsed)), DATA_TYPE_FOR[CONTROL.INTEGER]);
     }
 
     handleSelect(event) {
