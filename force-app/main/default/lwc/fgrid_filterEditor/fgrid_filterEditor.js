@@ -37,6 +37,9 @@ export default class FgridFilterEditor extends LightningElement {
     /** The column being filtered: `{ path, label, kind, options }`. */
     @api column;
 
+    /** Mirrors the grid's Match Case setting, so the popup can say so. */
+    @api matchCase = false;
+
     /** Existing filter for that column, if any. */
     @api
     get filter() {

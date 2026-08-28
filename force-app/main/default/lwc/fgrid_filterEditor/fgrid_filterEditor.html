@@ -13,6 +13,14 @@
             </header>
 
             <div class="slds-modal__content slds-p-around_medium">
+                <!-- Case sensitivity is a grid-level setting an admin chose once, and
+                     is not otherwise visible from here — so the filter that obeys it
+                     says so. -->
+                <template lwc:if={matchCase}>
+                    <p class="slds-text-body_small slds-text-color_weak slds-m-bottom_x-small">
+                        Filters are case-sensitive.
+                    </p>
+                </template>
                 <lightning-combobox
                     label="Operator"
                     value={draft.operator}
