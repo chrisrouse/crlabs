@@ -72,7 +72,7 @@
             <property name="isRequired" type="Boolean" label="Require a Selection" default="false" role="inputOnly" description="Single selection only. For Multiple, a Minimum Selection of 1 or more says the same thing." />
             <property name="minSelection" type="Integer" label="Minimum Selection" role="inputOnly" description="Fewest rows the user must select before the screen will advance. Multiple selection only." />
             <property name="maxSelection" type="Integer" label="Maximum Selection" role="inputOnly" description="Most rows the user can select. Multiple selection only; leave blank for no limit." />
-            <property name="singleSelectControl" type="String" label="Single Selection Control" default="Radio" role="inputOnly" description="Radio or Checkbox. A radio reads unmistakably as pick-one but cannot be cleared once chosen; a checkbox can be unticked." />
+            <property name="singleSelectControl" type="String" label="Row Selector Type" default="Radio" role="inputOnly" description="Radio or Checkbox, for single-row selection. Checkbox allows users to deselect a row; a radio cannot be cleared once chosen." />
 
             <!-- ======================= Search, filter, sort ======================== -->
             <property name="showSearchBar" type="Boolean" label="Show Search Bar" default="false" role="inputOnly" />

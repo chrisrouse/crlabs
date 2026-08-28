@@ -357,11 +357,11 @@ export const SECTIONS = [
             },
             {
                 property: "singleSelectControl",
-                type: CONTROL.SELECT,
-                label: "Selection control",
+                type: CONTROL.RADIO,
+                label: "Row Selector Type",
                 options: SINGLE_SELECT_CONTROLS,
                 when: ["singleSelect"],
-                help: "A radio button reads unmistakably as pick-one, but cannot be cleared once chosen. A checkbox can be unticked."
+                help: "Checkbox allows users to deselect a row"
             },
             {
                 property: "keyField",
