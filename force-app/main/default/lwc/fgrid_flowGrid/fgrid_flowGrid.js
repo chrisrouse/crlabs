@@ -125,7 +125,6 @@ export default class FgridFlowGrid extends LightningElement {
     @api maxNumberOfRows;
 
     // ----- Inline editing -----
-    @api suppressBottomBar = false;
     @api navigateNextOnSave = false;
 
     // ----- Row action -----

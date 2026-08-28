@@ -178,12 +178,6 @@ describe("row action visibility", () => {
 });
 
 describe("disabled state", () => {
-    it("greys Navigate Next while the bottom bar is hidden", () => {
-        const [, navigate] = resolveSection(section("editing"), { suppressBottomBar: true });
-        expect(navigate.property).toBe("navigateNextOnSave");
-        expect(navigate.disabled).toBe(true);
-    });
-
     it("greys same-tab links when the name field is not linked", () => {
         // Stored negatively: hideNameFieldLink true IS "not linked".
         const [, sameTab] = resolveSection(section("formatting"), { hideNameFieldLink: true });

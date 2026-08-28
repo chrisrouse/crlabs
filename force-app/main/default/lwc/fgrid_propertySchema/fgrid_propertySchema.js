@@ -187,7 +187,6 @@ export const VISIBILITY = {
 
 /** Named predicates that grey a control out instead of hiding it. */
 export const DISABLED = {
-    bottomBarHidden: (v) => Boolean(v.suppressBottomBar),
     nameFieldNotLinked: (v) => Boolean(v.hideNameFieldLink)
 };
 
@@ -439,17 +438,9 @@ export const SECTIONS = [
         label: "Inline Editing",
         controls: [
             {
-                property: "suppressBottomBar",
-                type: CONTROL.CHECKBOX,
-                label: "Hide the Cancel/Save Bar",
-                help: "Edits apply as soon as the user leaves the cell instead of on Save."
-            },
-            {
                 property: "navigateNextOnSave",
                 type: CONTROL.CHECKBOX,
-                label: "Go to the Next Flow Element on Save",
-                disabledWhen: ["bottomBarHidden"],
-                help: "Unavailable while the Cancel/Save bar is hidden, because there is no Save to react to."
+                label: "Go to the Next Flow Element on Save"
             }
         ]
     },

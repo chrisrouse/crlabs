@@ -131,8 +131,16 @@ Open the smoke flow — it lives in the org, not the repo — and click the Flow
 - [ ] `navigateNextOnSave` advances the screen on Save
 - [ ] A row whose stored picklist value is inactive keeps that value as a
       preselected option instead of losing it
-- [ ] `suppressBottomBar` hides the Cancel/Save bar (it was hardcoded on before,
-      so this path has never run)
+- [x] **`suppressBottomBar` REMOVED 2026-08-27** rather than tested. Two reasons, and
+      the second is decisive. It was probably broken: `onsave` is the only path that
+      calls `upsertRecord`, so hiding the Save button would have left every edit as a
+      draft that never reached `outputEditedRecords`, and the help text promised the
+      opposite ("edits apply as soon as the user leaves the cell"). And the reference
+      forbids it outright — "The table-level errors require the table bottom bar to be
+      present. Don't include the attribute `suppress-bottom-bar`" — so the setting
+      silently disabled the error reporting `tableErrors` exists to provide.
+      `navigateNextOnSave` also fired from the same handler, so hiding the bar broke
+      that too: one checkbox quietly disabling three things.
 - [ ] Recalculate the incoming collection mid-edit and confirm unsaved edits are
       discarded — the §2.6 rule
 
@@ -190,8 +198,9 @@ stock `lightning-datatable`:
 - `onsave` routes each draft through `upsertRecord`, which already keeps only
   genuinely-differing fields and publishes `outputEditedRecords` / `editedCount`
 - `navigateNextOnSave` dispatches `FlowNavigationNextEvent`
-- **`suppress-bottom-bar` was hardcoded on the element**, so the bar could never
-  appear regardless of the property. Now bound to `suppressBottomBar`
+- **The Cancel/Save bar is always present.** It was once hardcoded off, then briefly
+  bound to a `suppressBottomBar` property, which was removed on 2026-08-27: the bar
+  carries table-level errors, and the reference says not to suppress it
 - a column is editable only when its column config sets `edit`. There is no
   grid-level switch, and `defaultEditable` is deliberately not passed at runtime
 
@@ -1325,9 +1334,8 @@ Failed so far: explicit `z-index`; host elevation via the kit's
   `hideNoneOption` and `searchWholePhrase` replaced their positive counterparts on
   2026-08-25. The editor keeps the positive label and inverts on read and write via
   `invert: true` in `fgrid_propertySchema`, so nothing changed for the admin. This is
-  the same reason `hideHeaderActions`, `hideClearSelectionButton`,
-  `suppressBottomBar` and `suppressCurrencyConversion` were already framed
-  negatively — the pattern was there, it just was not understood as load-bearing.
+  the same reason `hideHeaderActions` and `suppressCurrencyConversion` were already
+  framed negatively — the pattern was there, it just was not understood as load-bearing.
 
   **Rule for any new Boolean: if it should default ON, name it negatively, and give
   it a negative LABEL too.**
@@ -1342,9 +1350,9 @@ Failed so far: explicit `z-index`; host elevation via the kit's
   The shape that works is the plainest one, identical to `showRecordCount`:
   `Boolean` with `default="false"` in the contract, `@api hideX = false` at runtime,
   a plain checkbox descriptor, no `DEFAULTS` entry, and a label that states the
-  negative. No display translation anywhere. `hideHeaderActions`,
-  `hideClearSelectionButton`, `suppressBottomBar` and `suppressCurrencyConversion`
-  had always been this shape, which is why they always worked.
+  negative. No display translation anywhere. `hideHeaderActions` and
+  `suppressCurrencyConversion` had always been this shape, which is why they always
+  worked.
 
   Accepted consequence: a defaults-on setting cannot show a positive label. Current
   labels are "Do not link the Name field", "Hide --None-- in editable picklists" and
