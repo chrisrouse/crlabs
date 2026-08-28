@@ -1258,6 +1258,20 @@ Failed so far: explicit `z-index`; host elevation via the kit's
   `fgrid_customDatatable` was deployed for the first time. Hard-refresh after every
   deploy before trusting an error.
 
+  **The same cache also hides changes that DID deploy.** Twice on 2026-08-27 a change
+  looked unapplied — a relabelled button, then the whole Title Case sweep — and both
+  times the org already had it. Before debugging a change that "did not work", confirm
+  what is actually deployed:
+
+  ```
+  sf data query --use-tooling-api --query "SELECT FilePath, LastModifiedDate FROM \
+    LightningComponentResource WHERE LightningComponentBundle.DeveloperName = '<bundle>'"
+  ```
+
+  Add `Source` to the SELECT and grep it for the new string. Note that
+  `sf project retrieve start --output-dir` silently retrieved NOTHING in this project
+  on both attempts, so the Tooling API query is the reliable check.
+
 - **`FlowGrid_Smoke_Test` is no longer in the repo.** Removed 2026-08-27. It was only
   ever a snapshot for version control, never a deployable artifact: it contains the
   ORIGINAL datatable element for side-by-side comparison, whose `official` parameter
