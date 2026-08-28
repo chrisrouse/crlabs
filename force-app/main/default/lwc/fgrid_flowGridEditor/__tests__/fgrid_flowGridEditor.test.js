@@ -47,9 +47,9 @@ describe("panel layout", () => {
 
         expect(sections(element)).toEqual([
             "source",
+            "rows",
             "columns",
             "display",
-            "selection",
             "find",
             "pagination",
             "editing",

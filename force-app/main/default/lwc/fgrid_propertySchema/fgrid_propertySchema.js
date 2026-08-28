@@ -276,8 +276,61 @@ export const SECTIONS = [
         ]
     },
     {
+        name: "rows",
+        label: "Configure Rows",
+        controls: [
+            {
+                property: "selectionMode",
+                type: CONTROL.RADIO,
+                label: "Row Selection Mode",
+                options: SELECTION_MODES
+            },
+            {
+                property: "minSelection",
+                type: CONTROL.INTEGER,
+                label: "Minimum Selection",
+                when: ["multiSelect"],
+                inline: true,
+                min: 0
+            },
+            {
+                property: "maxSelection",
+                type: CONTROL.INTEGER,
+                label: "Maximum Selection",
+                when: ["multiSelect"],
+                inline: true,
+                // Never below the minimum: a maximum under it can never be satisfied.
+                min: 1,
+                minFrom: "minSelection"
+            },
+            {
+                // Single only. For Multiple, a Minimum of 1 says the same thing, and
+                // two controls meaning one thing is how a panel gets confusing.
+                property: "isRequired",
+                type: CONTROL.CHECKBOX,
+                label: "Require User to Make a Selection",
+                when: ["singleSelect"]
+            },
+            {
+                property: "singleSelectControl",
+                type: CONTROL.RADIO,
+                label: "Row Selector Type",
+                options: SINGLE_SELECT_CONTROLS,
+                when: ["singleSelect"],
+                help: "Checkbox allows users to deselect a row"
+            },
+            {
+                property: "keyField",
+                type: CONTROL.FIELD,
+                label: "Unique Identifier",
+                when: ["sobjectSource", "hasObject"],
+                help: "Field that uniquely identifies each row. Normally Id."
+            }
+        ]
+    },
+    {
         name: "columns",
-        label: "Columns",
+        label: "Configure Columns",
         // The per-column attribute grid renders after these controls.
         hasColumnGrid: true,
         controls: [
@@ -329,59 +382,6 @@ export const SECTIONS = [
                 label: "Grid Height",
                 placeholder: "30rem",
                 help: "CSS height, for example 30rem or calc(50vh - 100px). Leave blank to fit all rows."
-            }
-        ]
-    },
-    {
-        name: "selection",
-        label: "Selection",
-        controls: [
-            {
-                property: "selectionMode",
-                type: CONTROL.RADIO,
-                label: "Row Selection Mode",
-                options: SELECTION_MODES
-            },
-            {
-                property: "minSelection",
-                type: CONTROL.INTEGER,
-                label: "Minimum Selection",
-                when: ["multiSelect"],
-                inline: true,
-                min: 0
-            },
-            {
-                property: "maxSelection",
-                type: CONTROL.INTEGER,
-                label: "Maximum Selection",
-                when: ["multiSelect"],
-                inline: true,
-                // Never below the minimum: a maximum under it can never be satisfied.
-                min: 1,
-                minFrom: "minSelection"
-            },
-            {
-                // Single only. For Multiple, a Minimum of 1 says the same thing, and
-                // two controls meaning one thing is how a panel gets confusing.
-                property: "isRequired",
-                type: CONTROL.CHECKBOX,
-                label: "Require User to Make a Selection",
-                when: ["singleSelect"]
-            },
-            {
-                property: "singleSelectControl",
-                type: CONTROL.RADIO,
-                label: "Row Selector Type",
-                options: SINGLE_SELECT_CONTROLS,
-                when: ["singleSelect"],
-                help: "Checkbox allows users to deselect a row"
-            },
-            {
-                property: "keyField",
-                type: CONTROL.FIELD,
-                label: "Unique Identifier",
-                when: ["sobjectSource", "hasObject"],
-                help: "Field that uniquely identifies each row. Normally Id."
             }
         ]
     },

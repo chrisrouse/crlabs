@@ -71,11 +71,11 @@ describe("data source visibility", () => {
         // It names the field a row is identified by, which is what selection is keyed
         // on, so it belongs beside the selection mode rather than beside the pickers.
         expect(visible("source", { objectApiName: "Account" })).not.toContain("keyField");
-        expect(visible("selection", { objectApiName: "Account" })).toContain("keyField");
+        expect(visible("rows", { objectApiName: "Account" })).toContain("keyField");
     });
 
     it("withholds the unique identifier until an object is known", () => {
-        expect(visible("selection", {})).not.toContain("keyField");
+        expect(visible("rows", {})).not.toContain("keyField");
     });
 
     it("swaps to JSON inputs for a user-defined source", () => {
@@ -108,23 +108,23 @@ describe("conditional sections", () => {
     });
 
     it("hides selection options when nothing is selectable", () => {
-        expect(visible("selection", { selectionMode: "None" })).toEqual(["selectionMode"]);
+        expect(visible("rows", { selectionMode: "None" })).toEqual(["selectionMode"]);
     });
 
     it("offers min and max only for Multiple", () => {
-        const multiple = visible("selection", { selectionMode: "Multiple" });
+        const multiple = visible("rows", { selectionMode: "Multiple" });
         expect(multiple).toContain("minSelection");
         expect(multiple).toContain("maxSelection");
-        expect(visible("selection", { selectionMode: "Single" })).not.toContain("minSelection");
+        expect(visible("rows", { selectionMode: "Single" })).not.toContain("minSelection");
     });
 
     it("offers the required switch and the control choice only for Single", () => {
         // For Multiple, a Minimum of 1 says the same thing as Require, and two
         // controls meaning one thing is how a panel gets confusing.
-        const single = visible("selection", { selectionMode: "Single" });
+        const single = visible("rows", { selectionMode: "Single" });
         expect(single).toContain("isRequired");
         expect(single).toContain("singleSelectControl");
-        expect(visible("selection", { selectionMode: "Multiple" })).not.toContain("isRequired");
+        expect(visible("rows", { selectionMode: "Multiple" })).not.toContain("isRequired");
     });
 
     it("shows page settings only when pagination is on", () => {
@@ -253,13 +253,13 @@ describe("control presentation", () => {
     it("renders the selection mode as a radio group", () => {
         // Few options, and the choice steers the rest of the section, so all three
         // stay readable instead of hiding behind a closed combobox.
-        const mode = resolveSection(section("selection"), {}).find((c) => c.property === "selectionMode");
+        const mode = resolveSection(section("rows"), {}).find((c) => c.property === "selectionMode");
         expect(mode.isRadio).toBe(true);
         expect(mode.isSelect).toBe(false);
     });
 
     it("pairs minimum and maximum selection on one line", () => {
-        const controls = resolveSection(section("selection"), { selectionMode: "Multiple" });
+        const controls = resolveSection(section("rows"), { selectionMode: "Multiple" });
         const min = controls.find((c) => c.property === "minSelection");
         const max = controls.find((c) => c.property === "maxSelection");
 
@@ -268,14 +268,14 @@ describe("control presentation", () => {
     });
 
     it("leaves an unpaired control on its own line", () => {
-        const mode = resolveSection(section("selection"), {}).find((c) => c.property === "selectionMode");
+        const mode = resolveSection(section("rows"), {}).find((c) => c.property === "selectionMode");
         expect(mode.cssClass).toBe("control");
     });
 });
 
 describe("integer controls", () => {
     function selection(values) {
-        return resolveSection(section("selection"), values);
+        return resolveSection(section("rows"), values);
     }
 
     it("uses a plain integer input, not the resource-capable one", () => {
@@ -304,7 +304,7 @@ describe("integer controls", () => {
     it("falls back to one when no minimum is set", () => {
         // A maximum of 0 would mean the user may select nothing at all.
         for (const values of [{ selectionMode: "Multiple" }, { selectionMode: "Multiple", minSelection: null }]) {
-            expect(resolveSection(section("selection"), values).find((c) => c.property === "maxSelection").min).toBe(1);
+            expect(resolveSection(section("rows"), values).find((c) => c.property === "maxSelection").min).toBe(1);
         }
     });
 });

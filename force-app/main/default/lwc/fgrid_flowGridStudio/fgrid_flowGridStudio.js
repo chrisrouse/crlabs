@@ -92,7 +92,7 @@ export default class FgridFlowGridStudio extends LightningElement {
     }
 
     /** Section names expanded in the left pane. */
-    openSections = ["source", "columns"];
+    openSections = ["source", "rows", "columns"];
 
     _values = {};
     _objectApiName;
