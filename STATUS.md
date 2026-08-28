@@ -103,6 +103,19 @@ Open the smoke flow — it lives in the org, not the repo — and click the Flow
   NOT remove that map when touching resize logic — the two features are coupled only
   through `columnKey`, and nothing else connects them.
 
+  **The same trap caught SORTING on 2026-08-27.** Once a column carries a `columnKey`,
+  the datatable identifies it by that everywhere, and `sorted-by` has to be echoed back
+  as the columnKey. Feeding it the fieldName meant the table never recognised the
+  column as sorted, so it refused to flip — the second click emitted NO event at all
+  and a grid could only ever sort ascending. Found by console probe after three wrong
+  guesses from static reading; the event detail carries both `fieldName` and
+  `columnKey`, which is what gave it away.
+
+  **The rule: any per-column state the datatable round-trips belongs to `columnKey`,
+  not `fieldName`, once `columnKey` exists.** That is drafts, sort, and column widths
+  so far. Check `handleHeaderAction` if a fourth turns up — it still matches on
+  fieldName, which happens to work today.
+
   **`cellchange` reports only the cell that just changed**, not the accumulated draft
   set. Assigning `event.detail.draftValues` wholesale discarded every earlier edit as
   soon as a second cell was touched, and because `draft-values` is bound back to the

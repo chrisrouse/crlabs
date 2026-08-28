@@ -610,3 +610,51 @@ describe("auto-saving edits", () => {
         expect(row.Name).toBe("Renamed");
     });
 });
+
+describe("sort state is keyed by columnKey", () => {
+    // The datatable identifies a column by columnKey once one exists, and echoes it
+    // back on the sort event. Feeding `sorted-by` the fieldName instead meant it never
+    // recognised the column as sorted, refused to flip, and emitted nothing at all on
+    // the second click — a grid that could only sort ascending.
+    function sort(element, detail) {
+        element.shadowRoot.querySelector("c-fgrid_custom-datatable").dispatchEvent(new CustomEvent("sort", { detail }));
+        return Promise.resolve();
+    }
+
+    it("echoes the columnKey back as sorted-by", async () => {
+        const element = build({ records: records(3) });
+        await Promise.resolve();
+        const table = element.shadowRoot.querySelector("c-fgrid_custom-datatable");
+        const column = table.columns.find((candidate) => candidate.fieldName === "Name");
+
+        await sort(element, { fieldName: "Name", columnKey: column.columnKey, sortDirection: "asc" });
+
+        expect(table.sortedBy).toBe(column.columnKey);
+        expect(table.sortedBy).not.toBe("Name");
+    });
+
+    it("accepts the flipped direction on a second sort", async () => {
+        const element = build({ records: records(3) });
+        await Promise.resolve();
+        const table = element.shadowRoot.querySelector("c-fgrid_custom-datatable");
+        const column = table.columns.find((candidate) => candidate.fieldName === "Name");
+
+        await sort(element, { fieldName: "Name", columnKey: column.columnKey, sortDirection: "asc" });
+        await sort(element, { fieldName: "Name", columnKey: column.columnKey, sortDirection: "desc" });
+
+        expect(table.sortedDirection).toBe("desc");
+        expect(table.data.map((row) => row.Name)).toEqual(["Account 2", "Account 1", "Account 0"]);
+    });
+
+    it("reports the real field to the flow, not the columnKey", async () => {
+        const element = build({ records: records(3) });
+        await Promise.resolve();
+        const column = element.shadowRoot
+            .querySelector("c-fgrid_custom-datatable")
+            .columns.find((candidate) => candidate.fieldName === "Name");
+
+        await sort(element, { fieldName: "Name", columnKey: column.columnKey, sortDirection: "asc" });
+
+        expect(element.sortedBy).toBe("Name");
+    });
+});

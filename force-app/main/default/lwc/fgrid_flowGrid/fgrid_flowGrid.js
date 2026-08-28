@@ -1875,18 +1875,31 @@ export default class FgridFlowGrid extends LightningElement {
     }
 
     handleSort(event) {
-        const { fieldName, sortDirection } = event.detail;
-        // Sort on what the column shows, not on what it stores. A link column would
-        // otherwise order rows by record id via its generated URL, and a lookup by
-        // the parent's Id rather than the parent's name.
-        const column = this.columns.find((candidate) => candidate.fieldName === fieldName);
-        this._sortField = column?.fgridTextField || column?.fgridLinkFor || fieldName;
+        const { fieldName, columnKey, sortDirection } = event.detail;
+
+        // MATCH ON columnKey, NOT fieldName. Our columns carry a columnKey, and the
+        // datatable then identifies them by it — the sort event reports both, and
+        // `sorted-by` has to be echoed back as the columnKey or the table never
+        // recognises the column as sorted. It then refuses to flip: the second click
+        // produced no event at all, so a grid could only ever sort ascending.
+        //
+        // Exactly the trap inline editing hit, where drafts arrive keyed by columnKey
+        // (see normalizeDraft). Any state the datatable keys per column belongs to
+        // columnKey once columnKey exists.
+        const column =
+            this.columns.find((candidate) => candidate.columnKey === columnKey) ||
+            this.columns.find((candidate) => candidate.fieldName === fieldName);
+
+        // Sort on what the column SHOWS, not on what it stores. A link column would
+        // otherwise order rows by record id via its generated URL, and a lookup by the
+        // parent's Id rather than the parent's name.
+        this._sortField = column?.fgridTextField || column?.fgridLinkFor || column?.fieldName || fieldName;
         this._sortDirection = sortDirection;
-        // The datatable's own fieldName, so the arrow lands on the column the user
-        // clicked — a linked Name column reports its generated URL field, which is
-        // what the table matches against.
-        this._tableSortedBy = fieldName;
-        this.publish("sortedBy", fieldName);
+        this._tableSortedBy = columnKey || fieldName;
+
+        // The flow gets the field an admin would recognise, never the generated URL
+        // field a linked column sorts through.
+        this.publish("sortedBy", this._sortField);
         this.publish("sortDirection", sortDirection);
         this.resetVisibleRows();
     }
