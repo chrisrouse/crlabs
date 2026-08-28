@@ -924,3 +924,42 @@ describe("read-only lock reflects configuration, not the preview", () => {
         expect(created.displayReadOnlyIcon).toBe(true);
     });
 });
+
+describe("an editable Name column is not linked", () => {
+    // A link column's fieldName is rewritten to the generated URL field, and the
+    // inline editor binds to fieldName — so linking an editable Name column put the
+    // record URL in the edit box, and saving would have written it over the name.
+    const nameDescribe = { Name: { label: "Name", dataType: "text", isEditable: true, isNameField: true } };
+
+    it("links the Name field when it is read-only", () => {
+        const [column] = buildColumns(["Name"], {}, { describeByPath: nameDescribe, linkNameField: true });
+
+        expect(column.type).toBe("url");
+        expect(column.fieldName).not.toBe("Name");
+    });
+
+    it("keeps the real field when the admin ticked Edit", () => {
+        const [column] = buildColumns(
+            ["Name"],
+            { Name: { edit: true } },
+            { describeByPath: nameDescribe, linkNameField: true }
+        );
+
+        expect(column.fieldName).toBe("Name");
+        expect(column.type).not.toBe("url");
+        expect(column.editable).toBe(true);
+    });
+
+    it("makes the same choice in the Studio preview", () => {
+        // The preview forces every column read-only, so testing column.editable here
+        // would have linked it in the preview and not at runtime.
+        const [column] = buildColumns(
+            ["Name"],
+            { Name: { edit: true } },
+            { describeByPath: nameDescribe, linkNameField: true, forceReadOnly: true }
+        );
+
+        expect(column.fieldName).toBe("Name");
+        expect(column.type).not.toBe("url");
+    });
+});

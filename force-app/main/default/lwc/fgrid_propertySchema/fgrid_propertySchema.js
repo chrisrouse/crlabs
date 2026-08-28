@@ -578,7 +578,12 @@ export const SECTIONS = [
         name: "formatting",
         label: "Links & Formatting",
         controls: [
-            { property: "hideNameFieldLink", type: CONTROL.CHECKBOX, label: "Do Not Link the Name Field" },
+            {
+                property: "hideNameFieldLink",
+                type: CONTROL.CHECKBOX,
+                label: "Do Not Link the Name Field",
+                help: "A Name column with Edit ticked is never linked, whatever this says: a link and a text editor cannot share the cell, and editing wins."
+            },
             {
                 property: "openLinkInSameTab",
                 type: CONTROL.CHECKBOX,

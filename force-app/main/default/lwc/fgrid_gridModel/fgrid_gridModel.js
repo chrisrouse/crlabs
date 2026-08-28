@@ -451,8 +451,21 @@ export function buildColumns(fields, config = {}, options = {}) {
             }
         }
 
-        // Render the object's Name field as a link to the record.
-        if (linkNameField && describe?.isNameField) {
+        // Render the object's Name field as a link to the record — UNLESS the admin
+        // made it editable.
+        //
+        // A link column's fieldName is rewritten to the generated URL field so the
+        // anchor has an href, and the inline editor binds to fieldName. Linking an
+        // editable Name column therefore put the record URL in the edit box: the user
+        // saw "/001Ws000002NujxIAC" where the account name should have been, and
+        // saving would have written that string over the name.
+        //
+        // Editing wins because it is the more deliberate setting. Linking the Name
+        // field is on by default; ticking Edit on a column is something an admin does
+        // on purpose. Tested against configuredEditable rather than column.editable so
+        // the Studio preview, which forces every column read-only, still shows the
+        // same choice the runtime will make.
+        if (linkNameField && describe?.isNameField && !configuredEditable) {
             column.type = "url";
             column.fieldName = field + LINK_SUFFIX;
             column.fgridLinkFor = field;
