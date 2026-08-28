@@ -197,25 +197,6 @@ export default class FgridColumnConfig extends LightningElement {
         this.publish({});
     }
 
-    /** True when any column has a width to clear. */
-    get hasAnyWidth() {
-        const config = this.config;
-        return !this.compact && this.fields.some((field) => (config[field] || {}).width);
-    }
-
-    /** Clears every Width back to auto, leaving the other attributes alone. */
-    handleResetWidths() {
-        const next = {};
-        Object.keys(this.config).forEach((field) => {
-            const rest = { ...(this.config[field] || {}) };
-            delete rest.width;
-            if (Object.keys(rest).length) {
-                next[field] = rest;
-            }
-        });
-        this.publish(next);
-    }
-
     /**
      * Writes one attribute. Empty attributes are dropped rather than stored as
      * null, and a column with no attributes left drops out entirely, so the

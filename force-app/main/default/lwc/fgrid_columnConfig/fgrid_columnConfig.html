@@ -29,19 +29,7 @@
                             <th class="grid__col-num" scope="col"><div class="slds-truncate">#</div></th>
                             <th class="grid__col-field" scope="col"><div class="slds-truncate">Field</div></th>
                             <th class="grid__col-label" scope="col"><div class="slds-truncate">Label</div></th>
-                            <th class="grid__col-width" scope="col">
-                                <div class="grid__width-heading">
-                                    <span class="slds-truncate">Width</span>
-                                    <template lwc:if={hasAnyWidth}>
-                                        <lightning-button
-                                            variant="base"
-                                            label="Reset"
-                                            title="Clear every width back to auto"
-                                            onclick={handleResetWidths}
-                                        ></lightning-button>
-                                    </template>
-                                </div>
-                            </th>
+                            <th class="grid__col-width" scope="col"><div class="slds-truncate">Width</div></th>
                             <th class="grid__col-align" scope="col"><div class="slds-truncate">Align</div></th>
                             <th class="grid__col-flag" scope="col">
                                 <div class="slds-truncate" title="Editable">Edit</div>

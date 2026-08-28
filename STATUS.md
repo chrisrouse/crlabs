@@ -600,27 +600,24 @@ width survive a rebuild (§2.9). If a case for locking columns turns up — a to
 layout where drag handles interfere is the most plausible — this is the property to
 reinstate.
 
-### Reset widths — built, and capture-on-drag rejected, 2026-08-27
+### Width has no helper actions — decided 2026-08-27
 
-**Reset** sits on the Width heading line in Column attributes and clears every Width
-back to blank, leaving Edit, Filter, Wrap and Label alone. It appears only when some
-width is set. Studio-only in practice, since the property panel renders a read-only
-summary.
+Two were built and both removed the same hour. Recorded so neither is proposed again
+without a reason that survives the objections below.
 
-**Capture-on-drag was built and removed the same hour.** It offered to write the widths
-dragged in the preview into Width. Two things killed it:
+**Capture-on-drag** offered to write the widths dragged in the Studio preview into
+Width. It wrote a width for EVERY column rather than the one dragged — my diff compared
+each resize against a previous-widths snapshot that started empty, so on the first drag
+everything differed from `undefined`. That bug was trivial to fix and is not why it
+went: dragging a divider gives no signal about whether the LEFT or the RIGHT column is
+being resized, so capture would be guessing at intent however the diff behaved.
 
-1. **It captured every column, not the one dragged.** My diff compared each resize
-   against a previous-widths snapshot that started EMPTY, so on the first drag every
-   column differed from `undefined` and all of them were written. A bug in the diff,
-   not a platform limitation — worth being precise about, because the platform's
-   behaviour here was never actually established.
-2. **The interaction is ambiguous anyway.** Dragging a divider gives no signal about
-   whether the left or the right column is being resized, so even a correct diff would
-   be guessing at intent. That is the reason not to revisit it: the fix for (1) is easy,
-   but (2) is inherent.
+**Reset to auto** cleared every Width in one click. It worked and was tested, but a
+button in the header earns its place only if clearing eight fields by hand is a real
+chore, and it is not — the fields are right there and "Reset all attributes" already
+exists above the table.
 
-Typing a number remains the way to set a width, and Reset is the way back to auto.
+Width is a plain number field: type a value, clear it for auto. Nothing else.
 
 ### Text wrapping — one per-column checkbox, 2026-08-27
 

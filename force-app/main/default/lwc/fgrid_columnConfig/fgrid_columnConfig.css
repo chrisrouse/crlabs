@@ -39,24 +39,9 @@
 .grid__col-label {
     width: 15rem;
 }
-.grid__col-width {
-    width: 8rem;
-}
+.grid__col-width,
 .grid__col-align {
     width: 6rem;
-}
-
-/* Reset sits on the heading line so it reads as belonging to Width rather than to
-   the table, and takes no vertical space. Hidden when no width is set. */
-.grid__width-heading {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.25rem;
-}
-.grid__width-heading lightning-button {
-    font-size: 0.75rem;
-    line-height: 1;
 }
 .grid__col-flag {
     width: 3.5rem;
