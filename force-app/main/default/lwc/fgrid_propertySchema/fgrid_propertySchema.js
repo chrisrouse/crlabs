@@ -8,6 +8,19 @@
  * Every `property` here must exist in fgrid_flowGrid.js-meta.xml. `columnConfig`
  * and `objectApiName` are deliberately absent: the first has its own grid, the
  * second is a mirror the editor maintains, never something an admin edits.
+ *
+ * LABEL CASE — every `label`, including section labels and option labels, is Title
+ * Case. Capitalise each word EXCEPT articles (a, an, the), coordinating conjunctions
+ * (and, or, nor, but) and prepositions of three letters or fewer (in, at, on, to, of,
+ * by, up, per, via, for, off, as). Longer prepositions are capitalised: "Above",
+ * "Without", "Instead". The first word is always capitalised whatever it is.
+ *
+ *   Show a Header Above the Grid        Records per Page
+ *   Load as You Scroll                  Use a User-Defined Object Instead of ...
+ *
+ * The same applies to `label="..."` in fgrid_flowGrid.js-meta.xml, which is what an
+ * admin sees if they ever reach a property outside this editor. Help text and
+ * descriptions are ordinary sentences and are NOT title-cased.
  */
 
 import { ROW_ACTION_DEFAULT_ICONS } from "c/fgrid_gridModel";
@@ -51,19 +64,19 @@ export const DATA_TYPE_FOR = {
 export const SELECTION_MODES = [
     { label: "Multiple", value: "Multiple" },
     { label: "Single", value: "Single" },
-    { label: "View only", value: "None" }
+    { label: "View Only", value: "None" }
 ];
 
 /** How a single selection is presented, and therefore whether it can be undone. */
 export const SINGLE_SELECT_CONTROLS = [
-    { label: "Radio button", value: "Radio" },
+    { label: "Radio Button", value: "Radio" },
     { label: "Checkbox", value: "Checkbox" }
 ];
 
 const ROW_ACTION_TYPES = [
     { label: "None", value: "None" },
-    { label: "Remove row", value: "Remove" },
-    { label: "Run a flow", value: "Flow" }
+    { label: "Remove Row", value: "Remove" },
+    { label: "Run a Flow", value: "Flow" }
 ];
 
 /**
@@ -72,7 +85,7 @@ const ROW_ACTION_TYPES = [
  * 300-record grid render 300 rows of DOM before it could be touched.
  */
 const ROW_LOADING_MODES = [
-    { label: "Load as you scroll", value: "Scroll" },
+    { label: "Load as You Scroll", value: "Scroll" },
     { label: "Paginate", value: "Paginate" }
 ];
 
@@ -195,7 +208,7 @@ export const SECTIONS = [
             {
                 property: "isUserDefinedObject",
                 type: CONTROL.CHECKBOX,
-                label: "Use a user-defined object instead of Salesforce records",
+                label: "Use a User-Defined Object Instead of Salesforce Records",
                 help: "Turn this on when the grid is fed serialized JSON rather than a record collection."
             },
             {
@@ -211,7 +224,7 @@ export const SECTIONS = [
             {
                 property: "preSelectedRecords",
                 type: CONTROL.RESOURCE,
-                label: "Pre-selected records",
+                label: "Pre-Selected Records",
                 acceptedTypes: "SObject",
                 collection: "only",
                 when: ["sobjectSource"],
@@ -220,7 +233,7 @@ export const SECTIONS = [
             {
                 property: "disabledRecords",
                 type: CONTROL.RESOURCE,
-                label: "Disabled records",
+                label: "Disabled Records",
                 acceptedTypes: "SObject",
                 collection: "only",
                 when: ["sobjectSource"],
@@ -237,27 +250,27 @@ export const SECTIONS = [
             {
                 property: "preSelectedRecordsJson",
                 type: CONTROL.TEXT,
-                label: "Pre-selected records (JSON)",
+                label: "Pre-Selected Records (JSON)",
                 when: ["userDefinedSource"],
                 help: "Serialized collection of the rows to show as already selected. Reapplied whenever this value changes, replacing whatever the user had selected."
             },
             {
                 property: "disabledRecordsJson",
                 type: CONTROL.TEXT,
-                label: "Disabled records (JSON)",
+                label: "Disabled Records (JSON)",
                 when: ["userDefinedSource"],
                 help: "Serialized collection of the rows the user cannot select or edit. Matched to rows by the key field."
             },
             {
                 property: "isSerializedRecordData",
                 type: CONTROL.CHECKBOX,
-                label: "Records arrive pre-serialized",
+                label: "Records Arrive Pre-Serialized",
                 when: ["userDefinedSource"]
             },
             {
                 property: "serializedRecordData",
                 type: CONTROL.TEXT,
-                label: "Serialized record data",
+                label: "Serialized Record Data",
                 when: ["serialized"]
             }
         ]
@@ -282,38 +295,38 @@ export const SECTIONS = [
         name: "display",
         label: "Table Display",
         controls: [
-            { property: "showHeader", type: CONTROL.CHECKBOX, label: "Show a header above the grid" },
-            { property: "tableLabel", type: CONTROL.TEXT, label: "Header label", when: ["headerShown"] },
-            { property: "tableIcon", type: CONTROL.ICON, label: "Header icon", when: ["headerShown"] },
+            { property: "showHeader", type: CONTROL.CHECKBOX, label: "Show a Header Above the Grid" },
+            { property: "tableLabel", type: CONTROL.TEXT, label: "Header Label", when: ["headerShown"] },
+            { property: "tableIcon", type: CONTROL.ICON, label: "Header Icon", when: ["headerShown"] },
             {
                 property: "showRecordCount",
                 type: CONTROL.CHECKBOX,
-                label: "Show the record count in the header",
+                label: "Show the Record Count in the Header",
                 when: ["headerShown"]
             },
             {
                 property: "showSelectedCount",
                 type: CONTROL.CHECKBOX,
-                label: "Show the selected count in the header",
+                label: "Show the Selected Count in the Header",
                 when: ["headerShown"]
             },
-            { property: "showRowNumbers", type: CONTROL.CHECKBOX, label: "Show row numbers" },
+            { property: "showRowNumbers", type: CONTROL.CHECKBOX, label: "Show Row Numbers" },
             {
                 property: "wrapTextMaxLines",
                 type: CONTROL.NUMBER,
-                label: "Wrapped lines",
+                label: "Wrapped Lines",
                 help: "Lines a wrapped cell shows before it truncates. Cells wrap by default; leave blank for no limit."
             },
             {
                 property: "showReadOnlyIcon",
                 type: CONTROL.CHECKBOX,
-                label: "Show a lock on read-only columns",
+                label: "Show a Lock on Read-Only Columns",
                 help: "Only worth turning on when some columns are editable, or every column wears a lock."
             },
             {
                 property: "tableHeight",
                 type: CONTROL.TEXT,
-                label: "Grid height",
+                label: "Grid Height",
                 placeholder: "30rem",
                 help: "CSS height, for example 30rem or calc(50vh - 100px). Leave blank to fit all rows."
             }
@@ -326,13 +339,13 @@ export const SECTIONS = [
             {
                 property: "selectionMode",
                 type: CONTROL.RADIO,
-                label: "Row selection mode",
+                label: "Row Selection Mode",
                 options: SELECTION_MODES
             },
             {
                 property: "minSelection",
                 type: CONTROL.INTEGER,
-                label: "Minimum selection",
+                label: "Minimum Selection",
                 when: ["multiSelect"],
                 inline: true,
                 min: 0
@@ -340,7 +353,7 @@ export const SECTIONS = [
             {
                 property: "maxSelection",
                 type: CONTROL.INTEGER,
-                label: "Maximum selection",
+                label: "Maximum Selection",
                 when: ["multiSelect"],
                 inline: true,
                 // Never below the minimum: a maximum under it can never be satisfied.
@@ -352,7 +365,7 @@ export const SECTIONS = [
                 // two controls meaning one thing is how a panel gets confusing.
                 property: "isRequired",
                 type: CONTROL.CHECKBOX,
-                label: "Require user to make a selection",
+                label: "Require User to Make a Selection",
                 when: ["singleSelect"]
             },
             {
@@ -366,7 +379,7 @@ export const SECTIONS = [
             {
                 property: "keyField",
                 type: CONTROL.FIELD,
-                label: "Unique identifier",
+                label: "Unique Identifier",
                 when: ["sobjectSource", "hasObject"],
                 help: "Field that uniquely identifies each row. Normally Id."
             }
@@ -376,22 +389,22 @@ export const SECTIONS = [
         name: "find",
         label: "Search, Filter & Sort",
         controls: [
-            { property: "showSearchBar", type: CONTROL.CHECKBOX, label: "Show a search bar" },
+            { property: "showSearchBar", type: CONTROL.CHECKBOX, label: "Show a Search Bar" },
             {
                 property: "searchWholePhrase",
                 type: CONTROL.CHECKBOX,
-                label: "Limit search to a single column",
+                label: "Limit Search to a Single Column",
                 when: ["searchable"],
                 help: "Off (the default): every word typed must appear somewhere in the row, in any column and in any order — so a full name is found even when first and last name are separate columns. On: the whole phrase must appear within a single column, which is stricter but cannot match a value split across two fields."
             },
             {
                 property: "hideHeaderActions",
                 type: CONTROL.CHECKBOX,
-                label: "Hide column header actions",
+                label: "Hide Column Header Actions",
                 help: "Removes sort, wrap/clip text, and filter from every column header."
             },
-            { property: "matchCaseOnFilters", type: CONTROL.CHECKBOX, label: "Match case on column filters" },
-            { property: "caseInsensitiveSort", type: CONTROL.CHECKBOX, label: "Sort without regard to case" }
+            { property: "matchCaseOnFilters", type: CONTROL.CHECKBOX, label: "Match Case on Column Filters" },
+            { property: "caseInsensitiveSort", type: CONTROL.CHECKBOX, label: "Sort Without Regard to Case" }
         ]
     },
     {
@@ -401,22 +414,22 @@ export const SECTIONS = [
             {
                 property: "rowLoading",
                 type: CONTROL.SELECT,
-                label: "Row loading",
+                label: "Row Loading",
                 options: ROW_LOADING_MODES,
                 help: "Load as you scroll renders a batch of rows and grows as the user scrolls, which keeps a large collection responsive. Paginate shows a fixed page size with First/Previous/Next/Last. Either way the grid needs a height — 30rem is used when none is set."
             },
-            { property: "recordsPerPage", type: CONTROL.NUMBER, label: "Records per page", when: ["paginated"] },
+            { property: "recordsPerPage", type: CONTROL.NUMBER, label: "Records per Page", when: ["paginated"] },
             {
                 property: "showRowsPerPage",
                 type: CONTROL.CHECKBOX,
-                label: "Let users change the page size",
+                label: "Let Users Change the Page Size",
                 when: ["paginated"],
                 help: "Adds a Rows per page picker to the pagination footer, offering 10, 25, 50 and 100. Options above the maximum row count are left out, since each would produce a single page, and the page size you set here is always included even if it is not one of those steps."
             },
             {
                 property: "maxNumberOfRows",
                 type: CONTROL.NUMBER,
-                label: "Maximum records to display",
+                label: "Maximum Records to Display",
                 help: "Leave blank for no limit."
             }
         ]
@@ -428,13 +441,13 @@ export const SECTIONS = [
             {
                 property: "suppressBottomBar",
                 type: CONTROL.CHECKBOX,
-                label: "Hide the Cancel/Save bar",
+                label: "Hide the Cancel/Save Bar",
                 help: "Edits apply as soon as the user leaves the cell instead of on Save."
             },
             {
                 property: "navigateNextOnSave",
                 type: CONTROL.CHECKBOX,
-                label: "Go to the next Flow element on Save",
+                label: "Go to the Next Flow Element on Save",
                 disabledWhen: ["bottomBarHidden"],
                 help: "Unavailable while the Cancel/Save bar is hidden, because there is no Save to react to."
             }
@@ -444,11 +457,11 @@ export const SECTIONS = [
         name: "rowaction",
         label: "Row Action",
         controls: [
-            { property: "rowActionType", type: CONTROL.SELECT, label: "Row action", options: ROW_ACTION_TYPES },
+            { property: "rowActionType", type: CONTROL.SELECT, label: "Row Action", options: ROW_ACTION_TYPES },
             {
                 property: "rowActionFlowApiName",
                 type: CONTROL.FLOW,
-                label: "Flow to launch",
+                label: "Flow to Launch",
                 required: true,
                 when: ["flowAction"],
                 help: "Select an active flow to edit the selected row."
@@ -463,68 +476,68 @@ export const SECTIONS = [
             {
                 property: "rowActionPosition",
                 type: CONTROL.SELECT,
-                label: "Action column position",
+                label: "Action Column Position",
                 options: SIDES,
                 when: ["hasRowAction", "flowConfigured"]
             },
             {
                 property: "rowActionLabel",
                 type: CONTROL.TEXT,
-                label: "Hover text",
+                label: "Hover Text",
                 when: ["iconAction", "flowConfigured"]
             },
             {
                 property: "rowActionIcon",
                 type: CONTROL.ICON,
-                label: "Action icon",
+                label: "Action Icon",
                 placeholderFrom: "rowActionIcon",
                 when: ["iconAction", "flowConfigured"]
             },
             {
                 property: "rowActionColor",
                 type: CONTROL.SELECT,
-                label: "Icon color",
+                label: "Icon Color",
                 options: ACTION_COLORS,
                 when: ["iconAction", "flowConfigured"]
             },
             {
                 property: "rowActionButtonLabel",
                 type: CONTROL.TEXT,
-                label: "Button label",
+                label: "Button Label",
                 required: true,
                 when: ["buttonAction", "flowConfigured"]
             },
             {
                 property: "rowActionButtonIcon",
                 type: CONTROL.ICON,
-                label: "Button icon (optional)",
+                label: "Button Icon (Optional)",
                 when: ["buttonAction", "flowConfigured"]
             },
             {
                 property: "rowActionButtonIconPosition",
                 type: CONTROL.SELECT,
-                label: "Button icon position",
+                label: "Button Icon Position",
                 options: SIDES,
                 when: ["buttonAction", "flowConfigured"]
             },
             {
                 property: "rowActionButtonVariant",
                 type: CONTROL.SELECT,
-                label: "Button variant",
+                label: "Button Variant",
                 options: BUTTON_VARIANTS,
                 when: ["buttonAction", "flowConfigured"]
             },
             {
                 property: "maxRemovedRows",
                 type: CONTROL.NUMBER,
-                label: "Maximum rows that can be removed",
+                label: "Maximum Rows That Can Be Removed",
                 when: ["removeAction", "flowConfigured"],
                 help: "Leave blank for no limit."
             },
             {
                 property: "rowActionFlowSavesChanges",
                 type: CONTROL.CHECKBOX,
-                label: "The launched flow saves its own changes",
+                label: "The Launched Flow Saves Its Own Changes",
                 when: ["flowAction", "flowConfigured"],
                 help:
                     "Check this when the flow performs its own DML. The grid then compares each change " +
@@ -534,13 +547,13 @@ export const SECTIONS = [
             {
                 property: "rowActionFlowModalHeader",
                 type: CONTROL.TEXT,
-                label: "Modal header",
+                label: "Modal Header",
                 when: ["screenFlowAction"]
             },
             {
                 property: "rowActionFlowModalSize",
                 type: CONTROL.SELECT,
-                label: "Modal size",
+                label: "Modal Size",
                 options: MODAL_SIZES,
                 when: ["screenFlowAction"]
             }
@@ -550,17 +563,17 @@ export const SECTIONS = [
         name: "formatting",
         label: "Links & Formatting",
         controls: [
-            { property: "hideNameFieldLink", type: CONTROL.CHECKBOX, label: "Do not link the Name field" },
+            { property: "hideNameFieldLink", type: CONTROL.CHECKBOX, label: "Do Not Link the Name Field" },
             {
                 property: "openLinkInSameTab",
                 type: CONTROL.CHECKBOX,
-                label: "Open links in the same tab",
+                label: "Open Links in the Same Tab",
                 disabledWhen: ["nameFieldNotLinked"]
             },
             {
                 property: "suppressCurrencyConversion",
                 type: CONTROL.CHECKBOX,
-                label: "Do not convert currency values",
+                label: "Do Not Convert Currency Values",
                 help: "Only relevant in a multi-currency org."
             }
         ]
@@ -578,10 +591,10 @@ export const SECTIONS = [
             {
                 property: "showAllPicklistValues",
                 type: CONTROL.CHECKBOX,
-                label: "Show every picklist value",
+                label: "Show Every Picklist Value",
                 help: "Ignores record-type filtering on editable picklist columns."
             },
-            { property: "hideNoneOption", type: CONTROL.CHECKBOX, label: "Hide --None-- in editable picklists" }
+            { property: "hideNoneOption", type: CONTROL.CHECKBOX, label: "Hide --None-- in Editable Picklists" }
         ]
     }
 ];

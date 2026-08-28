@@ -86,12 +86,12 @@
             <!-- DEPRECATED, and kept only because flows already reference it: an input
                  property cannot be removed while any flow version uses it. Superseded
                  by rowLoading and no longer read. -->
-            <property name="showPagination" type="Boolean" label="Show Pagination (deprecated)" default="false" role="inputOnly" />
-            <property name="recordsPerPage" type="Integer" label="Records Per Page" role="inputOnly" />
+            <property name="showPagination" type="Boolean" label="Show Pagination (Deprecated)" default="false" role="inputOnly" />
+            <property name="recordsPerPage" type="Integer" label="Records per Page" role="inputOnly" />
             <!-- DEPRECATED: the truncated navigation always shows page 1 and the last
                  page, so explicit First/Last buttons are redundant. Kept only because
                  a referenced property cannot be removed. -->
-            <property name="showFirstLastButtons" type="Boolean" label="Show First/Last Buttons (deprecated)" default="false" role="inputOnly" />
+            <property name="showFirstLastButtons" type="Boolean" label="Show First/Last Buttons (Deprecated)" default="false" role="inputOnly" />
             <property name="showRowsPerPage" type="Boolean" label="Let Users Change the Page Size" default="false" role="inputOnly" description="Adds a Rows per page picker offering 10, 25, 50 and 100, bounded by the maximum row count." />
             <property name="maxNumberOfRows" type="Integer" label="Maximum Records to Display" role="inputOnly" />
 
@@ -126,7 +126,7 @@
             <property name="rowActionFlowLaunchMode" type="String" label="Flow Launch Mode" role="inputOnly" description="Screen or Headless. Set by the property editor from the chosen flow's type; a screen flow opens in a modal, an autolaunched flow runs with no UI." />
             <property name="rowActionFlowRecordVariable" type="String" label="Flow Record Variable" role="inputOnly" description="Name of the flow's input variable that receives the clicked record. Leave blank to pass no record." />
             <property name="rowActionFlowIdVariable" type="String" label="Flow Record Id Variable" role="inputOnly" description="Name of the flow's input variable that receives the record Id. Leave blank to pass no Id." />
-            <property name="rowActionFlowSavesChanges" type="Boolean" label="The launched flow saves its own changes" role="inputOnly" description="Check this when the launched flow performs its own DML. The grid then compares each change against the record as re-read from the database, and reports only what is still unsaved through Edited Records. Leave unchecked and every change a flow returns is treated as pending." />
+            <property name="rowActionFlowSavesChanges" type="Boolean" label="The Launched Flow Saves Its Own Changes" role="inputOnly" description="Check this when the launched flow performs its own DML. The grid then compares each change against the record as re-read from the database, and reports only what is still unsaved through Edited Records. Leave unchecked and every change a flow returns is treated as pending." />
             <property name="rowActionFlowModalHeader" type="String" label="Modal Header" default="Edit Record" role="inputOnly" />
             <property name="rowActionFlowModalSize" type="String" label="Modal Size" default="Medium" role="inputOnly" description="Small, Medium, or Large." />
 
@@ -145,7 +145,7 @@
 
             <!-- ============================== Outputs =============================== -->
             <property name="outputSelectedRecords" type="{T[]}" label="Selected Records" role="outputOnly" />
-            <property name="outputSelectedRecord" type="{T}" label="Selected Record (single)" role="outputOnly" />
+            <property name="outputSelectedRecord" type="{T}" label="Selected Record (Single)" role="outputOnly" />
             <property name="outputEditedRecords" type="{T[]}" label="Edited Records" role="outputOnly" />
             <property name="outputRemovedRecords" type="{T[]}" label="Removed Records" role="outputOnly" />
             <property name="outputRemainingRecords" type="{T[]}" label="Remaining Records" role="outputOnly" />
@@ -163,7 +163,7 @@
             <property name="editedCount" type="Integer" label="Number of Edited Records" role="outputOnly" />
             <property name="removedCount" type="Integer" label="Number of Removed Records" role="outputOnly" />
             <property name="selectedRowKey" type="String" label="Selected Row Key Value" role="outputOnly" />
-            <property name="sortedBy" type="String" label="Sorted By" role="outputOnly" />
+            <property name="sortedBy" type="String" label="Sorted by" role="outputOnly" />
             <property name="sortDirection" type="String" label="Sort Direction" role="outputOnly" />
         </targetConfig>
     </targetConfigs>
