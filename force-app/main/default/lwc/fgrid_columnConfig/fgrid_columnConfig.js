@@ -41,16 +41,6 @@ export default class FgridColumnConfig extends LightningElement {
     /** Read-only summary instead of the editable table. */
     @api compact = false;
 
-    /**
-     * Widths the admin dragged in the Studio preview, by field.
-     *
-     * Supplied only by the Studio, which is the only place with a preview to drag.
-     * They are OFFERED rather than applied: writing them automatically would pin every
-     * column the moment one was dragged, which is the trap the original component's
-     * `flex` attribute existed to escape.
-     */
-    @api draggedWidths;
-
     alignmentOptions = ALIGNMENTS;
 
     /* Placeholders live here rather than in the template: LWC parses `{` inside
@@ -207,43 +197,10 @@ export default class FgridColumnConfig extends LightningElement {
         this.publish({});
     }
 
-    /** True when the preview holds a dragged width that differs from what is stored. */
-    get hasCapturableWidths() {
-        return this.capturableEntries.length > 0;
-    }
-
-    get capturableEntries() {
-        const dragged = this.draggedWidths;
-        if (!dragged || this.compact) {
-            return [];
-        }
-        const config = this.config;
-        return this.fields
-            .filter((field) => {
-                const width = dragged[field];
-                return Number.isFinite(width) && width > 0 && (config[field] || {}).width !== width;
-            })
-            .map((field) => [field, dragged[field]]);
-    }
-
     /** True when any column has a width to clear. */
     get hasAnyWidth() {
         const config = this.config;
         return !this.compact && this.fields.some((field) => (config[field] || {}).width);
-    }
-
-    /**
-     * Writes the dragged widths into Width, for the columns that actually moved.
-     *
-     * Everything else stays `auto`, so dragging one column does not silently pin the
-     * rest — the distinction that makes this safe to offer at all.
-     */
-    handleCaptureWidths() {
-        const next = { ...this.config };
-        this.capturableEntries.forEach(([field, width]) => {
-            next[field] = { ...(next[field] || {}), width };
-        });
-        this.publish(next);
     }
 
     /** Clears every Width back to auto, leaving the other attributes alone. */

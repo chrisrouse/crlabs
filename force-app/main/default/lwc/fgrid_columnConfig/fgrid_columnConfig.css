@@ -46,11 +46,15 @@
     width: 6rem;
 }
 
-/* Capture and Auto sit under the Width heading, so they read as belonging to that
-   column rather than to the table. Hidden when there is nothing to do. */
-.grid__width-actions {
+/* Reset sits on the heading line so it reads as belonging to Width rather than to
+   the table, and takes no vertical space. Hidden when no width is set. */
+.grid__width-heading {
     display: flex;
-    gap: 0.5rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.25rem;
+}
+.grid__width-heading lightning-button {
     font-size: 0.75rem;
     line-height: 1;
 }

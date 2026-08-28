@@ -206,51 +206,26 @@ describe("advanced attributes", () => {
     });
 });
 
-describe("Width actions", () => {
-    // Capture is OFFERED, never applied automatically. A resize reports every column's
-    // width, so writing them all would pin the lot the moment one was dragged — the
-    // situation the original component invented a `flex` attribute to escape.
-    function widthHeaderButtons(element) {
-        return [...element.shadowRoot.querySelectorAll(".grid__width-actions lightning-button")].map((b) => b.label);
+describe("resetting widths", () => {
+    function resetButton(element) {
+        return element.shadowRoot.querySelector(".grid__width-heading lightning-button");
     }
 
-    it("offers nothing when no width has been dragged or set", async () => {
+    it("offers nothing while every column is on auto", async () => {
         const element = build({ columnFields: '["Name","Industry"]' });
         await Promise.resolve();
 
-        expect(widthHeaderButtons(element)).toEqual([]);
+        expect(resetButton(element)).toBeNull();
     });
 
-    it("offers Capture once a dragged width differs from what is stored", async () => {
-        const element = build({ columnFields: '["Name","Industry"]' });
-        element.draggedWidths = { Name: 320 };
-        await Promise.resolve();
-
-        expect(widthHeaderButtons(element)).toContain("Capture");
-    });
-
-    it("does not offer Capture when the dragged width is already stored", async () => {
+    it("offers Reset once any width is set", async () => {
         const element = build({
-            columnFields: '["Name"]',
+            columnFields: '["Name","Industry"]',
             columnConfig: JSON.stringify({ Name: { width: 320 } })
         });
-        element.draggedWidths = { Name: 320 };
         await Promise.resolve();
 
-        expect(widthHeaderButtons(element)).not.toContain("Capture");
-    });
-
-    it("writes only the columns that moved, leaving the rest on auto", async () => {
-        const element = build({ columnFields: '["Name","Industry"]' });
-        const emitted = onChange(element);
-        element.draggedWidths = { Name: 320 };
-        await Promise.resolve();
-
-        element.shadowRoot.querySelector(".grid__width-actions lightning-button").click();
-
-        const config = JSON.parse(emitted[0]);
-        expect(config.Name.width).toBe(320);
-        expect(config.Industry).toBeUndefined();
+        expect(resetButton(element).label).toBe("Reset");
     });
 
     it("clears every width but keeps the other attributes", async () => {
@@ -264,10 +239,7 @@ describe("Width actions", () => {
         const emitted = onChange(element);
         await Promise.resolve();
 
-        const auto = [...element.shadowRoot.querySelectorAll(".grid__width-actions lightning-button")].find(
-            (b) => b.label === "Auto"
-        );
-        auto.click();
+        resetButton(element).click();
 
         const config = JSON.parse(emitted[0]);
         expect(config.Name).toEqual({ edit: true });

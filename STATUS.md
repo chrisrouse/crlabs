@@ -600,27 +600,27 @@ width survive a rebuild (§2.9). If a case for locking columns turns up — a to
 layout where drag handles interfere is the most plausible — this is the property to
 reinstate.
 
-### Capture and Auto in the Width header — 2026-08-27
+### Reset widths — built, and capture-on-drag rejected, 2026-08-27
 
-Two actions under the Width heading in Column attributes, both Studio-only because the
-property panel renders a read-only summary and has no preview to drag.
+**Reset** sits on the Width heading line in Column attributes and clears every Width
+back to blank, leaving Edit, Filter, Wrap and Label alone. It appears only when some
+width is set. Studio-only in practice, since the property panel renders a read-only
+summary.
 
-- **Capture** — writes the widths the admin dragged in the preview into Width. Appears
-  only when a dragged width differs from what is stored.
-- **Auto** — clears every Width back to blank, leaving the other column attributes
-  alone. Appears only when some width is set.
+**Capture-on-drag was built and removed the same hour.** It offered to write the widths
+dragged in the preview into Width. Two things killed it:
 
-**Only what moved is written, and only on request.** The resize event reports EVERY
-column's width, so capturing all of them would pin every column the moment one was
-dragged — exactly the situation the original component invented `flex` to escape, and
-which we removed the escape hatch for earlier the same day. The Studio diffs each
-resize against the previous widths and keeps just the changed fields;
-`isUserTriggered` filters out reflows, so narrowing the window does not queue up a
-capture.
+1. **It captured every column, not the one dragged.** My diff compared each resize
+   against a previous-widths snapshot that started EMPTY, so on the first drag every
+   column differed from `undefined` and all of them were written. A bug in the diff,
+   not a platform limitation — worth being precise about, because the platform's
+   behaviour here was never actually established.
+2. **The interaction is ambiguous anyway.** Dragging a divider gives no signal about
+   whether the left or the right column is being resized, so even a correct diff would
+   be guessing at intent. That is the reason not to revisit it: the fix for (1) is easy,
+   but (2) is inherent.
 
-**Unverified:** whether dragging one column also reports a change for its neighbours.
-If it does, Capture offers those too — faithful to what is on screen, but more than was
-dragged. Worth watching the first time it is used.
+Typing a number remains the way to set a width, and Reset is the way back to auto.
 
 ### Text wrapping — one per-column checkbox, 2026-08-27
 

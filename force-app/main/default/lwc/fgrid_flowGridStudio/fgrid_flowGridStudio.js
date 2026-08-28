@@ -137,16 +137,6 @@ export default class FgridFlowGridStudio extends LightningElement {
         return Boolean(this.objectApiName);
     }
 
-    /** Widths the admin dragged in the preview, by field, offered to the Width column. */
-    _draggedWidths = {};
-
-    /** Previous preview widths, so a resize can be narrowed to what actually moved. */
-    _lastPreviewWidths = {};
-
-    get draggedWidths() {
-        return this._draggedWidths;
-    }
-
     get previewColumns() {
         const columns = buildColumns(this.columnFields, this.columnConfigObject, {
             hideHeaderActions: Boolean(this.values?.hideHeaderActions),
@@ -496,41 +486,6 @@ export default class FgridFlowGridStudio extends LightningElement {
     handlePropertyChange(event) {
         event.stopPropagation();
         this.dispatchEvent(new CustomEvent("propertychange", { detail: event.detail }));
-    }
-
-    /**
-     * Records what the admin dragged in the preview, so the Width column can offer it.
-     *
-     * Only what CHANGED. The event reports every column's width, and writing them all
-     * would pin every column the moment one is dragged — which is the situation the
-     * original component had to invent a `flex` attribute to escape. Widths are held
-     * here and applied only when the admin asks for them.
-     */
-    handlePreviewResize(event) {
-        const widths = event.detail?.columnWidths;
-        if (!Array.isArray(widths) || !event.detail?.isUserTriggered) {
-            return;
-        }
-        const columns = this.previewColumns;
-        const dragged = { ...this._draggedWidths };
-        columns.forEach((column, index) => {
-            const width = widths[index];
-            const field = column?.fieldName;
-            // Skip the row-action column, which has no field of its own.
-            if (!field || !Number.isFinite(width) || width <= 0) {
-                return;
-            }
-            if (this._lastPreviewWidths[field] !== width) {
-                dragged[field] = Math.round(width);
-            }
-        });
-        this._lastPreviewWidths = columns.reduce((seen, column, index) => {
-            if (column?.fieldName) {
-                seen[column.fieldName] = widths[index];
-            }
-            return seen;
-        }, {});
-        this._draggedWidths = dragged;
     }
 
     handleColumnConfigChange(event) {
