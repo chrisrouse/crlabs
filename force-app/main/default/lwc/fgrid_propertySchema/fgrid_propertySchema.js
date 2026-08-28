@@ -118,7 +118,8 @@ export const EDITOR_MANAGED_PROPERTIES = [
 export const DEFAULTS = {
     keyField: "Id",
     rowLoading: "Scroll",
-    selectionMode: "Multiple",
+    selectionMode: "Single",
+    singleSelectControl: "Radio",
     rowActionType: "None",
     rowActionDisplay: "Icon",
     rowActionPosition: "Left",

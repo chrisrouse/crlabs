@@ -93,7 +93,7 @@ export default class FgridFlowGrid extends LightningElement {
     @api showReadOnlyIcon = false;
 
     // ----- Selection -----
-    @api selectionMode = "Multiple";
+    @api selectionMode = "Single";
     @api isRequired = false;
     @api minSelection;
     @api maxSelection;
