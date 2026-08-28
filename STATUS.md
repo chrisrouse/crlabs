@@ -54,8 +54,13 @@ Open the smoke flow — it lives in the org, not the repo — and click the Flow
       Annual Revenue, and the Name field as a record link
 - [ ] Search, column filters (Name and Industry), Clear Filters
 - [ ] Pagination: 10 per page, First/Previous/Next/Last, `n-m of total`
-- [ ] Sort each column; confirm sorting the linked Name column orders by name,
-      not by URL
+- [x] **Sorting verified 2026-08-27**, including the linked Name column: it orders by
+      name rather than by the generated URL, inverts on a second click, and reports
+      `Name` to the flow rather than `Name__fgridUrl`. Inverting needed the columnKey
+      fix in §1.4a — before it, a grid could only sort ascending.
+- [x] **Show Blanks First** verified the same day. A header-menu action on any sortable
+      column; blanks group at one end rather than sorting, so reversing does not
+      scatter them.
 - [ ] Selection → check `outputSelectedRecords` and `selectedCount` in the debug
       panel
 
