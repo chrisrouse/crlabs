@@ -741,15 +741,15 @@ function picklistCellOptions(entry, value) {
  * @param {string} direction `asc` or `desc`
  * @param {boolean} caseInsensitive compare text without regard to case
  */
-export function sortRows(rows, fieldName, direction = "asc", caseInsensitive = false) {
+export function sortRows(rows, fieldName, direction = "asc") {
     if (!Array.isArray(rows) || !fieldName) {
         return rows || [];
     }
     const factor = direction === "desc" ? -1 : 1;
 
     return [...rows].sort((left, right) => {
-        const a = normalizeForSort(left?.[fieldName], caseInsensitive);
-        const b = normalizeForSort(right?.[fieldName], caseInsensitive);
+        const a = normalizeForSort(left?.[fieldName]);
+        const b = normalizeForSort(right?.[fieldName]);
 
         const aBlank = a === null || a === "";
         const bBlank = b === null || b === "";
@@ -782,15 +782,18 @@ function resolvePath(record, path) {
         .reduce((node, segment) => (node === null || node === undefined ? null : node[segment]), record);
 }
 
-function normalizeForSort(value, caseInsensitive) {
+function normalizeForSort(value) {
     if (value === null || value === undefined) {
         return null;
     }
     if (typeof value === "number" || typeof value === "boolean") {
         return value;
     }
-    const text = String(value);
-    return caseInsensitive ? text.toLowerCase() : text;
+    // ALWAYS case-insensitive. Comparing raw strings compares character codes, which
+    // puts every capitalised value ahead of every lowercase one — "Zebra" before
+    // "acme". That was once a setting; no end-user reason to want it was found, so
+    // the sort simply does the readable thing.
+    return String(value).toLowerCase();
 }
 
 /** First of the supplied values that is a finite number, else null. */

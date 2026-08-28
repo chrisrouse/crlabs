@@ -114,7 +114,6 @@ export default class FgridFlowGrid extends LightningElement {
     @api searchWholePhrase = false;
     @api hideHeaderActions = false;
     @api matchCaseOnFilters = false;
-    @api caseInsensitiveSort = false;
 
     // ----- Row loading and paging -----
     /** Scroll | Paginate. Default resolved in `rowLoadingMode`, not here. */
@@ -606,8 +605,7 @@ export default class FgridFlowGrid extends LightningElement {
                 this._sortField,
                 this._sortDirection,
                 this.matchCaseOnFilters,
-                this.isSearchByWord,
-                this.caseInsensitiveSort
+                this.isSearchByWord
             ],
             () => {
                 const columns = this.columns;
@@ -620,7 +618,7 @@ export default class FgridFlowGrid extends LightningElement {
                 );
                 rows = filterRows(rows, this._filters, this.matchCaseOnFilters);
                 if (this._sortField) {
-                    rows = sortRows(rows, this._sortField, this._sortDirection, this.caseInsensitiveSort);
+                    rows = sortRows(rows, this._sortField, this._sortDirection);
                 }
                 return rows;
             }

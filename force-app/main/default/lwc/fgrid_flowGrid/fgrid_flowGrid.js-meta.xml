@@ -79,7 +79,6 @@
             <property name="searchWholePhrase" type="Boolean" label="Search the Whole Phrase in One Column" default="false" role="inputOnly" description="Off (the default): every word typed must appear somewhere in the row, in any column and in any order, so a full name is still found when first and last name are separate columns. On: the whole phrase must appear within a single column." />
             <property name="hideHeaderActions" type="Boolean" label="Hide Column Header Actions" default="false" role="inputOnly" />
             <property name="matchCaseOnFilters" type="Boolean" label="Match Case on Filters" default="false" role="inputOnly" />
-            <property name="caseInsensitiveSort" type="Boolean" label="Case-Insensitive Sort" default="false" role="inputOnly" />
 
             <!-- ====================== Row loading and paging ======================= -->
             <property name="rowLoading" type="String" label="Row Loading" role="inputOnly" description="Scroll (default): render a batch of rows and grow as the user scrolls. Paginate: a fixed page size with First/Previous/Next/Last. There is deliberately no default here — it lives in the runtime getter, so it is not pinned by the platform." />

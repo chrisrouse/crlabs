@@ -405,20 +405,13 @@ export const SECTIONS = [
                 help: "Removes sort, wrap/clip text, and filter from every column header."
             },
             {
-                // Both are reached only through a column header menu, so hiding the
-                // header actions leaves them with nothing to govern.
+                // Reached only through a column header menu, so hiding the header
+                // actions leaves it with nothing to govern.
                 property: "matchCaseOnFilters",
                 type: CONTROL.CHECKBOX,
                 label: "Match Case on Column Filters",
                 disabledWhen: ["headerActionsHidden"],
                 help: 'Off, a filter for "acme" also matches "Acme". Unavailable while column header actions are hidden, because there is no filter to apply it to.'
-            },
-            {
-                property: "caseInsensitiveSort",
-                type: CONTROL.CHECKBOX,
-                label: "Sort Without Regard to Case",
-                disabledWhen: ["headerActionsHidden"],
-                help: 'Off, text sorts by character code, which puts every capitalised value ahead of every lowercase one — "Zebra" before "acme". On, case is ignored, so values sort the way a reader expects. Unavailable while column header actions are hidden, because there is nothing to sort with.'
             }
         ]
     },

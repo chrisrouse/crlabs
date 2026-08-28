@@ -17,7 +17,8 @@ import {
     rowsPerPageOptions,
     buildRows,
     percentToFraction,
-    fractionToPercent
+    fractionToPercent,
+    sortRows
 } from "c/fgrid_gridModel";
 
 describe("inferType", () => {
@@ -961,5 +962,25 @@ describe("an editable Name column is not linked", () => {
 
         expect(column.fieldName).toBe("Name");
         expect(column.type).not.toBe("url");
+    });
+});
+
+describe("sorting ignores case", () => {
+    // Not a setting. Comparing raw strings compares character codes, which puts every
+    // capitalised value ahead of every lowercase one, and no end-user reason to want
+    // that was found.
+    const rows = [{ Name: "Zebra" }, { Name: "acme corp" }, { Name: "Bahringer" }];
+
+    it("orders text the way a reader expects", () => {
+        expect(sortRows(rows, "Name", "asc").map((r) => r.Name)).toEqual(["acme corp", "Bahringer", "Zebra"]);
+    });
+
+    it("reverses cleanly", () => {
+        expect(sortRows(rows, "Name", "desc").map((r) => r.Name)).toEqual(["Zebra", "Bahringer", "acme corp"]);
+    });
+
+    it("leaves numbers alone", () => {
+        const numeric = [{ N: 10 }, { N: 2 }, { N: 33 }];
+        expect(sortRows(numeric, "N", "asc").map((r) => r.N)).toEqual([2, 10, 33]);
     });
 });
