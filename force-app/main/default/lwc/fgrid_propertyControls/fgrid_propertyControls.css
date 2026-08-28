@@ -1,7 +1,17 @@
-.control {
-    margin-bottom: 0.5rem;
+/* One control per line by default. Controls the schema marks `inline` take half a
+   line each, so a natural pair — Minimum and Maximum selection — reads as one
+   setting rather than two stacked ones. The gap replaces per-control margins. */
+.controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
 }
 
-.control:last-child {
-    margin-bottom: 0;
+.control {
+    flex: 1 1 100%;
+    min-width: 0;
+}
+
+.control_inline {
+    flex: 1 1 calc(50% - 0.25rem);
 }

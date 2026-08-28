@@ -16,6 +16,9 @@ import { ROW_ACTION_DEFAULT_ICONS } from "c/fgrid_gridModel";
 export const CONTROL = {
     CHECKBOX: "checkbox",
     SELECT: "select",
+    /** Radio group. Same value shape as SELECT; use it when the options are few and
+     *  the choice steers the rest of a section, so all of them stay readable. */
+    RADIO: "radio",
     TEXT: "text",
     NUMBER: "number",
     ICON: "icon",
@@ -118,7 +121,7 @@ export const EDITOR_MANAGED_PROPERTIES = [
 export const DEFAULTS = {
     keyField: "Id",
     rowLoading: "Scroll",
-    selectionMode: "Single",
+    selectionMode: "Multiple",
     singleSelectControl: "Radio",
     rowActionType: "None",
     rowActionDisplay: "Icon",
@@ -317,7 +320,7 @@ export const SECTIONS = [
         controls: [
             {
                 property: "selectionMode",
-                type: CONTROL.SELECT,
+                type: CONTROL.RADIO,
                 label: "Row selection mode",
                 options: SELECTION_MODES
             },
@@ -326,6 +329,7 @@ export const SECTIONS = [
                 type: CONTROL.NUMBER,
                 label: "Minimum selection",
                 when: ["multiSelect"],
+                inline: true,
                 help: "Fewest rows the user must select before the screen will advance. Blank means no minimum."
             },
             {
@@ -333,6 +337,7 @@ export const SECTIONS = [
                 type: CONTROL.NUMBER,
                 label: "Maximum selection",
                 when: ["multiSelect"],
+                inline: true,
                 help: "Most rows the user can select. Blank means no limit."
             },
             {
@@ -606,8 +611,12 @@ export function resolveSection(section, values) {
                 ? (PLACEHOLDERS[control.placeholderFrom]?.(values) ?? control.placeholder ?? null)
                 : (control.placeholder ?? null),
             disabled: Boolean(control.disabledWhen) && allPass(DISABLED, control.disabledWhen, values),
+            // Controls marked `inline` share a row with the next one; everything else
+            // takes the full width.
+            cssClass: control.inline ? "control control_inline" : "control",
             isCheckbox: control.type === CONTROL.CHECKBOX,
             isSelect: control.type === CONTROL.SELECT,
+            isRadio: control.type === CONTROL.RADIO,
             isText: control.type === CONTROL.TEXT,
             isNumber: control.type === CONTROL.NUMBER,
             isIcon: control.type === CONTROL.ICON,

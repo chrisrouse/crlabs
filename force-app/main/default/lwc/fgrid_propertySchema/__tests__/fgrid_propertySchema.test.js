@@ -248,3 +248,27 @@ describe("dynamic placeholders", () => {
         expect(tableIcon.placeholder).toBeNull();
     });
 });
+
+describe("control presentation", () => {
+    it("renders the selection mode as a radio group", () => {
+        // Few options, and the choice steers the rest of the section, so all three
+        // stay readable instead of hiding behind a closed combobox.
+        const mode = resolveSection(section("selection"), {}).find((c) => c.property === "selectionMode");
+        expect(mode.isRadio).toBe(true);
+        expect(mode.isSelect).toBe(false);
+    });
+
+    it("pairs minimum and maximum selection on one line", () => {
+        const controls = resolveSection(section("selection"), { selectionMode: "Multiple" });
+        const min = controls.find((c) => c.property === "minSelection");
+        const max = controls.find((c) => c.property === "maxSelection");
+
+        expect(min.cssClass).toContain("control_inline");
+        expect(max.cssClass).toContain("control_inline");
+    });
+
+    it("leaves an unpaired control on its own line", () => {
+        const mode = resolveSection(section("selection"), {}).find((c) => c.property === "selectionMode");
+        expect(mode.cssClass).toBe("control");
+    });
+});

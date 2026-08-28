@@ -653,6 +653,19 @@ So every mode is clearable by native means and no bespoke selection UI remains. 
 admin who picks Radio and wants clearing has no way — the same position the native
 datatable takes.
 
+**Presentation, after seeing it in the panel.** Row selection mode renders as a RADIO
+group rather than a combobox — few options, and the choice steers the rest of the
+section, so all three stay readable instead of hiding behind a closed picker. Minimum
+and Maximum sit side by side, because they are one setting expressed as two numbers.
+
+Both needed additions to the editor: a `CONTROL.RADIO` type, and an `inline` flag on a
+descriptor that halves its width. The controls are now laid out in a flex row rather
+than as stacked divs, so `inline` is a schema decision rather than a CSS special case
+— reusable for the next natural pair.
+
+**The default stayed Multiple.** It was briefly changed to Single, then changed back:
+the native table starts on Multiple, and matching it is worth more than a preference.
+
 **A reversal worth naming.** `singleSelectAsCheckbox` was removed earlier the same day
 as redundant with Clear Selection. That was wrong: the two were alternative answers to
 one problem, not a workaround and a fix. It returns as `singleSelectControl`, a

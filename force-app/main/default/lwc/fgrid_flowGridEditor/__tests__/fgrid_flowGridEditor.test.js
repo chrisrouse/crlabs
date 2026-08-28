@@ -159,7 +159,7 @@ describe("optimistic values", () => {
         changeProperty(element, { property: "selectionMode", value: null, dataType: "String" });
         await Promise.resolve();
 
-        expect(element.shadowRoot.querySelector("c-fgrid_property-controls").values.selectionMode).toBe("Single");
+        expect(element.shadowRoot.querySelector("c-fgrid_property-controls").values.selectionMode).toBe("Multiple");
     });
 
     it("applies declared defaults with nothing saved", async () => {
@@ -167,7 +167,7 @@ describe("optimistic values", () => {
         await Promise.resolve();
 
         const { values } = element.shadowRoot.querySelector("c-fgrid_property-controls");
-        expect(values.selectionMode).toBe("Single");
+        expect(values.selectionMode).toBe("Multiple");
         expect(values.singleSelectControl).toBe("Radio");
         expect(values.rowActionType).toBe("None");
         // The defaults-on booleans are stored negatively, so "nothing saved" means
