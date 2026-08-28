@@ -801,8 +801,25 @@ export default class FgridFlowGrid extends LightningElement {
         return Number.isFinite(minimum) && minimum > 0 ? Math.trunc(minimum) : 0;
     }
 
+    /**
+     * Selected keys for the rows currently on screen.
+     *
+     * Two reasons this is not simply `_selectedKeys`.
+     *
+     * It is FILTERED because the datatable can only tick a row it is rendering, and
+     * handing it keys for rows it cannot see tells it nothing.
+     *
+     * It is MEMOIZED ON `rows` so the array identity changes whenever the page does.
+     * Returning the same array meant that after paging away and back, the datatable —
+     * which had rebuilt its internal selection when the data changed — was never
+     * handed the prop again, so a row stayed selected in our state and unticked on
+     * screen. The count was right and the checkbox was wrong.
+     */
     get selectedRowKeys() {
-        return this._selectedKeys;
+        return this.memoized("selectedRowKeys", [this.rows, this._selectedKeys, this.keyField], () => {
+            const selected = new Set(this._selectedKeys.map((key) => String(key)));
+            return this.rows.map((row) => row?.[this.keyField]).filter((key) => selected.has(String(key)));
+        });
     }
 
     /**

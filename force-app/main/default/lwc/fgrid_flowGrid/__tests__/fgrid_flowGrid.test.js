@@ -719,3 +719,51 @@ describe("selection survives paging", () => {
         expect(element.outputSelectedRecords.map((r) => r.Id)).toEqual([all[1].Id]);
     });
 });
+
+describe("selection is restored when a page comes back into view", () => {
+    function selectRows(element, rows) {
+        element.shadowRoot
+            .querySelector("c-fgrid_custom-datatable")
+            .dispatchEvent(new CustomEvent("rowselection", { detail: { selectedRows: rows } }));
+        return Promise.resolve();
+    }
+
+    function goToPage(element, page) {
+        element.shadowRoot
+            .querySelector("c-fgrid_pagination")
+            .dispatchEvent(new CustomEvent("pagechange", { detail: { page } }));
+        return Promise.resolve();
+    }
+
+    function tableSelection(element) {
+        return element.shadowRoot.querySelector("c-fgrid_custom-datatable").selectedRows;
+    }
+
+    it("ticks the row again on returning to its page", async () => {
+        // The state was already right; the checkbox was not. The datatable rebuilds
+        // its selection when data changes, so it has to be handed the prop again.
+        const all = records(4);
+        const element = build({ records: all, rowLoading: "Paginate", recordsPerPage: 2 });
+        await Promise.resolve();
+
+        await selectRows(element, [all[0]]);
+        await goToPage(element, 2);
+        await selectRows(element, []);
+        await goToPage(element, 1);
+
+        expect(tableSelection(element)).toEqual([all[0].Id]);
+    });
+
+    it("hands the table only the keys it can see", async () => {
+        const all = records(4);
+        const element = build({ records: all, rowLoading: "Paginate", recordsPerPage: 2 });
+        await Promise.resolve();
+
+        await selectRows(element, [all[0]]);
+        await goToPage(element, 2);
+
+        // Still selected overall, but nothing on this page to tick.
+        expect(element.selectedCount).toBe(1);
+        expect(tableSelection(element)).toEqual([]);
+    });
+});
