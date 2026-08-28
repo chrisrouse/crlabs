@@ -53,7 +53,9 @@ Open the smoke flow — it lives in the org, not the repo — and click the Flow
 - [ ] Grid renders 314 Accounts with real labels, currency formatting on
       Annual Revenue, and the Name field as a record link
 - [ ] Search, column filters (Name and Industry), Clear Filters
-- [ ] Pagination: 10 per page, First/Previous/Next/Last, `n-m of total`
+- [x] **Pagination verified 2026-08-27**, including changing rows per page in both
+      directions and switching pages. Selection survives all of it, and scroll mode
+      too.
 - [x] **Sorting verified 2026-08-27**, including the linked Name column: it orders by
       name rather than by the generated URL, inverts on a second click, and reports
       `Name` to the flow rather than `Name__fgridUrl`. Inverting needed the columnKey
@@ -61,8 +63,24 @@ Open the smoke flow — it lives in the org, not the repo — and click the Flow
 - [x] **Show Blanks First** verified the same day. A header-menu action on any sortable
       column; blanks group at one end rather than sorting, so reversing does not
       scatter them.
-- [ ] Selection → check `outputSelectedRecords` and `selectedCount` in the debug
-      panel
+- [x] **Selection verified 2026-08-27**, and it survives paging, changing rows per
+      page in either direction, and scrolling. Two bugs were fixed to get there, and
+      the second only appeared once the first was gone:
+
+      1. `handleRowSelection` replaced the whole selection with what the datatable
+         reported, and the datatable only knows the rows it renders — so paging away
+         discarded everything picked elsewhere. Only the visible rows are reconciled
+         now.
+      2. The count was then right while the CHECKBOX was not. `selected-rows` returned
+         the full key set, whose array identity does not change when the page does, so
+         the datatable — having rebuilt its selection for the new data — was never
+         handed the prop again. It is now filtered to the visible rows and memoized on
+         `rows`, so the identity changes with the page.
+
+      **Still unverified: Maximum selection across pages.** The table enforces the cap
+      against the keys it is given, and it is now given only the current page's, so a
+      cap of 3 may allow 3 more on page two. If it does, the cap has to be enforced in
+      `handleRowSelection` rather than delegated.
 
 ### 1.4 Runtime — the Flow row action (the headline feature)
 
