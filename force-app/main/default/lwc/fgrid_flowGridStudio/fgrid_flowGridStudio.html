@@ -159,6 +159,7 @@
                                     wrap-text-max-lines={values.wrapTextMaxLines}
                                     single-row-selection-mode={previewSingleRowSelectionMode}
                                     onheaderaction={handlePreviewHeaderAction}
+                                    onresize={handlePreviewResize}
                                     suppress-bottom-bar
                                 ></c-fgrid_custom-datatable>
                             </div>
@@ -203,6 +204,7 @@
                                 column-config={values.columnConfig}
                                 object-api-name={objectApiName}
                                 describe-by-path={describeByPath}
+                                dragged-widths={draggedWidths}
                                 oncolumnconfigchange={handleColumnConfigChange}
                             ></c-fgrid_column-config>
                         </template>

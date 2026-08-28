@@ -29,7 +29,30 @@
                             <th class="grid__col-num" scope="col"><div class="slds-truncate">#</div></th>
                             <th class="grid__col-field" scope="col"><div class="slds-truncate">Field</div></th>
                             <th class="grid__col-label" scope="col"><div class="slds-truncate">Label</div></th>
-                            <th class="grid__col-width" scope="col"><div class="slds-truncate">Width</div></th>
+                            <th class="grid__col-width" scope="col">
+                                <div class="slds-truncate">Width</div>
+                                <!-- Offered rather than applied automatically: a resize
+                                     reports every column, and writing them all would pin
+                                     the lot the moment one was dragged. -->
+                                <div class="grid__width-actions">
+                                    <template lwc:if={hasCapturableWidths}>
+                                        <lightning-button
+                                            variant="base"
+                                            label="Capture"
+                                            title="Use the widths you dragged in the preview"
+                                            onclick={handleCaptureWidths}
+                                        ></lightning-button>
+                                    </template>
+                                    <template lwc:if={hasAnyWidth}>
+                                        <lightning-button
+                                            variant="base"
+                                            label="Auto"
+                                            title="Clear every width back to auto"
+                                            onclick={handleResetWidths}
+                                        ></lightning-button>
+                                    </template>
+                                </div>
+                            </th>
                             <th class="grid__col-align" scope="col"><div class="slds-truncate">Align</div></th>
                             <th class="grid__col-flag" scope="col">
                                 <div class="slds-truncate" title="Editable">Edit</div>

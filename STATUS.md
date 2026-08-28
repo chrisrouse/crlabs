@@ -600,6 +600,28 @@ width survive a rebuild (§2.9). If a case for locking columns turns up — a to
 layout where drag handles interfere is the most plausible — this is the property to
 reinstate.
 
+### Capture and Auto in the Width header — 2026-08-27
+
+Two actions under the Width heading in Column attributes, both Studio-only because the
+property panel renders a read-only summary and has no preview to drag.
+
+- **Capture** — writes the widths the admin dragged in the preview into Width. Appears
+  only when a dragged width differs from what is stored.
+- **Auto** — clears every Width back to blank, leaving the other column attributes
+  alone. Appears only when some width is set.
+
+**Only what moved is written, and only on request.** The resize event reports EVERY
+column's width, so capturing all of them would pin every column the moment one was
+dragged — exactly the situation the original component invented `flex` to escape, and
+which we removed the escape hatch for earlier the same day. The Studio diffs each
+resize against the previous widths and keeps just the changed fields;
+`isUserTriggered` filters out reflows, so narrowing the window does not queue up a
+capture.
+
+**Unverified:** whether dragging one column also reports a change for its neighbours.
+If it does, Capture offers those too — faithful to what is on screen, but more than was
+dragged. Worth watching the first time it is used.
+
 ### Text wrapping — one per-column checkbox, 2026-08-27
 
 `Wrap` in Column attributes now controls that column's cells AND its header. The

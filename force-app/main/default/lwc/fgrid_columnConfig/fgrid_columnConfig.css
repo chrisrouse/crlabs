@@ -39,9 +39,20 @@
 .grid__col-label {
     width: 15rem;
 }
-.grid__col-width,
+.grid__col-width {
+    width: 8rem;
+}
 .grid__col-align {
     width: 6rem;
+}
+
+/* Capture and Auto sit under the Width heading, so they read as belonging to that
+   column rather than to the table. Hidden when there is nothing to do. */
+.grid__width-actions {
+    display: flex;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    line-height: 1;
 }
 .grid__col-flag {
     width: 3.5rem;
