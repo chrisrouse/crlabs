@@ -18,6 +18,27 @@
                         ></lightning-input>
                     </template>
 
+                    <template lwc:elseif={control.isInteger}>
+                        <!-- A bold label of our own, with lightning-input's hidden so
+                         assistive tech hears it once. A plain number input, not the
+                         kit's value input: only a literal makes sense here, and a
+                         bound Flow formula could not be checked against the minimum. -->
+                        <span class="control__label" aria-hidden="true">{control.label}</span>
+                        <lightning-input
+                            type="number"
+                            variant="label-hidden"
+                            data-validatable
+                            data-property={control.property}
+                            label={control.label}
+                            value={control.value}
+                            min={control.min}
+                            step="1"
+                            disabled={control.disabled}
+                            required={control.required}
+                            onchange={handleInteger}
+                        ></lightning-input>
+                    </template>
+
                     <template lwc:elseif={control.isRadio}>
                         <lightning-radio-group
                             data-validatable

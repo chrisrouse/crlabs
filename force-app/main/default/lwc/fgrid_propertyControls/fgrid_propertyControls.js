@@ -55,6 +55,29 @@ export default class FgridPropertyControls extends LightningElement {
         this.publish(event.target.dataset.property, event.target.checked, DATA_TYPE_FOR[CONTROL.CHECKBOX]);
     }
 
+    /**
+     * A whole number, or nothing.
+     *
+     * Blank clears the property rather than storing 0, because 0 and "not set" mean
+     * different things here — a minimum of 0 is a deliberate "no minimum", while a
+     * blank field is an unanswered question. Negatives and fractions are discarded;
+     * the input's own `min` and `step` report them, and this makes sure a value that
+     * slips past cannot reach the property.
+     */
+    handleInteger(event) {
+        const raw = event.target.value;
+        const property = event.target.dataset.property;
+        if (raw === "" || raw === null || raw === undefined) {
+            this.publish(property, null, DATA_TYPE_FOR[CONTROL.INTEGER]);
+            return;
+        }
+        const parsed = Number(raw);
+        if (!Number.isFinite(parsed) || parsed < 0) {
+            return;
+        }
+        this.publish(property, Math.trunc(parsed), DATA_TYPE_FOR[CONTROL.INTEGER]);
+    }
+
     handleSelect(event) {
         this.publish(event.target.dataset.property, event.detail.value, DATA_TYPE_FOR[CONTROL.SELECT]);
     }

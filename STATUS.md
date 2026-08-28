@@ -658,6 +658,15 @@ group rather than a combobox — few options, and the choice steers the rest of 
 section, so all three stay readable instead of hiding behind a closed picker. Minimum
 and Maximum sit side by side, because they are one setting expressed as two numbers.
 
+Minimum and Maximum are `CONTROL.INTEGER`, a third editor addition: a plain number
+input that does NOT go through the kit's value input, so it cannot take a Flow
+resource. Deliberate — a bound formula could not be checked against the minimum, and
+"how many rows may I pick" is not a question a formula answers. Whole numbers only, no
+negatives, blank clears rather than storing 0 (a minimum of 0 is a deliberate "no
+minimum"; blank is an unanswered question). `minFrom` reads the floor off another
+property, so **Maximum can never be set below Minimum** — a maximum under the minimum
+could never be satisfied.
+
 Both needed additions to the editor: a `CONTROL.RADIO` type, and an `inline` flag on a
 descriptor that halves its width. The controls are now laid out in a flex row rather
 than as stacked divs, so `inline` is a schema decision rather than a CSS special case

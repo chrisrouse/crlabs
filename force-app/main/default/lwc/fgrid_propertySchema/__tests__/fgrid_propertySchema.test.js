@@ -272,3 +272,39 @@ describe("control presentation", () => {
         expect(mode.cssClass).toBe("control");
     });
 });
+
+describe("integer controls", () => {
+    function selection(values) {
+        return resolveSection(section("selection"), values);
+    }
+
+    it("uses a plain integer input, not the resource-capable one", () => {
+        // A Flow reference here could not be checked against the minimum, and a
+        // formula for "how many rows may I pick" is not a thing anyone wants.
+        const min = selection({ selectionMode: "Multiple" }).find((c) => c.property === "minSelection");
+        expect(min.isInteger).toBe(true);
+        expect(min.isNumber).toBe(false);
+    });
+
+    it("carries no help text on either field", () => {
+        const controls = selection({ selectionMode: "Multiple" });
+        expect(controls.find((c) => c.property === "minSelection").help).toBeUndefined();
+        expect(controls.find((c) => c.property === "maxSelection").help).toBeUndefined();
+    });
+
+    it("floors the minimum at zero", () => {
+        expect(selection({ selectionMode: "Multiple" }).find((c) => c.property === "minSelection").min).toBe(0);
+    });
+
+    it("never lets the maximum fall below the minimum", () => {
+        const withMin = selection({ selectionMode: "Multiple", minSelection: 4 });
+        expect(withMin.find((c) => c.property === "maxSelection").min).toBe(4);
+    });
+
+    it("falls back to one when no minimum is set", () => {
+        // A maximum of 0 would mean the user may select nothing at all.
+        for (const values of [{ selectionMode: "Multiple" }, { selectionMode: "Multiple", minSelection: null }]) {
+            expect(resolveSection(section("selection"), values).find((c) => c.property === "maxSelection").min).toBe(1);
+        }
+    });
+});

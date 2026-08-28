@@ -19,6 +19,10 @@ export const CONTROL = {
     /** Radio group. Same value shape as SELECT; use it when the options are few and
      *  the choice steers the rest of a section, so all of them stay readable. */
     RADIO: "radio",
+    /** A plain whole number. Unlike NUMBER it does NOT go through the kit's value
+     *  input, so it cannot take a Flow resource — use it where only a literal makes
+     *  sense and a bound formula would be meaningless. Honours `min` and `minFrom`. */
+    INTEGER: "integer",
     TEXT: "text",
     NUMBER: "number",
     ICON: "icon",
@@ -38,7 +42,8 @@ export const DATA_TYPE_FOR = {
     [CONTROL.ICON]: "String",
     [CONTROL.FIELD]: "String",
     [CONTROL.FIELDS]: "String",
-    [CONTROL.RESOURCE]: "reference"
+    [CONTROL.RESOURCE]: "reference",
+    [CONTROL.INTEGER]: "Integer"
     // TEXT and NUMBER take their data type from the picker's event, because the
     // admin may supply either a literal or a Flow reference.
 };
@@ -326,19 +331,21 @@ export const SECTIONS = [
             },
             {
                 property: "minSelection",
-                type: CONTROL.NUMBER,
+                type: CONTROL.INTEGER,
                 label: "Minimum selection",
                 when: ["multiSelect"],
                 inline: true,
-                help: "Fewest rows the user must select before the screen will advance. Blank means no minimum."
+                min: 0
             },
             {
                 property: "maxSelection",
-                type: CONTROL.NUMBER,
+                type: CONTROL.INTEGER,
                 label: "Maximum selection",
                 when: ["multiSelect"],
                 inline: true,
-                help: "Most rows the user can select. Blank means no limit."
+                // Never below the minimum: a maximum under it can never be satisfied.
+                min: 1,
+                minFrom: "minSelection"
             },
             {
                 // Single only. For Multiple, a Minimum of 1 says the same thing, and
@@ -614,9 +621,16 @@ export function resolveSection(section, values) {
             // Controls marked `inline` share a row with the next one; everything else
             // takes the full width.
             cssClass: control.inline ? "control control_inline" : "control",
+            // `minFrom` reads the floor off another property, so Maximum selection
+            // cannot be set below Minimum selection. Falls back to the control's own
+            // `min` when that property is blank.
+            min: control.minFrom
+                ? Math.max(Number(control.min ?? 0), Number(values[control.minFrom]) || Number(control.min ?? 0))
+                : (control.min ?? null),
             isCheckbox: control.type === CONTROL.CHECKBOX,
             isSelect: control.type === CONTROL.SELECT,
             isRadio: control.type === CONTROL.RADIO,
+            isInteger: control.type === CONTROL.INTEGER,
             isText: control.type === CONTROL.TEXT,
             isNumber: control.type === CONTROL.NUMBER,
             isIcon: control.type === CONTROL.ICON,

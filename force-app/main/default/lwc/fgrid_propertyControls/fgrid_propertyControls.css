@@ -15,3 +15,14 @@
 .control_inline {
     flex: 1 1 calc(50% - 0.25rem);
 }
+
+/* Our own label, so an integer field reads as boldly as a checkbox or radio group
+   does. lightning-input's own label is hidden rather than removed, so assistive tech
+   still hears it — this one is aria-hidden to avoid announcing it twice. */
+.control__label {
+    display: block;
+    margin-bottom: 0.125rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--slds-g-color-neutral-base-30, #444);
+}
