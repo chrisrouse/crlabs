@@ -141,6 +141,18 @@ Open the smoke flow — it lives in the org, not the repo — and click the Flow
       silently disabled the error reporting `tableErrors` exists to provide.
       `navigateNextOnSave` also fired from the same handler, so hiding the bar broke
       that too: one checkbox quietly disabling three things.
+
+      **Replaced by `autoSaveEdits` the same day**, which keeps the useful half. Each
+      edit commits as the user leaves the cell, so nothing is ever pending and the
+      Cancel and Save buttons never appear — not hidden, simply unnecessary. The bar
+      itself remains, so table-level errors keep somewhere to go. Labelled "Hide the
+      Cancel/Save Buttons" because that is what an admin sees happen; the help text
+      carries the part the label cannot, that there is no undo.
+
+      `navigateNextOnSave` is greyed while it is on, for the same reason as before:
+      no Save event to react to. Auto-save takes its own path through
+      `handleCellChange`, so it needs the same columnKey translation the Save path
+      does — covered by a test, because that bug was expensive the first time.
 - [ ] Recalculate the incoming collection mid-edit and confirm unsaved edits are
       discarded — the §2.6 rule
 

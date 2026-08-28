@@ -559,3 +559,54 @@ describe("selection limits and control", () => {
         expect(result.errorMessage).toBe("Select at least one row to continue.");
     });
 });
+
+describe("auto-saving edits", () => {
+    // The Cancel and Save buttons do not appear because nothing is ever pending, not
+    // because they are hidden. The bottom bar itself stays, which is where
+    // table-level errors surface — the reference forbids suppressing it.
+    function change(element, drafts) {
+        element.shadowRoot
+            .querySelector("c-fgrid_custom-datatable")
+            .dispatchEvent(new CustomEvent("cellchange", { detail: { draftValues: drafts } }));
+        return Promise.resolve();
+    }
+
+    it("commits on cell change and leaves nothing pending", async () => {
+        const element = build({ records: records(2), autoSaveEdits: true });
+        await Promise.resolve();
+        const [first] = records(2);
+
+        await change(element, [{ Id: first.Id, Name: "Saved immediately" }]);
+
+        expect(element.editedCount).toBe(1);
+        expect(element.shadowRoot.querySelector("c-fgrid_custom-datatable").draftValues).toEqual([]);
+    });
+
+    it("holds the edit as a draft when auto-save is off", async () => {
+        const element = build({ records: records(2) });
+        await Promise.resolve();
+        const [first] = records(2);
+
+        await change(element, [{ Id: first.Id, Name: "Pending" }]);
+
+        expect(element.editedCount).toBe(0);
+        expect(element.shadowRoot.querySelector("c-fgrid_custom-datatable").draftValues).toHaveLength(1);
+    });
+
+    it("still resolves a draft keyed by columnKey", async () => {
+        // Auto-save takes its own path through the handler, so it needs the same
+        // columnKey translation the Save path does.
+        const element = build({ records: records(2), autoSaveEdits: true });
+        await Promise.resolve();
+        const table = element.shadowRoot.querySelector("c-fgrid_custom-datatable");
+        const nameColumn = table.columns.find((column) => column.fieldName === "Name");
+        const [first] = records(2);
+
+        await change(element, [{ Id: first.Id, [nameColumn.columnKey]: "Renamed" }]);
+
+        const row = element.shadowRoot
+            .querySelector("c-fgrid_custom-datatable")
+            .data.find((candidate) => candidate.Id === first.Id);
+        expect(row.Name).toBe("Renamed");
+    });
+});

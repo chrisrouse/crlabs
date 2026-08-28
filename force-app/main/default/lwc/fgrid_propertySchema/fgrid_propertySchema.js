@@ -187,6 +187,7 @@ export const VISIBILITY = {
 
 /** Named predicates that grey a control out instead of hiding it. */
 export const DISABLED = {
+    editsAutoSave: (v) => Boolean(v.autoSaveEdits),
     nameFieldNotLinked: (v) => Boolean(v.hideNameFieldLink)
 };
 
@@ -438,9 +439,17 @@ export const SECTIONS = [
         label: "Inline Editing",
         controls: [
             {
+                property: "autoSaveEdits",
+                type: CONTROL.CHECKBOX,
+                label: "Hide the Cancel/Save Buttons",
+                help: "Each edit applies as soon as the user leaves the cell, so nothing is ever pending for Cancel or Save to act on. There is no undo."
+            },
+            {
                 property: "navigateNextOnSave",
                 type: CONTROL.CHECKBOX,
-                label: "Go to the Next Flow Element on Save"
+                label: "Go to the Next Flow Element on Save",
+                disabledWhen: ["editsAutoSave"],
+                help: "Unavailable while edits save themselves, because there is no Save to react to."
             }
         ]
     },

@@ -96,6 +96,7 @@
             <property name="maxNumberOfRows" type="Integer" label="Maximum Records to Display" role="inputOnly" />
 
             <!-- ========================== Inline editing =========================== -->
+            <property name="autoSaveEdits" type="Boolean" label="Hide the Cancel/Save Buttons" default="false" role="inputOnly" description="Applies each edit as soon as the user leaves the cell, so nothing is ever pending and the Cancel and Save buttons never appear. The bottom bar itself remains, which is where table-level errors are shown. There is no undo." />
             <property name="navigateNextOnSave" type="Boolean" label="Navigate Next on Save" default="false" role="inputOnly" />
 
             <!-- ============================ Row action =============================

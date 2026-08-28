@@ -94,6 +94,14 @@ export default class FgridFlowGrid extends LightningElement {
 
     // ----- Selection -----
     @api selectionMode = "Multiple";
+    /**
+     * Commit each edit as the user leaves the cell, instead of on Save.
+     *
+     * The Cancel and Save buttons then never appear — not because they are hidden,
+     * but because nothing is ever pending for them to act on. The bottom bar itself
+     * stays available, which is where table-level errors surface.
+     */
+    @api autoSaveEdits = false;
     @api isRequired = false;
     @api minSelection;
     @api maxSelection;
@@ -1671,6 +1679,21 @@ export default class FgridFlowGrid extends LightningElement {
         if (!incoming.length) {
             return;
         }
+
+        // Auto-save: commit and keep nothing pending, so the Cancel/Save buttons have
+        // no reason to appear. Deliberately no undo — that is what Cancel was for, and
+        // an admin choosing this has chosen immediacy over it.
+        if (this.autoSaveEdits) {
+            incoming.forEach((draft) => {
+                const key = draft?.[this.keyField];
+                if (key !== null && key !== undefined && key !== "") {
+                    this.upsertRecord(this.normalizeDraft(draft));
+                }
+            });
+            this._draftValues = [];
+            return;
+        }
+
         const merged = this._draftValues.map((draft) => ({ ...draft }));
         incoming.forEach((draft) => {
             const key = draft?.[this.keyField];
