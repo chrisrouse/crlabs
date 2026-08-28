@@ -249,10 +249,6 @@ export default class FgridFlowGridStudio extends LightningElement {
 
     /* Datatable attributes the preview mirrors so layout choices are visible here. */
 
-    get previewSingleRowSelectionMode() {
-        return this.values?.singleSelectAsCheckbox ? "checkbox" : undefined;
-    }
-
     get showPaginationChrome() {
         return this.values?.rowLoading === "Paginate";
     }

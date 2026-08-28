@@ -105,9 +105,13 @@ describe("conditional sections", () => {
         expect(visible("selection", { selectionMode: "None" })).toEqual(["selectionMode"]);
     });
 
-    it("offers Clear Selection only for single-row selection", () => {
-        expect(visible("selection", { selectionMode: "Multiple" })).not.toContain("hideClearSelectionButton");
+    it("offers Clear Selection wherever the button can appear", () => {
+        // The runtime shows the button for ANY selection mode, so offering the switch
+        // only for Single left Multiple with a button that could not be turned off.
+        // This test previously asserted the bug.
         expect(visible("selection", { selectionMode: "Single" })).toContain("hideClearSelectionButton");
+        expect(visible("selection", { selectionMode: "Multiple" })).toContain("hideClearSelectionButton");
+        expect(visible("selection", { selectionMode: "None" })).not.toContain("hideClearSelectionButton");
     });
 
     it("shows page settings only when pagination is on", () => {

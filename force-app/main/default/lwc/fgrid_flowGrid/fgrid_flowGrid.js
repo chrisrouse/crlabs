@@ -96,7 +96,6 @@ export default class FgridFlowGrid extends LightningElement {
     @api selectionMode = "Multiple";
     @api isRequired = false;
     @api hideClearSelectionButton = false;
-    @api singleSelectAsCheckbox = false;
 
     // ----- Search, filter, sort -----
     @api showSearchBar = false;
@@ -1107,12 +1106,6 @@ export default class FgridFlowGrid extends LightningElement {
 
     get wrapperStyle() {
         return `height: ${this.tableHeight || DEFAULT_TABLE_HEIGHT};`;
-    }
-
-    /** Radio is the datatable's default for single select; this offers the checkbox
-     *  alternative the reference documents. */
-    get singleRowSelectionMode() {
-        return this.singleSelectAsCheckbox ? "checkbox" : undefined;
     }
 
     /**

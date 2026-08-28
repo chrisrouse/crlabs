@@ -325,14 +325,10 @@ export const SECTIONS = [
                 property: "hideClearSelectionButton",
                 type: CONTROL.CHECKBOX,
                 label: "Hide the Clear Selection button",
-                when: ["singleSelect"]
-            },
-            {
-                property: "singleSelectAsCheckbox",
-                type: CONTROL.CHECKBOX,
-                label: "Use a checkbox for single selection",
-                when: ["singleSelect"],
-                help: "Single selection uses a radio button by default, which cannot be cleared once chosen. A checkbox can."
+                // `selectable`, not `singleSelect`: the runtime shows the button for
+                // ANY selection mode, so offering the switch only for single left
+                // Multiple with a button that could not be turned off.
+                when: ["selectable"]
             }
         ]
     },

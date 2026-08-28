@@ -71,7 +71,6 @@
             <property name="selectionMode" type="String" label="Selection Mode" default="Multiple" role="inputOnly" />
             <property name="isRequired" type="Boolean" label="Require a Selection" default="false" role="inputOnly" />
             <property name="hideClearSelectionButton" type="Boolean" label="Hide Clear Selection Button" default="false" role="inputOnly" />
-            <property name="singleSelectAsCheckbox" type="Boolean" label="Use a Checkbox for Single Select" default="false" role="inputOnly" description="Single-row selection uses a radio button by default; this switches it to a checkbox." />
 
             <!-- ======================= Search, filter, sort ======================== -->
             <property name="showSearchBar" type="Boolean" label="Show Search Bar" default="false" role="inputOnly" />
