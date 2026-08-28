@@ -658,3 +658,64 @@ describe("sort state is keyed by columnKey", () => {
         expect(element.sortedBy).toBe("Name");
     });
 });
+
+describe("selection survives paging", () => {
+    // The datatable reports only the rows it is rendering. Treating that as the whole
+    // selection meant paging away deselected everything the user had picked.
+    function selectRows(element, rows) {
+        element.shadowRoot
+            .querySelector("c-fgrid_custom-datatable")
+            .dispatchEvent(new CustomEvent("rowselection", { detail: { selectedRows: rows } }));
+        return Promise.resolve();
+    }
+
+    function goToPage(element, page) {
+        element.shadowRoot
+            .querySelector("c-fgrid_pagination")
+            .dispatchEvent(new CustomEvent("pagechange", { detail: { page } }));
+        return Promise.resolve();
+    }
+
+    it("keeps a selection made on an earlier page", async () => {
+        const all = records(4);
+        const element = build({ records: all, rowLoading: "Paginate", recordsPerPage: 2 });
+        await Promise.resolve();
+
+        await selectRows(element, [all[0]]);
+        expect(element.selectedCount).toBe(1);
+
+        // Page two: the datatable reports nothing selected, because it can see
+        // neither of the rows the user picked.
+        await goToPage(element, 2);
+        await selectRows(element, []);
+
+        expect(element.selectedCount).toBe(1);
+        expect(element.outputSelectedRecords.map((r) => r.Id)).toEqual([all[0].Id]);
+    });
+
+    it("accumulates selections across pages", async () => {
+        const all = records(4);
+        const element = build({ records: all, rowLoading: "Paginate", recordsPerPage: 2 });
+        await Promise.resolve();
+
+        await selectRows(element, [all[0]]);
+        await goToPage(element, 2);
+        await selectRows(element, [all[2]]);
+
+        expect(element.selectedCount).toBe(2);
+        expect(element.outputSelectedRecords.map((r) => r.Id).sort()).toEqual([all[0].Id, all[2].Id].sort());
+    });
+
+    it("still deselects a row on the page the user is looking at", async () => {
+        const all = records(4);
+        const element = build({ records: all, rowLoading: "Paginate", recordsPerPage: 2 });
+        await Promise.resolve();
+
+        await selectRows(element, [all[0], all[1]]);
+        expect(element.selectedCount).toBe(2);
+
+        await selectRows(element, [all[1]]);
+        expect(element.selectedCount).toBe(1);
+        expect(element.outputSelectedRecords.map((r) => r.Id)).toEqual([all[1].Id]);
+    });
+});

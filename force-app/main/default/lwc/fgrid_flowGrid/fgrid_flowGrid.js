@@ -1234,8 +1234,17 @@ export default class FgridFlowGrid extends LightningElement {
 
     handleRowSelection(event) {
         this._touched = true;
-        const selected = event.detail.selectedRows || [];
-        this._selectedKeys = selected.map((row) => row[this.keyField]);
+        const selected = (event.detail.selectedRows || []).map((row) => row?.[this.keyField]);
+
+        // The datatable reports the rows IT is rendering, so its answer is
+        // authoritative for the current page and silent about every other one.
+        // Replacing the whole selection with it meant paging away deselected
+        // everything the user had picked — and in scroll mode, so did scrolling past
+        // it. Only the visible rows are reconciled; the rest are left alone.
+        const visible = new Set(this.rows.map((row) => String(row?.[this.keyField])));
+        const offPage = this._selectedKeys.filter((key) => !visible.has(String(key)));
+
+        this._selectedKeys = [...offPage, ...selected];
         this.publishSelection();
     }
 
