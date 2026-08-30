@@ -885,3 +885,34 @@ describe("maximum selection across pages", () => {
         expect(element.selectedCount).toBe(6);
     });
 });
+
+describe("the wrapped-line limit reaches SLDS 2", () => {
+    // The datatable sets --lwc-lineClamp from wrap-text-max-lines, but SLDS 2's
+    // .slds-line-clamp reads --slds-g-font-line-clamp, pinned to 3 at :where(html).
+    // Confirmed in the inspector: the cell carried --lwc-lineClamp: 6 while the
+    // computed clamp resolved to 3 from slds-plus.css.
+    function wrapperStyle(props) {
+        const element = build({ records: records(1), ...props });
+        return element.shadowRoot.querySelector("[class*='grid__wrapper']").style;
+    }
+
+    it("sets the SLDS hook to the requested count", async () => {
+        const style = wrapperStyle({ wrapTextMaxLines: 6 });
+        expect(style.getPropertyValue("--slds-g-font-line-clamp")).toBe("6");
+    });
+
+    it("sets the datatable's own variable too, for an SLDS 1 org", async () => {
+        const style = wrapperStyle({ wrapTextMaxLines: 6 });
+        expect(style.getPropertyValue("--lwc-lineClamp")).toBe("6");
+    });
+
+    it("sets neither when there is no limit, so wrapping stays unlimited", async () => {
+        const style = wrapperStyle({});
+        expect(style.getPropertyValue("--slds-g-font-line-clamp")).toBe("");
+        expect(style.getPropertyValue("--lwc-lineClamp")).toBe("");
+    });
+
+    it("still sets the height", async () => {
+        expect(wrapperStyle({ wrapTextMaxLines: 2, tableHeight: "20rem" }).height).toBe("20rem");
+    });
+});

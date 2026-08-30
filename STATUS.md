@@ -782,35 +782,50 @@ exists above the table.
 
 Width is a plain number field: type a value, clear it for auto. Nothing else.
 
-### Wrapped Lines — a count, and NOT yet settled
+### Wrapped Lines — SOLVED, and the cause was a variable-name mismatch
 
-`wrap-text-max-lines` takes a count, and the reference is clear it is a count: "To show
-a number of lines of text in the column and hide the remaining lines". Three is only
-the example in its markup snippet.
+`wrap-text-max-lines` appeared to clamp at three whatever it was given. It took a
+console probe, an inspector read and two wrong conclusions; the DevTools Computed panel
+is what settled it.
 
-**What is known:**
+**What is actually happening.** The datatable takes `wrap-text-max-lines` and writes it
+inline on each cell wrapper as `--lwc-lineClamp`, alongside the class
+`slds-line-clamp`:
 
-- The value stores correctly. Tooling API: `wrapTextMaxLines` = `numberValue: 1`.
-- It must be passed as a STRING. The reference: "Accepts a string value representing a
-  number." It was being passed as a number, which is a real defect and is fixed.
-- Nothing in this component forces three — no hardcoded value, no line-clamp CSS, no
-  per-column override.
+```html
+<div class="slds-hyphenate slds-line-clamp" style="--lwc-lineClamp: 6">
+```
 
-**What is NOT known:** whether an arbitrary count is honoured at runtime. Two browser
-tests (1, then 5) both showed three lines, and it was briefly concluded that three is
-the only value the platform accepts — the control was even converted to a checkbox on
-that basis, then reverted.
+But in an **SLDS 2** org (`slds-plus.css`) `.slds-line-clamp` clamps on a different
+variable — `--slds-g-font-line-clamp` — pinned to `3` at `:where(html)`:
 
-**Why that conclusion was unsafe:** both tests may have run against a CACHED build that
-still passed a number. Flow Builder's cache hid a deployed change twice on the same day
-(§4). If the attribute was being ignored, the three lines came from something else and
-neither test exercised the fix.
+```
+--lwc-lineClamp            3   :root          app.css:1
+--slds-g-font-line-clamp   3   :where(html)   slds-plus.css:124
+```
 
-**To settle it:** hard-refresh, confirm the deployed source contains
-`String(Math.min(...))` via the Tooling API query in §4, then try 1 and 6 on a column
-whose text runs well past six lines. If both show three, the platform clamps and the
-control should become a switch. If they show one and six, this was only ever the
-number-versus-string defect.
+So the component wrote 6, the stylesheet read 3, and no value could ever apply. Nothing
+was wrong with the count, the string conversion, or the stored metadata.
+
+**The fix** sets `--slds-g-font-line-clamp` on the grid wrapper, which is the sanctioned
+SLDS 2 styling hook, and `--lwc-lineClamp` alongside it so an SLDS 1 org still works.
+Custom properties inherit, so this reaches cells inside the datatable's shadow DOM
+where our own CSS cannot. `wrap-text-max-lines` is still passed, because it is what
+makes the datatable apply `slds-line-clamp` in the first place.
+
+**Two wrong conclusions on the way, both instructive:**
+
+1. Passing a number where the reference asks for "a string value representing a number"
+   was a real defect and was fixed — but fixing it changed nothing visible, which
+   should have prompted measurement rather than a second theory.
+2. The control was converted to a checkbox on the belief that three is the only value
+   the platform honours, then reverted when the reference was re-read: it says "to show
+   a number of lines", with three only as its example.
+
+**The ordering that would have worked first time:** confirm the value is stored
+(Tooling API), confirm it reaches the element (inspector), then read the COMPUTED style.
+The third step is the one that names the mechanism, and it is the one that was skipped
+twice.
 
 ### Text wrapping — one per-column checkbox, 2026-08-27
 

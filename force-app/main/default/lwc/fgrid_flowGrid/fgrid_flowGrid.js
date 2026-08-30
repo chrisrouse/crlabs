@@ -1207,7 +1207,27 @@ export default class FgridFlowGrid extends LightningElement {
     }
 
     get wrapperStyle() {
-        return `height: ${this.tableHeight || DEFAULT_TABLE_HEIGHT};`;
+        const height = `height: ${this.tableHeight || DEFAULT_TABLE_HEIGHT};`;
+        const lines = this.wrappedLines;
+        if (!lines) {
+            return height;
+        }
+        // Override the SLDS styling hook, because the datatable writes the wrong
+        // variable for SLDS 2.
+        //
+        // It sets `--lwc-lineClamp` inline on the cell wrapper from
+        // `wrap-text-max-lines`, but in an SLDS 2 org (`slds-plus.css`)
+        // `.slds-line-clamp` clamps on `--slds-g-font-line-clamp`, which is pinned to 3
+        // at `:where(html)`. So the datatable wrote 6, the stylesheet read 3, and no
+        // value could ever take effect. Confirmed in the inspector: the cell carried
+        // `--lwc-lineClamp: 6` while the computed clamp resolved to 3 from
+        // slds-plus.css.
+        //
+        // Setting the hook here is the sanctioned SLDS 2 route, and custom properties
+        // inherit, so it reaches cells inside the datatable's shadow DOM where our
+        // own CSS cannot. `wrap-text-max-lines` is still passed, because it is what
+        // makes the datatable apply the `slds-line-clamp` class at all.
+        return `${height} --slds-g-font-line-clamp: ${lines}; --lwc-lineClamp: ${lines};`;
     }
 
     /**
