@@ -237,8 +237,6 @@ export default class FgridFlowGrid extends LightningElement {
     _removedKeys = [];
     _removalBlockedMessage = null;
 
-    /** Shown when a selection was refused because the maximum was already reached. */
-    _selectionBlockedMessage = null;
     /** Field patches applied by the row-action flow, keyed by keyField. */
     _editsByKey = {};
 
@@ -839,10 +837,34 @@ export default class FgridFlowGrid extends LightningElement {
      */
     get disabledRows() {
         const source = this.isUserDefinedObject ? parseRecordJson(this.disabledRecordsJson) : this.disabledRecords;
-        if (!Array.isArray(source)) {
-            return [];
+        const configured = Array.isArray(source)
+            ? source.map((record) => record?.[this.keyField]).filter((key) => key !== null && key !== undefined)
+            : [];
+
+        if (!this.isSelectionFull) {
+            return configured;
         }
-        return source.map((record) => record?.[this.keyField]).filter((key) => key !== null && key !== undefined);
+
+        // At the maximum, every row that is NOT already selected is disabled — on
+        // every page, which is the part the datatable cannot do for itself. Its own
+        // `max-row-selection` only sees the current page, so it greyed the remaining
+        // checkboxes there and left them live everywhere else. Deselecting a row frees
+        // a slot and these re-enable, because this is derived rather than stored.
+        const selected = new Set(this._selectedKeys.map((key) => String(key)));
+        const unselected = this.rows
+            .map((row) => row?.[this.keyField])
+            .filter((key) => key !== null && key !== undefined && !selected.has(String(key)));
+
+        return [...configured, ...unselected];
+    }
+
+    /** True when a maximum is set and the user has reached it. */
+    get isSelectionFull() {
+        if (this.selectionMode !== "Multiple") {
+            return false;
+        }
+        const cap = Number(this.maxSelection);
+        return Number.isFinite(cap) && cap > 0 && this._selectedKeys.length >= cap;
     }
 
     /**
@@ -1112,12 +1134,23 @@ export default class FgridFlowGrid extends LightningElement {
         return Boolean(this._removalBlockedMessage);
     }
 
+    /**
+     * Announced as soon as the maximum is reached, not only when a click is refused.
+     *
+     * Every unselected row is disabled at that point, so without this the grid simply
+     * stops responding with no stated reason — and the reason may be a selection on a
+     * page the user cannot see.
+     */
     get selectionBlockedMessage() {
-        return this._selectionBlockedMessage;
+        if (!this.isSelectionFull) {
+            return null;
+        }
+        const cap = Number(this.maxSelection);
+        return `Maximum of ${cap} ${cap === 1 ? "row" : "rows"} selected. Deselect a row to choose another.`;
     }
 
     get hasSelectionBlockedMessage() {
-        return Boolean(this._selectionBlockedMessage);
+        return Boolean(this.selectionBlockedMessage);
     }
 
     get headerCounts() {
@@ -1289,9 +1322,6 @@ export default class FgridFlowGrid extends LightningElement {
             const room = Math.max(cap - kept.length, 0);
             const added = selected.filter((key) => !previous.has(String(key))).slice(0, room);
             merged = [...kept, ...added];
-            this._selectionBlockedMessage = `You can select at most ${cap} ${cap === 1 ? "row" : "rows"}.`;
-        } else {
-            this._selectionBlockedMessage = null;
         }
 
         this._selectedKeys = merged;

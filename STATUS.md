@@ -83,9 +83,19 @@ Open the smoke flow — it lives in the org, not the repo — and click the Flow
       only the keys for rows it can see and therefore counts one page at a time.
 
       Already-selected rows keep their place and only newly ticked ones are refused,
-      so hitting the limit does not reshuffle what the user already had, and a warning
-      says why — a checkbox that silently refuses for a reason on another page is its
-      own small mystery. The message clears as soon as a selection succeeds.
+      so hitting the limit does not reshuffle what the user already had.
+
+      **Then closed the door properly.** Refusing a click after the fact meant the
+      checkbox ticked and un-ticked, and on the current page the datatable greyed the
+      remaining boxes while leaving them live on every other page — the same ceiling
+      behaving two different ways. At the maximum, every unselected row now goes into
+      `disabled-rows`, which is the platform's own mechanism for "cannot change this
+      row's selection" and works on any page. Deselecting frees a slot and they
+      re-enable, because `disabledRows` is derived rather than stored.
+
+      The message is derived too, so it appears the moment the maximum is reached
+      rather than only when a click is refused: the rows stop responding at that point,
+      and the reason may be a selection on a page the user cannot see.
 
 ### 1.4 Runtime — the Flow row action (the headline feature)
 

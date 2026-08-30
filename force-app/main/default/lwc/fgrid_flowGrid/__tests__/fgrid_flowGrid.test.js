@@ -811,16 +811,45 @@ describe("maximum selection across pages", () => {
         expect(element.outputSelectedRecords.map((r) => r.Id)).toEqual([all[0].Id, all[1].Id, all[2].Id]);
     });
 
-    it("says why the selection was refused", async () => {
+    it("disables every unselected row once the maximum is reached, on any page", async () => {
+        // The datatable greys the remaining checkboxes on the page it can see and
+        // leaves them live everywhere else, so the ceiling has to be applied through
+        // disabled-rows.
         const all = records(6);
         const element = build_({});
         await Promise.resolve();
 
         await selectRows(element, [all[0], all[1], all[2]]);
-        await goToPage(element, 2);
-        await selectRows(element, [all[3]]);
+        const table = element.shadowRoot.querySelector("c-fgrid_custom-datatable");
+        expect(table.disabledRows).toEqual([]);
 
-        expect(element.shadowRoot.textContent).toContain("You can select at most 3 rows.");
+        await goToPage(element, 2);
+        expect(element.shadowRoot.querySelector("c-fgrid_custom-datatable").disabledRows).toEqual([
+            all[3].Id,
+            all[4].Id,
+            all[5].Id
+        ]);
+    });
+
+    it("re-enables them when a row is deselected", async () => {
+        const all = records(6);
+        const element = build_({});
+        await Promise.resolve();
+
+        await selectRows(element, [all[0], all[1], all[2]]);
+        await selectRows(element, [all[0], all[1]]);
+
+        expect(element.shadowRoot.querySelector("c-fgrid_custom-datatable").disabledRows).toEqual([]);
+    });
+
+    it("says so as soon as the maximum is reached, not only when a click is refused", async () => {
+        const all = records(6);
+        const element = build_({});
+        await Promise.resolve();
+
+        await selectRows(element, [all[0], all[1], all[2]]);
+
+        expect(element.shadowRoot.textContent).toContain("Maximum of 3 rows selected");
     });
 
     it("fills only the room that is left", async () => {
@@ -848,7 +877,7 @@ describe("maximum selection across pages", () => {
         await goToPage(element, 1);
         await selectRows(element, [all[0]]);
 
-        expect(element.shadowRoot.textContent).not.toContain("You can select at most");
+        expect(element.shadowRoot.textContent).not.toContain("Maximum of 3 rows selected");
     });
 
     it("leaves an uncapped grid alone", async () => {
