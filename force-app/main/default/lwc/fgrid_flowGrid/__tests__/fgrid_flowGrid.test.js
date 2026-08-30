@@ -459,35 +459,6 @@ describe("actioned record ids accumulate", () => {
     });
 });
 
-describe("wrapped lines", () => {
-    // Passed as a string: the reference says the attribute "accepts a string value
-    // representing a number", and its markup example is wrap-text-max-lines="3".
-    function linesFor(props) {
-        const element = build({ records: records(1), ...props });
-        return element.shadowRoot.querySelector("c-fgrid_custom-datatable").wrapTextMaxLines;
-    }
-
-    it("passes the requested count, as a string", async () => {
-        expect(linesFor({ wrapTextMaxLines: 1 })).toBe("1");
-        expect(linesFor({ wrapTextMaxLines: 5 })).toBe("5");
-    });
-
-    it("accepts a value that arrives as a string from Flow", async () => {
-        expect(linesFor({ wrapTextMaxLines: "4" })).toBe("4");
-    });
-
-    it("clamps to the supported range", async () => {
-        expect(linesFor({ wrapTextMaxLines: 99 })).toBe("10");
-        expect(linesFor({ wrapTextMaxLines: 2.7 })).toBe("2");
-    });
-
-    it("leaves the attribute unset when nothing usable is given", async () => {
-        for (const value of [undefined, null, 0, -4, "abc"]) {
-            expect(linesFor({ wrapTextMaxLines: value })).toBeUndefined();
-        }
-    });
-});
-
 describe("selection limits and control", () => {
     function table(element) {
         return element.shadowRoot.querySelector("c-fgrid_custom-datatable");
@@ -886,33 +857,28 @@ describe("maximum selection across pages", () => {
     });
 });
 
-describe("the wrapped-line limit reaches SLDS 2", () => {
-    // The datatable sets --lwc-lineClamp from wrap-text-max-lines, but SLDS 2's
-    // .slds-line-clamp reads --slds-g-font-line-clamp, pinned to 3 at :where(html).
-    // Confirmed in the inspector: the cell carried --lwc-lineClamp: 6 while the
-    // computed clamp resolved to 3 from slds-plus.css.
-    function wrapperStyle(props) {
+describe("wrapped line limit", () => {
+    // SLDS 2 hardcodes the clamp: `.slds-line-clamp { -webkit-line-clamp: 3 }` in
+    // slds-plus.css, with no var() to override. Confirmed in the inspector — the cell
+    // carried `--lwc-lineClamp: 6` and nothing read it. So the count cannot be
+    // honoured and the setting is a switch: three lines, or all of them.
+    function linesFor(props) {
         const element = build({ records: records(1), ...props });
-        return element.shadowRoot.querySelector("[class*='grid__wrapper']").style;
+        return element.shadowRoot.querySelector("c-fgrid_custom-datatable").wrapTextMaxLines;
     }
 
-    it("sets the SLDS hook to the requested count", async () => {
-        const style = wrapperStyle({ wrapTextMaxLines: 6 });
-        expect(style.getPropertyValue("--slds-g-font-line-clamp")).toBe("6");
+    it("sends three when the limit is on", async () => {
+        expect(linesFor({ limitWrappedLines: true })).toBe("3");
     });
 
-    it("sets the datatable's own variable too, for an SLDS 1 org", async () => {
-        const style = wrapperStyle({ wrapTextMaxLines: 6 });
-        expect(style.getPropertyValue("--lwc-lineClamp")).toBe("6");
+    it("sends nothing when it is off, so the class is never applied", async () => {
+        expect(linesFor({})).toBeUndefined();
+        expect(linesFor({ limitWrappedLines: false })).toBeUndefined();
     });
 
-    it("sets neither when there is no limit, so wrapping stays unlimited", async () => {
-        const style = wrapperStyle({});
+    it("does not try to override the SLDS hook, which cannot work", async () => {
+        const element = build({ records: records(1), limitWrappedLines: true });
+        const style = element.shadowRoot.querySelector("[class*='grid__wrapper']").style;
         expect(style.getPropertyValue("--slds-g-font-line-clamp")).toBe("");
-        expect(style.getPropertyValue("--lwc-lineClamp")).toBe("");
-    });
-
-    it("still sets the height", async () => {
-        expect(wrapperStyle({ wrapTextMaxLines: 2, tableHeight: "20rem" }).height).toBe("20rem");
     });
 });

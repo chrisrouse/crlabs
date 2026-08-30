@@ -782,50 +782,62 @@ exists above the table.
 
 Width is a plain number field: type a value, clear it for auto. Nothing else.
 
-### Wrapped Lines — SOLVED, and the cause was a variable-name mismatch
+### Wrapped Lines is a switch — SLDS 2 hardcodes the clamp
 
-`wrap-text-max-lines` appeared to clamp at three whatever it was given. It took a
-console probe, an inspector read and two wrong conclusions; the DevTools Computed panel
-is what settled it.
+**The mechanism, from the Styles panel** (`slds-plus.css:28408`):
 
-**What is actually happening.** The datatable takes `wrap-text-max-lines` and writes it
-inline on each cell wrapper as `--lwc-lineClamp`, alongside the class
-`slds-line-clamp`:
+```css
+.slds-line-clamp {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;      /* a literal. no var(), no styling hook */
+  text-overflow: ellipsis;
+  white-space: pre-line;
+}
+```
+
+The datatable takes `wrap-text-max-lines` and writes it on the cell wrapper as
+`--lwc-lineClamp`, alongside that class:
 
 ```html
 <div class="slds-hyphenate slds-line-clamp" style="--lwc-lineClamp: 6">
 ```
 
-But in an **SLDS 2** org (`slds-plus.css`) `.slds-line-clamp` clamps on a different
-variable — `--slds-g-font-line-clamp` — pinned to `3` at `:where(html)`:
+**Nothing reads `--lwc-lineClamp`.** SLDS 2 clamps at a hardcoded three, so the count
+cannot be honoured by any means available to a consumer — and the class exists only
+because the attribute is set at all. The two achievable states are therefore three
+lines, or unlimited. Hence a checkbox, **Limit Wrapped Text to Three Lines**, and the
+runtime sends the literal `"3"` or nothing.
 
-```
---lwc-lineClamp            3   :root          app.css:1
---slds-g-font-line-clamp   3   :where(html)   slds-plus.css:124
-```
+Worth knowing this is a platform-wide break: `wrap-text-max-lines` does not work in any
+SLDS 2 org, for any component.
 
-So the component wrote 6, the stylesheet read 3, and no value could ever apply. Nothing
-was wrong with the count, the string conversion, or the stored metadata.
+#### Four wrong turns, and the ordering that would have avoided them
 
-**The fix** sets `--slds-g-font-line-clamp` on the grid wrapper, which is the sanctioned
-SLDS 2 styling hook, and `--lwc-lineClamp` alongside it so an SLDS 1 org still works.
-Custom properties inherit, so this reaches cells inside the datatable's shadow DOM
-where our own CSS cannot. `wrap-text-max-lines` is still passed, because it is what
-makes the datatable apply `slds-line-clamp` in the first place.
+1. Passed a NUMBER where the reference asks for "a string value representing a number".
+   A real defect, fixed — but fixing it changed nothing visible, which was the moment to
+   measure rather than theorise again.
+2. Concluded three was a platform floor and converted the control to a switch. Right
+   answer, no evidence.
+3. Reverted it when the reference was re-read: "to show a number of lines", three only
+   as its example. Correct reasoning, wrong conclusion.
+4. Overrode `--slds-g-font-line-clamp`, the SLDS 2 styling hook, on the assumption that
+   the clamp read a variable. It does not. Dead code, now removed.
 
-**Two wrong conclusions on the way, both instructive:**
+**The ordering that works, and it is three steps:** confirm the value is stored (Tooling
+API), confirm it reaches the element (inspector), then **read the RULE, not the computed
+value**. Step three names the mechanism. A filter on "clamp" in the Computed panel
+showed only the custom properties and no `-webkit-line-clamp`, which was itself the
+clue that the property was not where it was assumed to be.
 
-1. Passing a number where the reference asks for "a string value representing a number"
-   was a real defect and was fixed — but fixing it changed nothing visible, which
-   should have prompted measurement rather than a second theory.
-2. The control was converted to a checkbox on the belief that three is the only value
-   the platform honours, then reverted when the reference was re-read: it says "to show
-   a number of lines", with three only as its example.
+#### TODO — remove the `wrapTextMaxLines` shim
 
-**The ordering that would have worked first time:** confirm the value is stored
-(Tooling API), confirm it reaches the element (inspector), then read the COMPUTED style.
-The third step is the one that names the mechanism, and it is the one that was skipped
-twice.
+Deprecated, unread, absent from the property editor, still declared in `js-meta.xml`
+and as an `@api`. Salesforce refuses to deploy a targetConfig that drops a property a
+saved flow version references, then refuses one with no matching `@api` — so a single
+stored value pins it. To finish: clear it from every flow version that holds it, verify
+with a Tooling API `SELECT Metadata FROM Flow` grep, then drop both together.
 
 ### Text wrapping — one per-column checkbox, 2026-08-27
 

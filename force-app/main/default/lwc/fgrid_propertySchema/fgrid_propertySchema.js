@@ -372,11 +372,10 @@ export const SECTIONS = [
             },
             { property: "showRowNumbers", type: CONTROL.CHECKBOX, label: "Show Row Numbers" },
             {
-                property: "wrapTextMaxLines",
-                type: CONTROL.INTEGER,
-                label: "Wrapped Lines",
-                min: 0,
-                help: "Lines a wrapped cell shows before it truncates. Leave blank for no limit."
+                property: "limitWrappedLines",
+                type: CONTROL.CHECKBOX,
+                label: "Limit Wrapped Text to Three Lines",
+                help: "Three is the only clamp available — SLDS hardcodes it, so a count cannot be honoured. Off, a wrapped cell shows every line."
             },
             {
                 property: "showReadOnlyIcon",

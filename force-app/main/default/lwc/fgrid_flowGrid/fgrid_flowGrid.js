@@ -64,9 +64,14 @@ const SCROLL_BATCH_SIZE = 50;
  *  boundary to exist before `loadmore` will ever fire. */
 const DEFAULT_TABLE_HEIGHT = "30rem";
 
-/** Range a wrapped cell's line count is held to. */
-const WRAPPED_LINES_MIN = 1;
-const WRAPPED_LINES_MAX = 10;
+/**
+ * The clamp SLDS 2 applies, and the only one available.
+ *
+ * `slds-plus.css` hardcodes it — `.slds-line-clamp { -webkit-line-clamp: 3 }`, no
+ * `var()` — so the count passed to `wrap-text-max-lines` cannot change the outcome.
+ * Passing anything gets the class; the class is always three lines.
+ */
+const WRAPPED_LINE_CLAMP = "3";
 
 export default class FgridFlowGrid extends LightningElement {
     // ----- Data source -----
@@ -90,7 +95,16 @@ export default class FgridFlowGrid extends LightningElement {
     @api showSelectedCount = false;
     @api showRowNumbers = false;
     @api tableHeight;
+    /**
+     * DEPRECATED and unread. Superseded by `limitWrappedLines`.
+     *
+     * Kept only because Salesforce refuses to deploy a targetConfig that drops a
+     * property a saved flow version still references, and then refuses a targetConfig
+     * property with no matching @api. See the removal TODO in STATUS.
+     */
     @api wrapTextMaxLines;
+
+    @api limitWrappedLines = false;
     @api showReadOnlyIcon = false;
 
     // ----- Selection -----
@@ -1192,42 +1206,15 @@ export default class FgridFlowGrid extends LightningElement {
      * clipped dropdown is clipped by the datatable's OWN scroll container, inside its
      * shadow DOM, which our CSS cannot reach.
      */
-    /**
-     * Lines a wrapped cell shows before truncating, or undefined for no limit.
-     *
-     * Passed as a STRING: the reference says the attribute "accepts a string value
-     * representing a number", and the markup example is `wrap-text-max-lines="3"`.
-     */
+    /** Three when a limit is wanted, otherwise nothing, which wraps without limit. */
     get wrappedLines() {
-        const requested = Number(this.wrapTextMaxLines);
-        if (!Number.isFinite(requested) || requested <= 0) {
-            return undefined;
-        }
-        return String(Math.min(Math.max(Math.trunc(requested), WRAPPED_LINES_MIN), WRAPPED_LINES_MAX));
+        return this.limitWrappedLines ? WRAPPED_LINE_CLAMP : undefined;
     }
 
     get wrapperStyle() {
-        const height = `height: ${this.tableHeight || DEFAULT_TABLE_HEIGHT};`;
-        const lines = this.wrappedLines;
-        if (!lines) {
-            return height;
-        }
-        // Override the SLDS styling hook, because the datatable writes the wrong
-        // variable for SLDS 2.
-        //
-        // It sets `--lwc-lineClamp` inline on the cell wrapper from
-        // `wrap-text-max-lines`, but in an SLDS 2 org (`slds-plus.css`)
-        // `.slds-line-clamp` clamps on `--slds-g-font-line-clamp`, which is pinned to 3
-        // at `:where(html)`. So the datatable wrote 6, the stylesheet read 3, and no
-        // value could ever take effect. Confirmed in the inspector: the cell carried
-        // `--lwc-lineClamp: 6` while the computed clamp resolved to 3 from
-        // slds-plus.css.
-        //
-        // Setting the hook here is the sanctioned SLDS 2 route, and custom properties
-        // inherit, so it reaches cells inside the datatable's shadow DOM where our
-        // own CSS cannot. `wrap-text-max-lines` is still passed, because it is what
-        // makes the datatable apply the `slds-line-clamp` class at all.
-        return `${height} --slds-g-font-line-clamp: ${lines}; --lwc-lineClamp: ${lines};`;
+        // Height only. Overriding `--slds-g-font-line-clamp` was tried and is dead
+        // code: SLDS 2 hardcodes `-webkit-line-clamp: 3` with no variable to override.
+        return `height: ${this.tableHeight || DEFAULT_TABLE_HEIGHT};`;
     }
 
     /**

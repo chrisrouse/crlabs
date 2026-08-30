@@ -314,11 +314,11 @@ describe("integer values are typed for Flow", () => {
     });
 });
 
-describe("wrapped lines is a plain integer", () => {
-    it("takes no Flow resource and no negative", () => {
-        const control = resolveSection(section("display"), {}).find((c) => c.property === "wrapTextMaxLines");
-        expect(control.isInteger).toBe(true);
-        expect(control.isNumber).toBe(false);
-        expect(control.min).toBe(0);
+describe("the wrapped line limit is a switch", () => {
+    it("offers a checkbox, because a count cannot be honoured", () => {
+        const controls = resolveSection(section("display"), {});
+        expect(controls.find((c) => c.property === "limitWrappedLines").isCheckbox).toBe(true);
+        // The deprecated property is unread and must not reappear in the editor.
+        expect(controls.find((c) => c.property === "wrapTextMaxLines")).toBeUndefined();
     });
 });
