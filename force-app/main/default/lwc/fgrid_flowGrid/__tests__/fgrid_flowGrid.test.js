@@ -767,3 +767,99 @@ describe("selection is restored when a page comes back into view", () => {
         expect(tableSelection(element)).toEqual([]);
     });
 });
+
+describe("maximum selection across pages", () => {
+    // The datatable is handed only the keys for rows it can see, so its own cap counts
+    // one page at a time — three on page one left three more available on page two.
+    function selectRows(element, rows) {
+        element.shadowRoot
+            .querySelector("c-fgrid_custom-datatable")
+            .dispatchEvent(new CustomEvent("rowselection", { detail: { selectedRows: rows } }));
+        return Promise.resolve();
+    }
+
+    function goToPage(element, page) {
+        element.shadowRoot
+            .querySelector("c-fgrid_pagination")
+            .dispatchEvent(new CustomEvent("pagechange", { detail: { page } }));
+        return Promise.resolve();
+    }
+
+    function build_(props) {
+        return build({
+            records: records(6),
+            selectionMode: "Multiple",
+            rowLoading: "Paginate",
+            recordsPerPage: 3,
+            maxSelection: 3,
+            ...props
+        });
+    }
+
+    it("counts selections made on other pages", async () => {
+        const all = records(6);
+        const element = build_({});
+        await Promise.resolve();
+
+        await selectRows(element, [all[0], all[1], all[2]]);
+        expect(element.selectedCount).toBe(3);
+
+        await goToPage(element, 2);
+        await selectRows(element, [all[3]]);
+
+        expect(element.selectedCount).toBe(3);
+        expect(element.outputSelectedRecords.map((r) => r.Id)).toEqual([all[0].Id, all[1].Id, all[2].Id]);
+    });
+
+    it("says why the selection was refused", async () => {
+        const all = records(6);
+        const element = build_({});
+        await Promise.resolve();
+
+        await selectRows(element, [all[0], all[1], all[2]]);
+        await goToPage(element, 2);
+        await selectRows(element, [all[3]]);
+
+        expect(element.shadowRoot.textContent).toContain("You can select at most 3 rows.");
+    });
+
+    it("fills only the room that is left", async () => {
+        const all = records(6);
+        const element = build_({});
+        await Promise.resolve();
+
+        await selectRows(element, [all[0], all[1]]);
+        await goToPage(element, 2);
+        await selectRows(element, [all[3], all[4]]);
+
+        // One slot left, so the first of the two newly ticked rows takes it.
+        expect(element.selectedCount).toBe(3);
+        expect(element.outputSelectedRecords.map((r) => r.Id)).toEqual([all[0].Id, all[1].Id, all[3].Id]);
+    });
+
+    it("clears the message once a selection succeeds", async () => {
+        const all = records(6);
+        const element = build_({});
+        await Promise.resolve();
+
+        await selectRows(element, [all[0], all[1], all[2]]);
+        await goToPage(element, 2);
+        await selectRows(element, [all[3]]);
+        await goToPage(element, 1);
+        await selectRows(element, [all[0]]);
+
+        expect(element.shadowRoot.textContent).not.toContain("You can select at most");
+    });
+
+    it("leaves an uncapped grid alone", async () => {
+        const all = records(6);
+        const element = build_({ maxSelection: undefined });
+        await Promise.resolve();
+
+        await selectRows(element, [all[0], all[1], all[2]]);
+        await goToPage(element, 2);
+        await selectRows(element, [all[3], all[4], all[5]]);
+
+        expect(element.selectedCount).toBe(6);
+    });
+});

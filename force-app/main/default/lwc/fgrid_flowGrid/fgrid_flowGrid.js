@@ -236,6 +236,9 @@ export default class FgridFlowGrid extends LightningElement {
     /** Keys of rows the user removed with the Remove row action. */
     _removedKeys = [];
     _removalBlockedMessage = null;
+
+    /** Shown when a selection was refused because the maximum was already reached. */
+    _selectionBlockedMessage = null;
     /** Field patches applied by the row-action flow, keyed by keyField. */
     _editsByKey = {};
 
@@ -1109,6 +1112,14 @@ export default class FgridFlowGrid extends LightningElement {
         return Boolean(this._removalBlockedMessage);
     }
 
+    get selectionBlockedMessage() {
+        return this._selectionBlockedMessage;
+    }
+
+    get hasSelectionBlockedMessage() {
+        return Boolean(this._selectionBlockedMessage);
+    }
+
     get headerCounts() {
         const parts = [];
         if (this.showRecordCount) {
@@ -1261,7 +1272,29 @@ export default class FgridFlowGrid extends LightningElement {
         const visible = new Set(this.rows.map((row) => String(row?.[this.keyField])));
         const offPage = this._selectedKeys.filter((key) => !visible.has(String(key)));
 
-        this._selectedKeys = [...offPage, ...selected];
+        // Enforce Maximum Selection HERE, not through the datatable. It is handed
+        // only the keys for rows it can see, so its own cap counts one page at a time:
+        // three selected on page one left three more available on page two.
+        //
+        // Already-selected rows keep their place and only the newly ticked ones are
+        // refused, so reaching the limit does not silently reshuffle what the user
+        // already had.
+        const cap = this.selectionMode === "Multiple" ? Number(this.maxSelection) : 0;
+        const capped = Number.isFinite(cap) && cap > 0;
+        let merged = [...offPage, ...selected];
+
+        if (capped && merged.length > cap) {
+            const previous = new Set(this._selectedKeys.map((key) => String(key)));
+            const kept = [...offPage, ...selected.filter((key) => previous.has(String(key)))];
+            const room = Math.max(cap - kept.length, 0);
+            const added = selected.filter((key) => !previous.has(String(key))).slice(0, room);
+            merged = [...kept, ...added];
+            this._selectionBlockedMessage = `You can select at most ${cap} ${cap === 1 ? "row" : "rows"}.`;
+        } else {
+            this._selectionBlockedMessage = null;
+        }
+
+        this._selectedKeys = merged;
         this.publishSelection();
     }
 

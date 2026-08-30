@@ -77,10 +77,15 @@ Open the smoke flow — it lives in the org, not the repo — and click the Flow
          handed the prop again. It is now filtered to the visible rows and memoized on
          `rows`, so the identity changes with the page.
 
-      **Still unverified: Maximum selection across pages.** The table enforces the cap
-      against the keys it is given, and it is now given only the current page's, so a
-      cap of 3 may allow 3 more on page two. If it does, the cap has to be enforced in
-      `handleRowSelection` rather than delegated.
+      **Maximum selection across pages — confirmed broken, then fixed 2026-08-27.** It
+      did allow three more on page two. The cap is now enforced in
+      `handleRowSelection` rather than delegated to the datatable, which is handed
+      only the keys for rows it can see and therefore counts one page at a time.
+
+      Already-selected rows keep their place and only newly ticked ones are refused,
+      so hitting the limit does not reshuffle what the user already had, and a warning
+      says why — a checkbox that silently refuses for a reason on another page is its
+      own small mystery. The message clears as soon as a selection succeeds.
 
 ### 1.4 Runtime — the Flow row action (the headline feature)
 
