@@ -782,6 +782,29 @@ exists above the table.
 
 Width is a plain number field: type a value, clear it for auto. Nothing else.
 
+### The wrapped-line limit is a switch, not a count — 2026-08-27
+
+`wrap-text-max-lines` **clamps to three whatever it is given.** Measured in the org: a
+limit of 1 showed three lines, and so did 5. Leaving it unset wraps without limit — the
+first screenshot of the day has a five-line description in full — so the only two
+outcomes available are "three lines" and "all of them".
+
+It shipped as a number field, "Wrapped Lines", with a runtime clamp to 1-10 and a
+1-to-10 range in the help text. All of that was fiction: any number produced three.
+
+Now a checkbox, **Limit Wrapped Text to Three Lines**, and the runtime sends the literal
+`"3"` or nothing at all.
+
+**Two wrong turns on the way, both worth remembering.** First the value was passed as a
+NUMBER when the reference says the attribute "accepts a string value representing a
+number" — that was a real defect and worth fixing, but fixing it changed nothing
+visible, which should have been the clue. Then the stored metadata was checked and
+`wrapTextMaxLines` was `numberValue: 1`, proving the value was correct end to end and
+the fault was the platform's. Only measuring 5 settled it.
+
+The lesson is the ordering: **the metadata query would have ruled out our plumbing in
+one step**, before two speculative fixes.
+
 ### Text wrapping — one per-column checkbox, 2026-08-27
 
 `Wrap` in Column attributes now controls that column's cells AND its header. The

@@ -372,11 +372,10 @@ export const SECTIONS = [
             },
             { property: "showRowNumbers", type: CONTROL.CHECKBOX, label: "Show Row Numbers" },
             {
-                property: "wrapTextMaxLines",
-                type: CONTROL.INTEGER,
-                label: "Wrapped Lines",
-                min: 0,
-                help: "Lines a wrapped cell shows before it truncates. Cells wrap by default; leave blank for no limit."
+                property: "limitWrappedLines",
+                type: CONTROL.CHECKBOX,
+                label: "Limit Wrapped Text to Three Lines",
+                help: "Three is the only limit the datatable honours — a smaller number is silently clamped to three — so this is a switch, not a count. Off, a wrapped cell shows every line."
             },
             {
                 property: "showReadOnlyIcon",

@@ -64,9 +64,14 @@ const SCROLL_BATCH_SIZE = 50;
  *  boundary to exist before `loadmore` will ever fire. */
 const DEFAULT_TABLE_HEIGHT = "30rem";
 
-/** Range a wrapped cell's line count is held to. */
-const WRAPPED_LINES_MIN = 1;
-const WRAPPED_LINES_MAX = 10;
+/**
+ * The only line limit `wrap-text-max-lines` actually honours.
+ *
+ * Verified in the org: any value clamps to three. A limit of 1 showed three lines,
+ * and so did 5. Unset leaves wrapping unlimited, which is the other half of the
+ * binary — hence a checkbox rather than a number.
+ */
+const WRAPPED_LINE_LIMIT = "3";
 
 export default class FgridFlowGrid extends LightningElement {
     // ----- Data source -----
@@ -90,7 +95,7 @@ export default class FgridFlowGrid extends LightningElement {
     @api showSelectedCount = false;
     @api showRowNumbers = false;
     @api tableHeight;
-    @api wrapTextMaxLines;
+    @api limitWrappedLines = false;
     @api showReadOnlyIcon = false;
 
     // ----- Selection -----
@@ -1192,24 +1197,9 @@ export default class FgridFlowGrid extends LightningElement {
      * clipped dropdown is clipped by the datatable's OWN scroll container, inside its
      * shadow DOM, which our CSS cannot reach.
      */
-    /**
-     * Lines a wrapped cell shows before truncating, clamped to 1-10.
-     *
-     * Clamped here rather than with `min`/`max` on the input, because the property
-     * editor routes a number through the kit's value input, which also accepts a Flow
-     * resource — so the value can arrive from a formula that no markup constrains.
-     */
+    /** Three when the admin asked for a limit, otherwise unlimited. */
     get wrappedLines() {
-        const requested = Number(this.wrapTextMaxLines);
-        if (!Number.isFinite(requested) || requested <= 0) {
-            return undefined;
-        }
-        const lines = Math.min(Math.max(Math.trunc(requested), WRAPPED_LINES_MIN), WRAPPED_LINES_MAX);
-        // A STRING, because the reference says so: "Accepts a string value
-        // representing a number." Passing the number silently did nothing — a limit of
-        // 1 still showed three lines, which is the datatable's own behaviour with the
-        // attribute absent, not the value we set.
-        return String(lines);
+        return this.limitWrappedLines ? WRAPPED_LINE_LIMIT : undefined;
     }
 
     get wrapperStyle() {

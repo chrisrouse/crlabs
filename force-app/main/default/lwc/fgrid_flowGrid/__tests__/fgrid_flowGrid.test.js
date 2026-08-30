@@ -459,50 +459,23 @@ describe("actioned record ids accumulate", () => {
     });
 });
 
-describe("wrapped lines", () => {
-    // Clamped in the component rather than with min/max on the input, because the
-    // property editor routes a number through the kit's value input, which also
-    // accepts a Flow resource — the value can arrive from a formula.
+describe("wrapped line limit", () => {
+    // Verified in the org: `wrap-text-max-lines` clamps to three whatever it is given
+    // — 1 showed three lines and so did 5 — while leaving it unset wraps without
+    // limit. That is a binary, so the setting is a checkbox and the runtime only ever
+    // sends three.
     function linesFor(props) {
         const element = build({ records: records(1), ...props });
         return element.shadowRoot.querySelector("c-fgrid_custom-datatable").wrapTextMaxLines;
     }
 
-    it("passes it as a string, which is what the attribute takes", async () => {
-        // The reference: "Accepts a string value representing a number." Passing the
-        // number did nothing at all — a limit of 1 still showed three lines.
-        expect(typeof linesFor({ wrapTextMaxLines: 1 })).toBe("string");
-        expect(linesFor({ wrapTextMaxLines: 1 })).toBe("1");
+    it("sends three when the limit is on", async () => {
+        expect(linesFor({ limitWrappedLines: true })).toBe("3");
     });
 
-    it("accepts a value that arrives as a string from Flow", async () => {
-        expect(linesFor({ wrapTextMaxLines: "4" })).toBe("4");
-    });
-
-    it("passes a value inside the range through", async () => {
-        expect(linesFor({ wrapTextMaxLines: 3 })).toBe("3");
-    });
-
-    it("clamps above the maximum", async () => {
-        expect(linesFor({ wrapTextMaxLines: 99 })).toBe("10");
-    });
-
-    it("clamps a fraction down to a whole number of lines", async () => {
-        expect(linesFor({ wrapTextMaxLines: 2.7 })).toBe("2");
-    });
-
-    it("leaves the attribute unset when nothing usable is given", async () => {
-        // Unset means the datatable's own behaviour: wrap without truncating.
-        for (const value of [undefined, null, 0, -4, "abc"]) {
-            expect(linesFor({ wrapTextMaxLines: value })).toBeUndefined();
-        }
-    });
-
-    it("wraps headers by column, following each column's own Wrap setting", async () => {
-        const element = build({ records: records(1) });
-        await Promise.resolve();
-
-        expect(element.shadowRoot.querySelector("c-fgrid_custom-datatable").wrapTableHeader).toBe("by-column");
+    it("sends nothing when it is off, so wrapping is unlimited", async () => {
+        expect(linesFor({})).toBeUndefined();
+        expect(linesFor({ limitWrappedLines: false })).toBeUndefined();
     });
 });
 

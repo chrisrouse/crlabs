@@ -314,13 +314,12 @@ describe("integer values are typed for Flow", () => {
     });
 });
 
-describe("wrapped lines is a plain integer", () => {
-    it("takes no Flow resource and no negative", () => {
-        // A formula for "how many lines" is not a thing anyone wants, and a negative
-        // is meaningless.
-        const control = resolveSection(section("display"), {}).find((c) => c.property === "wrapTextMaxLines");
-        expect(control.isInteger).toBe(true);
-        expect(control.isNumber).toBe(false);
-        expect(control.min).toBe(0);
+describe("the wrapped line limit is a switch", () => {
+    it("offers a checkbox, not a count", () => {
+        // Three is the only limit the datatable honours, so a number field could only
+        // ever mislead.
+        const control = resolveSection(section("display"), {}).find((c) => c.property === "limitWrappedLines");
+        expect(control.isCheckbox).toBe(true);
+        expect(resolveSection(section("display"), {}).find((c) => c.property === "wrapTextMaxLines")).toBeUndefined();
     });
 });

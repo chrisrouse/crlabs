@@ -48,7 +48,7 @@ export default class FgridColumnConfig extends LightningElement {
        cannot be written inline. */
     cellAttribsPlaceholder = '{"class": "slds-theme_shade"}';
     typeAttribsPlaceholder = '{"minimumFractionDigits": 2}';
-    // Not wrapTextMaxLines: that is a table-level attribute, offered under Table
+    // Not the wrapped-line limit: that is table-level, offered under Table
     // Display. Column-level examples only.
     otherAttribsPlaceholder = '{"hideLabel": true}';
 
