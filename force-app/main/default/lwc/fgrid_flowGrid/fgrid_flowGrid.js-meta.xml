@@ -65,7 +65,7 @@
                  removed while a saved flow version still stores a value for it; see
                  the removal TODO in STATUS.md. -->
             <property name="wrapTextMaxLines" type="Integer" label="Wrapped Lines (Deprecated)" role="inputOnly" description="No longer used. Superseded by Limit Wrapped Text to Three Lines." />
-            <property name="limitWrappedLines" type="Boolean" label="Limit Wrapped Text to Three Lines" default="false" role="inputOnly" description="Caps a wrapped cell at three lines and truncates with an ellipsis. Three is the only clamp available: SLDS 2 hardcodes it in slds-plus.css, so a count cannot be honoured." />
+            <property name="limitWrappedLines" type="Boolean" label="Limit Wrapped Text to Three Lines" default="false" role="inputOnly" description="Limit the number of lines shown when text is wrapped to three lines. Three is the only clamp available: SLDS 2 hardcodes it in slds-plus.css, so an arbitrary count cannot be honoured." />
             <property name="showReadOnlyIcon" type="Boolean" label="Show a Lock on Read-Only Columns" default="false" role="inputOnly" />
 
             <!-- ============================= Selection =============================

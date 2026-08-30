@@ -375,7 +375,7 @@ export const SECTIONS = [
                 property: "limitWrappedLines",
                 type: CONTROL.CHECKBOX,
                 label: "Limit Wrapped Text to Three Lines",
-                help: "Three is the only clamp available — SLDS hardcodes it, so a count cannot be honoured. Off, a wrapped cell shows every line."
+                help: "Limit the number of lines shown when text is wrapped to three lines."
             },
             {
                 property: "showReadOnlyIcon",
