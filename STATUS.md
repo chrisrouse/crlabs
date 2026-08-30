@@ -703,6 +703,15 @@ reinstate.
 | Selection control | `singleSelectControl` *(new)* | Single — Radio button / Checkbox |
 | Unique identifier | `keyField` | moved here from the data source |
 
+**A stored value outlives the mode that set it.** Flow keeps any property it was given,
+and the editor only stops SHOWING a control when the mode changes — it does not clear
+the value. So a grid switched from Multiple to View only was still demanding
+`minSelection` rows the user had no way to pick, and the screen could not be advanced
+at all. `requiredSelectionCount` now returns 0 whenever the grid is not selectable.
+
+Worth generalising: any control gated by `when:` can leave a value behind. The RUNTIME
+has to gate on the same condition, not just the editor.
+
 **Verified in the org 2026-08-27 — all three modes.** Multiple: selecting one record
 at a time across several pages stops at the maximum with every remaining row disabled;
 a maximum below the minimum is refused by the input's floor; a minimum forces a

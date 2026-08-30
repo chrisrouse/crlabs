@@ -882,3 +882,36 @@ describe("wrapped line limit", () => {
         expect(style.getPropertyValue("--slds-g-font-line-clamp")).toBe("");
     });
 });
+
+describe("View Only requires nothing", () => {
+    // Flow keeps a property it was given, and the editor only stops SHOWING min/max
+    // and Require when the mode changes — so a grid switched from Multiple to View only
+    // was still demanding rows the user had no way to pick.
+    it("ignores a leftover minimum", async () => {
+        const element = build({ records: records(4), selectionMode: "None", minSelection: 2 });
+        await Promise.resolve();
+
+        expect(element.validate().isValid).toBe(true);
+    });
+
+    it("ignores a leftover Require from Single", async () => {
+        const element = build({ records: records(4), selectionMode: "None", isRequired: true });
+        await Promise.resolve();
+
+        expect(element.validate().isValid).toBe(true);
+    });
+
+    it("shows no validation message either", async () => {
+        const element = build({ records: records(4), selectionMode: "None", minSelection: 3 });
+        await Promise.resolve();
+
+        expect(element.shadowRoot.textContent).not.toContain("Select at least");
+    });
+
+    it("still enforces the minimum once selection is turned back on", async () => {
+        const element = build({ records: records(4), selectionMode: "Multiple", minSelection: 2 });
+        await Promise.resolve();
+
+        expect(element.validate().isValid).toBe(false);
+    });
+});

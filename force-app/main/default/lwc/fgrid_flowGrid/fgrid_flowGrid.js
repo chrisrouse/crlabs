@@ -809,6 +809,14 @@ export default class FgridFlowGrid extends LightningElement {
 
     /** Fewest rows that must be selected, or 0 when nothing is required. */
     get requiredSelectionCount() {
+        // View only has no selection column, so nothing can be required. The stored
+        // values survive a mode change — Flow keeps a property it was given, and the
+        // editor only stops SHOWING min/max and Require — so a grid switched from
+        // Multiple to View only was still demanding rows the user had no way to pick,
+        // and the screen could not be advanced at all.
+        if (!this.isSelectable) {
+            return 0;
+        }
         if (this.selectionMode === "Single") {
             return this.isRequired ? 1 : 0;
         }
