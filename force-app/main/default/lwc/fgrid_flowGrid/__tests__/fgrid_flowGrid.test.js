@@ -915,3 +915,74 @@ describe("View Only requires nothing", () => {
         expect(element.validate().isValid).toBe(false);
     });
 });
+
+describe("reverting an edit un-counts it", () => {
+    // The comparison used to run against allKnownRecords, which already has pending
+    // edits applied — so it asked "is this different from what I last typed" rather
+    // than "different from what we started with". Putting the original value back
+    // counted as another change and the record stayed flagged for good.
+    function change(element, drafts) {
+        element.shadowRoot
+            .querySelector("c-fgrid_custom-datatable")
+            .dispatchEvent(new CustomEvent("cellchange", { detail: { draftValues: drafts } }));
+        return Promise.resolve();
+    }
+
+    it("drops the record when every field is back to its original value", async () => {
+        const all = records(2);
+        const element = build({ records: all, autoSaveEdits: true });
+        await Promise.resolve();
+
+        await change(element, [{ Id: all[0].Id, Name: "Changed" }]);
+        expect(element.editedCount).toBe(1);
+
+        await change(element, [{ Id: all[0].Id, Name: all[0].Name }]);
+        expect(element.editedCount).toBe(0);
+        expect(element.outputEditedRecords).toEqual([]);
+    });
+
+    it("keeps the fields that are still different", async () => {
+        const all = records(2);
+        const element = build({ records: all, autoSaveEdits: true });
+        await Promise.resolve();
+
+        await change(element, [{ Id: all[0].Id, Name: "Changed", Industry: "Banking" }]);
+        await change(element, [{ Id: all[0].Id, Name: all[0].Name }]);
+
+        expect(element.editedCount).toBe(1);
+        const [edited] = element.outputEditedRecords;
+        expect(edited.Industry).toBe("Banking");
+        expect(edited.Name).toBe(all[0].Name);
+    });
+
+    it("works the same on the Save path, not just auto-save", async () => {
+        const all = records(2);
+        const element = build({ records: all });
+        await Promise.resolve();
+        const table = element.shadowRoot.querySelector("c-fgrid_custom-datatable");
+
+        table.dispatchEvent(new CustomEvent("save", { detail: { draftValues: [{ Id: all[0].Id, Name: "Changed" }] } }));
+        await Promise.resolve();
+        expect(element.editedCount).toBe(1);
+
+        table.dispatchEvent(
+            new CustomEvent("save", { detail: { draftValues: [{ Id: all[0].Id, Name: all[0].Name }] } })
+        );
+        await Promise.resolve();
+        expect(element.editedCount).toBe(0);
+    });
+
+    it("still shows the reverted value in the grid", async () => {
+        const all = records(2);
+        const element = build({ records: all, autoSaveEdits: true });
+        await Promise.resolve();
+
+        await change(element, [{ Id: all[0].Id, Name: "Changed" }]);
+        await change(element, [{ Id: all[0].Id, Name: all[0].Name }]);
+
+        const row = element.shadowRoot
+            .querySelector("c-fgrid_custom-datatable")
+            .data.find((candidate) => candidate.Id === all[0].Id);
+        expect(row.Name).toBe(all[0].Name);
+    });
+});

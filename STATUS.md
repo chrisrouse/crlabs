@@ -171,7 +171,16 @@ Open the smoke flow — it lives in the org, not the repo — and click the Flow
   lightning-formatted-date-time doc warns of, but in Flow's own debug UI — the value
   never had a time to shift. Trust the JSON payload or SOQL, not the formatted debug
   display, and do not "fix" a shift that only appears there.
-- [ ] A cell edited back to its original value does **not** register as an edit
+- [x] **A cell edited back to its original value does not register.** Fixed and
+      verified 2026-08-27. The comparison ran against `allKnownRecords`, which already
+      has pending edits applied, so it asked "is this different from what I last typed"
+      rather than "different from what we started with" — putting the original value
+      back counted as another change and the record stayed flagged for good. Now
+      measured against a baseline of the source record plus the saved overlay, and a
+      record with nothing left differing drops out of `_editsByKey` entirely.
+
+      Surfaced by auto-save, where every cell exit commits, but the Save path had it
+      too.
 - [ ] `editedCount` reflects inline edits
 - [x] **Cancel discards without touching the working collection.** Verified
       2026-08-27, including the layered case that actually proves it:

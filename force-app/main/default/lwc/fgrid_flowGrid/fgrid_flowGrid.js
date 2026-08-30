@@ -1756,25 +1756,42 @@ export default class FgridFlowGrid extends LightningElement {
         if (!existing) {
             this._addedRecords = [...this._addedRecords, { ...record, [this.keyField]: key }];
         } else {
-            // Keep only fields whose value genuinely differs, so a flow that
-            // returns the record untouched does not register as an edit.
-            const changed = {};
+            // Measured against the BASELINE, never against allKnownRecords.
+            //
+            // allKnownRecords already has the pending edits applied, so comparing to it
+            // asked "is this different from what I last typed" instead of "is this
+            // different from what we started with". Editing a cell and then putting the
+            // original value back therefore registered as another change and the record
+            // stayed flagged as edited for good — visible immediately with auto-save,
+            // where every keystroke commits.
+            const baseline = this.baselineRecord(key);
+            const merged = { ...(this._editsByKey[key] || {}) };
             Object.keys(record).forEach((field) => {
                 // `attributes` is the SObject envelope Flow and Apex attach; it is
                 // not a field and would otherwise register as an edit every time.
                 if (field === this.keyField || field === "attributes") {
                     return;
                 }
-                if (!sameValue(existing[field], record[field])) {
-                    changed[field] = record[field];
+                merged[field] = record[field];
+            });
+
+            // Anything now equal to the baseline is no longer an edit, so it leaves the
+            // pending set — and a record with nothing left drops out entirely rather
+            // than lingering with a full set of unchanged values.
+            const pending = {};
+            Object.keys(merged).forEach((field) => {
+                if (!sameValue(baseline?.[field], merged[field])) {
+                    pending[field] = merged[field];
                 }
             });
-            if (Object.keys(changed).length) {
-                this._editsByKey = {
-                    ...this._editsByKey,
-                    [key]: { ...(this._editsByKey[key] || {}), ...changed }
-                };
+
+            const next = { ...this._editsByKey };
+            if (Object.keys(pending).length) {
+                next[key] = pending;
+            } else {
+                delete next[key];
             }
+            this._editsByKey = next;
         }
 
         this.publishEdits();
@@ -1910,6 +1927,24 @@ export default class FgridFlowGrid extends LightningElement {
         this._editsByKey = nextEdits;
         this._savedByKey = { ...this._savedByKey, [key]: { ...(this._savedByKey[key] || {}), ...saved } };
         this.publishEdits();
+    }
+
+    /**
+     * The record as it stood before any pending edit, for deciding what changed.
+     *
+     * Source or added record, with the display-only saved overlay applied — a value a
+     * row-action flow has already committed to the database is part of what we started
+     * with, not something still pending.
+     */
+    baselineRecord(key) {
+        const source =
+            this.sourceRecords.find((candidate) => candidate?.[this.keyField] === key) ||
+            this._addedRecords.find((candidate) => candidate?.[this.keyField] === key);
+        if (!source) {
+            return null;
+        }
+        const saved = this._savedByKey[key];
+        return saved ? { ...source, ...saved } : source;
     }
 
     /**
