@@ -468,16 +468,27 @@ describe("wrapped lines", () => {
         return element.shadowRoot.querySelector("c-fgrid_custom-datatable").wrapTextMaxLines;
     }
 
+    it("passes it as a string, which is what the attribute takes", async () => {
+        // The reference: "Accepts a string value representing a number." Passing the
+        // number did nothing at all — a limit of 1 still showed three lines.
+        expect(typeof linesFor({ wrapTextMaxLines: 1 })).toBe("string");
+        expect(linesFor({ wrapTextMaxLines: 1 })).toBe("1");
+    });
+
+    it("accepts a value that arrives as a string from Flow", async () => {
+        expect(linesFor({ wrapTextMaxLines: "4" })).toBe("4");
+    });
+
     it("passes a value inside the range through", async () => {
-        expect(linesFor({ wrapTextMaxLines: 3 })).toBe(3);
+        expect(linesFor({ wrapTextMaxLines: 3 })).toBe("3");
     });
 
     it("clamps above the maximum", async () => {
-        expect(linesFor({ wrapTextMaxLines: 99 })).toBe(10);
+        expect(linesFor({ wrapTextMaxLines: 99 })).toBe("10");
     });
 
     it("clamps a fraction down to a whole number of lines", async () => {
-        expect(linesFor({ wrapTextMaxLines: 2.7 })).toBe(2);
+        expect(linesFor({ wrapTextMaxLines: 2.7 })).toBe("2");
     });
 
     it("leaves the attribute unset when nothing usable is given", async () => {

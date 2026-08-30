@@ -373,8 +373,9 @@ export const SECTIONS = [
             { property: "showRowNumbers", type: CONTROL.CHECKBOX, label: "Show Row Numbers" },
             {
                 property: "wrapTextMaxLines",
-                type: CONTROL.NUMBER,
+                type: CONTROL.INTEGER,
                 label: "Wrapped Lines",
+                min: 0,
                 help: "Lines a wrapped cell shows before it truncates. Cells wrap by default; leave blank for no limit."
             },
             {

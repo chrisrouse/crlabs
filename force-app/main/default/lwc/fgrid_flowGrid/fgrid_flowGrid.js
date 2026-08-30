@@ -1204,7 +1204,12 @@ export default class FgridFlowGrid extends LightningElement {
         if (!Number.isFinite(requested) || requested <= 0) {
             return undefined;
         }
-        return Math.min(Math.max(Math.trunc(requested), WRAPPED_LINES_MIN), WRAPPED_LINES_MAX);
+        const lines = Math.min(Math.max(Math.trunc(requested), WRAPPED_LINES_MIN), WRAPPED_LINES_MAX);
+        // A STRING, because the reference says so: "Accepts a string value
+        // representing a number." Passing the number silently did nothing — a limit of
+        // 1 still showed three lines, which is the datatable's own behaviour with the
+        // attribute absent, not the value we set.
+        return String(lines);
     }
 
     get wrapperStyle() {

@@ -137,6 +137,15 @@ export default class FgridFlowGridStudio extends LightningElement {
         return Boolean(this.objectApiName);
     }
 
+    /** Clamped and stringified exactly as the runtime does, so the preview agrees. */
+    get previewWrappedLines() {
+        const requested = Number(this.values?.wrapTextMaxLines);
+        if (!Number.isFinite(requested) || requested <= 0) {
+            return undefined;
+        }
+        return String(Math.min(Math.max(Math.trunc(requested), 1), 10));
+    }
+
     get previewColumns() {
         const columns = buildColumns(this.columnFields, this.columnConfigObject, {
             hideHeaderActions: Boolean(this.values?.hideHeaderActions),

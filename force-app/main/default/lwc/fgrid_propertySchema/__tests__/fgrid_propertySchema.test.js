@@ -313,3 +313,14 @@ describe("integer values are typed for Flow", () => {
         expect(Object.values(DATA_TYPE_FOR)).not.toContain("Integer");
     });
 });
+
+describe("wrapped lines is a plain integer", () => {
+    it("takes no Flow resource and no negative", () => {
+        // A formula for "how many lines" is not a thing anyone wants, and a negative
+        // is meaningless.
+        const control = resolveSection(section("display"), {}).find((c) => c.property === "wrapTextMaxLines");
+        expect(control.isInteger).toBe(true);
+        expect(control.isNumber).toBe(false);
+        expect(control.min).toBe(0);
+    });
+});
