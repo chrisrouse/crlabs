@@ -782,6 +782,37 @@ exists above the table.
 
 Width is a plain number field: type a value, clear it for auto. Nothing else.
 
+### TODO — remove the `wrapTextMaxLines` shim
+
+**Marked for full removal.** It is deprecated, unread, and absent from the property
+editor, but still declared in both `js-meta.xml` and the component as an `@api`.
+
+**Why it cannot go yet, and the constraint worth knowing:** Salesforce refuses to
+deploy a targetConfig that drops a property a saved flow version still references —
+
+```
+The targetConfig is missing a property that's referenced in these flow
+versions: 'Flow Grid Smoke Test-8'. Add this property: 'wrapTextMaxLines'
+```
+
+— and then refuses a targetConfig property with no matching `@api` on the component.
+So a stored value pins the declaration in place.
+
+**This is why every other removal today deployed cleanly.** Flow only persists a
+property that was explicitly set, and it drops `false` Booleans, so `allowOverflow`,
+`disableColumnResize`, `autoColumnWidths` and the rest had never been stored by any
+version. `wrapTextMaxLines` had `numberValue: 1`.
+
+**To finish the removal:** clear the value from every flow version that holds it — in
+practice, delete the old draft versions of the smoke flow, or recreate the grid element
+— then drop the `@api` and the `<property>` together. Check first with:
+
+```
+SELECT Metadata FROM Flow WHERE Definition.DeveloperName = '<flow>'   (Tooling API)
+```
+
+and grep the payload for `wrapTextMaxLines`.
+
 ### The wrapped-line limit is a switch, not a count — 2026-08-27
 
 `wrap-text-max-lines` **clamps to three whatever it is given.** Measured in the org: a

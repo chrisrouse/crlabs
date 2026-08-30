@@ -95,6 +95,15 @@ export default class FgridFlowGrid extends LightningElement {
     @api showSelectedCount = false;
     @api showRowNumbers = false;
     @api tableHeight;
+    /**
+     * DEPRECATED — REMOVE ONCE NO FLOW VERSION STORES IT. Nothing reads this.
+     *
+     * It exists only because Salesforce refuses to deploy a targetConfig that drops a
+     * property a saved flow version still references, and refuses a targetConfig
+     * property with no matching @api. Superseded by `limitWrappedLines`.
+     */
+    @api wrapTextMaxLines;
+
     @api limitWrappedLines = false;
     @api showReadOnlyIcon = false;
 
