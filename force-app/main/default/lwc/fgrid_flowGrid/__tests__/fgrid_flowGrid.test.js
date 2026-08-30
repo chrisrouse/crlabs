@@ -459,23 +459,32 @@ describe("actioned record ids accumulate", () => {
     });
 });
 
-describe("wrapped line limit", () => {
-    // Verified in the org: `wrap-text-max-lines` clamps to three whatever it is given
-    // — 1 showed three lines and so did 5 — while leaving it unset wraps without
-    // limit. That is a binary, so the setting is a checkbox and the runtime only ever
-    // sends three.
+describe("wrapped lines", () => {
+    // Passed as a string: the reference says the attribute "accepts a string value
+    // representing a number", and its markup example is wrap-text-max-lines="3".
     function linesFor(props) {
         const element = build({ records: records(1), ...props });
         return element.shadowRoot.querySelector("c-fgrid_custom-datatable").wrapTextMaxLines;
     }
 
-    it("sends three when the limit is on", async () => {
-        expect(linesFor({ limitWrappedLines: true })).toBe("3");
+    it("passes the requested count, as a string", async () => {
+        expect(linesFor({ wrapTextMaxLines: 1 })).toBe("1");
+        expect(linesFor({ wrapTextMaxLines: 5 })).toBe("5");
     });
 
-    it("sends nothing when it is off, so wrapping is unlimited", async () => {
-        expect(linesFor({})).toBeUndefined();
-        expect(linesFor({ limitWrappedLines: false })).toBeUndefined();
+    it("accepts a value that arrives as a string from Flow", async () => {
+        expect(linesFor({ wrapTextMaxLines: "4" })).toBe("4");
+    });
+
+    it("clamps to the supported range", async () => {
+        expect(linesFor({ wrapTextMaxLines: 99 })).toBe("10");
+        expect(linesFor({ wrapTextMaxLines: 2.7 })).toBe("2");
+    });
+
+    it("leaves the attribute unset when nothing usable is given", async () => {
+        for (const value of [undefined, null, 0, -4, "abc"]) {
+            expect(linesFor({ wrapTextMaxLines: value })).toBeUndefined();
+        }
     });
 });
 

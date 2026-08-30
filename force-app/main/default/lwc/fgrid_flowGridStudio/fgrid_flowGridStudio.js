@@ -137,9 +137,13 @@ export default class FgridFlowGridStudio extends LightningElement {
         return Boolean(this.objectApiName);
     }
 
-    /** Same switch the runtime applies, so the preview wraps the same way. */
+    /** Clamped and stringified exactly as the runtime does, so the preview agrees. */
     get previewWrappedLines() {
-        return this.values?.limitWrappedLines ? "3" : undefined;
+        const requested = Number(this.values?.wrapTextMaxLines);
+        if (!Number.isFinite(requested) || requested <= 0) {
+            return undefined;
+        }
+        return String(Math.min(Math.max(Math.trunc(requested), 1), 10));
     }
 
     get previewColumns() {

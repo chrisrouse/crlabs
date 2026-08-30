@@ -64,14 +64,9 @@ const SCROLL_BATCH_SIZE = 50;
  *  boundary to exist before `loadmore` will ever fire. */
 const DEFAULT_TABLE_HEIGHT = "30rem";
 
-/**
- * The only line limit `wrap-text-max-lines` actually honours.
- *
- * Verified in the org: any value clamps to three. A limit of 1 showed three lines,
- * and so did 5. Unset leaves wrapping unlimited, which is the other half of the
- * binary — hence a checkbox rather than a number.
- */
-const WRAPPED_LINE_LIMIT = "3";
+/** Range a wrapped cell's line count is held to. */
+const WRAPPED_LINES_MIN = 1;
+const WRAPPED_LINES_MAX = 10;
 
 export default class FgridFlowGrid extends LightningElement {
     // ----- Data source -----
@@ -95,16 +90,7 @@ export default class FgridFlowGrid extends LightningElement {
     @api showSelectedCount = false;
     @api showRowNumbers = false;
     @api tableHeight;
-    /**
-     * DEPRECATED — REMOVE ONCE NO FLOW VERSION STORES IT. Nothing reads this.
-     *
-     * It exists only because Salesforce refuses to deploy a targetConfig that drops a
-     * property a saved flow version still references, and refuses a targetConfig
-     * property with no matching @api. Superseded by `limitWrappedLines`.
-     */
     @api wrapTextMaxLines;
-
-    @api limitWrappedLines = false;
     @api showReadOnlyIcon = false;
 
     // ----- Selection -----
@@ -1206,9 +1192,18 @@ export default class FgridFlowGrid extends LightningElement {
      * clipped dropdown is clipped by the datatable's OWN scroll container, inside its
      * shadow DOM, which our CSS cannot reach.
      */
-    /** Three when the admin asked for a limit, otherwise unlimited. */
+    /**
+     * Lines a wrapped cell shows before truncating, or undefined for no limit.
+     *
+     * Passed as a STRING: the reference says the attribute "accepts a string value
+     * representing a number", and the markup example is `wrap-text-max-lines="3"`.
+     */
     get wrappedLines() {
-        return this.limitWrappedLines ? WRAPPED_LINE_LIMIT : undefined;
+        const requested = Number(this.wrapTextMaxLines);
+        if (!Number.isFinite(requested) || requested <= 0) {
+            return undefined;
+        }
+        return String(Math.min(Math.max(Math.trunc(requested), WRAPPED_LINES_MIN), WRAPPED_LINES_MAX));
     }
 
     get wrapperStyle() {

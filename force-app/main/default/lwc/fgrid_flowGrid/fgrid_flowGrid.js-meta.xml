@@ -61,18 +61,7 @@
                  read and write (see `invert` in fgrid_propertySchema), so nothing
                  changes for the admin. Same reason hideHeaderActions is framed
                  this way. -->
-            <!-- DEPRECATED, and cannot be removed yet. Superseded by limitWrappedLines
-                 on 2026-08-27 once `wrap-text-max-lines` was measured as clamping to
-                 three whatever it is given. Nothing reads it and the property editor
-                 no longer offers it, but Salesforce refuses to deploy a targetConfig
-                 that drops a property a saved flow version still references:
-
-                   The targetConfig is missing a property that's referenced in these
-                   flow versions: 'Flow Grid Smoke Test-8'.
-
-                 It can go once no flow version stores a value for it. -->
-            <property name="wrapTextMaxLines" type="Integer" label="Wrapped Lines (Deprecated)" role="inputOnly" description="No longer used. Superseded by Limit Wrapped Text to Three Lines." />
-            <property name="limitWrappedLines" type="Boolean" label="Limit Wrapped Text to Three Lines" default="false" role="inputOnly" description="Caps a wrapped cell at three lines and truncates the rest with an ellipsis. Three is the only limit lightning-datatable honours — smaller numbers are silently clamped to three — so this is a switch rather than a count." />
+            <property name="wrapTextMaxLines" type="Integer" label="Wrapped Lines" role="inputOnly" description="Lines a wrapped cell shows before it truncates with an ellipsis. 1 to 10; leave blank for no limit." />
             <property name="showReadOnlyIcon" type="Boolean" label="Show a Lock on Read-Only Columns" default="false" role="inputOnly" />
 
             <!-- ============================= Selection =============================

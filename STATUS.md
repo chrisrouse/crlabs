@@ -782,59 +782,35 @@ exists above the table.
 
 Width is a plain number field: type a value, clear it for auto. Nothing else.
 
-### TODO — remove the `wrapTextMaxLines` shim
+### Wrapped Lines — a count, and NOT yet settled
 
-**Marked for full removal.** It is deprecated, unread, and absent from the property
-editor, but still declared in both `js-meta.xml` and the component as an `@api`.
+`wrap-text-max-lines` takes a count, and the reference is clear it is a count: "To show
+a number of lines of text in the column and hide the remaining lines". Three is only
+the example in its markup snippet.
 
-**Why it cannot go yet, and the constraint worth knowing:** Salesforce refuses to
-deploy a targetConfig that drops a property a saved flow version still references —
+**What is known:**
 
-```
-The targetConfig is missing a property that's referenced in these flow
-versions: 'Flow Grid Smoke Test-8'. Add this property: 'wrapTextMaxLines'
-```
+- The value stores correctly. Tooling API: `wrapTextMaxLines` = `numberValue: 1`.
+- It must be passed as a STRING. The reference: "Accepts a string value representing a
+  number." It was being passed as a number, which is a real defect and is fixed.
+- Nothing in this component forces three — no hardcoded value, no line-clamp CSS, no
+  per-column override.
 
-— and then refuses a targetConfig property with no matching `@api` on the component.
-So a stored value pins the declaration in place.
+**What is NOT known:** whether an arbitrary count is honoured at runtime. Two browser
+tests (1, then 5) both showed three lines, and it was briefly concluded that three is
+the only value the platform accepts — the control was even converted to a checkbox on
+that basis, then reverted.
 
-**This is why every other removal today deployed cleanly.** Flow only persists a
-property that was explicitly set, and it drops `false` Booleans, so `allowOverflow`,
-`disableColumnResize`, `autoColumnWidths` and the rest had never been stored by any
-version. `wrapTextMaxLines` had `numberValue: 1`.
+**Why that conclusion was unsafe:** both tests may have run against a CACHED build that
+still passed a number. Flow Builder's cache hid a deployed change twice on the same day
+(§4). If the attribute was being ignored, the three lines came from something else and
+neither test exercised the fix.
 
-**To finish the removal:** clear the value from every flow version that holds it — in
-practice, delete the old draft versions of the smoke flow, or recreate the grid element
-— then drop the `@api` and the `<property>` together. Check first with:
-
-```
-SELECT Metadata FROM Flow WHERE Definition.DeveloperName = '<flow>'   (Tooling API)
-```
-
-and grep the payload for `wrapTextMaxLines`.
-
-### The wrapped-line limit is a switch, not a count — 2026-08-27
-
-`wrap-text-max-lines` **clamps to three whatever it is given.** Measured in the org: a
-limit of 1 showed three lines, and so did 5. Leaving it unset wraps without limit — the
-first screenshot of the day has a five-line description in full — so the only two
-outcomes available are "three lines" and "all of them".
-
-It shipped as a number field, "Wrapped Lines", with a runtime clamp to 1-10 and a
-1-to-10 range in the help text. All of that was fiction: any number produced three.
-
-Now a checkbox, **Limit Wrapped Text to Three Lines**, and the runtime sends the literal
-`"3"` or nothing at all.
-
-**Two wrong turns on the way, both worth remembering.** First the value was passed as a
-NUMBER when the reference says the attribute "accepts a string value representing a
-number" — that was a real defect and worth fixing, but fixing it changed nothing
-visible, which should have been the clue. Then the stored metadata was checked and
-`wrapTextMaxLines` was `numberValue: 1`, proving the value was correct end to end and
-the fault was the platform's. Only measuring 5 settled it.
-
-The lesson is the ordering: **the metadata query would have ruled out our plumbing in
-one step**, before two speculative fixes.
+**To settle it:** hard-refresh, confirm the deployed source contains
+`String(Math.min(...))` via the Tooling API query in §4, then try 1 and 6 on a column
+whose text runs well past six lines. If both show three, the platform clamps and the
+control should become a switch. If they show one and six, this was only ever the
+number-versus-string defect.
 
 ### Text wrapping — one per-column checkbox, 2026-08-27
 
