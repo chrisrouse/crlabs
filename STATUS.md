@@ -179,7 +179,11 @@ Open the smoke flow — it lives in the org, not the repo — and click the Flow
       the original null. Cancel reverts to whatever `_editsByKey` last committed
       rather than to the source record, which is the distinction that would have
       silently thrown away a committed edit had it been wrong.
-- [ ] `navigateNextOnSave` advances the screen on Save
+- [x] **`navigateNextOnSave` advances the screen on Save.** Verified 2026-08-27.
+- [x] **`autoSaveEdits` commits without buttons and does NOT advance.** Verified the
+      same day. The two are mutually exclusive by design — auto-save leaves nothing
+      pending, so there is no Save event for Navigate Next to react to, and the editor
+      greys it out while auto-save is on.
 - [ ] A row whose stored picklist value is inactive keeps that value as a
       preselected option instead of losing it
 - [x] **`suppressBottomBar` REMOVED 2026-08-27** rather than tested. Two reasons, and
