@@ -703,6 +703,11 @@ reinstate.
 | Selection control | `singleSelectControl` *(new)* | Single — Radio button / Checkbox |
 | Unique identifier | `keyField` | moved here from the data source |
 
+**Verified in the org 2026-08-27:** selecting one record at a time across several
+pages stops at the maximum with every remaining row disabled; a maximum below the
+minimum is refused by the input's floor; and a minimum forces a selection before the
+screen will advance.
+
 `maxRowSelection` was a derived getter (1 for Single, unlimited otherwise); it now
 honours `maxSelection` for Multiple. `validate()` and the inline message understand a
 minimum, so Multiple can demand N rows rather than just one.
