@@ -757,11 +757,11 @@ Prerequisite, left to the admin by decision: the controlling field must be in th
 collection. We cannot check every scenario, and a dependent picklist with no
 controlling value simply locks.
 
-### Untested in a browser
+### Verified in a browser — 2026-08-27
 
-All of it. Unit tests cover the fan-out de-duplication, the narrowing, the lock, the
-cache sharing and the fallback, but no part has been seen working against a real object
-with record types and a dependent pair.
+Working against a real object. That covers the structurally novel part: the fan-out
+children do resolve their wires inside a running Flow screen, and `validFor` arrives in
+the shape assumed from the reference.
 
 ## 2.12 `disableColumnResize` removed — 2026-08-27
 
