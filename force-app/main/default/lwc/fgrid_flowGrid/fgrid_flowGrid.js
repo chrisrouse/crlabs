@@ -654,10 +654,66 @@ export default class FgridFlowGrid extends LightningElement {
             this.picklistRecordTypeMode === "Global"
                 ? this.recordTypeId || MASTER_RECORD_TYPE_ID
                 : MASTER_RECORD_TYPE_ID;
+        const drafts = this.draftFieldValues;
         return {
             recordTypeFor: (record) => (perRow ? record?.RecordTypeId || MASTER_RECORD_TYPE_ID : fixed),
-            valuesFor: (recordTypeId, field) => values[recordTypeId]?.[field] || null
+            valuesFor: (recordTypeId, field) => values[recordTypeId]?.[field] || null,
+            // An unsaved change to the controlling field wins over the stored value,
+            // so the dependent picklist narrows as soon as it is chosen.
+            controllingValueFor: (record, field) => {
+                const pending = drafts?.[String(record?.[this.keyField])];
+                return pending && field in pending ? pending[field] : undefined;
+            }
         };
+    }
+
+    /**
+     * Maps each column's `columnKey` back to its field name.
+     *
+     * Drafts are keyed by columnKey, NOT fieldName. Columns carry a columnKey so a
+     * dragged width survives a rebuild, and the datatable then reports edits under it —
+     * an edit to `Date_Test__c` arrived as `Date_Test__c__3` and was once written to
+     * the record verbatim, leaving the real field untouched while a phantom one held
+     * the edit. Every draft path goes through this.
+     */
+    get fieldByColumnKey() {
+        return new Map(
+            this.columns.filter((column) => column.columnKey).map((column) => [column.columnKey, column.fieldName])
+        );
+    }
+
+    /**
+     * Pending draft values by row key, resolved to real field names.
+     *
+     * A dependent picklist has to narrow the moment its controlling field changes,
+     * before anything is saved — that is how a record page behaves. Committed edits
+     * already reach `buildRows` through `allKnownRecords`, but a draft sitting in the
+     * Cancel/Save bar does not, so it is read from here.
+     *
+     * Drafts arrive keyed by columnKey, not fieldName, so they need the same
+     * translation `normalizeDraft` does.
+     */
+    get draftFieldValues() {
+        if (!this._draftValues.length) {
+            return null;
+        }
+        const fieldByColumnKey = this.fieldByColumnKey;
+        const byKey = {};
+        this._draftValues.forEach((draft) => {
+            const rowKey = draft?.[this.keyField];
+            if (rowKey === null || rowKey === undefined) {
+                return;
+            }
+            const values = {};
+            Object.keys(draft).forEach((key) => {
+                if (key === this.keyField) {
+                    return;
+                }
+                values[fieldByColumnKey.get(key) || key] = draft[key];
+            });
+            byKey[String(rowKey)] = values;
+        });
+        return byKey;
     }
 
     /** Collects one record type's payload from a fan-out child. */
@@ -731,7 +787,11 @@ export default class FgridFlowGrid extends LightningElement {
                 this.maxNumberOfRows,
                 // Rows carry per-row option lists once picklists are narrowed, so the
                 // arriving payloads have to invalidate them.
-                this._picklistValues
+                this._picklistValues,
+                // And so does an unsaved change to a controlling field — but only
+                // where a dependent picklist exists to care. Otherwise every draft
+                // would rebuild every row for nothing.
+                this.hasDependentPicklistColumns ? this._draftValues : null
             ],
             () => {
                 const rows = buildRows(this.remainingRecords, this.columns, this.keyField, this.picklistContext);
@@ -2083,15 +2143,7 @@ export default class FgridFlowGrid extends LightningElement {
      * only to feed the edit cell and are not fields on the record.
      */
     normalizeDraft(draft) {
-        // Drafts are keyed by columnKey, NOT fieldName. Columns carry a columnKey so
-        // a dragged width survives a rebuild, and the datatable then reports edits
-        // under it — an edit to Date_Test__c arrived as `Date_Test__c__3`, which was
-        // written to the record verbatim. The real field kept its old value while a
-        // phantom one held the edit, so the cell appeared to clear on save even
-        // though a change was correctly detected.
-        const fieldByColumnKey = new Map(
-            this.columns.filter((column) => column.columnKey).map((column) => [column.columnKey, column.fieldName])
-        );
+        const fieldByColumnKey = this.fieldByColumnKey;
         const multiFields = new Set(
             this.columns.filter((column) => column.fgridIsMultiPicklist).map((column) => column.fieldName)
         );

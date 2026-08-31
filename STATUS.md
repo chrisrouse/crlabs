@@ -726,6 +726,18 @@ does — a saved flow version pins the declaration.
 - **A locked cell.** A dependent picklist whose controlling value is blank offers
   nothing, and an empty list disables the combobox with "Set Type first". Salesforce
   shows an empty dropdown and leaves the user guessing.
+- **An UNSAVED controlling value counts.** A record page narrows the dependent picklist
+  the moment the controlling one is chosen, not when it is saved. Committed edits
+  already reach `buildRows` through `allKnownRecords`, but a draft sitting in the
+  Cancel/Save bar does not, so the context reads it from `draftFieldValues` and it wins
+  over the stored value. Clearing the controller in a draft locks the cell again.
+
+  Drafts arrive keyed by `columnKey`, so this path needs the same translation the save
+  path does — both now share one `fieldByColumnKey` getter rather than building the map
+  twice.
+
+  The rows memo only depends on drafts when a dependent column exists, so a grid
+  without one does not rebuild every row on every cell edit.
 
 ### Why 2000 records is affordable
 

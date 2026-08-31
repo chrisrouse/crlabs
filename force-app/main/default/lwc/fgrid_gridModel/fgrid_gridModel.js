@@ -769,7 +769,15 @@ export function buildRows(records, columns, keyField = "Id", picklistContext = n
             // Read from the RECORD, not the row: RecordTypeId and a controlling field
             // are usually not displayed columns, so the projected row has neither.
             const recordTypeId = picklistContext?.recordTypeFor?.(record) || MASTER_RECORD_TYPE_ID;
-            const controllingValue = controller ? resolvePath(record, controller) : null;
+            // An unsaved draft for the controlling field wins over the stored value:
+            // a record page narrows the dependent picklist the moment the controlling
+            // one is chosen, not when it is saved.
+            const pending = controller ? picklistContext?.controllingValueFor?.(record, controller) : undefined;
+            const controllingValue = controller
+                ? pending === undefined
+                    ? resolvePath(record, controller)
+                    : pending
+                : null;
 
             const cacheKey = `${recordTypeId}|${column.fieldName}|${controllingValue ?? ""}`;
             if (!optionCache.has(cacheKey)) {

@@ -1220,6 +1220,38 @@ describe("record-type and dependent picklists", () => {
         expect(rows[0]["SubType" + PICKLIST_OPTIONS_SUFFIX]).toBe(rows[1]["SubType" + PICKLIST_OPTIONS_SUFFIX]);
     });
 
+    it("narrows from an UNSAVED controlling value", () => {
+        // A record page narrows the dependent picklist the moment the controlling one
+        // is chosen, not when it is saved. The record still says Retail; the draft says
+        // Wholesale.
+        const columns = build();
+        const withDraft = {
+            ...context,
+            controllingValueFor: () => "Wholesale"
+        };
+        const [row] = buildRows([{ Id: "a", RecordTypeId: "012A", Type: "Retail" }], columns, "Id", withDraft);
+
+        expect(row["SubType" + PICKLIST_OPTIONS_SUFFIX].map((o) => o.value)).toEqual(["Depot"]);
+    });
+
+    it("locks again when the controlling field is cleared but not saved", () => {
+        const columns = build();
+        const cleared = { ...context, controllingValueFor: () => "" };
+        const [row] = buildRows([{ Id: "a", RecordTypeId: "012A", Type: "Retail" }], columns, "Id", cleared);
+
+        expect(row["SubType" + PICKLIST_LOCKED_SUFFIX]).toBe(true);
+    });
+
+    it("uses the stored value when there is no draft for that field", () => {
+        // `undefined` means "no pending change", which is different from a pending
+        // change TO undefined — the second must not fall back to the record.
+        const columns = build();
+        const noDraft = { ...context, controllingValueFor: () => undefined };
+        const [row] = buildRows([{ Id: "a", RecordTypeId: "012A", Type: "Retail" }], columns, "Id", noDraft);
+
+        expect(row["SubType" + PICKLIST_OPTIONS_SUFFIX].map((o) => o.value)).toEqual(["Shop"]);
+    });
+
     it("falls back to the describe values when no payload answers", () => {
         // An unfetched record type, or a field missing from the payload: show the
         // unfiltered list rather than an empty one nobody asked for.
