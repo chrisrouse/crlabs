@@ -256,8 +256,9 @@ Reinstating either means accepting that ceiling; the platform is unlikely to mov
 
 - [x] **Remove verified end to end, 2026-08-27.** `rowActionType` set to Remove, the
       row taken out of the grid, and `outputRemovedRecords` fed to a Delete Records
-      element — the record was deleted. That is the second output collection proven to
-      drive real DML, after `outputEditedRecords` and Update Records.
+      element — the record was deleted. Several rows removed and deleted in one pass
+      works too. That is the second output collection proven to drive real DML, after
+      `outputEditedRecords` and Update Records.
   **A failed delete leaves the grid out of step.** The Remove action takes the row out
   of the collection immediately; the DML happens later, in the calling flow. If the
   delete fails — a closed-won opportunity blocking an Account cascade, a delete-time
