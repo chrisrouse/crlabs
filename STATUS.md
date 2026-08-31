@@ -258,6 +258,25 @@ Reinstating either means accepting that ceiling; the platform is unlikely to mov
       row taken out of the grid, and `outputRemovedRecords` fed to a Delete Records
       element — the record was deleted. That is the second output collection proven to
       drive real DML, after `outputEditedRecords` and Update Records.
+  **A failed delete leaves the grid out of step.** The Remove action takes the row out
+  of the collection immediately; the DML happens later, in the calling flow. If the
+  delete fails — a closed-won opportunity blocking an Account cascade, a delete-time
+  validation rule, a trigger — the row is gone from the grid while the record still
+  exists. Observed 2026-08-27 with DELETE_FAILED.
+
+  Nothing to fix in the component: there is no API that answers "can I delete this",
+  and reimplementing Salesforce's cascade rules would be wrong and permanently stale.
+  Worth knowing the alternatives, in increasing effort:
+
+  1. A fault path on Delete Records, showing `{!$Flow.FaultMessage}`. Minimum viable.
+  2. Loop and delete one at a time, each with a fault path — Flow DML is all-or-nothing
+     per element, so one bad record currently blocks the whole batch ("We couldn't
+     delete any records").
+  3. **Use a Flow row action rather than Remove.** Point it at an autolaunched flow that
+     deletes with a fault path. The grid re-reads the row afterwards: gone means the row
+     leaves, still there means it stays. Per-row outcome, and no window where the grid
+     and the database disagree — removal FOLLOWS the re-read instead of preceding it.
+
 - [ ] The removal CAP is still unconfirmed: set Maximum Rows Removable, exceed it, and
       check the warning appears and the extra removal is refused. Shares its shape with
       the selection cap, which is verified.
