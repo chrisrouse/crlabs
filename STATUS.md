@@ -9,13 +9,13 @@ violations, full-package deploy succeeds.
 
 ---
 
-## 1. Start here: nothing has been tested in a browser
+## 1. Browser testing — most of it is done
 
-This is the single biggest gap. Every Apex path has been exercised with
-`sf apex run`, and the LWC logic has Jest coverage, but **no part of the UI has
-been confirmed working in Flow Builder or at runtime**. The Jest suite cannot
-prove Flow Builder accepts the metadata, that `lightning-flow` renders inside a
-running screen, or that the modal stacks correctly.
+This section opened as "nothing has been tested in a browser". That is long out of
+date: every feature has now been exercised at least once in the org, and several were
+fixed as a direct result. What remains is listed in §1.6, which is the honest short list
+— the unticked boxes below it are a mix of genuinely open items and ones verified in
+passing without being recorded.
 
 Test in this order — later items depend on earlier ones working.
 
@@ -181,7 +181,8 @@ Open the smoke flow — it lives in the org, not the repo — and click the Flow
 
       Surfaced by auto-save, where every cell exit commits, but the Save path had it
       too.
-- [ ] `editedCount` reflects inline edits
+- [x] **`editedCount` reflects inline edits.** Verified 2026-08-27 alongside the
+      revert fix, which turns on that count being right.
 - [x] **Cancel discards without touching the working collection.** Verified
       2026-08-27, including the layered case that actually proves it:
       null -> edit -> Save -> edit again -> Cancel restores the **saved** value, not
@@ -193,8 +194,9 @@ Open the smoke flow — it lives in the org, not the repo — and click the Flow
       same day. The two are mutually exclusive by design — auto-save leaves nothing
       pending, so there is no Save event for Navigate Next to react to, and the editor
       greys it out while auto-save is on.
-- [ ] A row whose stored picklist value is inactive keeps that value as a
-      preselected option instead of losing it
+- [x] **Inverted by decision 2026-08-27, not tested.** A stored value that is no longer
+      active is NOT offered — matching a record page, where changing away from it is
+      one-way unless the user cancels. See the picklist section.
 - [x] **`suppressBottomBar` REMOVED 2026-08-27** rather than tested. Two reasons, and
       the second is decisive. It was probably broken: `onsave` is the only path that
       calls `upsertRecord`, so hiding the Save button would have left every edit as a
@@ -292,6 +294,36 @@ Reinstating either means accepting that ceiling; the platform is unlikely to mov
       of what was removed.
 
 ---
+
+### 1.6 What is actually left to test
+
+Everything else in §1 has either been verified or closed by decision. These have not:
+
+**Design time**
+
+- [ ] **Kit picker popover positioning.** Open **Records** and check the popover is not
+      clipped or misplaced. Never confirmed, and it was the original risk when the
+      Studio was designed.
+- [ ] **Flow variable mapping.** Blank means "do not send"; a name the flow does not
+      declare should be reported rather than failing the interview or going quiet.
+- [ ] **Preview banner** reads "Live preview using real records" and is green.
+- [ ] **Grid Studio backdrop** — the canvas bleed-through, §3.2. Known open.
+
+**Runtime — the row action**
+
+- [ ] **Cancel the modal**: nothing changes and no edit is recorded.
+- [ ] **Finish without changing anything**: the record does NOT appear in
+      `outputEditedRecords`. This is the value-comparison path, shared with inline
+      editing where it is now verified.
+- [ ] **A launched flow that DELETES its record**: the row leaves the grid and lands in
+      `outputRemovedRecords`. The reconcile path, never exercised.
+
+**Runtime — data**
+
+- [ ] **Recalculate the incoming collection mid-edit** and confirm unsaved edits are
+      discarded — the §2.6 rule. Now narrowed to the columns in use, so a change to an
+      unshown field should NOT discard them.
+- [ ] **Percent fields**, display and edit. §2.5 gap 6.
 
 ## 2. Not built yet
 
@@ -413,21 +445,16 @@ materialised per row, so pointing at it was a three-line change. Picklists are
 different — they display the stored value, so display and search already agree, and
 nothing needs doing there.
 
-### 2.2a `fgrid_flowGrid` has no Jest tests at all
+### 2.2a `fgrid_flowGrid` test coverage — CLOSED 2026-08-27
 
-Worth stating plainly, because "285 tests passing" reads like coverage and is
-misleading. Five components have a `__tests__` folder; the runtime grid — the
-largest and most complex component, and the only one holding mutable state — has
-none. Every runtime behaviour is currently verified only by browser testing.
+This section used to say the runtime grid had no Jest tests at all, and that every
+runtime behaviour rested on browser testing. That is no longer true: it now carries the
+largest suite in the project, covering draft handling and the columnKey translation,
+selection across pages and its cap, sorting and blanks-first, auto-save and reverting an
+edit, the change signature, wrapped lines, the picklist fan-out, and validation.
 
-The riskiest uncovered path is the §2.6 signature comparison, because its failure
-mode is silent destruction of a user's unsaved edits: if `recordSignature` ever
-reports a change where the content is identical, edits vanish on an unrelated
-re-render. One test asserting "same content, new array identity ⇒ edits survive"
-would pin the behaviour that matters most.
-
-Deferred by decision — build first, test later — but this is the gap to close
-first when tests come back into scope.
+The §2.6 signature path called out here as the riskiest uncovered code is covered, and
+was narrowed to the columns in use while it was.
 
 ### 2.2 Apex test coverage — CLEARED 2026-08-27
 
