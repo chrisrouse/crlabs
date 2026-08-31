@@ -2,10 +2,11 @@
      layout, and is also what the datatable's inline-edit machinery reads the
      committed value from. Do not remove it.
 
-     The option list arrives per row (typeAttributes.options points at a row
-     field), so a value that is no longer active is still present and preselected
-     rather than silently dropped on save. --None-- is included in that list when
-     the grid allows it, which is why there is no separate flag here. -->
+     `locked` is a dependent picklist with nothing to offer, because the row's
+     controlling field has no value. Salesforce shows an empty dropdown and leaves the
+     user guessing; disabling says the same thing without the guessing. It is a row
+     field rather than a computed getter because a custom cell template has no
+     controller. -->
 <template>
     <lightning-combobox
         name="fgridPicklist"
@@ -13,6 +14,8 @@
         variant="label-hidden"
         value={editedValue}
         options={typeAttributes.options}
+        placeholder={typeAttributes.lockedText}
+        disabled={typeAttributes.locked}
         required={required}
         dropdown-alignment="auto"
         data-inputable="true"

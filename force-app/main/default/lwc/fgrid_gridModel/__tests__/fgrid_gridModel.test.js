@@ -20,7 +20,10 @@ import {
     fractionToPercent,
     sortRows,
     BLANKS_FIRST_ACTION_NAME,
-    PICKLIST_SELECTED_SUFFIX
+    PICKLIST_SELECTED_SUFFIX,
+    PICKLIST_OPTIONS_SUFFIX,
+    PICKLIST_LOCKED_SUFFIX,
+    MASTER_RECORD_TYPE_ID
 } from "c/fgrid_gridModel";
 
 describe("inferType", () => {
@@ -1098,5 +1101,132 @@ describe("picklist options are the active values only", () => {
         expect(row["Tags" + PICKLIST_SELECTED_SUFFIX]).toEqual(["A", "B"]);
         // No --None-- for a checkbox group: clearing every box already says that.
         expect(column.typeAttributes.options.map((o) => o.value)).toEqual(["A", "B"]);
+    });
+});
+
+describe("record-type and dependent picklists", () => {
+    const describeFor = {
+        Type: {
+            label: "Type",
+            dataType: "picklist",
+            displayType: "PICKLIST",
+            isEditable: true,
+            picklistOptions: [
+                { label: "Retail", value: "Retail" },
+                { label: "Wholesale", value: "Wholesale" }
+            ]
+        },
+        SubType: {
+            label: "Sub Type",
+            dataType: "picklist",
+            displayType: "PICKLIST",
+            isEditable: true,
+            controllerField: "Type",
+            picklistOptions: [
+                { label: "Shop", value: "Shop" },
+                { label: "Depot", value: "Depot" }
+            ]
+        }
+    };
+    const config = { Type: { edit: true }, SubType: { edit: true } };
+
+    // One UI API payload: values narrowed to the record type, plus validFor indexing
+    // into controllerValues.
+    const payload = {
+        SubType: {
+            controllerValues: { Retail: 0, Wholesale: 1 },
+            values: [
+                { label: "Shop", value: "Shop", validFor: [0] },
+                { label: "Depot", value: "Depot", validFor: [1] }
+            ]
+        }
+    };
+    const context = {
+        recordTypeFor: (record) => record?.RecordTypeId || MASTER_RECORD_TYPE_ID,
+        valuesFor: (recordTypeId, field) => (recordTypeId === "012A" ? payload[field] : null)
+    };
+
+    function build(options = {}) {
+        return buildColumns(["Type", "SubType"], config, {
+            describeByPath: describeFor,
+            allowNone: false,
+            ...options
+        });
+    }
+
+    it("marks a dependent column with the chosen icon", () => {
+        const [, subType] = build({ dependentPicklistIcon: "utility:hierarchy" });
+        expect(subType.iconName).toBe("utility:hierarchy");
+    });
+
+    it("leaves an independent column unmarked", () => {
+        const [type] = build({ dependentPicklistIcon: "utility:hierarchy" });
+        expect(type.iconName).toBeUndefined();
+    });
+
+    it("keeps options on the column when nothing can vary per row", () => {
+        const [type] = buildColumns(["Type"], { Type: { edit: true } }, { describeByPath: { Type: describeFor.Type } });
+        expect(Array.isArray(type.typeAttributes.options)).toBe(true);
+    });
+
+    it("moves them to a row field once a column is dependent", () => {
+        const [, subType] = build();
+        expect(subType.typeAttributes.options.fieldName).toBe("SubType" + PICKLIST_OPTIONS_SUFFIX);
+    });
+
+    it("narrows a dependent picklist to its controlling value", () => {
+        const columns = build();
+        const [retail, wholesale] = buildRows(
+            [
+                { Id: "a", RecordTypeId: "012A", Type: "Retail" },
+                { Id: "b", RecordTypeId: "012A", Type: "Wholesale" }
+            ],
+            columns,
+            "Id",
+            context
+        );
+
+        expect(retail["SubType" + PICKLIST_OPTIONS_SUFFIX].map((o) => o.value)).toEqual(["Shop"]);
+        expect(wholesale["SubType" + PICKLIST_OPTIONS_SUFFIX].map((o) => o.value)).toEqual(["Depot"]);
+    });
+
+    it("locks the cell when the controlling field is blank", () => {
+        const columns = build();
+        const [row] = buildRows([{ Id: "a", RecordTypeId: "012A", Type: null }], columns, "Id", context);
+
+        expect(row["SubType" + PICKLIST_OPTIONS_SUFFIX]).toEqual([]);
+        expect(row["SubType" + PICKLIST_LOCKED_SUFFIX]).toBe(true);
+    });
+
+    it("names the controlling field in the locked placeholder", () => {
+        const [, subType] = build();
+        expect(subType.typeAttributes.lockedText).toBe("Set Type first");
+    });
+
+    it("shares one array between rows that resolve the same way", () => {
+        // The cache is keyed by record type, field and controlling value, so a grid of
+        // 2000 rows builds a handful of arrays rather than 2000.
+        const columns = build();
+        const rows = buildRows(
+            [
+                { Id: "a", RecordTypeId: "012A", Type: "Retail" },
+                { Id: "b", RecordTypeId: "012A", Type: "Retail" }
+            ],
+            columns,
+            "Id",
+            context
+        );
+
+        expect(rows[0]["SubType" + PICKLIST_OPTIONS_SUFFIX]).toBe(rows[1]["SubType" + PICKLIST_OPTIONS_SUFFIX]);
+    });
+
+    it("falls back to the describe values when no payload answers", () => {
+        // An unfetched record type, or a field missing from the payload: show the
+        // unfiltered list rather than an empty one nobody asked for.
+        const columns = build();
+        const [row] = buildRows([{ Id: "a", RecordTypeId: "012ZZZ", Type: "Retail" }], columns, "Id", context);
+
+        expect(row["SubType" + PICKLIST_OPTIONS_SUFFIX].map((o) => o.value)).toEqual(["Shop", "Depot"]);
+        expect(row["SubType" + PICKLIST_LOCKED_SUFFIX]).toBe(false);
     });
 });

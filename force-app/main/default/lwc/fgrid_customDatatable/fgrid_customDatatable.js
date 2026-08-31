@@ -47,13 +47,13 @@ export default class FgridCustomDatatable extends LightningDatatable {
             template: picklistDisplay,
             editTemplate: picklistEdit,
             standardCellLayout: true,
-            typeAttributes: ["options", "selected"]
+            typeAttributes: ["options", "selected", "locked", "lockedText"]
         },
         fgridMultiPicklist: {
             template: multiPicklistDisplay,
             editTemplate: multiPicklistEdit,
             standardCellLayout: true,
-            typeAttributes: ["options", "selected"]
+            typeAttributes: ["options", "selected", "locked", "lockedText"]
         },
         fgridLookup: {
             template: lookupDisplay,

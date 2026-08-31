@@ -118,6 +118,50 @@ export const LINK_SUFFIX = "__fgridUrl";
  *  group, whose `value` is an array while the record stores a `;` string. */
 export const PICKLIST_SELECTED_SUFFIX = "__fgridSelected";
 
+/** Row field holding the option list a picklist cell offers, when it varies by row. */
+export const PICKLIST_OPTIONS_SUFFIX = "__fgridOptions";
+
+/** Row field marking a dependent picklist that has nothing to offer yet. */
+export const PICKLIST_LOCKED_SUFFIX = "__fgridLocked";
+
+/** Master record type, used when an object has none or record-type filtering is off. */
+export const MASTER_RECORD_TYPE_ID = "012000000000000AAA";
+
+/**
+ * Options for one picklist, given a record type payload and a controlling value.
+ *
+ * Two filters, both out of the same UI API payload:
+ *
+ *   RECORD TYPE — `picklistFieldValues[field].values` is already narrowed to the
+ *   record type the payload was fetched for, so holding the right payload IS the
+ *   filtering.
+ *
+ *   DEPENDENCY — `validFor` lists indexes into `controllerValues`, which maps each
+ *   controlling value to an index. A value is offered when its `validFor` contains the
+ *   index of this row's controlling value. A dependent picklist whose controlling
+ *   value is blank or unrecognised offers NOTHING, and an empty list is what locks the
+ *   cell.
+ *
+ * Returns null when the payload cannot answer, so the caller falls back to the
+ * describe values rather than showing an empty list it never intended.
+ */
+export function picklistValuesFor(fieldValues, controllerField, controllingValue) {
+    if (!fieldValues || !Array.isArray(fieldValues.values)) {
+        return null;
+    }
+    if (!controllerField) {
+        return fieldValues.values.map((entry) => ({ label: entry.label, value: entry.value }));
+    }
+
+    const index = fieldValues.controllerValues?.[controllingValue];
+    if (index === undefined || index === null) {
+        return [];
+    }
+    return fieldValues.values
+        .filter((entry) => Array.isArray(entry.validFor) && entry.validFor.includes(index))
+        .map((entry) => ({ label: entry.label, value: entry.value }));
+}
+
 /**
  * Salesforce stores a Percent field as whole percent — 25 means 25% — while the
  * datatable's `percent` type multiplies by 100 to display. Left alone, a stored 25
@@ -303,6 +347,9 @@ export function buildColumns(fields, config = {}, options = {}) {
         filterActions = false,
         readOnlyIcon = false,
         blanksFirstFields = [],
+        /** True when picklist options can differ row to row, so they move to a row field. */
+        perRowPicklists = false,
+        dependentPicklistIcon = null,
         userTimeZone = null
     } = options;
 
@@ -400,11 +447,28 @@ export function buildColumns(fields, config = {}, options = {}) {
             // box already expresses "no value".
             column.fgridAllowNone = allowNone && !isMulti;
             const none = column.fgridAllowNone ? [{ label: "--None--", value: "" }] : [];
+            column.fgridPicklistNone = none;
+            column.fgridControllerField = describe.controllerField || null;
+
+            // Options move to a ROW field only when they can differ between rows —
+            // a record-type filter, or a dependency on another field's value. Without
+            // either, one array on the column serves every row and costs nothing.
+            const varies = perRowPicklists || Boolean(describe.controllerField);
             column.typeAttributes = {
                 ...(column.typeAttributes || {}),
-                options: [...none, ...describe.picklistOptions],
-                selected: { fieldName: field + PICKLIST_SELECTED_SUFFIX }
+                options: varies
+                    ? { fieldName: field + PICKLIST_OPTIONS_SUFFIX }
+                    : [...none, ...describe.picklistOptions],
+                selected: { fieldName: field + PICKLIST_SELECTED_SUFFIX },
+                locked: { fieldName: field + PICKLIST_LOCKED_SUFFIX },
+                lockedText: describe.controllerField ? `Set ${describe.controllerField} first` : null
             };
+
+            // A dependent picklist says so in its header. The icon is the admin's
+            // choice; naming the controlling field is what a custom label is for.
+            if (describe.controllerField && dependentPicklistIcon) {
+                column.iconName = dependentPicklistIcon;
+            }
         }
         if (describe && describe.isAccessible === false) {
             column.fgridInaccessible = true;
@@ -634,15 +698,27 @@ export function buildColumns(fields, config = {}, options = {}) {
  * @param {string} keyField unique row identifier property
  * @returns {object[]} flat rows safe to hand to `lightning-datatable`
  */
-export function buildRows(records, columns, keyField = "Id") {
+export function buildRows(records, columns, keyField = "Id", picklistContext = null) {
     if (!Array.isArray(records)) {
         return [];
     }
     const paths = (columns || []).map((column) => column.fgridLinkFor || column.fieldName).filter(Boolean);
-    // Only the multi-select needs anything per row: its stored `A;B` string has to be
-    // split into the array the checkbox group binds to. The option LIST is per column
-    // and lives on the column itself.
+    // The multi-select always needs its stored `A;B` string split into the array the
+    // checkbox group binds to.
     const multiPicklistColumns = (columns || []).filter((column) => column.type === "fgridMultiPicklist");
+
+    // Picklist columns whose options were moved to a row field, because a record type
+    // or a controlling field can change them from row to row.
+    const perRowPicklistColumns = (columns || []).filter(
+        (column) =>
+            (column.type === "fgridPicklist" || column.type === "fgridMultiPicklist") &&
+            column.typeAttributes?.options?.fieldName
+    );
+    // One list per (record type, field, controlling value), not per row. Three record
+    // types and eight controlling values is a couple of dozen arrays built once, and
+    // every row that matches points at the SAME array — which keeps the datatable from
+    // treating each row as changed on re-render.
+    const optionCache = new Map();
     const lookupColumns = (columns || []).filter((column) => column.type === "fgridLookup");
     const percentColumns = (columns || []).filter((column) => column.type === "percent");
 
@@ -686,6 +762,35 @@ export function buildRows(records, columns, keyField = "Id") {
 
         multiPicklistColumns.forEach((column) => {
             row[column.fieldName + PICKLIST_SELECTED_SUFFIX] = splitMultiPicklist(row[column.fieldName]);
+        });
+
+        perRowPicklistColumns.forEach((column) => {
+            const controller = column.fgridControllerField;
+            // Read from the RECORD, not the row: RecordTypeId and a controlling field
+            // are usually not displayed columns, so the projected row has neither.
+            const recordTypeId = picklistContext?.recordTypeFor?.(record) || MASTER_RECORD_TYPE_ID;
+            const controllingValue = controller ? resolvePath(record, controller) : null;
+
+            const cacheKey = `${recordTypeId}|${column.fieldName}|${controllingValue ?? ""}`;
+            if (!optionCache.has(cacheKey)) {
+                const fieldValues = picklistContext?.valuesFor?.(recordTypeId, column.fieldName) || null;
+                const resolved = picklistValuesFor(fieldValues, controller, controllingValue);
+                // null means the payload could not answer — no record type fetched, or
+                // the field missing from it — so fall back to the describe values
+                // rather than showing an empty list nobody asked for.
+                const base = resolved === null ? column.fgridPicklistOptions || [] : resolved;
+                const none = column.fgridPicklistNone || [];
+                // --None-- is omitted from an EMPTY dependent list: offering only
+                // --None-- reads as a working picklist, when the truth is that the
+                // controlling field has not been set.
+                optionCache.set(cacheKey, base.length ? [...none, ...base] : []);
+            }
+            const resolvedOptions = optionCache.get(cacheKey);
+            row[column.fieldName + PICKLIST_OPTIONS_SUFFIX] = resolvedOptions;
+            // Nothing to offer means the controlling field has not been set. Salesforce
+            // shows an empty dropdown and leaves the user guessing; the cell is
+            // disabled instead, which says the same thing without the guessing.
+            row[column.fieldName + PICKLIST_LOCKED_SUFFIX] = resolvedOptions.length === 0;
         });
 
         return row;

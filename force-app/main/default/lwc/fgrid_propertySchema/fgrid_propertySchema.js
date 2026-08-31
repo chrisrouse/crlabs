@@ -74,6 +74,14 @@ export const SELECTION_MODES = [
 ];
 
 /** How a single selection is presented, and therefore whether it can be undone. */
+/** How editable picklists are narrowed by record type. */
+export const PICKLIST_RECORD_TYPE_MODES = [
+    { label: "Do Not Filter", value: "None" },
+    { label: "Globally", value: "Global" },
+    { label: "Per Row", value: "PerRow" }
+];
+
+/** How a single selection is presented, and therefore whether it can be undone. */
 export const SINGLE_SELECT_CONTROLS = [
     { label: "Radio Button", value: "Radio" },
     { label: "Checkbox", value: "Checkbox" }
@@ -146,6 +154,8 @@ export const DEFAULTS = {
     keyField: "Id",
     rowLoading: "Scroll",
     selectionMode: "Multiple",
+    picklistRecordTypeMode: "None",
+    dependentPicklistIcon: "utility:hierarchy",
     singleSelectControl: "Radio",
     rowActionType: "None",
     rowActionDisplay: "Icon",
@@ -168,6 +178,7 @@ export const VISIBILITY = {
     hasObject: (v) => Boolean(v.objectApiName),
     headerShown: (v) => Boolean(v.showHeader),
     selectable: (v) => v.selectionMode !== "None",
+    globalPicklistRecordType: (v) => v.picklistRecordTypeMode === "Global",
     singleSelect: (v) => v.selectionMode === "Single",
     multiSelect: (v) => v.selectionMode === "Multiple",
     paginated: (v) => v.rowLoading === "Paginate",
@@ -602,16 +613,24 @@ export const SECTIONS = [
         label: "Picklist Editing",
         controls: [
             {
+                property: "picklistRecordTypeMode",
+                type: CONTROL.RADIO,
+                label: "Filter Picklists by Record Type",
+                options: PICKLIST_RECORD_TYPE_MODES,
+                help: "Dependent picklists narrow by their controlling field whatever this is set to."
+            },
+            {
                 property: "recordTypeId",
                 type: CONTROL.TEXT,
                 label: "Record Type Id",
-                help: "Limits editable picklists to the values available for this record type."
+                when: ["globalPicklistRecordType"],
+                help: "All picklists are filtered by this record type."
             },
             {
-                property: "showAllPicklistValues",
-                type: CONTROL.CHECKBOX,
-                label: "Show Every Picklist Value",
-                help: "Ignores record-type filtering on editable picklist columns."
+                property: "dependentPicklistIcon",
+                type: CONTROL.ICON,
+                label: "Dependent Picklist Icon",
+                help: "Marks a column whose values depend on another field. Clear it to show no icon."
             },
             { property: "hideNoneOption", type: CONTROL.CHECKBOX, label: "Hide --None-- in Editable Picklists" }
         ]

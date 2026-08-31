@@ -20,8 +20,9 @@
  * user-defined-object JSON source, and inline editing — standard types plus
  * picklist, multi-select picklist and lookup cells via `c/fgrid_customDatatable`.
  *
- * NOT YET: `recordTypeId` and `showAllPicklistValues` are accepted and inert, so
- * an editable picklist offers every active value regardless of record type.
+ * Picklist options can be narrowed two ways, both fed by the same UI API payload:
+ * by record type, globally or per row, and by a controlling field for a dependent
+ * picklist. See `picklistContext`.
  */
 import { LightningElement, api, wire } from "lwc";
 import { FlowAttributeChangeEvent, FlowNavigationNextEvent } from "lightning/flowSupport";
@@ -47,6 +48,7 @@ import {
     FILTER_ACTION_NAME,
     BLANKS_FIRST_ACTION_NAME,
     PICKLIST_SELECTED_SUFFIX,
+    MASTER_RECORD_TYPE_ID,
     ROW_ACTION_NAME
 } from "c/fgrid_gridModel";
 
@@ -178,6 +180,17 @@ export default class FgridFlowGrid extends LightningElement {
 
     // ----- Picklist editing -----
     @api recordTypeId;
+
+    /** "None", "Global" or "PerRow" — see picklistRecordTypeIds. */
+    @api picklistRecordTypeMode = "None";
+
+    /** Header icon for a dependent picklist column. */
+    @api dependentPicklistIcon = "utility:hierarchy";
+    /**
+     * DEPRECATED and unread. Superseded by `picklistRecordTypeMode`, whose "Do Not
+     * Filter" says the same thing explicitly. Kept only so a targetConfig that a saved
+     * flow version references still deploys; see the removal TODO in STATUS.
+     */
     @api showAllPicklistValues = false;
     @api hideNoneOption = false;
 
@@ -241,6 +254,9 @@ export default class FgridFlowGrid extends LightningElement {
 
     /** Fields whose sort puts blanks at the top, toggled from the header menu. */
     _blanksFirst = [];
+
+    /** UI API payloads by record type id, filled by the fan-out children. */
+    _picklistValues = {};
     _touched = false;
     _searchTerm = "";
     /** Per-column filter text, keyed by field path. */
@@ -575,6 +591,86 @@ export default class FgridFlowGrid extends LightningElement {
         );
     }
 
+    /* ----- picklist narrowing ----- */
+
+    /**
+     * Record type ids to fetch picklist values for.
+     *
+     * Global is one id. Per row is however many distinct ids the collection holds,
+     * read off the RECORDS rather than the rows — `RecordTypeId` is rarely a displayed
+     * column, and a Get Records set to store all fields already carries it.
+     *
+     * Even with filtering off, one fetch happens when any column is a dependent
+     * picklist: `validFor` lives in the same payload, so narrowing by a controlling
+     * field needs it whether or not record types are involved. The master id is used
+     * for that, which is what an object without record types has anyway.
+     */
+    get picklistRecordTypeIds() {
+        if (!this.objectApiName || !this.hasPicklistColumns) {
+            return [];
+        }
+        if (this.picklistRecordTypeMode === "Global") {
+            return this.recordTypeId ? [this.recordTypeId] : [MASTER_RECORD_TYPE_ID];
+        }
+        if (this.picklistRecordTypeMode === "PerRow") {
+            const ids = new Set();
+            this.sourceRecords.forEach((record) => {
+                ids.add(record?.RecordTypeId || MASTER_RECORD_TYPE_ID);
+            });
+            return [...ids];
+        }
+        return this.hasDependentPicklistColumns ? [MASTER_RECORD_TYPE_ID] : [];
+    }
+
+    /** The ids above, as keyed rows a template can iterate. */
+    get picklistRecordTypes() {
+        return this.picklistRecordTypeIds.map((id) => ({ key: id, recordTypeId: id }));
+    }
+
+    get hasPicklistColumns() {
+        return Object.values(this.describeByPath || {}).some((describe) => describe?.picklistOptions?.length);
+    }
+
+    get hasDependentPicklistColumns() {
+        return Object.values(this.describeByPath || {}).some((describe) => describe?.controllerField);
+    }
+
+    /** True when options can differ row to row, which moves them to a row field. */
+    get hasPerRowPicklists() {
+        return this.picklistRecordTypeMode === "PerRow" || this.hasDependentPicklistColumns;
+    }
+
+    /**
+     * What `buildRows` needs to resolve one cell's options: which record type a record
+     * belongs to, and the payload for it.
+     */
+    get picklistContext() {
+        if (!this.hasPerRowPicklists && this.picklistRecordTypeMode !== "Global") {
+            return null;
+        }
+        const values = this._picklistValues;
+        const perRow = this.picklistRecordTypeMode === "PerRow";
+        const fixed =
+            this.picklistRecordTypeMode === "Global"
+                ? this.recordTypeId || MASTER_RECORD_TYPE_ID
+                : MASTER_RECORD_TYPE_ID;
+        return {
+            recordTypeFor: (record) => (perRow ? record?.RecordTypeId || MASTER_RECORD_TYPE_ID : fixed),
+            valuesFor: (recordTypeId, field) => values[recordTypeId]?.[field] || null
+        };
+    }
+
+    /** Collects one record type's payload from a fan-out child. */
+    handlePicklistValues(event) {
+        const { recordTypeId, picklistFieldValues } = event.detail;
+        if (!recordTypeId || !picklistFieldValues) {
+            return;
+        }
+        // Replaced rather than mutated, so the rows memo sees a new dependency and
+        // rebuilds once the values arrive.
+        this._picklistValues = { ...this._picklistValues, [recordTypeId]: picklistFieldValues };
+    }
+
     buildGridColumns() {
         const columns = buildColumns(this._columnPaths, this._columnConfig, {
             hideHeaderActions: this.hideHeaderActions,
@@ -589,6 +685,8 @@ export default class FgridFlowGrid extends LightningElement {
             filterActions: true,
             readOnlyIcon: Boolean(this.showReadOnlyIcon),
             blanksFirstFields: this._blanksFirst,
+            perRowPicklists: this.hasPerRowPicklists,
+            dependentPicklistIcon: this.dependentPicklistIcon,
             userTimeZone: this._metadata?.userTimeZone
         });
 
@@ -626,9 +724,17 @@ export default class FgridFlowGrid extends LightningElement {
     get cappedRows() {
         return this.memoized(
             "cappedRows",
-            [this.remainingRecords, this.columns, this.keyField, this.maxNumberOfRows],
+            [
+                this.remainingRecords,
+                this.columns,
+                this.keyField,
+                this.maxNumberOfRows,
+                // Rows carry per-row option lists once picklists are narrowed, so the
+                // arriving payloads have to invalidate them.
+                this._picklistValues
+            ],
             () => {
-                const rows = buildRows(this.remainingRecords, this.columns, this.keyField);
+                const rows = buildRows(this.remainingRecords, this.columns, this.keyField, this.picklistContext);
                 const cap = Number(this.maxNumberOfRows);
                 return Number.isFinite(cap) && cap > 0 ? rows.slice(0, cap) : rows;
             }

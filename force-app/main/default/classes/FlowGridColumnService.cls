@@ -122,6 +122,17 @@ public with sharing class FlowGridColumnService {
         public Boolean isLongText;
         @AuraEnabled
         public List<PicklistOption> picklistOptions;
+        /**
+         * API name of the picklist that controls this one, or null when it is
+         * independent.
+         *
+         * Only `getController()` knows this, and only Apex has it — the UI API payload
+         * carries the dependency DATA (`validFor`, `controllerValues`) but does not
+         * name the controlling field. Reporting it here is what lets the grid pair the
+         * two without a second round trip.
+         */
+        @AuraEnabled
+        public String controllerField;
         /** Sole target object of a lookup, or null when there is none or several. */
         @AuraEnabled
         public String referenceTo;
@@ -291,7 +302,33 @@ public with sharing class FlowGridColumnService {
         applyLookupFacts(column, field);
         column.isEditable = isEditable(field);
         column.picklistOptions = picklistOptionsOf(field);
+        column.controllerField = controllerFieldOf(field);
         return column;
+    }
+
+    /**
+     * API name of the picklist that controls this one, if any.
+     *
+     * `getController()` returns either a field token or, for a checkbox controller, a
+     * different shape — both answer `getDescribe().getName()`. Anything that does not
+     * is treated as no controller rather than guessed at.
+     *
+     * @param field describe of the dependent picklist
+     * @return controlling field API name, or null
+     */
+    private static String controllerFieldOf(Schema.DescribeFieldResult field) {
+        if (field.getType() != Schema.DisplayType.PICKLIST && field.getType() != Schema.DisplayType.MULTIPICKLIST) {
+            return null;
+        }
+        Schema.SObjectField controller = field.getController();
+        if (controller == null) {
+            return null;
+        }
+        try {
+            return controller.getDescribe().getName();
+        } catch (Exception ignored) {
+            return null;
+        }
     }
 
     /**

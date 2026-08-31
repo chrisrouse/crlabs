@@ -62,6 +62,18 @@
             </div>
         </template>
 
+        <!-- One invisible wire per distinct record type. A wire adapter takes a single
+             recordTypeId and a component cannot loop wires, so the fan-out is done by
+             rendering a child for each. -->
+        <template for:each={picklistRecordTypes} for:item="type">
+            <c-fgrid_picklist-values
+                key={type.key}
+                object-api-name={objectApiName}
+                record-type-id={type.recordTypeId}
+                onpicklistvalues={handlePicklistValues}
+            ></c-fgrid_picklist-values>
+        </template>
+
         <template lwc:if={hasColumns}>
             <!-- Filters are set from each column's header menu, so this bar is the
                  only thing on screen that says what is currently filtered. Pills

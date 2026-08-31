@@ -2,9 +2,16 @@ import { createElement } from "lwc";
 import FgridFlowGrid from "c/fgrid_flowGrid";
 import getRecordsByIds from "@salesforce/apex/FlowGridController.getRecordsByIds";
 
+// An emittable wire, so a test can give the grid real column metadata. Without it
+// describeByPath is empty, every picklist-dependent assertion passes vacuously, and
+// the fan-out never renders.
 jest.mock(
     "@salesforce/apex/FlowGridController.getGridMetadata",
-    () => ({ default: jest.fn(() => Promise.resolve({ objectInfo: {}, columns: [] })) }),
+    () => {
+        // eslint-disable-next-line no-undef
+        const { createApexTestWireAdapter } = require("@salesforce/wire-service-jest-util");
+        return { default: createApexTestWireAdapter(jest.fn()) };
+    },
     { virtual: true }
 );
 jest.mock("@salesforce/apex/FlowGridController.runFlow", () => ({ default: jest.fn() }), { virtual: true });
@@ -1040,5 +1047,84 @@ describe("change detection is scoped to the columns in use", () => {
         await Promise.resolve();
 
         expect(element.editedCount).toBe(0);
+    });
+});
+
+describe("picklist record types are fetched once each", () => {
+    // eslint-disable-next-line no-undef
+    const metadata = require("@salesforce/apex/FlowGridController.getGridMetadata").default;
+
+    /** Metadata with one editable picklist column, so the fan-out has a reason to run. */
+    function emitPicklistMetadata(element) {
+        metadata.emit({
+            objectInfo: { apiName: "Account", isAccessible: true },
+            columns: [
+                {
+                    fieldPath: "Industry",
+                    label: "Industry",
+                    dataType: "picklist",
+                    displayType: "PICKLIST",
+                    isAccessible: true,
+                    isEditable: true,
+                    picklistOptions: [{ label: "Energy", value: "Energy" }]
+                }
+            ]
+        });
+        return Promise.resolve().then(() => element);
+    }
+
+    // A wire adapter takes one recordTypeId and a component cannot loop wires, so the
+    // parent renders one invisible child per DISTINCT record type. The cost scales
+    // with record types, not with rows.
+    function fetchers(element) {
+        return [...element.shadowRoot.querySelectorAll("c-fgrid_picklist-values")].map((el) => el.recordTypeId);
+    }
+
+    const withTypes = (ids) =>
+        ids.map((recordTypeId, index) => ({
+            Id: `001x${index}`,
+            Name: `Account ${index}`,
+            Industry: "Energy",
+            RecordTypeId: recordTypeId
+        }));
+
+    it("fetches nothing when filtering is off and no column is dependent", async () => {
+        const element = build({ records: records(3) });
+        await emitPicklistMetadata(element);
+
+        expect(fetchers(element)).toEqual([]);
+    });
+
+    it("fetches exactly one record type for Global", async () => {
+        const element = build({
+            records: records(3),
+            picklistRecordTypeMode: "Global",
+            recordTypeId: "012AAA"
+        });
+        await emitPicklistMetadata(element);
+
+        expect(fetchers(element)).toEqual(["012AAA"]);
+    });
+
+    it("de-duplicates record types for Per Row", async () => {
+        // Six records, two record types: two fetches, not six. The cost scales with
+        // record types, not rows, which is what makes 2000 records affordable.
+        const element = build({
+            records: withTypes(["012A", "012B", "012A", "012B", "012A", "012B"]),
+            picklistRecordTypeMode: "PerRow"
+        });
+        await emitPicklistMetadata(element);
+
+        expect(fetchers(element).sort()).toEqual(["012A", "012B"]);
+    });
+
+    it("falls back to the master record type for a record without one", async () => {
+        const element = build({
+            records: withTypes(["012A", undefined]),
+            picklistRecordTypeMode: "PerRow"
+        });
+        await emitPicklistMetadata(element);
+
+        expect(fetchers(element).sort()).toEqual(["012000000000000AAA", "012A"]);
     });
 });

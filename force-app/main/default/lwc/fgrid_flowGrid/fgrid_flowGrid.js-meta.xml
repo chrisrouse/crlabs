@@ -140,7 +140,12 @@
 
             <!-- =================== Picklist editing (record type) =================== -->
             <property name="recordTypeId" type="String" label="Record Type Id" role="inputOnly" />
-            <property name="showAllPicklistValues" type="Boolean" label="Show All Picklist Values" default="false" role="inputOnly" />
+            <!-- DEPRECATED and unread, superseded by picklistRecordTypeMode. Kept only
+                 because a targetConfig cannot drop a property a saved flow version
+                 references; see the removal TODO in STATUS.md. -->
+            <property name="showAllPicklistValues" type="Boolean" label="Show All Picklist Values (Deprecated)" default="false" role="inputOnly" description="No longer used. Superseded by Filter Picklists by Record Type." />
+            <property name="picklistRecordTypeMode" type="String" label="Filter Picklists by Record Type" default="None" role="inputOnly" description="None, Global or PerRow. Global filters every picklist by the Record Type Id below; PerRow filters each row by its own RecordTypeId, which requires the Get Records to have retrieved that field. Dependent picklists narrow by their controlling field regardless." />
+            <property name="dependentPicklistIcon" type="String" label="Dependent Picklist Icon" default="utility:hierarchy" role="inputOnly" description="Header icon marking a column whose values depend on another field. Blank shows no icon." />
             <property name="hideNoneOption" type="Boolean" label="Hide the --None-- Picklist Option" default="false" role="inputOnly" />
 
             <!-- Flow supplies its runtime API version; the editor forwards it to pickers. -->
