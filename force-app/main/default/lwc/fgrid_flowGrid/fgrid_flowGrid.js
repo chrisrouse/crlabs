@@ -335,6 +335,25 @@ export default class FgridFlowGrid extends LightningElement {
         this.applyPreSelection();
     }
 
+    /**
+     * Fields the change signature is computed over: the key, plus the columns.
+     *
+     * NOT every field on the record. A Get Records set to "automatically store all
+     * fields" hands us everything the object has, and hashing all of it was
+     * O(records x fields) with a sort per record — 2000 records of a 200-field object
+     * meant 2000 sorts and 400,000 string concatenations, on EVERY re-render, because
+     * Flow reassigns the collection each time an output is published.
+     *
+     * Narrowing to the used fields is also more correct. The signature exists to
+     * decide whether the incoming data changed enough to discard unsaved edits, and a
+     * field the grid never displays or edits is not a reason to throw a user's work
+     * away.
+     */
+    get signatureFields() {
+        const fields = new Set([this.keyField, ...(this._columnPaths || [])]);
+        return [...fields].filter(Boolean).sort();
+    }
+
     @api
     get records() {
         return this._records;
@@ -347,7 +366,7 @@ export default class FgridFlowGrid extends LightningElement {
         // reassigns collection arrays on virtually every re-render, so keying off
         // identity would throw away a user's half-finished edit whenever anything
         // else on the screen moved.
-        const signature = recordSignature(next);
+        const signature = recordSignature(next, this.signatureFields);
         const changed = this._recordsSignature !== null && this._recordsSignature !== signature;
         this._recordsSignature = signature;
         this._records = next;
@@ -2240,21 +2259,29 @@ function sameValue(before, after) {
  * read as a change, and `attributes` — the SObject envelope Apex and Flow attach
  * — is excluded for the same reason it is excluded from edit detection.
  */
-function recordSignature(records) {
+function recordSignature(records, fields) {
     if (!Array.isArray(records) || !records.length) {
         return "0";
     }
+    // `fields` arrives already sorted and de-duplicated, so there is no per-record
+    // sort and the cost is records x COLUMNS rather than records x every field the
+    // Get happened to retrieve.
+    const names = Array.isArray(fields) && fields.length ? fields : null;
     const parts = records.map((record) => {
         if (!record || typeof record !== "object") {
             return String(record);
         }
-        return Object.keys(record)
-            .filter((field) => field !== "attributes")
-            .sort()
-            .map((field) => `${field}=${signatureValue(record[field])}`)
-            .join(",");
+        if (!names) {
+            // No columns configured yet. Length alone still catches a collection
+            // being swapped, and there is nothing on screen to protect.
+            return "";
+        }
+        return names.map((field) => `${field}=${signatureValue(record[field])}`).join(",");
     });
-    return `${records.length}:${parts.join("~")}`;
+    // The field list is part of the signature: reconfiguring columns changes what
+    // "the same data" means, and a stale comparison across two different bases would
+    // read as a change that never happened.
+    return `${records.length}|${names ? names.join(",") : ""}:${parts.join("~")}`;
 }
 
 /** Renders one field value for a signature, collapsing blank forms. */

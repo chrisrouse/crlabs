@@ -986,3 +986,59 @@ describe("reverting an edit un-counts it", () => {
         expect(row.Name).toBe(all[0].Name);
     });
 });
+
+describe("change detection is scoped to the columns in use", () => {
+    // The signature decides whether incoming data changed enough to discard unsaved
+    // edits. Hashing every field a "store all fields" Get returned was
+    // O(records x fields) with a sort per record, and it also threw away edits when a
+    // field the grid never shows happened to change.
+    function editFirst(element, all) {
+        element.shadowRoot
+            .querySelector("c-fgrid_custom-datatable")
+            .dispatchEvent(new CustomEvent("save", { detail: { draftValues: [{ Id: all[0].Id, Name: "Edited" }] } }));
+        return Promise.resolve();
+    }
+
+    it("keeps unsaved edits when an unshown field changes", async () => {
+        const all = records(2).map((record) => ({ ...record, Rating: "Hot" }));
+        const element = build({ records: all });
+        await Promise.resolve();
+
+        await editFirst(element, all);
+        expect(element.editedCount).toBe(1);
+
+        // Same rows, but a field the grid does not display has moved.
+        element.records = all.map((record) => ({ ...record, Rating: "Cold" }));
+        await Promise.resolve();
+
+        expect(element.editedCount).toBe(1);
+    });
+
+    it("still discards them when a displayed field changes", async () => {
+        const all = records(2);
+        const element = build({ records: all });
+        await Promise.resolve();
+
+        await editFirst(element, all);
+        expect(element.editedCount).toBe(1);
+
+        element.records = all.map((record, index) => {
+            return index === 1 ? { ...record, Industry: "Something else" } : record;
+        });
+        await Promise.resolve();
+
+        expect(element.editedCount).toBe(0);
+    });
+
+    it("still discards them when the collection changes size", async () => {
+        const all = records(3);
+        const element = build({ records: all });
+        await Promise.resolve();
+
+        await editFirst(element, all);
+        element.records = all.slice(0, 2);
+        await Promise.resolve();
+
+        expect(element.editedCount).toBe(0);
+    });
+});
