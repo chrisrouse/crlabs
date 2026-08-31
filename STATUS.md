@@ -278,9 +278,8 @@ Reinstating either means accepting that ceiling; the platform is unlikely to mov
      leaves, still there means it stays. Per-row outcome, and no window where the grid
      and the database disagree — removal FOLLOWS the re-read instead of preceding it.
 
-- [ ] The removal CAP is still unconfirmed: set Maximum Rows Removable, exceed it, and
-      check the warning appears and the extra removal is refused. Shares its shape with
-      the selection cap, which is verified.
+- [x] **The removal cap is verified, 2026-08-27.** Exceeding Maximum Rows Removable
+      refuses the extra removal and shows "You can only remove N rows at once."
 - [ ] `outputRemainingRecords` unconfirmed — the complement of what was removed.
 
 ---
