@@ -278,8 +278,15 @@ Reinstating either means accepting that ceiling; the platform is unlikely to mov
      leaves, still there means it stays. Per-row outcome, and no window where the grid
      and the database disagree — removal FOLLOWS the re-read instead of preceding it.
 
-- [x] **The removal cap is verified, 2026-08-27.** Exceeding Maximum Rows Removable
-      refuses the extra removal and shows "You can only remove N rows at once."
+- [x] **The removal cap is verified, 2026-08-27**, including across pages. Exceeding
+      Maximum Rows Removable refuses the extra removal and shows "You can only remove N
+      rows at once."
+
+      It counts across pages for a reason worth contrasting with selection: removals
+      live in `_removedKeys`, our own state, and were never delegated to the datatable.
+      The selection cap WAS delegated, and the datatable only sees the rows it renders
+      — which is exactly why it counted one page at a time until it was moved into
+      `handleRowSelection`. Same feature, two paths, and only the delegated one broke.
 - [ ] `outputRemainingRecords` unconfirmed — the complement of what was removed.
 
 ---
