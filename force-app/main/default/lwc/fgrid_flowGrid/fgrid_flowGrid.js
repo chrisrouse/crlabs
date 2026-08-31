@@ -1702,7 +1702,7 @@ export default class FgridFlowGrid extends LightningElement {
         // maxRemovedRows of 0 or blank means no limit.
         const cap = Number(this.maxRemovedRows);
         if (Number.isFinite(cap) && cap > 0 && this._removedKeys.length >= cap) {
-            this._removalBlockedMessage = `You can remove at most ${cap} ${cap === 1 ? "row" : "rows"}.`;
+            this._removalBlockedMessage = `You can only remove ${cap} ${cap === 1 ? "row" : "rows"} at once.`;
             return;
         }
         this._removalBlockedMessage = null;

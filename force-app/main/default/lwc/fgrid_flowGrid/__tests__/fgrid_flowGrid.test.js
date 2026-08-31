@@ -1128,3 +1128,39 @@ describe("picklist record types are fetched once each", () => {
         expect(fetchers(element).sort()).toEqual(["012000000000000AAA", "012A"]);
     });
 });
+
+describe("the removal cap explains itself", () => {
+    function removeRow(element, row) {
+        element.shadowRoot.querySelector("c-fgrid_custom-datatable").dispatchEvent(
+            new CustomEvent("rowaction", {
+                detail: { action: { name: "fgridRowAction" }, row }
+            })
+        );
+        return Promise.resolve();
+    }
+
+    it("says how many can go at once, once the cap is hit", async () => {
+        const all = records(5);
+        const element = build({ records: all, rowActionType: "Remove", maxRemovedRows: 2 });
+        await Promise.resolve();
+
+        await removeRow(element, all[0]);
+        await removeRow(element, all[1]);
+        expect(element.shadowRoot.textContent).not.toContain("You can only remove");
+
+        await removeRow(element, all[2]);
+        expect(element.shadowRoot.textContent).toContain("You can only remove 2 rows at once.");
+        expect(element.removedCount).toBe(2);
+    });
+
+    it("uses the singular for a cap of one", async () => {
+        const all = records(3);
+        const element = build({ records: all, rowActionType: "Remove", maxRemovedRows: 1 });
+        await Promise.resolve();
+
+        await removeRow(element, all[0]);
+        await removeRow(element, all[1]);
+
+        expect(element.shadowRoot.textContent).toContain("You can only remove 1 row at once.");
+    });
+});
