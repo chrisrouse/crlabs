@@ -1159,6 +1159,18 @@ describe("record-type and dependent picklists", () => {
         expect(subType.iconName).toBe("utility:hierarchy");
     });
 
+    it("marks it in a read-only preview too", () => {
+        // The Studio forces every column read-only. Testing editability here would
+        // have shown the mark at runtime and hidden it in the preview.
+        const [, subType] = build({ dependentPicklistIcon: "utility:hierarchy", forceReadOnly: true });
+        expect(subType.iconName).toBe("utility:hierarchy");
+    });
+
+    it("shows no icon when the admin clears it", () => {
+        const [, subType] = build({ dependentPicklistIcon: "" });
+        expect(subType.iconName).toBeUndefined();
+    });
+
     it("leaves an independent column unmarked", () => {
         const [type] = build({ dependentPicklistIcon: "utility:hierarchy" });
         expect(type.iconName).toBeUndefined();

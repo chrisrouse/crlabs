@@ -158,6 +158,9 @@ export default class FgridFlowGridStudio extends LightningElement {
             // columns they marked filterable.
             filterActions: true,
             readOnlyIcon: Boolean(this.values?.showReadOnlyIcon),
+            // Marked here too: the preview exists to show what will ship, and a
+            // dependent column is dependent whether or not the preview can edit it.
+            dependentPicklistIcon: this.values?.dependentPicklistIcon,
             describeByPath: this._describeByPath,
             // Links are inert in a preview and would invite a misclick that
             // navigates away from the editor.

@@ -463,12 +463,15 @@ export function buildColumns(fields, config = {}, options = {}) {
                 locked: { fieldName: field + PICKLIST_LOCKED_SUFFIX },
                 lockedText: describe.controllerField ? `Set ${describe.controllerField} first` : null
             };
+        }
 
-            // A dependent picklist says so in its header. The icon is the admin's
-            // choice; naming the controlling field is what a custom label is for.
-            if (describe.controllerField && dependentPicklistIcon) {
-                column.iconName = dependentPicklistIcon;
-            }
+        // A dependent picklist says so in its header, whether or not THIS surface can
+        // edit it. Marking the column is a fact about the field; the Studio preview
+        // forces every column read-only, so testing editability here would have shown
+        // the mark at runtime and hidden it in the preview — the same split the
+        // read-only lock had.
+        if (describe?.controllerField && dependentPicklistIcon) {
+            column.iconName = dependentPicklistIcon;
         }
         if (describe && describe.isAccessible === false) {
             column.fgridInaccessible = true;
