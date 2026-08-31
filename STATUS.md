@@ -689,6 +689,68 @@ Nothing here is scheduled. Deferred by decision, not oversight.
 
 ---
 
+## 2.13 Record-type and dependent picklists — 2026-08-27
+
+Two properties had been declared, offered in the editor, and documented in the code as
+"accepted and inert" since the beginning. Both are now real, and they were built
+together because **dependent picklists force the same machinery anyway**: narrowing by a
+controlling field is inherently per row, and the data for both arrives in one payload.
+
+### What an admin sees
+
+```
+Filter Picklists by Record Type   ( ) Do Not Filter  ( ) Globally  ( ) Per Row
+Record Type Id                    <- Globally only
+Dependent Picklist Icon           <- default utility:hierarchy
+```
+
+`showAllPicklistValues` is gone from the editor: "Do Not Filter" says the same thing
+explicitly. It survives as a deprecated shim for the same reason `wrapTextMaxLines`
+does — a saved flow version pins the declaration.
+
+### How it works
+
+- **Apex names the pairing.** `DescribeFieldResult.getController()` reports each
+  picklist's controlling field. Only Apex knows this; the UI API payload carries the
+  dependency DATA but never says which field is the controller.
+- **One wire per distinct record type**, through `c/fgrid_picklistValues` — a component
+  that renders nothing and exists only because a wire adapter takes one id and a
+  component cannot loop wires.
+- **Record types come off the RECORDS, not the rows.** `RecordTypeId` is rarely a
+  displayed column, and a Get Records set to store all fields already carries it. If
+  the Get did not retrieve it, filtering is skipped rather than firing a 2000-id query
+  to go and get it.
+- **Dependent picklists work with filtering OFF.** `validFor` lives in the same payload,
+  so one fetch against the master record type happens whenever any column is dependent.
+  The mode governs record-type filtering only, which is what its label promises.
+- **A locked cell.** A dependent picklist whose controlling value is blank offers
+  nothing, and an empty list disables the combobox with "Set Type first". Salesforce
+  shows an empty dropdown and leaves the user guessing.
+
+### Why 2000 records is affordable
+
+The costs scale with **record types**, not rows:
+
+| Dimension | Scales with | At 2000 records |
+| --- | --- | --- |
+| Wire calls | distinct record types | 1-5 |
+| Option lists built | record types x fields x controlling values | a few dozen |
+| Per row | one Map lookup | trivial |
+
+Option lists are cached by `recordTypeId|field|controllingValue`, and rows resolving the
+same way share ONE array instance — which matters twice, because identical identity is
+also what stops the datatable treating every row as changed on re-render.
+
+Prerequisite, left to the admin by decision: the controlling field must be in the
+collection. We cannot check every scenario, and a dependent picklist with no
+controlling value simply locks.
+
+### Untested in a browser
+
+All of it. Unit tests cover the fan-out de-duplication, the narrowing, the lock, the
+cache sharing and the fallback, but no part has been seen working against a real object
+with record types and a dependent pair.
+
 ## 2.12 `disableColumnResize` removed — 2026-08-27
 
 Unlike `allowOverflow` (§2.11) this property WORKED — it is a documented pass-through
