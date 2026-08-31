@@ -287,7 +287,9 @@ Reinstating either means accepting that ceiling; the platform is unlikely to mov
       The selection cap WAS delegated, and the datatable only sees the rows it renders
       — which is exactly why it counted one page at a time until it was moved into
       `handleRowSelection`. Same feature, two paths, and only the delegated one broke.
-- [ ] `outputRemainingRecords` unconfirmed — the complement of what was removed.
+- [x] **`outputRemainingRecords` verified, 2026-08-27** — it updates as rows are marked
+      for removal, not only at Save, so a downstream element always sees the complement
+      of what was removed.
 
 ---
 
