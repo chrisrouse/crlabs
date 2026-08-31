@@ -254,8 +254,14 @@ Reinstating either means accepting that ceiling; the platform is unlikely to mov
 
 ### 1.5 Runtime — Remove row action
 
-- [ ] Switch `rowActionType` to **Remove**, confirm removal, the 3-row cap
-      message, and `outputRemovedRecords` / `outputRemainingRecords`
+- [x] **Remove verified end to end, 2026-08-27.** `rowActionType` set to Remove, the
+      row taken out of the grid, and `outputRemovedRecords` fed to a Delete Records
+      element — the record was deleted. That is the second output collection proven to
+      drive real DML, after `outputEditedRecords` and Update Records.
+- [ ] The removal CAP is still unconfirmed: set Maximum Rows Removable, exceed it, and
+      check the warning appears and the extra removal is refused. Shares its shape with
+      the selection cap, which is verified.
+- [ ] `outputRemainingRecords` unconfirmed — the complement of what was removed.
 
 ---
 
