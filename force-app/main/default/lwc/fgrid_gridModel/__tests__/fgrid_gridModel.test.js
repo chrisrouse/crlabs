@@ -19,7 +19,8 @@ import {
     percentToFraction,
     fractionToPercent,
     sortRows,
-    BLANKS_FIRST_ACTION_NAME
+    BLANKS_FIRST_ACTION_NAME,
+    PICKLIST_SELECTED_SUFFIX
 } from "c/fgrid_gridModel";
 
 describe("inferType", () => {
@@ -1018,5 +1019,84 @@ describe("show blanks first", () => {
             { describeByPath: { Name: { label: "Name", dataType: "text" } }, hideHeaderActions: true }
         );
         expect(column.actions).toBeUndefined();
+    });
+});
+
+describe("picklist options are the active values only", () => {
+    // Matching a record page: a stored value that has since been deactivated is not
+    // offered, and changing away from it is one-way unless the user cancels. The old
+    // behaviour injected it into that row's own list, which is why options used to be
+    // addressed per row at all.
+    const describeFor = {
+        Rating: {
+            label: "Rating",
+            dataType: "picklist",
+            displayType: "PICKLIST",
+            isEditable: true,
+            picklistOptions: [
+                { label: "Hot", value: "Hot" },
+                { label: "Warm", value: "Warm" }
+            ]
+        }
+    };
+
+    it("offers the active values as one list on the column", () => {
+        const [column] = buildColumns(
+            ["Rating"],
+            { Rating: { edit: true } },
+            { describeByPath: describeFor, allowNone: false }
+        );
+
+        expect(column.type).toBe("fgridPicklist");
+        expect(column.typeAttributes.options).toEqual([
+            { label: "Hot", value: "Hot" },
+            { label: "Warm", value: "Warm" }
+        ]);
+    });
+
+    it("does not offer a stored value that is no longer active", () => {
+        const [column] = buildColumns(["Rating"], { Rating: { edit: true } }, { describeByPath: describeFor });
+        const [row] = buildRows([{ Id: "a", Rating: "Retired" }], [column], "Id");
+
+        expect(column.typeAttributes.options.map((o) => o.value)).not.toContain("Retired");
+        // And no per-row option list is built any more.
+        expect(Object.keys(row).some((key) => key.includes("Options"))).toBe(false);
+    });
+
+    it("puts --None-- at the top when it is allowed, and omits it when not", () => {
+        const allowed = buildColumns(
+            ["Rating"],
+            { Rating: { edit: true } },
+            { describeByPath: describeFor, allowNone: true }
+        )[0];
+        expect(allowed.typeAttributes.options[0]).toEqual({ label: "--None--", value: "" });
+
+        const hidden = buildColumns(
+            ["Rating"],
+            { Rating: { edit: true } },
+            { describeByPath: describeFor, allowNone: false }
+        )[0];
+        expect(hidden.typeAttributes.options.map((o) => o.value)).not.toContain("");
+    });
+
+    it("still splits a multi-select's stored value per row", () => {
+        const multi = {
+            Tags: {
+                label: "Tags",
+                dataType: "picklist",
+                displayType: "MULTIPICKLIST",
+                isEditable: true,
+                picklistOptions: [
+                    { label: "A", value: "A" },
+                    { label: "B", value: "B" }
+                ]
+            }
+        };
+        const [column] = buildColumns(["Tags"], { Tags: { edit: true } }, { describeByPath: multi });
+        const [row] = buildRows([{ Id: "a", Tags: "A;B" }], [column], "Id");
+
+        expect(row["Tags" + PICKLIST_SELECTED_SUFFIX]).toEqual(["A", "B"]);
+        // No --None-- for a checkbox group: clearing every box already says that.
+        expect(column.typeAttributes.options.map((o) => o.value)).toEqual(["A", "B"]);
     });
 });

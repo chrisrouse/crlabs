@@ -23,11 +23,11 @@
  * edit machinery reads the value from. That is the fragile part of this bundle;
  * it is verified by browser testing, not by the docs.
  *
- * Options are addressed per row rather than per column. `c/fgrid_gridModel`
- * builds them, so that a row holding a value no longer in the active list keeps
- * that value as a selectable option instead of losing it on save.
+ * Picklist options are per COLUMN and hold the ACTIVE values only, matching a
+ * record page: a stored value that has since been deactivated is not offered, and
+ * changing away from it is one-way unless the user cancels.
  *
- * @see c/fgrid_gridModel buildColumns, picklistCellOptions
+ * @see c/fgrid_gridModel buildColumns
  */
 import LightningDatatable from "lightning/datatable";
 import picklistDisplay from "./picklistDisplay.html";

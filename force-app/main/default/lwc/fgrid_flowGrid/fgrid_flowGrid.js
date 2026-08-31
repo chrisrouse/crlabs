@@ -46,7 +46,6 @@ import {
     describeFilter,
     FILTER_ACTION_NAME,
     BLANKS_FIRST_ACTION_NAME,
-    PICKLIST_OPTIONS_SUFFIX,
     PICKLIST_SELECTED_SUFFIX,
     ROW_ACTION_NAME
 } from "c/fgrid_gridModel";
@@ -1980,7 +1979,7 @@ export default class FgridFlowGrid extends LightningElement {
         Object.keys(draft).forEach((key) => {
             // The key field and anything without a columnKey pass through unchanged.
             const field = fieldByColumnKey.get(key) || key;
-            if (field.endsWith(PICKLIST_OPTIONS_SUFFIX) || field.endsWith(PICKLIST_SELECTED_SUFFIX)) {
+            if (field.endsWith(PICKLIST_SELECTED_SUFFIX)) {
                 return;
             }
             if (multiFields.has(field)) {

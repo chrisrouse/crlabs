@@ -114,9 +114,6 @@ export function defaultLabel(fieldPath) {
  */
 export const LINK_SUFFIX = "__fgridUrl";
 
-/** Row field holding the option list for an editable picklist cell. */
-export const PICKLIST_OPTIONS_SUFFIX = "__fgridOptions";
-
 /** Row field holding a multi-picklist's value as an array, for the checkbox
  *  group, whose `value` is an array while the record stores a `;` string. */
 export const PICKLIST_SELECTED_SUFFIX = "__fgridSelected";
@@ -387,11 +384,14 @@ export function buildColumns(fields, config = {}, options = {}) {
         // picklist renders identically to text, so routing it through our own
         // template would add a rendering path for no visible gain.
         //
-        // The option list is addressed as a ROW field rather than passed inline,
-        // because a row whose stored value is no longer a valid option needs that
-        // value added to its own list — see picklistCellOptions. Rows with
-        // in-range values all share one array instance, so this costs nothing
-        // except where a stale value actually exists.
+        // ACTIVE VALUES ONLY, and therefore one list per column rather than per row.
+        //
+        // A stored value no longer in the active list used to be injected into that
+        // row's own options so it could be re-chosen. That is not how Salesforce
+        // behaves: a record page offers the active values only, and once the user picks
+        // a different one the inactive value is gone unless they cancel. Matching the
+        // platform also removes the reason the list was addressed as a row field, so
+        // the per-row option machinery went with it.
         if (column.editable && describe?.picklistOptions?.length) {
             const isMulti = describe.displayType === "MULTIPICKLIST";
             column.type = isMulti ? "fgridMultiPicklist" : "fgridPicklist";
@@ -399,9 +399,10 @@ export function buildColumns(fields, config = {}, options = {}) {
             // --None-- is meaningless for a checkbox group, where clearing every
             // box already expresses "no value".
             column.fgridAllowNone = allowNone && !isMulti;
+            const none = column.fgridAllowNone ? [{ label: "--None--", value: "" }] : [];
             column.typeAttributes = {
                 ...(column.typeAttributes || {}),
-                options: { fieldName: field + PICKLIST_OPTIONS_SUFFIX },
+                options: [...none, ...describe.picklistOptions],
                 selected: { fieldName: field + PICKLIST_SELECTED_SUFFIX }
             };
         }
@@ -638,18 +639,10 @@ export function buildRows(records, columns, keyField = "Id") {
         return [];
     }
     const paths = (columns || []).map((column) => column.fgridLinkFor || column.fieldName).filter(Boolean);
-    // The known-value set and the --None-- entry are per COLUMN, not per row. Built
-    // once here rather than inside picklistCellOptions, which runs for every row of
-    // every picklist column — 300 rows across two picklists was allocating 600 Sets
-    // to answer the same question.
-    const picklistColumns = (columns || [])
-        .filter((column) => column.type === "fgridPicklist" || column.type === "fgridMultiPicklist")
-        .map((column) => ({
-            column,
-            options: column.fgridPicklistOptions || [],
-            known: new Set((column.fgridPicklistOptions || []).map((option) => option.value)),
-            none: column.fgridAllowNone ? [{ label: "--None--", value: "" }] : []
-        }));
+    // Only the multi-select needs anything per row: its stored `A;B` string has to be
+    // split into the array the checkbox group binds to. The option LIST is per column
+    // and lives on the column itself.
+    const multiPicklistColumns = (columns || []).filter((column) => column.type === "fgridMultiPicklist");
     const lookupColumns = (columns || []).filter((column) => column.type === "fgridLookup");
     const percentColumns = (columns || []).filter((column) => column.type === "percent");
 
@@ -691,12 +684,8 @@ export function buildRows(records, columns, keyField = "Id") {
             row[column.fieldName + LINK_SUFFIX] = column.fgridLookupLink && id ? `/${id}` : null;
         });
 
-        picklistColumns.forEach((entry) => {
-            const value = row[entry.column.fieldName];
-            row[entry.column.fieldName + PICKLIST_OPTIONS_SUFFIX] = picklistCellOptions(entry, value);
-            if (entry.column.fgridIsMultiPicklist) {
-                row[entry.column.fieldName + PICKLIST_SELECTED_SUFFIX] = splitMultiPicklist(value);
-            }
+        multiPicklistColumns.forEach((column) => {
+            row[column.fieldName + PICKLIST_SELECTED_SUFFIX] = splitMultiPicklist(row[column.fieldName]);
         });
 
         return row;
@@ -717,34 +706,6 @@ export function splitMultiPicklist(value) {
 /** Joins selected values back into the form Salesforce stores. */
 export function joinMultiPicklist(values) {
     return Array.isArray(values) ? values.join(MULTI_PICKLIST_SEPARATOR) : (values ?? "");
-}
-
-/**
- * Option list for one picklist cell, including any value the record already
- * holds that is no longer offered.
- *
- * A stored value can fall outside the active list — the value was deactivated,
- * or it is not valid for the row's record type. Without this, opening the editor
- * on such a row shows nothing selected, and saving silently overwrites real data
- * with whatever the user picked or with nothing at all.
- *
- * The in-range case returns the column's own array by reference, so every row
- * shares one instance and only genuinely stale rows allocate.
- */
-function picklistCellOptions(entry, value) {
-    const { column, options, known, none } = entry;
-    const current = column.fgridIsMultiPicklist
-        ? splitMultiPicklist(value)
-        : [value].filter((held) => held !== null && held !== undefined && held !== "");
-
-    const missing = current.filter((held) => !known.has(held));
-
-    if (!missing.length && !none.length) {
-        return options;
-    }
-    // Label is the raw stored value: inventing a decorated label here would show
-    // the user text that is not what gets saved.
-    return [...none, ...missing.map((held) => ({ label: held, value: held })), ...options];
 }
 
 /**
