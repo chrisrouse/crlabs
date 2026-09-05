@@ -84,6 +84,81 @@ describe("layout", () => {
     });
 });
 
+describe("pane scroll reaches the kit's pickers", () => {
+    /**
+     * Counts only the events our forwarding produces, by their target.
+     *
+     * This matters: jsdom does NOT enforce the shadow boundary that causes the bug in
+     * a browser, so a raw count on `window` also sees the pane's own scroll events and
+     * would pass with the fix removed. Only the re-dispatched one is targeted at
+     * `window` itself.
+     */
+    function countForwarded() {
+        const seen = [];
+        const listener = (event) => {
+            if (event.target === window) {
+                seen.push(true);
+            }
+        };
+        window.addEventListener("scroll", listener, true);
+        return {
+            seen,
+            stop: () => window.removeEventListener("scroll", listener, true)
+        };
+    }
+
+    const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+
+    it("re-dispatches a scroll on window when the settings pane scrolls", async () => {
+        // The kit's pickers render their dropdown position: fixed and reposition on a
+        // capture-phase scroll listener bound to window. `scroll` does not cross a
+        // shadow boundary, so a scroll inside this component is invisible to it and an
+        // open popover stayed put while its field scrolled away.
+        const element = build();
+        await flushPromises();
+        const counter = countForwarded();
+
+        element.shadowRoot.querySelector(".studio__controls").dispatchEvent(new CustomEvent("scroll"));
+        await nextFrame();
+        counter.stop();
+
+        expect(counter.seen).toHaveLength(1);
+    });
+
+    it("coalesces a burst of pane scrolls into one window event per frame", async () => {
+        // Every window scroll listener sees these, Flow Builder's included, so a pane
+        // scroll must not spray sixty a second at them.
+        const element = build();
+        await flushPromises();
+        const counter = countForwarded();
+
+        const pane = element.shadowRoot.querySelector(".studio__controls");
+        for (let i = 0; i < 10; i += 1) {
+            pane.dispatchEvent(new CustomEvent("scroll"));
+        }
+        await nextFrame();
+        counter.stop();
+
+        expect(counter.seen).toHaveLength(1);
+    });
+
+    it("stops forwarding once the modal is destroyed", async () => {
+        const element = build();
+        await flushPromises();
+        const pane = element.shadowRoot.querySelector(".studio__controls");
+
+        document.body.removeChild(element);
+        await Promise.resolve();
+        const counter = countForwarded();
+
+        pane.dispatchEvent(new CustomEvent("scroll"));
+        await nextFrame();
+        counter.stop();
+
+        expect(counter.seen).toHaveLength(0);
+    });
+});
+
 describe("settings pane", () => {
     function toggle(element) {
         return element.shadowRoot.querySelector(".preview__chrome lightning-button-icon");

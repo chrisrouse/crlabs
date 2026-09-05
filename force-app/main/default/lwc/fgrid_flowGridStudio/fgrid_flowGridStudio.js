@@ -144,6 +144,77 @@ export default class FgridFlowGridStudio extends LightningModal {
         this.notifyReady?.(this);
     }
 
+    /* ------------------------------------------------------------------ *
+     * Picker popovers and the scrolling pane
+     * ------------------------------------------------------------------ */
+
+    _paneScrollFrame = null;
+    _boundScrollers = [];
+
+    /**
+     * Tells the outside world when the settings pane scrolls, so an open kit
+     * picker can follow its field.
+     *
+     * The kit's pickers do not render their dropdown inline. They render it
+     * `position: fixed` at coordinates they compute themselves -- Flow Builder's
+     * property panel is a narrow clipped column that would cut off a normal
+     * dropdown -- and they reposition on a capture-phase `scroll` listener bound
+     * to `window`.
+     *
+     * `scroll` does not cross a shadow boundary, so a scroll inside this
+     * component's shadow root never reaches that listener. `.studio__controls` is
+     * exactly that: a scroller we added, invisible to the kit. An open popover
+     * stayed put while its field scrolled out from under it.
+     *
+     * Re-dispatching on `window` is all that is needed, because a picker
+     * recomputes from its own anchor's rect -- it only has to be told that
+     * something moved, not what. Coalesced to one event per frame: every window
+     * scroll listener sees these, Flow Builder's included, and a pane scroll would
+     * otherwise fire around sixty a second.
+     *
+     * Deliberately NOT a change to the vendored kit, which VENDOR.md forbids
+     * editing so the copy stays diffable. The general fix belongs upstream -- let
+     * a picker discover its scrollable ancestors across shadow boundaries instead
+     * of assuming `window` can observe them -- and is recorded in STATUS §1.6.
+     */
+    /** Both panes declare `overflow-y: auto`, so either can be the scroller. */
+    static SCROLLERS = [".studio__controls", ".studio__preview"];
+
+    renderedCallback() {
+        super.renderedCallback?.();
+        FgridFlowGridStudio.SCROLLERS.forEach((selector) => {
+            const element = this.template.querySelector(selector);
+            if (element && !this._boundScrollers.includes(element)) {
+                element.addEventListener("scroll", this.handlePaneScroll);
+                this._boundScrollers.push(element);
+            }
+        });
+    }
+
+    disconnectedCallback() {
+        super.disconnectedCallback?.();
+        this._boundScrollers.forEach((element) => element.removeEventListener("scroll", this.handlePaneScroll));
+        this._boundScrollers = [];
+        if (this._paneScrollFrame !== null) {
+            window.cancelAnimationFrame(this._paneScrollFrame);
+            this._paneScrollFrame = null;
+        }
+    }
+
+    handlePaneScroll = () => {
+        if (this._paneScrollFrame !== null) {
+            return;
+        }
+        // eslint-disable-next-line @lwc/lwc/no-async-operation
+        this._paneScrollFrame = window.requestAnimationFrame(() => {
+            this._paneScrollFrame = null;
+            // CustomEvent rather than Event only to satisfy the lint rule; a
+            // listener keys on the event TYPE, not the interface, so the kit's
+            // `scroll` handler fires either way.
+            window.dispatchEvent(new CustomEvent("scroll"));
+        });
+    };
+
     /** Section names expanded in the left pane. */
     openSections = ["source", "rows", "columns"];
 
