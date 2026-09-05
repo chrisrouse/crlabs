@@ -46,6 +46,7 @@
             <property name="showHeader" type="Boolean" label="Show Table Header" default="false" role="inputOnly" />
             <property name="tableLabel" type="String" label="Table Label" role="inputOnly" />
             <property name="tableIcon" type="String" label="Table Icon" role="inputOnly" />
+            <property name="titleStyle" type="String" label="Title Style" role="inputOnly" />
             <property name="showRecordCount" type="Boolean" label="Show Record Count" default="false" role="inputOnly" />
             <property name="showSelectedCount" type="Boolean" label="Show Selected Count" default="false" role="inputOnly" />
             <property name="showRowNumbers" type="Boolean" label="Show Row Numbers" default="false" role="inputOnly" />

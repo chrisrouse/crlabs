@@ -1,6 +1,19 @@
+/* Shrink, then wrap.
+   Three flex items -- optional icon, title block, actions -- and the search is
+   the elastic one: it gives up width down to a readable floor before anything
+   else moves. Past that the row wraps and the search takes its own full-width
+   line rather than the title being clipped. Wrapping over truncating for the
+   reason the filter pills already state: horizontal space is the scarce
+   resource in an Experience Cloud column, vertical space is not.
+
+   `min-width: 0` on the title block is what lets it shrink at all. A flex
+   item's automatic minimum size is its min-content width, so without this the
+   title refuses to give up space and pushes the search out of the row. */
 .grid__header {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
+    gap: 0.5rem;
     padding: 0.5rem 0.25rem;
 }
 
@@ -38,9 +51,13 @@
     margin-left: auto;
 }
 
+/* Elastic between a usable floor and its old fixed width, so it is the first
+   thing to give up space. Once the row wraps it sits on its own line, still
+   right-aligned by the actions' auto margin. */
 .grid__search {
-    width: 20rem;
-    max-width: 100%;
+    flex: 1 1 20rem;
+    min-width: 11rem;
+    max-width: 20rem;
 }
 
 /* Filter pills. Wrapping is the point: horizontal space is the scarce resource

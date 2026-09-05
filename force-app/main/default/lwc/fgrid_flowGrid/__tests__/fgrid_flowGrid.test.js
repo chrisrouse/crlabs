@@ -46,6 +46,37 @@ afterEach(() => {
     }
 });
 
+describe("header title style", () => {
+    let element;
+    const title = () => element.shadowRoot.querySelector(".grid__header-text > *");
+
+    it("renders a heading carrying the chosen level", () => {
+        element = build({ records: records(2), showHeader: true, tableLabel: "Accounts", titleStyle: "H1" });
+
+        expect(title().getAttribute("role")).toBe("heading");
+        expect(title().getAttribute("aria-level")).toBe("1");
+        expect(title().getAttribute("style")).toContain("--slds-g-font-scale-4");
+        expect(title().textContent).toContain("Accounts");
+    });
+
+    it("renders Body as text with no heading role at all", () => {
+        // A heading role without a level, or a level on something that is not a
+        // heading, both mislead a screen reader; Body has to be neither.
+        element = build({ records: records(2), showHeader: true, tableLabel: "Accounts", titleStyle: "Body" });
+
+        expect(title().getAttribute("role")).toBeNull();
+        expect(title().getAttribute("aria-level")).toBeNull();
+        expect(title().getAttribute("style")).toContain("--slds-g-font-scale-neg-1");
+    });
+
+    it("falls back to the pre-existing look when nothing is set", () => {
+        element = build({ records: records(2), showHeader: true, tableLabel: "Accounts" });
+
+        expect(title().getAttribute("style")).toContain("--slds-g-font-scale-2");
+        expect(title().getAttribute("aria-level")).toBe("3");
+    });
+});
+
 describe("column width floor", () => {
     it("floors column widths above the platform default", () => {
         // The datatable divides the available width between columns and clamps each

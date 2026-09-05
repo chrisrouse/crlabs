@@ -115,10 +115,30 @@
     margin-bottom: 0.75rem;
 }
 
+/* Shrink, then wrap.
+   Three flex items -- optional icon, title block, actions -- and the search is
+   the elastic one: it gives up width down to a readable floor before anything
+   else moves. Past that the row wraps and the search takes its own full-width
+   line rather than the title being clipped. Wrapping over truncating for the
+   reason the filter pills already state: horizontal space is the scarce
+   resource in an Experience Cloud column, vertical space is not.
+
+   `min-width: 0` on the title block is what lets it shrink at all. A flex
+   item's automatic minimum size is its min-content width, so without this the
+   title refuses to give up space and pushes the search out of the row. */
 .preview__header {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
+    gap: 0.5rem;
     padding: 0.5rem 0.25rem;
+}
+
+/* The runtime grid has always had these; this pane never did, so its toolbar
+   degraded worse than the thing it is meant to be predicting. */
+.preview__header-text {
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 /* Mirrors the runtime grid's toolbar: title left, search and Filters right. */
@@ -129,9 +149,12 @@
     margin-left: auto;
 }
 
+/* Elastic, like the runtime grid's: first to give up space, own line once the
+   row wraps. */
 .preview__search {
-    width: 16rem;
-    max-width: 100%;
+    flex: 1 1 16rem;
+    min-width: 11rem;
+    max-width: 16rem;
 }
 
 /* Same shape as the runtime grid's pill bar, scaled down for the preview pane. */

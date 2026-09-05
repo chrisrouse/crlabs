@@ -54,6 +54,7 @@ import {
     describeFilter,
     FILTER_ACTION_NAME,
     MIN_COLUMN_WIDTH,
+    titleStyleFor,
     ROW_ACTION_NAME
 } from "c/fgrid_gridModel";
 import getGridMetadata from "@salesforce/apex/FlowGridController.getGridMetadata";
@@ -175,6 +176,19 @@ export default class FgridFlowGridStudio extends LightningModal {
 
     handlePreviewSizeChange(event) {
         this.previewSize = event.detail.value;
+    }
+
+    /** Same three getters as the runtime grid, off the configured value. */
+    get previewTitleStyleCss() {
+        return titleStyleFor(this.values.titleStyle).style;
+    }
+
+    get previewTitleAriaLevel() {
+        return titleStyleFor(this.values.titleStyle).level;
+    }
+
+    get previewTitleIsHeading() {
+        return titleStyleFor(this.values.titleStyle).level !== null;
     }
 
     /** The runtime grid's floor, so a narrow preview degrades the same way. */
