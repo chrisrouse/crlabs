@@ -160,84 +160,108 @@ describe("preview reflects configuration", () => {
 });
 
 describe("relays", () => {
-    it("forwards a property change without handling it", async () => {
+    // A modal's events do not reach the component that opened it -- they bubble to
+    // a root outside it -- so relays are callbacks passed in through open(). These
+    // assert the callback fires AND that no event escapes, because an event would
+    // silently go nowhere in Flow Builder while still passing an event-based test.
+    it("forwards a property change through the callback, not an event", async () => {
         const element = build();
         await Promise.resolve();
         const relayed = [];
-        element.addEventListener("propertychange", (e) => relayed.push(e.detail));
+        const escaped = [];
+        element.notifyPropertyChange = (detail) => relayed.push(detail);
+        element.addEventListener("propertychange", (e) => escaped.push(e.detail));
 
         element.shadowRoot
             .querySelector("c-fgrid_property-controls")
             .dispatchEvent(new CustomEvent("propertychange", { detail: { property: "tableLabel", value: "X" } }));
 
         expect(relayed).toEqual([{ property: "tableLabel", value: "X" }]);
+        expect(escaped).toEqual([]);
     });
 
-    it("forwards a column config change", async () => {
+    it("forwards a column config change through the callback", async () => {
         const element = build();
         await Promise.resolve();
         const relayed = [];
-        element.addEventListener("columnconfigchange", (e) => relayed.push(e.detail.value));
+        const escaped = [];
+        element.notifyColumnConfigChange = (detail) => relayed.push(detail.value);
+        element.addEventListener("columnconfigchange", (e) => escaped.push(e.detail));
 
         element.shadowRoot
             .querySelector("c-fgrid_column-config")
             .dispatchEvent(new CustomEvent("columnconfigchange", { detail: { value: "{}" } }));
 
         expect(relayed).toEqual(["{}"]);
+        expect(escaped).toEqual([]);
     });
 
-    it("closes on the footer button and on Escape", async () => {
-        const element = build();
+    it("hands itself to the editor on open, so validation and pushes can reach it", async () => {
+        const element = createElement("c-fgrid_flow-grid-studio", { is: FgridFlowGridStudio });
+        element.sections = SECTIONS;
+        element.values = { ...BASE_VALUES };
+        const ready = [];
+        element.notifyReady = (studio) => ready.push(studio);
+        document.body.appendChild(element);
         await Promise.resolve();
-        const closes = [];
-        element.addEventListener("close", () => closes.push(true));
 
-        element.shadowRoot.querySelector(".slds-modal__footer lightning-button").click();
-        element.shadowRoot
-            .querySelector("section")
-            .dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        expect(ready).toHaveLength(1);
+        expect(typeof ready[0].collectValidity).toBe("function");
+    });
 
-        expect(closes).toHaveLength(2);
+    it("resolves its own open() promise on close, rather than eventing to the editor", async () => {
+        // End to end through the platform contract: open() mounts it and hands back
+        // a promise, and this.close() is what resolves it. The editor no longer
+        // listens for a close event, so an event here would leave the modal stuck.
+        const escaped = [];
+        const opened = FgridFlowGridStudio.open({
+            size: "large",
+            sections: SECTIONS,
+            values: { ...BASE_VALUES },
+            objectApiName: "Account"
+        });
+        await flushPromises();
+
+        // A document query is the point: the platform mounts a modal outside the
+        // opener's tree, which is exactly what stops the canvas painting over it.
+        // eslint-disable-next-line @lwc/lwc/no-document-query
+        const host = document.querySelector("c-lightning-modal-stub");
+        expect(host).not.toBeNull();
+        host.addEventListener("close", () => escaped.push(true));
+        host.shadowRoot.querySelector("lightning-modal-footer lightning-button").click();
+
+        await expect(opened).resolves.toBeUndefined();
+        expect(escaped).toEqual([]);
     });
 });
 
-describe("modal chrome", () => {
-    it("adds no SLDS backdrop layer of its own", async () => {
+describe("modal chrome belongs to the platform", () => {
+    // The hand-rolled slds-modal markup is what let the Flow Builder canvas paint
+    // over this component: it rendered inside the property panel's transformed
+    // ancestors. These guard against it creeping back rather than testing SLDS.
+    it("composes the lightning-modal helper components", async () => {
         const element = build();
         await Promise.resolve();
 
-        // slds-backdrop is full strength and stacks on Flow Builder's own 0.8
-        // dim. The light wash on .studio replaces it. Removing the dim entirely
-        // was tried and looked worse, so this only guards the SLDS class.
-        expect(element.shadowRoot.querySelectorAll(".slds-backdrop")).toHaveLength(0);
-        const modal = element.shadowRoot.querySelector("section.slds-modal");
-        expect(modal).not.toBeNull();
-        expect(modal.classList.contains("slds-backdrop")).toBe(false);
+        const header = element.shadowRoot.querySelector("lightning-modal-header");
+        expect(header).not.toBeNull();
+        expect(header.label).toBe("Grid Studio");
+        expect(element.shadowRoot.querySelector("lightning-modal-body")).not.toBeNull();
+        expect(element.shadowRoot.querySelector("lightning-modal-footer")).not.toBeNull();
     });
 
-    it("keeps the close button inside the header with a visible dark icon", async () => {
+    it("hand-rolls no modal chrome of its own", async () => {
         const element = build();
         await Promise.resolve();
 
-        const close = element.shadowRoot.querySelector(".studio__header .studio__close");
-        expect(close).not.toBeNull();
-        // slds-modal__close positions the button outside the white container over
-        // the backdrop, which requires an inverse icon; at 92vw that lands over
-        // the header and a white icon vanishes.
-        expect(close.classList.contains("slds-modal__close")).toBe(false);
-        expect(close.variant).toBe("bare");
-        expect(close.alternativeText).toBe("Close Grid Studio");
-    });
-
-    it("closes from the header button", async () => {
-        const element = build();
-        await Promise.resolve();
-        const closes = [];
-        element.addEventListener("close", () => closes.push(true));
-
-        element.shadowRoot.querySelector(".studio__close").click();
-
-        expect(closes).toHaveLength(1);
+        // Each of these was part of the arrangement that bled. The close button and
+        // the backdrop wash are the platform's now, and the width override that
+        // escaped SLDS's `large` cap is unnecessary: SLDS 2 sizes are
+        // viewport-relative, and `large` measured at 89% against the old 92%.
+        expect(element.shadowRoot.querySelector("section.slds-modal")).toBeNull();
+        expect(element.shadowRoot.querySelector(".slds-modal__container")).toBeNull();
+        expect(element.shadowRoot.querySelector(".slds-backdrop")).toBeNull();
+        expect(element.shadowRoot.querySelector(".studio__close")).toBeNull();
     });
 
     it("hides the column grid until an object is known", async () => {
@@ -252,22 +276,18 @@ describe("modal chrome", () => {
     });
 });
 
-describe("escaping Flow Builder's stacking context", () => {
-    // Flow Builder's transformed ancestors scope any inner z-index to the
-    // property panel. Elevating the host is the kit's remedy, and the kit's
-    // pickers rely on the same helper.
-    it("elevates its host while open", async () => {
-        const element = build();
-        await Promise.resolve();
-
-        expect(element.style.position).toBe("relative");
-        expect(Number(element.style.zIndex)).toBeGreaterThan(99999);
+describe("no longer fights Flow Builder's stacking context", () => {
+    it("is opened as a platform modal", () => {
+        // Extending LightningModal is the fix: the platform renders it in its own
+        // overlay container, outside the transformed ancestors that scoped every
+        // z-index attempt to the property panel.
+        expect(typeof FgridFlowGridStudio.open).toBe("function");
     });
 
-    it("releases the elevation when closed", async () => {
+    it("does not elevate its own host", async () => {
+        // Host elevation via the kit's setPopoverHostActive was attempt two of
+        // three and never worked. Reintroducing it here would be cargo cult.
         const element = build();
-        await Promise.resolve();
-        document.body.removeChild(element);
         await Promise.resolve();
 
         expect(element.style.position).toBe("");

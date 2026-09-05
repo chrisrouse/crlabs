@@ -20,7 +20,7 @@
  */
 import FlowConfigEditorBase from "c/flowConfigEditorBase";
 import { SECTIONS, DEFAULTS, schemaProperties, EDITOR_MANAGED_PROPERTIES } from "c/fgrid_propertySchema";
-import { setPopoverHostActive } from "c/flowConfigPopoverUtils";
+import FgridFlowGridStudio from "c/fgrid_flowGridStudio";
 
 /** Generic SObject type letter declared in fgrid_flowGrid.js-meta.xml. */
 const GENERIC_TYPE = "T";
@@ -37,7 +37,15 @@ export default class FgridFlowGridEditor extends FlowConfigEditorBase {
     /** Sections open in the narrow panel. */
     initialSections = ["source", "columns"];
 
-    isStudioOpen = false;
+    /**
+     * The open Studio modal, or null.
+     *
+     * `lightning/modal` renders outside this template, so the modal cannot be
+     * reached with querySelector and `open()` hands back a promise rather than an
+     * instance. The Studio passes itself here through its `onReady` callback,
+     * which is what keeps `values` flowing down and `collectValidity()` reachable.
+     */
+    _studio = null;
 
     /**
      * Optimistic values, keyed by property.
@@ -72,6 +80,7 @@ export default class FgridFlowGridEditor extends FlowConfigEditorBase {
         } else {
             this.setInput(name, value, dataType);
         }
+        this.syncStudio();
     }
 
     /**
@@ -116,6 +125,7 @@ export default class FgridFlowGridEditor extends FlowConfigEditorBase {
             }
         });
         this.pending = remaining;
+        this.syncStudio();
     }
 
     /**
@@ -217,20 +227,54 @@ export default class FgridFlowGridEditor extends FlowConfigEditorBase {
     }
 
     /**
-     * Flow Builder's transformed ancestors trap a modal's stacking order inside
-     * the property panel (see the note in fgrid_flowGridStudio). The Studio
-     * elevates its own host, which is the kit's documented remedy; this elevates
-     * the editor host too, because the trapping stacking context may sit between
-     * the two. Both are reverted on close.
+     * Opens the Studio as the platform's own modal.
+     *
+     * It used to render as a child of this template, where Flow Builder's
+     * transformed ancestors let the screen canvas paint over it and no amount of
+     * z-index or host elevation could stop it. `lightning/modal` renders in the
+     * platform overlay container instead, outside those ancestors, which fixes it;
+     * see the note at the top of fgrid_flowGridStudio.
+     *
+     * Relays come in as callbacks rather than events, because a modal's events do
+     * not reach the component that opened it.
      */
-    handleOpenStudio() {
-        this.isStudioOpen = true;
-        setPopoverHostActive(this.template.host, true);
+    async handleOpenStudio() {
+        await FgridFlowGridStudio.open({
+            size: "large",
+            description: "Grid Studio, the full configuration workspace for Flow Grid",
+            sections: this.sections,
+            values: this.values,
+            valueDataTypes: this.valueDataTypes,
+            objectApiName: this.objectApiName,
+            validationErrors: this.validationErrors,
+            builderContext: this.builderContext,
+            automaticOutputVariables: this.automaticOutputVariables,
+            apiVersion: this.apiVersion,
+            notifyPropertyChange: (detail) => this.handlePropertyChange({ detail }),
+            notifyColumnConfigChange: (detail) => this.handleColumnConfigChange({ detail }),
+            notifyReady: (studio) => {
+                this._studio = studio;
+            }
+        });
+        this._studio = null;
     }
 
-    handleCloseStudio() {
-        this.isStudioOpen = false;
-        setPopoverHostActive(this.template?.host, false);
+    /**
+     * Pushes freshly committed values into the open Studio.
+     *
+     * As a template child the Studio picked these up through reactive props. A
+     * modal's props are assigned once, at open, so the writes have to be repeated
+     * by hand every time this editor changes something -- including its own
+     * side-effect commits, such as clearing columnConfig when the object changes.
+     */
+    syncStudio() {
+        if (!this._studio) {
+            return;
+        }
+        this._studio.values = this.values;
+        this._studio.valueDataTypes = this.valueDataTypes;
+        this._studio.objectApiName = this.objectApiName;
+        this._studio.validationErrors = this.validationErrors;
     }
 
     /* ------------------------------------------------------------------ *
@@ -303,9 +347,8 @@ export default class FgridFlowGridEditor extends FlowConfigEditorBase {
             .querySelectorAll("c-fgrid_property-controls")
             .forEach((controls) => absorb(controls.collectValidity(errorsByKey)));
 
-        const studio = this.template.querySelector("c-fgrid_flow-grid-studio");
-        if (studio) {
-            absorb(studio.collectValidity(errorsByKey));
+        if (this._studio) {
+            absorb(this._studio.collectValidity(errorsByKey));
         }
         return collected;
     }

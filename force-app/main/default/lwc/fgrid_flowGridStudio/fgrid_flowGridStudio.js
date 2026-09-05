@@ -3,26 +3,44 @@
  * panel: every configuration control on the left, a live preview and the column
  * attribute grid on the right.
  *
- * Renders as an SLDS modal inside the custom property editor.
+ * Renders as the platform's own SLDS 2 modal: this extends `LightningModal` and
+ * is opened by the editor with `FgridFlowGridStudio.open({ size: "large" })`.
  *
- * ESCAPING FLOW BUILDER'S STACKING CONTEXT
+ * WHY THE PLATFORM MODAL, NOT HAND-ROLLED MARKUP
  * Flow Builder wraps the property panel in transformed ancestors. A transform
  * creates both a containing block for `position: fixed` and a new stacking
- * context, so a z-index on any element *inside* this component is scoped to that
- * ancestor and cannot outrank the screen canvas beside it — no value works, and
- * a repaint (such as focusing and blurring a picker) exposes the real order.
+ * context, so a z-index on any element *inside* the property editor is scoped to
+ * that ancestor and cannot outrank the screen canvas beside it. The canvas chip,
+ * its Move/Delete buttons and the connector lines painted straight over the old
+ * hand-rolled modal, and three separate attempts failed to stop it: an explicit
+ * z-index, elevating the component host via the kit's `setPopoverHostActive`, and
+ * an opaque backdrop.
  *
- * The kit documents this same problem for its popovers and solves it by
- * elevating the component *host*. `setPopoverHostActive` is its exported helper
- * for exactly that, and all three kit pickers call it on open and close, so this
- * reuses the kit's workaround rather than reinventing it.
+ * A reduced repro (see `repro/canvas-bleed-through`) reproduced the bleed with
+ * every custom style removed, which cleared this stylesheet of blame, and showed
+ * that the platform modal does not bleed at any size. `lightning/modal` renders
+ * in the platform's overlay container rather than in the editor's subtree, so it
+ * is not a descendant of those transformed ancestors at all. That is the fix: the
+ * problem was never CSS, it was where the modal lived in the DOM.
+ *
+ * `size="large"` is not a downgrade from the old 92vw. SLDS 2 modal sizes are
+ * viewport-relative, and `large` measured at 89% of the viewport against the old
+ * 92% — a difference of about 90px on a wide monitor.
  *
  * This component owns no configuration state. It renders what the editor hands it
  * and relays every change back up, so the editor stays the single writer to Flow
  * Builder. Preview updates are instant because the editor keeps optimistic local
  * values rather than waiting for Flow Builder to republish inputVariables.
+ *
+ * RELAYS ARE CALLBACKS, NOT EVENTS
+ * A modal's events cannot be caught by the component that opened it — they bubble
+ * to a root outside it — so `lightning/modal` requires handlers to be passed into
+ * `open()`. Those passed handlers are invoked directly here instead of dispatching
+ * events, which also avoids the documented requirement that modal *events* need
+ * Lightning Web Security enabled in the org.
  */
-import { LightningElement, api } from "lwc";
+import { api } from "lwc";
+import LightningModal from "lightning/modal";
 import {
     buildColumns,
     buildRows,
@@ -37,13 +55,12 @@ import {
     FILTER_ACTION_NAME,
     ROW_ACTION_NAME
 } from "c/fgrid_gridModel";
-import { setPopoverHostActive } from "c/flowConfigPopoverUtils";
 import getGridMetadata from "@salesforce/apex/FlowGridController.getGridMetadata";
 import getPreviewRecords from "@salesforce/apex/FlowGridController.getPreviewRecords";
 
 const PREVIEW_ROW_COUNT = 6;
 
-export default class FgridFlowGridStudio extends LightningElement {
+export default class FgridFlowGridStudio extends LightningModal {
     @api sections = [];
 
     /**
@@ -75,20 +92,35 @@ export default class FgridFlowGridStudio extends LightningElement {
     @api apiVersion;
 
     /* ------------------------------------------------------------------ *
-     * Stacking
+     * Callbacks supplied by the editor through open()
      * ------------------------------------------------------------------ */
 
     /**
-     * The Studio is rendered only while open, so connect/disconnect map exactly
-     * to opening and closing. Elevating the host is what actually lifts this
-     * modal above Flow Builder's screen canvas; see the note at the top.
+     * Called with the same detail the old `propertychange` event carried.
+     *
+     * Deliberately not named `onPropertyChange`: LWC reserves `on*` property
+     * names for event handlers and rejects them on `@api`, which is the same rule
+     * that makes an `on*` key in `open()` bind an event rather than set a prop.
+     * These are plain function props, invoked directly.
      */
-    connectedCallback() {
-        setPopoverHostActive(this.template.host, true);
-    }
+    @api notifyPropertyChange;
 
-    disconnectedCallback() {
-        setPopoverHostActive(this.template?.host, false);
+    /** Called with the same detail the old `columnconfigchange` event carried. */
+    @api notifyColumnConfigChange;
+
+    /**
+     * Handed this instance once, on open.
+     *
+     * The editor needs a reference for two things the old template-child
+     * arrangement gave it for free: pushing fresh `values` down as it commits, and
+     * pulling `collectValidity()` during validation. `open()` returns a promise
+     * rather than an instance, so the instance has to be handed out from in here.
+     */
+    @api notifyReady;
+
+    connectedCallback() {
+        super.connectedCallback?.();
+        this.notifyReady?.(this);
     }
 
     /** Section names expanded in the left pane. */
@@ -489,24 +521,17 @@ export default class FgridFlowGridStudio extends LightningElement {
 
     handlePropertyChange(event) {
         event.stopPropagation();
-        this.dispatchEvent(new CustomEvent("propertychange", { detail: event.detail }));
+        this.notifyPropertyChange?.(event.detail);
     }
 
     handleColumnConfigChange(event) {
         event.stopPropagation();
-        this.dispatchEvent(new CustomEvent("columnconfigchange", { detail: event.detail }));
+        this.notifyColumnConfigChange?.(event.detail);
     }
 
+    /** Escape, the close button and the backdrop are the platform's job now. */
     handleClose() {
-        this.dispatchEvent(new CustomEvent("close"));
-    }
-
-    /** Escape closes the modal, as SLDS expects. */
-    handleKeyDown(event) {
-        if (event.key === "Escape") {
-            event.stopPropagation();
-            this.handleClose();
-        }
+        this.close();
     }
 
     /** Forwarded so the editor's validate() can reach controls in this subtree. */

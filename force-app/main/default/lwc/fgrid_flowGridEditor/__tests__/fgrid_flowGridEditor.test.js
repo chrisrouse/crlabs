@@ -1,5 +1,33 @@
 import { createElement } from "lwc";
 import FgridFlowGridEditor from "c/fgrid_flowGridEditor";
+import FgridFlowGridStudio from "c/fgrid_flowGridStudio";
+
+// The Studio is a lightning/modal, so it renders in the platform's overlay
+// container and never appears in this editor's template. Its open() is mocked --
+// the pattern the component's own docs prescribe for a parent's tests -- so these
+// assert the editor's half of the contract: what it passes in, and what it does
+// with the callbacks it gets back. The Studio's own half is covered by its tests.
+jest.mock("c/fgrid_flowGridStudio");
+
+/** Replaces open() with a promise this test controls, capturing the props. */
+function stubStudio() {
+    const opened = [];
+    let settle;
+    FgridFlowGridStudio.open = jest.fn((props) => {
+        opened.push(props);
+        return new Promise((resolve) => {
+            settle = resolve;
+        });
+    });
+    return {
+        opened,
+        /** Resolves open()'s promise, as closing the real modal would. */
+        async close(result) {
+            settle(result);
+            await Promise.resolve();
+        }
+    };
+}
 
 const BUILDER_CONTEXT = {
     variables: [
@@ -66,17 +94,23 @@ describe("panel layout", () => {
         expect(element.shadowRoot.querySelectorAll("c-fgrid_property-controls")).toHaveLength(10);
     });
 
-    it("offers a Grid Studio launcher and keeps it closed initially", async () => {
+    it("offers a Grid Studio launcher and opens nothing until it is clicked", async () => {
+        // Asserting the Studio is absent from the template would now pass whatever
+        // the editor does, because a lightning/modal never renders in it. The
+        // meaningful assertion is that open() has not been called.
+        const studio = stubStudio();
         const element = build();
         await Promise.resolve();
 
         expect(element.shadowRoot.querySelector(".editor__studio-button")).not.toBeNull();
-        expect(element.shadowRoot.querySelector("c-fgrid_flow-grid-studio")).toBeNull();
+        expect(FgridFlowGridStudio.open).not.toHaveBeenCalled();
+        expect(studio.opened).toEqual([]);
     });
 });
 
 describe("Grid Studio", () => {
-    it("opens on click and receives the current configuration", async () => {
+    it("opens as a large platform modal carrying the current configuration", async () => {
+        const studio = stubStudio();
         const element = build({
             inputVariables: [{ name: "columnFields", value: '["Name"]', valueDataType: "String" }],
             genericTypeMappings: [{ typeName: "T", typeValue: "Account" }]
@@ -86,26 +120,18 @@ describe("Grid Studio", () => {
         element.shadowRoot.querySelector(".editor__studio-button").click();
         await Promise.resolve();
 
-        const studio = element.shadowRoot.querySelector("c-fgrid_flow-grid-studio");
-        expect(studio).not.toBeNull();
-        expect(studio.objectApiName).toBe("Account");
-        expect(studio.values.columnFields).toBe('["Name"]');
-        expect(studio.sections).toHaveLength(10);
+        expect(studio.opened).toHaveLength(1);
+        const props = studio.opened[0];
+        // large is not a downgrade from the old hand-rolled 92vw: SLDS 2 sizes are
+        // viewport-relative and large measured at 89% of the viewport.
+        expect(props.size).toBe("large");
+        expect(props.objectApiName).toBe("Account");
+        expect(props.values.columnFields).toBe('["Name"]');
+        expect(props.sections).toHaveLength(10);
     });
 
-    it("closes on the close event", async () => {
-        const element = build();
-        await Promise.resolve();
-        element.shadowRoot.querySelector(".editor__studio-button").click();
-        await Promise.resolve();
-
-        element.shadowRoot.querySelector("c-fgrid_flow-grid-studio").dispatchEvent(new CustomEvent("close"));
-        await Promise.resolve();
-
-        expect(element.shadowRoot.querySelector("c-fgrid_flow-grid-studio")).toBeNull();
-    });
-
-    it("relays a column config change from the studio to Flow Builder", async () => {
+    it("relays a column config change from the modal's callback to Flow Builder", async () => {
+        const studio = stubStudio();
         const element = build({
             inputVariables: [{ name: "columnFields", value: '["Name"]', valueDataType: "String" }],
             genericTypeMappings: [{ typeName: "T", typeValue: "Account" }]
@@ -115,14 +141,48 @@ describe("Grid Studio", () => {
         await Promise.resolve();
         const events = captureEvents(element);
 
-        element.shadowRoot
-            .querySelector("c-fgrid_flow-grid-studio")
-            .dispatchEvent(new CustomEvent("columnconfigchange", { detail: { value: '{"Name":{"width":200}}' } }));
+        studio.opened[0].notifyColumnConfigChange({ value: '{"Name":{"width":200}}' });
         await Promise.resolve();
 
         expect(events.input).toEqual([
             { name: "columnConfig", newValue: '{"Name":{"width":200}}', newValueDataType: "String" }
         ]);
+    });
+
+    it("pushes freshly committed values into the open modal", async () => {
+        // As a template child the Studio got these through reactive props. A modal's
+        // props are assigned once, at open, so the editor has to repeat the write
+        // by hand or the preview goes stale the moment anything changes.
+        const studio = stubStudio();
+        const element = build();
+        await Promise.resolve();
+        element.shadowRoot.querySelector(".editor__studio-button").click();
+        await Promise.resolve();
+
+        const instance = {};
+        studio.opened[0].notifyReady(instance);
+        studio.opened[0].notifyPropertyChange({ property: "tableLabel", value: "Accounts", dataType: "String" });
+        await Promise.resolve();
+
+        expect(instance.values.tableLabel).toBe("Accounts");
+    });
+
+    it("stops pushing once the modal has closed", async () => {
+        const studio = stubStudio();
+        const element = build();
+        await Promise.resolve();
+        element.shadowRoot.querySelector(".editor__studio-button").click();
+        await Promise.resolve();
+        const instance = {};
+        studio.opened[0].notifyReady(instance);
+        studio.opened[0].notifyPropertyChange({ property: "tableLabel", value: "Accounts", dataType: "String" });
+
+        await studio.close(undefined);
+        studio.opened[0].notifyPropertyChange({ property: "tableLabel", value: "Contacts", dataType: "String" });
+        await Promise.resolve();
+
+        // Writing to a destroyed modal instance is what the released handle prevents.
+        expect(instance.values.tableLabel).toBe("Accounts");
     });
 });
 
@@ -316,19 +376,19 @@ describe("validate()", () => {
     });
 });
 
-describe("escaping Flow Builder's stacking context", () => {
-    it("elevates the editor host while the Studio is open and releases it after", async () => {
+describe("no longer fights Flow Builder's stacking context", () => {
+    it("does not elevate its own host when opening the Studio", async () => {
+        // This editor used to elevate its host alongside the Studio's, on the theory
+        // that the trapping stacking context sat between the two. It did not work,
+        // because the modal was inside the transformed panel either way. The
+        // platform modal renders outside it, so there is nothing left to escape.
+        stubStudio();
         const element = build();
         await Promise.resolve();
-        expect(element.style.zIndex).toBe("");
 
         element.shadowRoot.querySelector(".editor__studio-button").click();
         await Promise.resolve();
-        expect(element.style.position).toBe("relative");
-        expect(Number(element.style.zIndex)).toBeGreaterThan(99999);
 
-        element.shadowRoot.querySelector("c-fgrid_flow-grid-studio").dispatchEvent(new CustomEvent("close"));
-        await Promise.resolve();
         expect(element.style.position).toBe("");
         expect(element.style.zIndex).toBe("");
     });

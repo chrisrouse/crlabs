@@ -1,64 +1,27 @@
-/* The canvas "bleed-through" and the double-shade were ONE bug, not two, and
-   stacking was never involved in either.
+/* The canvas bleed-through is fixed, and not from in here.
+   The modal is now the platform's own `lightning/modal`, which renders in the
+   platform overlay container instead of inside Flow Builder's transformed
+   property-panel ancestors. See the note at the top of the .js.
 
-   Measured in Flow Builder: this modal resolves to z-index 1000000 and the
-   canvas's selected-component highlight to 5, both positioned inside the single
-   stacking context created by Flow Builder's transformed slds-modal__container,
-   with no intervening stacking context on either branch. The modal already wins
-   the paint order outright — which is why two rounds of z-index escalation moved
-   the symptom around without ever fixing it.
+   Three rules used to live here and all three are gone, because all three were
+   attempts at a problem this stylesheet could not reach: a z-index escalation on
+   the modal, an opaque background to stop the canvas showing through, and a 92vw
+   width override to escape SLDS's `large` cap. A reduced repro reproduced the
+   bleed with every one of them removed.
 
-   This rule previously carried a 16%-opaque wash (`rgba(8, 7, 7, 0.16)`), which
-   was 84% transparent and so showed the canvas behind it by design. Making it
-   OPAQUE was attempt three. It did NOT fix the bleed — the canvas chip and
-   Move/Delete buttons still appear over the modal — so translucency was not the
-   cause either, and something is genuinely painting above this modal in a way the
-   measurement above does not explain.
+   Do NOT add modal chrome rules here. The header, footer, close button, backdrop,
+   width and stacking all belong to lightning/modal, whose container is outside
+   this component's shadow root where these selectors cannot reach it anyway.
+   Everything below styles our own content inside lightning-modal-body. */
 
-   Opaque is kept anyway: it is harmless, it removes the double-shade where Flow
-   Builder's own 0.8 dim used to compound with this one, and it eliminates one
-   variable for whoever picks this up. Keep it LIGHT — a dark opaque layer is what
-   the wash was introduced to escape in the first place.
-
-   PARKED at the user's direction. Three attempts have failed: explicit z-index,
-   host elevation via the kit's `setPopoverHostActive`, and this opaque backdrop.
-   Do not try a fourth from inside this stylesheet without first identifying what
-   is actually painting above — the measurement says it should not be possible,
-   which means the bleeding element is probably NOT `.highlight.selected` and the
-   next step is to identify it directly rather than theorise. The documented
-   fallback is sizing the Studio so it never overlaps the canvas column. */
-.studio {
-    z-index: 99999;
-    background-color: #e5e5e5;
-}
-
-/* Anchor for the close button, which sits inside the white header rather than
-   outside the container the way slds-modal__close would place it. */
-.studio__header {
-    position: relative;
-}
-
-.studio__close {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-}
-
-/* SLDS caps slds-modal_large at ~1024px, which is too narrow for a two-pane
-   workspace. Widen the container explicitly instead of using a size modifier. */
-.studio__container {
-    max-width: 92vw;
-    width: 92vw;
-    min-width: 60rem;
-}
-
+/* lightning-modal-body owns the scroll and the height budget, so this no longer
+   clamps to a viewport fraction -- doing so would fight the platform and reopen
+   the clipped-content problem the old modal had. */
 .studio__content {
     display: flex;
     align-items: stretch;
     gap: 0;
     padding: 0;
-    max-height: 74vh;
-    overflow: hidden;
 }
 
 /* Left pane: independently scrolling control list. */
