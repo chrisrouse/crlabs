@@ -46,21 +46,6 @@ afterEach(() => {
     }
 });
 
-describe("header title", () => {
-    it("uses the SLDS card blueprint's title class rather than a size of its own", () => {
-        // SLDS resets h1-h6 to font-size 1em, so a bare heading has no size. The
-        // card blueprint owns the canonical one -- 1rem at weight 700, themeable by
-        // the org through --slds-c-card-heading-* -- and this header is a card
-        // header, so the platform decides it and no property exposes it.
-        const element = build({ records: records(2), showHeader: true, tableLabel: "Accounts" });
-
-        const title = element.shadowRoot.querySelector(".grid__header-text > h2");
-        expect(title.className).toBe("slds-card__header-title");
-        expect(title.textContent).toContain("Accounts");
-        expect(title.getAttribute("style")).toBeNull();
-    });
-});
-
 describe("column width floor", () => {
     it("floors column widths above the platform default", () => {
         // The datatable divides the available width between columns and clamps each

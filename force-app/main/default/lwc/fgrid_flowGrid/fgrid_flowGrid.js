@@ -107,14 +107,6 @@ export default class FgridFlowGrid extends LightningElement {
     @api wrapTextMaxLines;
 
     @api limitWrappedLines = false;
-    /**
-     * RETIRED, and deliberately unused. See the note in the meta.xml: a saved flow
-     * version stored this, which pins the targetConfig property, and a declared
-     * property needs a matching @api or the component cannot be set. The header
-     * title's size comes from the SLDS card blueprint instead.
-     */
-    @api titleStyle;
-
     @api showReadOnlyIcon = false;
 
     // ----- Selection -----
