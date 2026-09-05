@@ -344,17 +344,42 @@ Everything else in §1 has either been verified or closed by decision. These hav
          reported clipped or misplaced. Evidence from use rather than a deliberate
          check, so it is not ticked in the list above — but the correction loop is
          evidently still landing the popover, which was the substance of the worry.
-      2. Open a picker, then scroll the settings pane. Does the popover follow the
-         anchor? The kit registers a capture-phase scroll listener so it should, but
-         `.studio__controls` is a scroll container the kit has never seen. **Unlikely
-         to have happened incidentally** — you would close a picker before scrolling —
-         so treat this as untried.
-      3. Still correct in the **narrow property panel**, which is the case the
-         correction loop was written for. Untried since the migration. Note the panel's
-         pickers should be unaffected: the migration removed the *editor host*
-         elevation that was our own addition, while the kit's pickers still elevate
-         their own hosts internally. Worth one look rather than reasoning alone,
-         because it is the regression that would be easy to miss.
+      2. ~~Open a picker, then scroll the settings pane.~~ **Was broken, now FIXED
+         2026-09-05.** The popover stayed put while its field scrolled away, because
+         `scroll` does not cross a shadow boundary and both Studio panes are scrollers
+         inside this component's shadow root, invisible to the kit's `window`
+         listener. Both panes now re-dispatch a `scroll` on `window`, coalesced per
+         frame; a picker recomputes from its own anchor's rect, so it only needs
+         telling that something moved. Verified in the browser.
+      3. **The narrow property panel has the SAME BUG, it is PRE-EXISTING, and we
+         cannot fix it — 2026-09-05.** Scrolling the panel with a picker open detaches
+         the popover exactly as the Studio did. Confirmed by console: a capture-phase
+         `scroll` listener on `document` logs **nothing at all** while the panel
+         scrolls, so the panel's scroller sits inside Flow Builder's own shadow root
+         and is invisible to `document` and `window` alike. The kit's listener
+         therefore never fires there either.
+
+         Not our regression, and not caused by the Studio — this affects **any** kit
+         picker in the property panel and predates all of this work. It was never
+         noticed because you do not normally scroll the panel with a dropdown open;
+         the Studio's second scroller just made it easy to see.
+
+         Our Studio remedy does not transfer: that scroller is ours to listen to,
+         Flow Builder's is not. **The fix belongs upstream** — from the anchor, walk
+         up `parentElement || getRootNode().host` collecting scrollable ancestors and
+         attach the same coalesced handler to each, which catches Flow Builder's
+         panel scroller on the way out and would have fixed the Studio without our
+         workaround. The kit's positioning maths is already correct:
+         `anchorSignature` includes `anchorRect.top`, so a scroll resets the
+         corrections and forces a recompute — the handler simply never runs.
+
+         Unverified in that plan: whether traversing out of our shadow root into Flow
+         Builder's DOM is permitted under Lightning Web Security. That is the thing to
+         establish before writing the PR.
+
+         Implementing the same walk locally instead is possible but not recommended:
+         it means our component reaching into Flow Builder's markup, which is fragile
+         against their changes and duplicates what the kit should do.
 - [ ] **Flow variable mapping.** Blank means "do not send"; a name the flow does not
       declare should be reported rather than failing the interview or going quiet.
 - [ ] **Preview banner** reads "Live preview using real records" and is green.
