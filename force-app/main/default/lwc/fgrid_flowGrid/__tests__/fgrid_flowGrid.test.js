@@ -1,5 +1,6 @@
 import { createElement } from "lwc";
 import FgridFlowGrid from "c/fgrid_flowGrid";
+import { MIN_COLUMN_WIDTH } from "c/fgrid_gridModel";
 import getRecordsByIds from "@salesforce/apex/FlowGridController.getRecordsByIds";
 
 // An emittable wire, so a test can give the grid real column metadata. Without it
@@ -43,6 +44,20 @@ afterEach(() => {
     while (document.body.firstChild) {
         document.body.removeChild(document.body.firstChild);
     }
+});
+
+describe("column width floor", () => {
+    it("floors column widths above the platform default", () => {
+        // The datatable divides the available width between columns and clamps each
+        // at this floor, scrolling horizontally once the floors stop fitting. So
+        // columns still fill a wide container; the floor only bites when they
+        // cannot. The platform's own default is 50px, narrow enough that a few
+        // columns in a quick action collapse to about one word each.
+        const element = build({ records: records(3) });
+
+        expect(element.shadowRoot.querySelector("c-fgrid_custom-datatable").minColumnWidth).toBe(MIN_COLUMN_WIDTH);
+        expect(MIN_COLUMN_WIDTH).toBeGreaterThan(50);
+    });
 });
 
 describe("derived-value memoization", () => {

@@ -216,6 +216,27 @@ function resolveEditable(attributes, describe, defaultEditable) {
 }
 
 /** Consecutive pages shown around the current one before truncating. */
+/**
+ * Floor for a column's computed width, in pixels, passed to the datatable's
+ * `min-column-width`.
+ *
+ * The datatable divides the available width between columns and clamps each at
+ * this floor; once the floors no longer fit, it scrolls horizontally instead of
+ * shrinking further. So columns still expand to fill a wide container -- the
+ * floor only bites when there is not enough room -- which is why this needs no
+ * `column-widths-mode` change to work.
+ *
+ * The platform's own default is 50px, which is narrow enough that a handful of
+ * columns in a quick action or utility bar collapse to roughly one word each and
+ * read as a rendering fault rather than as "this will not fit here".
+ *
+ * The trade is real: raising the floor makes a wide grid scroll horizontally in
+ * cases that previously squeezed to fit. That is the intended outcome -- a
+ * scrollbar is legible and a 50px column is not -- but it IS a behaviour change,
+ * so keep this as one number rather than spreading it across the templates.
+ */
+export const MIN_COLUMN_WIDTH = 100;
+
 export const PAGE_WINDOW = 4;
 
 /**

@@ -31,6 +31,7 @@ import runFlow from "@salesforce/apex/FlowGridController.runFlow";
 import getRecordsByIds from "@salesforce/apex/FlowGridController.getRecordsByIds";
 import getFlowVariables from "@salesforce/apex/FlowGridController.getFlowVariables";
 import {
+    MIN_COLUMN_WIDTH,
     buildColumns,
     buildRows,
     sortRows,
@@ -987,6 +988,11 @@ export default class FgridFlowGrid extends LightningElement {
      * cleared once chosen, a checkbox can be unticked. This is the platform's own
      * mechanism for it, and the reason no Clear Selection button is needed.
      */
+    /** Shared with the Studio preview, so the preview cannot flatter the runtime. */
+    get minColumnWidth() {
+        return MIN_COLUMN_WIDTH;
+    }
+
     get singleRowSelectionMode() {
         return this.selectionMode === "Single" && this.singleSelectControl === "Checkbox" ? "checkbox" : undefined;
     }

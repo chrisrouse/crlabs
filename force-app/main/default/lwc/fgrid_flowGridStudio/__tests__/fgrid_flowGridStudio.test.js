@@ -1,6 +1,7 @@
 import { createElement } from "lwc";
 import FgridFlowGridStudio from "c/fgrid_flowGridStudio";
 import { SECTIONS } from "c/fgrid_propertySchema";
+import { MIN_COLUMN_WIDTH } from "c/fgrid_gridModel";
 
 // The Studio loads real describe and a record sample for its preview. Mocked to
 // empty so these tests stay deterministic and exercise the fabricated-row
@@ -357,6 +358,21 @@ describe("preview size", () => {
         await Promise.resolve();
 
         expect(frame(element).style.maxWidth).toBe("40rem");
+    });
+
+    it("floors column widths exactly as the runtime grid does", async () => {
+        // The whole point of Medium and Small is showing how the grid will look in a
+        // narrower container, so the preview must degrade by the same rule. A floor
+        // that applied here but not at runtime would make the preview flatter it.
+        const element = build();
+        await Promise.resolve();
+
+        expect(datatable(element).minColumnWidth).toBe(MIN_COLUMN_WIDTH);
+
+        selector(element).dispatchEvent(new CustomEvent("change", { detail: { value: "small" } }));
+        await Promise.resolve();
+
+        expect(datatable(element).minColumnWidth).toBe(MIN_COLUMN_WIDTH);
     });
 
     it("frames the grid chrome too, not just the table", async () => {
