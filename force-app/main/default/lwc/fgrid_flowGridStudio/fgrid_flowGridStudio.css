@@ -71,22 +71,29 @@
 
 /* ---------------------------- preview ---------------------------- */
 
-/* Toggle then banner, on one row. The banner keeps its own bottom margin, so this
-   only needs to align them and let the banner take the remaining width. */
+/* Toggle, banner, then the size picker, on one row. The row owns the spacing
+   below it so the banner's own bottom margin does not offset it mid-row. */
 .preview__chrome {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 0.5rem;
+    margin-bottom: 0.75rem;
 }
 
 .preview__chrome .preview__banner {
     flex: 1 1 auto;
+    min-width: 0;
+    margin-bottom: 0;
 }
 
-/* Narrow enough not to crowd the banner, wide enough for the inline label. */
+/* An explicit flex-basis, not `auto`.
+   SLDS form elements are block-level at width: 100%, so `flex: 0 0 auto` resolved
+   this combobox's base size to the whole remaining row -- flex-grow: 0 never came
+   into it -- and the banner shrank to min-content beside it, one word per line.
+   A `min-width` alone set a floor where the problem was the absent ceiling.
+   Sized for the inline label plus the longest value. */
 .preview__size {
-    flex: 0 0 auto;
-    min-width: 13rem;
+    flex: 0 0 16rem;
 }
 
 /* Simulates the container the grid will run in. A max-width rather than a width,
