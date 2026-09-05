@@ -315,13 +315,36 @@ Everything else in §1 has either been verified or closed by decision. These hav
 
 **Design time**
 
-- [ ] **Kit picker popover positioning.** Open **Records** and check the popover is not
-      clipped or misplaced. Never confirmed, and it was the original risk when the
-      Studio was designed. Worth re-checking rather than assuming: the Studio is now a
-      platform modal rendered in the overlay container, and the kit's three pickers
-      still call `setPopoverHostActive` internally, which in there is either harmless
-      or actively wrong. The left pane also scrolls with `overflow-y: auto`, which can
-      clip a popover regardless.
+- [ ] **Kit picker popover positioning.** What this actually means, since the phrase on
+      its own says nothing: the kit's resource, object and field pickers do not render
+      their dropdown inline. They render it `position: fixed` and compute viewport
+      coordinates themselves, because Flow Builder's property panel is a narrow
+      *clipped* column that would cut off a normal dropdown. The catch is that a
+      transformed ancestor becomes the containing block for `position: fixed`, and Flow
+      Builder has transformed ancestors, so `fixed` does not land where the maths says.
+      `positionAnchoredPopover` compensates with an iterative correction loop — place,
+      measure the rendered rect, adjust, up to `correctionLimit: 3` passes — and
+      `setPopoverHostActive` elevates the picker's host while open so it paints above
+      neighbouring panel content.
+
+      Never confirmed, and it was the original risk when the Studio was designed. Now
+      worth re-checking for a specific reason: that correction loop compensates for one
+      particular containing-block offset, and the Studio has moved out of the property
+      panel into the platform's modal overlay container. That container carries **no
+      transform** (established in §3.2 — the nested filter dialog's `position: fixed`
+      resolved against the viewport inside it), so `fixed` now behaves normally in
+      there and the loop may be correcting for an offset that no longer exists.
+
+      Three things to check, not one:
+
+      1. Open **Records** in the Studio — is the dropdown anchored to its input and
+         fully visible?
+      2. Open it, then scroll the settings pane. Does the popover follow the anchor? The
+         kit registers a capture-phase scroll listener so it should, but
+         `.studio__controls` is a scroll container the kit has never seen.
+      3. Still correct in the **narrow property panel**, which is the case the
+         correction loop was written for. That is the regression risk if anything is
+         changed to suit the Studio.
 - [ ] **Flow variable mapping.** Blank means "do not send"; a name the flow does not
       declare should be reported rather than failing the interview or going quiet.
 - [ ] **Preview banner** reads "Live preview using real records" and is green.
