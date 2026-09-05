@@ -14,14 +14,28 @@
    this component's shadow root where these selectors cannot reach it anyway.
    Everything below styles our own content inside lightning-modal-body. */
 
-/* lightning-modal-body owns the scroll and the height budget, so this no longer
-   clamps to a viewport fraction -- doing so would fight the platform and reopen
-   the clipped-content problem the old modal had. */
+/* The two panes scroll independently, and this clamp is what makes that work.
+   Without a bounded height here the panes grow to their content instead, their
+   own `overflow-y: auto` never engages, and the whole modal body scrolls -- so
+   opening several settings sections drags the preview off screen.
+
+   The height is a viewport fraction because lightning-modal-body publishes no
+   height we can read: it is in another shadow root, and it sizes itself with a
+   max-height rather than a definite height, so `height: 100%` here would not
+   resolve. The subtraction models the platform's chrome -- modal header, footer
+   and body padding -- which is absolute rather than proportional, so this
+   degrades in the right direction on a short viewport.
+
+   Deliberately conservative: overshooting means the modal body gets a second
+   scrollbar next to the pane's own. If there is dead space below the panes on a
+   tall monitor, this number is what to raise. */
 .studio__content {
     display: flex;
     align-items: stretch;
     gap: 0;
     padding: 0;
+    max-height: calc(85vh - 11rem);
+    overflow: hidden;
 }
 
 /* Left pane: independently scrolling control list. */
