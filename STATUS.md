@@ -337,14 +337,24 @@ Everything else in §1 has either been verified or closed by decision. These hav
 
       Three things to check, not one:
 
-      1. Open **Records** in the Studio — is the dropdown anchored to its input and
-         fully visible?
-      2. Open it, then scroll the settings pane. Does the popover follow the anchor? The
-         kit registers a capture-phase scroll listener so it should, but
-         `.studio__controls` is a scroll container the kit has never seen.
+      1. ~~Open **Records** in the Studio — is the dropdown anchored to its input and
+         fully visible?~~ **No problems observed, 2026-09-05.** Records, Columns,
+         Pre-Selected Records and Disabled Records were all configured through the
+         Studio repeatedly that day, after the modal migration, and no menu was
+         reported clipped or misplaced. Evidence from use rather than a deliberate
+         check, so it is not ticked in the list above — but the correction loop is
+         evidently still landing the popover, which was the substance of the worry.
+      2. Open a picker, then scroll the settings pane. Does the popover follow the
+         anchor? The kit registers a capture-phase scroll listener so it should, but
+         `.studio__controls` is a scroll container the kit has never seen. **Unlikely
+         to have happened incidentally** — you would close a picker before scrolling —
+         so treat this as untried.
       3. Still correct in the **narrow property panel**, which is the case the
-         correction loop was written for. That is the regression risk if anything is
-         changed to suit the Studio.
+         correction loop was written for. Untried since the migration. Note the panel's
+         pickers should be unaffected: the migration removed the *editor host*
+         elevation that was our own addition, while the kit's pickers still elevate
+         their own hosts internally. Worth one look rather than reasoning alone,
+         because it is the regression that would be easy to miss.
 - [ ] **Flow variable mapping.** Blank means "do not send"; a name the flow does not
       declare should be reported rather than failing the interview or going quiet.
 - [ ] **Preview banner** reads "Live preview using real records" and is green.
