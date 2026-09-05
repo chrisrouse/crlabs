@@ -89,18 +89,7 @@
                                             ></lightning-icon>
                                         </template>
                                         <div class="preview__header-text">
-                                            <template lwc:if={previewTitleIsHeading}>
-                                                <div
-                                                    role="heading"
-                                                    aria-level={previewTitleAriaLevel}
-                                                    style={previewTitleStyleCss}
-                                                >
-                                                    {previewHeaderLabel}
-                                                </div>
-                                            </template>
-                                            <template lwc:else>
-                                                <p style={previewTitleStyleCss}>{previewHeaderLabel}</p>
-                                            </template>
+                                            <h2 class="slds-card__header-title">{previewHeaderLabel}</h2>
                                             <template lwc:if={hasPreviewCountLabel}>
                                                 <p class="slds-text-body_small slds-text-color_weak">
                                                     {previewCountLabel}

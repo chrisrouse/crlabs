@@ -46,34 +46,18 @@ afterEach(() => {
     }
 });
 
-describe("header title style", () => {
-    let element;
-    const title = () => element.shadowRoot.querySelector(".grid__header-text > *");
+describe("header title", () => {
+    it("uses the SLDS card blueprint's title class rather than a size of its own", () => {
+        // SLDS resets h1-h6 to font-size 1em, so a bare heading has no size. The
+        // card blueprint owns the canonical one -- 1rem at weight 700, themeable by
+        // the org through --slds-c-card-heading-* -- and this header is a card
+        // header, so the platform decides it and no property exposes it.
+        const element = build({ records: records(2), showHeader: true, tableLabel: "Accounts" });
 
-    it("renders a heading carrying the chosen level", () => {
-        element = build({ records: records(2), showHeader: true, tableLabel: "Accounts", titleStyle: "H1" });
-
-        expect(title().getAttribute("role")).toBe("heading");
-        expect(title().getAttribute("aria-level")).toBe("1");
-        expect(title().getAttribute("style")).toContain("--slds-g-font-scale-4");
-        expect(title().textContent).toContain("Accounts");
-    });
-
-    it("renders Body as text with no heading role at all", () => {
-        // A heading role without a level, or a level on something that is not a
-        // heading, both mislead a screen reader; Body has to be neither.
-        element = build({ records: records(2), showHeader: true, tableLabel: "Accounts", titleStyle: "Body" });
-
-        expect(title().getAttribute("role")).toBeNull();
-        expect(title().getAttribute("aria-level")).toBeNull();
-        expect(title().getAttribute("style")).toContain("--slds-g-font-scale-neg-1");
-    });
-
-    it("falls back to the pre-existing look when nothing is set", () => {
-        element = build({ records: records(2), showHeader: true, tableLabel: "Accounts" });
-
-        expect(title().getAttribute("style")).toContain("--slds-g-font-scale-2");
-        expect(title().getAttribute("aria-level")).toBe("3");
+        const title = element.shadowRoot.querySelector(".grid__header-text > h2");
+        expect(title.className).toBe("slds-card__header-title");
+        expect(title.textContent).toContain("Accounts");
+        expect(title.getAttribute("style")).toBeNull();
     });
 });
 

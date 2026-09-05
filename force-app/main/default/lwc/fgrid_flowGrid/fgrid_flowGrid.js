@@ -32,7 +32,6 @@ import getRecordsByIds from "@salesforce/apex/FlowGridController.getRecordsByIds
 import getFlowVariables from "@salesforce/apex/FlowGridController.getFlowVariables";
 import {
     MIN_COLUMN_WIDTH,
-    titleStyleFor,
     buildColumns,
     buildRows,
     sortRows,
@@ -108,6 +107,12 @@ export default class FgridFlowGrid extends LightningElement {
     @api wrapTextMaxLines;
 
     @api limitWrappedLines = false;
+    /**
+     * RETIRED, and deliberately unused. See the note in the meta.xml: a saved flow
+     * version stored this, which pins the targetConfig property, and a declared
+     * property needs a matching @api or the component cannot be set. The header
+     * title's size comes from the SLDS card blueprint instead.
+     */
     @api titleStyle;
 
     @api showReadOnlyIcon = false;
@@ -991,28 +996,6 @@ export default class FgridFlowGrid extends LightningElement {
      * cleared once chosen, a checkbox can be unticked. This is the platform's own
      * mechanism for it, and the reason no Clear Selection button is needed.
      */
-    /* ------------------------------------------------------------------ *
-     * Header title
-     * ------------------------------------------------------------------ */
-
-    /**
-     * Rendered as a div with role="heading" and aria-level rather than a real
-     * h1..h6, because a template cannot interpolate a tag name and six branches
-     * of identical markup is worse than the ARIA pair, which assistive tech
-     * treats equivalently.
-     */
-    get titleStyleCss() {
-        return titleStyleFor(this.titleStyle).style;
-    }
-
-    get titleAriaLevel() {
-        return titleStyleFor(this.titleStyle).level;
-    }
-
-    get titleIsHeading() {
-        return titleStyleFor(this.titleStyle).level !== null;
-    }
-
     /** Shared with the Studio preview, so the preview cannot flatter the runtime. */
     get minColumnWidth() {
         return MIN_COLUMN_WIDTH;

@@ -183,18 +183,6 @@ describe("preview reflects configuration", () => {
         expect(on.shadowRoot.querySelector(".preview__header").textContent).toContain("items");
     });
 
-    it("previews the configured title style, level and all", async () => {
-        // The preview has to show the style the grid will actually render, for the
-        // same reason it shares the column width floor.
-        const element = build({ showHeader: true, tableLabel: "Accounts", titleStyle: "H1" });
-        await Promise.resolve();
-
-        const title = element.shadowRoot.querySelector(".preview__header-text > *");
-        expect(title.getAttribute("role")).toBe("heading");
-        expect(title.getAttribute("aria-level")).toBe("1");
-        expect(title.getAttribute("style")).toContain("--slds-g-font-scale-4");
-    });
-
     it("gives the toolbar title block the class its shrink rules hang off", async () => {
         // It was a bare <div> and so picked up none of the flex rules the runtime
         // grid's equivalent has always had, which made the preview's toolbar

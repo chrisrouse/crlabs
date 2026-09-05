@@ -23,9 +23,7 @@ import {
     PICKLIST_SELECTED_SUFFIX,
     PICKLIST_OPTIONS_SUFFIX,
     PICKLIST_LOCKED_SUFFIX,
-    MASTER_RECORD_TYPE_ID,
-    TITLE_STYLES,
-    titleStyleFor
+    MASTER_RECORD_TYPE_ID
 } from "c/fgrid_gridModel";
 
 describe("inferType", () => {
@@ -1274,49 +1272,5 @@ describe("record-type and dependent picklists", () => {
 
         expect(row["SubType" + PICKLIST_OPTIONS_SUFFIX].map((o) => o.value)).toEqual(["Shop", "Depot"]);
         expect(row["SubType" + PICKLIST_LOCKED_SUFFIX]).toBe(false);
-    });
-});
-
-describe("title styles", () => {
-    it("offers H1 through H6 plus Body, with levels only on the headings", () => {
-        expect(TITLE_STYLES.map((style) => style.value)).toEqual(["H1", "H2", "H3", "H4", "H5", "H6", "Body"]);
-        expect(TITLE_STYLES.filter((style) => style.level !== null).map((style) => style.level)).toEqual([
-            1, 2, 3, 4, 5, 6
-        ]);
-        // Body is text, not a heading, so it must not claim a level.
-        expect(TITLE_STYLES[6].level).toBeNull();
-    });
-
-    it("defaults to H3 at 1rem, which is what the header rendered before", () => {
-        // The old markup was slds-text-heading_small, 1rem. Keeping the default at
-        // 1rem inherited weight means no saved grid changes appearance.
-        expect(titleStyleFor(undefined).value).toBe("H3");
-        expect(titleStyleFor(null).style).toContain("1rem");
-        expect(titleStyleFor("nonsense").value).toBe("H3");
-    });
-
-    it("sizes from the font-scale hooks, never the font-size ones", () => {
-        // --slds-g-font-size-N does not exist; only font-size-base and the
-        // font-scale ladder do. Every scale number here was checked against the
-        // SLDS hook index rather than inferred from the naming pattern.
-        TITLE_STYLES.forEach((style) => {
-            expect(style.style).toMatch(/var\(--slds-g-font-scale-(neg-)?\d+, [\d.]+rem\)/);
-            expect(style.style).toMatch(/var\(--slds-g-font-weight-[47], (400|700)\)/);
-            expect(style.style).not.toContain("--slds-g-font-size-");
-        });
-    });
-
-    it("resolves a chosen style to its size and level", () => {
-        expect(titleStyleFor("H1").style).toContain("--slds-g-font-scale-4");
-        expect(titleStyleFor("H1").level).toBe(1);
-        expect(titleStyleFor("Body").level).toBeNull();
-    });
-
-    it("keeps H6 distinct from Body, which shares its size", () => {
-        // Both sit at 0.75rem; only the weight separates them, which is the same
-        // bold/regular alternation SLDS uses for rich text headings.
-        expect(titleStyleFor("H6").style).toContain("--slds-g-font-scale-neg-1");
-        expect(titleStyleFor("Body").style).toContain("--slds-g-font-scale-neg-1");
-        expect(titleStyleFor("H6").style).not.toBe(titleStyleFor("Body").style);
     });
 });

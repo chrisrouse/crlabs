@@ -237,59 +237,6 @@ function resolveEditable(attributes, describe, defaultEditable) {
  */
 export const MIN_COLUMN_WIDTH = 100;
 
-/**
- * Header title styles, from H1 down to Body.
- *
- * `style` carries the look and `level` the semantics, because they are two
- * different things: a heading level describes document structure, the scale
- * describes size. An admin picking "H2" expects both, so each option sets both.
- *
- * WHY INLINE HOOKS RATHER THAN THE slds-text-* UTILITY CLASSES.
- * SLDS resets native headings globally -- `h1,h2,h3,h4,h5,h6 { font-weight:
- * inherit; font-size: 1em }` -- so a bare heading tag has no size of its own and
- * the platform will not style it for us. What styles the rich text component's
- * h1..h6 is a scoped opt-in class, `.slds-rich-text-editor__output`, which
- * restores a ladder for its own subtree only. That class belongs to a component
- * blueprint, not to us.
- *
- * So the size has to come from somewhere, and the platform's themeable surface
- * for it is `--slds-g-font-scale-*` -- values verified against the SLDS hook
- * index, not inferred from the naming pattern, which is the mistake STATUS
- * records for Wrapped Lines. `--slds-g-font-size-N` does NOT exist; only
- * `--slds-g-font-size-base` and the `font-scale` ladder do.
- *
- * Verified scale: neg-2 0.625rem, neg-1 0.75rem, 1 0.875rem, 2 1rem, 3 1.25rem,
- * 4 1.5rem, 5 1.75rem. Weights run 1..7 for 100..700.
- *
- * The bold/regular alternation down the ladder mirrors what SLDS itself does for
- * rich text, where h2 is bold and h3 is not, so an admin who has used the rich
- * text heading picker sees the same pattern here.
- *
- * H3 is 1rem at inherited weight, which is exactly what the header rendered
- * before this setting existed, and is the default -- so no saved grid changes
- * appearance.
- */
-const titleCss = (scale, size, weight) =>
-    `font-size: var(--slds-g-font-scale-${scale}, ${size});` +
-    ` font-weight: var(--slds-g-font-weight-${weight === 700 ? 7 : 4}, ${weight});`;
-
-export const TITLE_STYLES = [
-    { label: "H1", value: "H1", level: 1, style: titleCss(4, "1.5rem", 700) },
-    { label: "H2", value: "H2", level: 2, style: titleCss(3, "1.25rem", 700) },
-    { label: "H3", value: "H3", level: 3, style: titleCss(2, "1rem", 400) },
-    { label: "H4", value: "H4", level: 4, style: titleCss(1, "0.875rem", 700) },
-    { label: "H5", value: "H5", level: 5, style: titleCss(1, "0.875rem", 400) },
-    { label: "H6", value: "H6", level: 6, style: titleCss("neg-1", "0.75rem", 700) },
-    { label: "Body", value: "Body", level: null, style: titleCss("neg-1", "0.75rem", 400) }
-];
-
-const DEFAULT_TITLE_STYLE = TITLE_STYLES[2];
-
-/** The chosen style, falling back to H3 for an unknown or missing value. */
-export function titleStyleFor(value) {
-    return TITLE_STYLES.find((style) => style.value === value) || DEFAULT_TITLE_STYLE;
-}
-
 export const PAGE_WINDOW = 4;
 
 /**

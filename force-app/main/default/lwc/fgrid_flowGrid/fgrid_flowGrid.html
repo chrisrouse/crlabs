@@ -38,12 +38,7 @@
                         ></lightning-icon>
                     </template>
                     <div class="grid__header-text">
-                        <template lwc:if={titleIsHeading}>
-                            <div role="heading" aria-level={titleAriaLevel} style={titleStyleCss}>{headerLabel}</div>
-                        </template>
-                        <template lwc:else>
-                            <p style={titleStyleCss}>{headerLabel}</p>
-                        </template>
+                        <h2 class="slds-card__header-title">{headerLabel}</h2>
                         <template lwc:if={hasHeaderCounts}>
                             <p class="slds-text-body_small slds-text-color_weak">{headerCounts}</p>
                         </template>

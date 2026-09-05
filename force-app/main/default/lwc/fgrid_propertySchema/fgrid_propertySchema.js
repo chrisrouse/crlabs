@@ -23,7 +23,7 @@
  * descriptions are ordinary sentences and are NOT title-cased.
  */
 
-import { ROW_ACTION_DEFAULT_ICONS, TITLE_STYLES } from "c/fgrid_gridModel";
+import { ROW_ACTION_DEFAULT_ICONS } from "c/fgrid_gridModel";
 
 /** Control types `fgrid_propertyControls` knows how to render. */
 export const CONTROL = {
@@ -98,8 +98,6 @@ const ROW_ACTION_TYPES = [
  * datatable has no such mode, and it was the old default — which is what made a
  * 300-record grid render 300 rows of DOM before it could be touched.
  */
-const TITLE_STYLE_OPTIONS = TITLE_STYLES.map(({ label, value }) => ({ label, value }));
-
 const ROW_LOADING_MODES = [
     { label: "Load as You Scroll", value: "Scroll" },
     { label: "Paginate", value: "Paginate" }
@@ -157,7 +155,6 @@ export const DEFAULTS = {
     rowLoading: "Scroll",
     selectionMode: "Multiple",
     picklistRecordTypeMode: "None",
-    titleStyle: "H3",
     dependentPicklistIcon: "utility:hierarchy",
     singleSelectControl: "Radio",
     rowActionType: "None",
@@ -372,14 +369,6 @@ export const SECTIONS = [
             { property: "showHeader", type: CONTROL.CHECKBOX, label: "Show a Header Above the Grid" },
             { property: "tableLabel", type: CONTROL.TEXT, label: "Header Label", when: ["headerShown"] },
             { property: "tableIcon", type: CONTROL.ICON, label: "Header Icon", when: ["headerShown"] },
-            {
-                property: "titleStyle",
-                type: CONTROL.SELECT,
-                label: "Title Style",
-                options: TITLE_STYLE_OPTIONS,
-                when: ["headerShown"],
-                help: "Sets both the size of the header label and its heading level for screen readers. H3 matches the size the header has always used. Pick a level that fits the page it sits on — an H1 inside a flow screen that already has its own heading will read as a second top-level heading."
-            },
             {
                 property: "showRecordCount",
                 type: CONTROL.CHECKBOX,
