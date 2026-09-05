@@ -60,6 +60,26 @@ import getPreviewRecords from "@salesforce/apex/FlowGridController.getPreviewRec
 
 const PREVIEW_ROW_COUNT = 6;
 
+/**
+ * Widths the preview can render at, mirroring Flow Builder's own Preview Size
+ * control so an admin does not have to learn a second idiom.
+ *
+ * These are the SLDS modal sizes, which is what Flow Builder's sizes appear to be
+ * based on. They are OUR values, not read from the platform: SLDS 2 defines its
+ * modal widths as viewport fractions inside slds-plus.css, which a component
+ * stylesheet cannot reach, and Flow Builder publishes no widths either. Measured
+ * in the org, SLDS 2 `medium` came out at 39% of the viewport and `large` at 89%.
+ *
+ * Large is deliberately unconstrained rather than 89%: the preview already sits
+ * inside a large modal, so its natural width IS large. Pinning it to a fraction of
+ * the viewport would make the default narrower than the pane holding it.
+ */
+const PREVIEW_SIZES = [
+    { label: "Large", value: "large", maxWidth: null },
+    { label: "Medium", value: "medium", maxWidth: "40rem" },
+    { label: "Small", value: "small", maxWidth: "20rem" }
+];
+
 export default class FgridFlowGridStudio extends LightningModal {
     @api sections = [];
 
@@ -138,6 +158,28 @@ export default class FgridFlowGridStudio extends LightningModal {
      * to open the element with no settings visible.
      */
     isSidebarCollapsed = false;
+
+    /* ------------------------------------------------------------------ *
+     * Preview size
+     * ------------------------------------------------------------------ */
+
+    /**
+     * Width the preview renders at. Not a Flow property, for the same reason the
+     * collapsed pane is not: it is a view preference for this sitting, and the
+     * grid's runtime width comes from wherever the flow is embedded.
+     */
+    previewSize = "large";
+
+    previewSizeOptions = PREVIEW_SIZES.map(({ label, value }) => ({ label, value }));
+
+    handlePreviewSizeChange(event) {
+        this.previewSize = event.detail.value;
+    }
+
+    get previewFrameStyle() {
+        const size = PREVIEW_SIZES.find((candidate) => candidate.value === this.previewSize);
+        return size?.maxWidth ? `max-width: ${size.maxWidth};` : "";
+    }
 
     handleToggleSidebar() {
         this.isSidebarCollapsed = !this.isSidebarCollapsed;

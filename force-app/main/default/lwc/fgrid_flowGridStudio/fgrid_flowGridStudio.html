@@ -60,115 +60,129 @@
                             <lightning-icon icon-name={previewBannerIcon} size="x-small"></lightning-icon>
                             <span class="slds-m-left_xx-small">{previewBannerText}</span>
                         </div>
+
+                        <lightning-combobox
+                            class="preview__size"
+                            label="Preview Size"
+                            variant="label-inline"
+                            value={previewSize}
+                            options={previewSizeOptions}
+                            field-level-help="Renders the preview at the width of a small, medium or large modal, so you can see how the grid behaves in a narrow container before the flow runs."
+                            onchange={handlePreviewSizeChange}
+                        ></lightning-combobox>
                     </div>
 
                     <template lwc:if={hasColumns}>
-                        <!-- Same toolbar shape as the runtime grid: title left,
+                        <div class="preview__frame" style={previewFrameStyle}>
+                            <!-- Same toolbar shape as the runtime grid: title left,
                          search right. The search is inert; filters are not —
                          the preview holds real records, so filtering them
                          shows the actual behaviour. -->
-                        <template lwc:if={showPreviewToolbar}>
-                            <div class="preview__header">
-                                <template lwc:if={showPreviewHeader}>
-                                    <template lwc:if={hasPreviewHeaderIcon}>
-                                        <lightning-icon
-                                            icon-name={previewHeaderIcon}
-                                            size="small"
-                                            class="slds-m-right_x-small"
-                                        ></lightning-icon>
-                                    </template>
-                                    <div>
-                                        <h2 class="slds-text-heading_small">{previewHeaderLabel}</h2>
-                                        <template lwc:if={hasPreviewCountLabel}>
-                                            <p class="slds-text-body_small slds-text-color_weak">{previewCountLabel}</p>
+                            <template lwc:if={showPreviewToolbar}>
+                                <div class="preview__header">
+                                    <template lwc:if={showPreviewHeader}>
+                                        <template lwc:if={hasPreviewHeaderIcon}>
+                                            <lightning-icon
+                                                icon-name={previewHeaderIcon}
+                                                size="small"
+                                                class="slds-m-right_x-small"
+                                            ></lightning-icon>
                                         </template>
-                                    </div>
-                                </template>
-
-                                <div class="preview__toolbar-actions">
-                                    <template lwc:if={showSearchBar}>
-                                        <div class="preview__search">
-                                            <lightning-input
-                                                type="search"
-                                                variant="label-hidden"
-                                                label="Search"
-                                                placeholder="Search…"
-                                                disabled
-                                            ></lightning-input>
+                                        <div>
+                                            <h2 class="slds-text-heading_small">{previewHeaderLabel}</h2>
+                                            <template lwc:if={hasPreviewCountLabel}>
+                                                <p class="slds-text-body_small slds-text-color_weak">
+                                                    {previewCountLabel}
+                                                </p>
+                                            </template>
                                         </div>
                                     </template>
+
+                                    <div class="preview__toolbar-actions">
+                                        <template lwc:if={showSearchBar}>
+                                            <div class="preview__search">
+                                                <lightning-input
+                                                    type="search"
+                                                    variant="label-hidden"
+                                                    label="Search"
+                                                    placeholder="Search…"
+                                                    disabled
+                                                ></lightning-input>
+                                            </div>
+                                        </template>
+                                    </div>
                                 </div>
-                            </div>
-                        </template>
+                            </template>
 
-                        <template lwc:if={hasPreviewFilters}>
-                            <div class="preview__pills">
-                                <span class="preview__pills-label">Filters</span>
-                                <template for:each={previewFilterPills} for:item="pill">
-                                    <span class="preview__pill" key={pill.path}>
-                                        <button
-                                            type="button"
-                                            class="preview__pill-label"
-                                            data-path={pill.path}
-                                            title="Edit this filter"
-                                            onclick={handleEditPreviewPill}
-                                        >
-                                            {pill.label}
-                                        </button>
-                                        <lightning-button-icon
-                                            icon-name="utility:close"
-                                            variant="bare"
-                                            size="xx-small"
-                                            alternative-text="Remove this filter"
-                                            title="Remove this filter"
-                                            data-path={pill.path}
-                                            onclick={handleRemovePreviewPill}
-                                        ></lightning-button-icon>
-                                    </span>
-                                </template>
-                                <lightning-button
-                                    variant="base"
-                                    label="Clear all"
-                                    onclick={handleClearPreviewFilters}
-                                ></lightning-button>
-                            </div>
-                        </template>
+                            <template lwc:if={hasPreviewFilters}>
+                                <div class="preview__pills">
+                                    <span class="preview__pills-label">Filters</span>
+                                    <template for:each={previewFilterPills} for:item="pill">
+                                        <span class="preview__pill" key={pill.path}>
+                                            <button
+                                                type="button"
+                                                class="preview__pill-label"
+                                                data-path={pill.path}
+                                                title="Edit this filter"
+                                                onclick={handleEditPreviewPill}
+                                            >
+                                                {pill.label}
+                                            </button>
+                                            <lightning-button-icon
+                                                icon-name="utility:close"
+                                                variant="bare"
+                                                size="xx-small"
+                                                alternative-text="Remove this filter"
+                                                title="Remove this filter"
+                                                data-path={pill.path}
+                                                onclick={handleRemovePreviewPill}
+                                            ></lightning-button-icon>
+                                        </span>
+                                    </template>
+                                    <lightning-button
+                                        variant="base"
+                                        label="Clear all"
+                                        onclick={handleClearPreviewFilters}
+                                    ></lightning-button>
+                                </div>
+                            </template>
 
-                        <div class="preview__grid" style={previewGridStyle}>
-                            <!-- The subclass, not the base datatable: a column
+                            <div class="preview__grid" style={previewGridStyle}>
+                                <!-- The subclass, not the base datatable: a column
                              config that enables editing on a picklist emits
                              a custom cell type, which a plain
                              lightning-datatable cannot render. -->
-                            <c-fgrid_custom-datatable
-                                key-field={previewKeyField}
-                                columns={previewColumns}
-                                data={previewRows}
-                                hide-checkbox-column={previewHideCheckbox}
-                                max-row-selection={previewMaxRowSelection}
-                                show-row-number-column={values.showRowNumbers}
-                                wrap-table-header="by-column"
-                                wrap-text-max-lines={previewWrappedLines}
-                                onheaderaction={handlePreviewHeaderAction}
-                                suppress-bottom-bar
-                            ></c-fgrid_custom-datatable>
-                        </div>
-
-                        <template lwc:if={showPaginationChrome}>
-                            <div class="preview__pagination">
-                                <template lwc:if={showFirstLast}>
-                                    <lightning-button label="First" disabled></lightning-button>
-                                </template>
-                                <lightning-button label="Previous" disabled></lightning-button>
-                                <lightning-button label="Next" disabled></lightning-button>
-                                <template lwc:if={showFirstLast}>
-                                    <lightning-button label="Last" disabled></lightning-button>
-                                </template>
+                                <c-fgrid_custom-datatable
+                                    key-field={previewKeyField}
+                                    columns={previewColumns}
+                                    data={previewRows}
+                                    hide-checkbox-column={previewHideCheckbox}
+                                    max-row-selection={previewMaxRowSelection}
+                                    show-row-number-column={values.showRowNumbers}
+                                    wrap-table-header="by-column"
+                                    wrap-text-max-lines={previewWrappedLines}
+                                    onheaderaction={handlePreviewHeaderAction}
+                                    suppress-bottom-bar
+                                ></c-fgrid_custom-datatable>
                             </div>
-                        </template>
 
-                        <template lwc:if={hasRowAction}>
-                            <p class="preview__note">{rowActionSummary}</p>
-                        </template>
+                            <template lwc:if={showPaginationChrome}>
+                                <div class="preview__pagination">
+                                    <template lwc:if={showFirstLast}>
+                                        <lightning-button label="First" disabled></lightning-button>
+                                    </template>
+                                    <lightning-button label="Previous" disabled></lightning-button>
+                                    <lightning-button label="Next" disabled></lightning-button>
+                                    <template lwc:if={showFirstLast}>
+                                        <lightning-button label="Last" disabled></lightning-button>
+                                    </template>
+                                </div>
+                            </template>
+
+                            <template lwc:if={hasRowAction}>
+                                <p class="preview__note">{rowActionSummary}</p>
+                            </template>
+                        </div>
                     </template>
 
                     <template lwc:else>

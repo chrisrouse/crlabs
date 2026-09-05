@@ -324,6 +324,52 @@ describe("modal chrome belongs to the platform", () => {
     });
 });
 
+describe("preview size", () => {
+    function selector(element) {
+        return element.shadowRoot.querySelector(".preview__size");
+    }
+
+    function frame(element) {
+        return element.shadowRoot.querySelector(".preview__frame");
+    }
+
+    it("starts at large, unconstrained", async () => {
+        // Large is not pinned to a viewport fraction: the preview already sits in a
+        // large modal, so a fraction would make the default narrower than its pane.
+        const element = build();
+        await Promise.resolve();
+
+        expect(selector(element).value).toBe("large");
+        expect(selector(element).options.map((option) => option.value)).toEqual(["large", "medium", "small"]);
+        expect(frame(element).style.maxWidth).toBe("");
+    });
+
+    it("narrows the frame to simulate a smaller container", async () => {
+        const element = build();
+        await Promise.resolve();
+
+        selector(element).dispatchEvent(new CustomEvent("change", { detail: { value: "small" } }));
+        await Promise.resolve();
+
+        expect(frame(element).style.maxWidth).toBe("20rem");
+
+        selector(element).dispatchEvent(new CustomEvent("change", { detail: { value: "medium" } }));
+        await Promise.resolve();
+
+        expect(frame(element).style.maxWidth).toBe("40rem");
+    });
+
+    it("frames the grid chrome too, not just the table", async () => {
+        // The toolbar, filter pills and pagination are all part of what an admin
+        // needs to see reflow, so the frame wraps the whole simulated grid.
+        const element = build({ showHeader: true, tableLabel: "Accounts" });
+        await Promise.resolve();
+
+        expect(frame(element).querySelector("c-fgrid_custom-datatable")).not.toBeNull();
+        expect(frame(element).querySelector(".preview__header")).not.toBeNull();
+    });
+});
+
 describe("nested filter dialog", () => {
     /** Opens the filter dialog the way the preview's column header does. */
     async function openFilter(element) {

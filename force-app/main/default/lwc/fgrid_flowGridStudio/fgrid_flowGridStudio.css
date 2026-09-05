@@ -69,6 +69,19 @@
     flex: 1 1 auto;
 }
 
+/* Narrow enough not to crowd the banner, wide enough for the inline label. */
+.preview__size {
+    flex: 0 0 auto;
+    min-width: 13rem;
+}
+
+/* Simulates the container the grid will run in. A max-width rather than a width,
+   so the preview still shrinks with the pane instead of overflowing the modal
+   while the settings pane is showing. */
+.preview__frame {
+    max-width: 100%;
+}
+
 .preview__banner {
     display: flex;
     align-items: center;
