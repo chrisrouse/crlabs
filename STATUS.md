@@ -1536,6 +1536,26 @@ is sizing the Studio so it never overlaps the canvas column.
 Failed so far: explicit `z-index`; host elevation via the kit's
 `setPopoverHostActive`; opaque backdrop.
 
+**A minimal reproduction exists for Salesforce support**, at
+`repro/canvas-bleed-through/` — its own SFDX project so it can be handed over without
+any product code. Three LWCs, no Apex, no dependencies: a Flow screen component, a
+property editor with one button, and the modal. It carries NONE of the Studio's
+stylesheet; only four rules survive, so anything it shows is caused by those rather
+than by our styling. The most suspicious is the 92vw container, which is what makes
+the modal overlap the canvas column rather than sit inside the panel's width.
+
+Host elevation is still applied there, inlined as two lines, so support sees the
+documented workaround failing rather than absent.
+
+It also carries the hit-test the next step calls for, as an **Identify element at
+click** button: it swallows the next click and logs the element stack at those
+coordinates, piercing shadow roots, plus the ancestors with `position`, `z-index` and
+`transform`. That is the cheapest route to naming what is actually painting there —
+run it before theorising again, whoever picks this up.
+
+`repro/` is deliberately outside the root `packageDirectories`, so it deploys only when
+asked for explicitly.
+
 ---
 
 ## 4. Things that will bite during testing
