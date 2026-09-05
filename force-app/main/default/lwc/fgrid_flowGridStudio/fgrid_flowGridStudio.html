@@ -147,24 +147,32 @@
                                 </div>
                             </template>
 
-                            <div class="preview__grid" style={previewGridStyle}>
-                                <!-- The subclass, not the base datatable: a column
+                            <div class="preview__grid slds-is-relative" style={previewGridStyle}>
+                                <template lwc:if={isFirstSamplePending}>
+                                    <lightning-spinner
+                                        alternative-text="Loading a sample of your records"
+                                        size="small"
+                                    ></lightning-spinner>
+                                </template>
+                                <template lwc:else>
+                                    <!-- The subclass, not the base datatable: a column
                              config that enables editing on a picklist emits
                              a custom cell type, which a plain
                              lightning-datatable cannot render. -->
-                                <c-fgrid_custom-datatable
-                                    key-field={previewKeyField}
-                                    columns={previewColumns}
-                                    data={previewRows}
-                                    hide-checkbox-column={previewHideCheckbox}
-                                    max-row-selection={previewMaxRowSelection}
-                                    show-row-number-column={values.showRowNumbers}
-                                    min-column-width={previewMinColumnWidth}
-                                    wrap-table-header="by-column"
-                                    wrap-text-max-lines={previewWrappedLines}
-                                    onheaderaction={handlePreviewHeaderAction}
-                                    suppress-bottom-bar
-                                ></c-fgrid_custom-datatable>
+                                    <c-fgrid_custom-datatable
+                                        key-field={previewKeyField}
+                                        columns={previewColumns}
+                                        data={previewRows}
+                                        hide-checkbox-column={previewHideCheckbox}
+                                        max-row-selection={previewMaxRowSelection}
+                                        show-row-number-column={values.showRowNumbers}
+                                        min-column-width={previewMinColumnWidth}
+                                        wrap-table-header="by-column"
+                                        wrap-text-max-lines={previewWrappedLines}
+                                        onheaderaction={handlePreviewHeaderAction}
+                                        suppress-bottom-bar
+                                    ></c-fgrid_custom-datatable>
+                                </template>
                             </div>
 
                             <template lwc:if={showPaginationChrome}>

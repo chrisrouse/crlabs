@@ -51,7 +51,7 @@ afterEach(() => {
 describe("layout", () => {
     it("renders both panes and a control block per section", async () => {
         const element = build();
-        await Promise.resolve();
+        await flushPromises();
 
         expect(element.shadowRoot.querySelector(".studio__controls")).not.toBeNull();
         expect(element.shadowRoot.querySelector(".studio__preview")).not.toBeNull();
@@ -60,7 +60,7 @@ describe("layout", () => {
 
     it("hosts the column attribute grid in the wide pane", async () => {
         const element = build();
-        await Promise.resolve();
+        await flushPromises();
 
         const grid = element.shadowRoot.querySelector(".studio__columns c-fgrid_column-config");
         expect(grid).not.toBeNull();
@@ -70,7 +70,7 @@ describe("layout", () => {
 
     it("prompts instead of previewing when no columns are chosen", async () => {
         const element = build({ columnFields: null });
-        await Promise.resolve();
+        await flushPromises();
 
         expect(datatable(element)).toBeNull();
         expect(element.shadowRoot.querySelector(".preview__empty")).not.toBeNull();
@@ -91,7 +91,7 @@ describe("settings pane", () => {
 
     it("starts expanded", async () => {
         const element = build();
-        await Promise.resolve();
+        await flushPromises();
 
         expect(element.shadowRoot.querySelector(".studio__controls")).not.toBeNull();
         expect(element.shadowRoot.querySelector(".studio__content_collapsed")).toBeNull();
@@ -101,10 +101,10 @@ describe("settings pane", () => {
 
     it("collapses to give the preview the full width, and comes back", async () => {
         const element = build();
-        await Promise.resolve();
+        await flushPromises();
 
         toggle(element).click();
-        await Promise.resolve();
+        await flushPromises();
 
         // The pane is hidden by a class on the flex container rather than removed
         // from the template: the controls keep their state while out of sight.
@@ -114,7 +114,7 @@ describe("settings pane", () => {
         expect(toggle(element).title).toBe("Show the Settings Pane");
 
         toggle(element).click();
-        await Promise.resolve();
+        await flushPromises();
 
         expect(element.shadowRoot.querySelector(".studio__content_collapsed")).toBeNull();
         expect(toggle(element).iconName).toBe("utility:chevronleft");
@@ -122,27 +122,61 @@ describe("settings pane", () => {
 
     it("reports its state to assistive tech as a string", async () => {
         const element = build();
-        await Promise.resolve();
+        await flushPromises();
         expect(toggle(element).getAttribute("aria-expanded")).toBe("true");
 
         toggle(element).click();
-        await Promise.resolve();
+        await flushPromises();
 
         expect(toggle(element).getAttribute("aria-expanded")).toBe("false");
+    });
+});
+
+describe("first render", () => {
+    it("holds the table back until the first sample resolves, then renders it once", async () => {
+        // The datatable fixes its column widths on the render that creates it and
+        // does not revisit them. Rendering it with fabricated rows while the modal
+        // was still animating in produced short columns that snapped wider when the
+        // real records forced a second render.
+        const element = build();
+        await Promise.resolve();
+
+        expect(element.shadowRoot.querySelector(".preview__grid lightning-spinner")).not.toBeNull();
+        expect(datatable(element)).toBeNull();
+
+        await flushPromises();
+
+        expect(element.shadowRoot.querySelector(".preview__grid lightning-spinner")).toBeNull();
+        expect(datatable(element)).not.toBeNull();
+    });
+
+    it("keeps the table on screen for a later refetch instead of flickering", async () => {
+        // Only the first load is gated. By the time an admin changes the object or a
+        // column the pane measures correctly, so blanking the table would be a
+        // regression in responsiveness for no benefit.
+        const element = build();
+        await flushPromises();
+        expect(datatable(element)).not.toBeNull();
+
+        element.objectApiName = "Contact";
+        await Promise.resolve();
+
+        expect(element.shadowRoot.querySelector(".preview__grid lightning-spinner")).toBeNull();
+        expect(datatable(element)).not.toBeNull();
     });
 });
 
 describe("preview reflects configuration", () => {
     it("builds a column per selected field, in order", async () => {
         const element = build();
-        await Promise.resolve();
+        await flushPromises();
 
         expect(datatable(element).columns.map((c) => c.fieldName)).toEqual(["Name", "AnnualRevenue"]);
     });
 
     it("applies per-column attributes", async () => {
         const element = build({ columnConfig: '{"Name":{"label":"Account","width":220,"align":"right"}}' });
-        await Promise.resolve();
+        await flushPromises();
 
         const [column] = datatable(element).columns;
         expect(column.label).toBe("Account");
@@ -153,32 +187,32 @@ describe("preview reflects configuration", () => {
 
     it("hides the checkbox column for selection mode None", async () => {
         const element = build({ selectionMode: "None" });
-        await Promise.resolve();
+        await flushPromises();
 
         expect(datatable(element).hideCheckboxColumn).toBe(true);
     });
 
     it("limits selection to one row for Single", async () => {
         const element = build({ selectionMode: "Single" });
-        await Promise.resolve();
+        await flushPromises();
 
         expect(datatable(element).maxRowSelection).toBe(1);
     });
 
     it("caps rows at the smaller of page size and maximum", async () => {
         const element = build({ rowLoading: "Paginate", recordsPerPage: 2, maxNumberOfRows: 4 });
-        await Promise.resolve();
+        await flushPromises();
 
         expect(datatable(element).data).toHaveLength(2);
     });
 
     it("renders header chrome only when the header is enabled", async () => {
         const off = build();
-        await Promise.resolve();
+        await flushPromises();
         expect(off.shadowRoot.querySelector(".preview__header")).toBeNull();
 
         const on = build({ showHeader: true, tableLabel: "Accounts", showRecordCount: true });
-        await Promise.resolve();
+        await flushPromises();
         expect(on.shadowRoot.querySelector(".preview__header").textContent).toContain("Accounts");
         expect(on.shadowRoot.querySelector(".preview__header").textContent).toContain("items");
     });
@@ -190,7 +224,7 @@ describe("preview reflects configuration", () => {
         // Layout itself is not assertable here -- jsdom does no layout -- so this
         // pins the hook the CSS needs.
         const element = build({ showHeader: true, tableLabel: "Accounts", showRecordCount: true });
-        await Promise.resolve();
+        await flushPromises();
 
         const title = element.shadowRoot.querySelector(".preview__header .preview__header-text");
         expect(title).not.toBeNull();
@@ -199,24 +233,24 @@ describe("preview reflects configuration", () => {
 
     it("shows pagination chrome, with First/Last only when configured", async () => {
         const element = build({ rowLoading: "Paginate", recordsPerPage: 5 });
-        await Promise.resolve();
+        await flushPromises();
         expect(element.shadowRoot.querySelectorAll(".preview__pagination lightning-button")).toHaveLength(2);
 
         const withEnds = build({ rowLoading: "Paginate", recordsPerPage: 5, showFirstLastButtons: true });
-        await Promise.resolve();
+        await flushPromises();
         expect(withEnds.shadowRoot.querySelectorAll(".preview__pagination lightning-button")).toHaveLength(4);
     });
 
     it("applies the configured grid height", async () => {
         const element = build({ tableHeight: "30rem" });
-        await Promise.resolve();
+        await flushPromises();
 
         expect(element.shadowRoot.querySelector(".preview__grid").style.height).toBe("30rem");
     });
 
     it("describes a configured row action", async () => {
         const element = build({ rowActionType: "Remove", rowActionDisplay: "Icon", rowActionPosition: "Left" });
-        await Promise.resolve();
+        await flushPromises();
 
         expect(element.shadowRoot.querySelector(".preview__note").textContent).toContain("on the left");
     });
@@ -229,7 +263,7 @@ describe("relays", () => {
     // silently go nowhere in Flow Builder while still passing an event-based test.
     it("forwards a property change through the callback, not an event", async () => {
         const element = build();
-        await Promise.resolve();
+        await flushPromises();
         const relayed = [];
         const escaped = [];
         element.notifyPropertyChange = (detail) => relayed.push(detail);
@@ -245,7 +279,7 @@ describe("relays", () => {
 
     it("forwards a column config change through the callback", async () => {
         const element = build();
-        await Promise.resolve();
+        await flushPromises();
         const relayed = [];
         const escaped = [];
         element.notifyColumnConfigChange = (detail) => relayed.push(detail.value);
@@ -266,7 +300,7 @@ describe("relays", () => {
         const ready = [];
         element.notifyReady = (studio) => ready.push(studio);
         document.body.appendChild(element);
-        await Promise.resolve();
+        await flushPromises();
 
         expect(ready).toHaveLength(1);
         expect(typeof ready[0].collectValidity).toBe("function");
@@ -304,7 +338,7 @@ describe("modal chrome belongs to the platform", () => {
     // ancestors. These guard against it creeping back rather than testing SLDS.
     it("composes the lightning-modal helper components", async () => {
         const element = build();
-        await Promise.resolve();
+        await flushPromises();
 
         const header = element.shadowRoot.querySelector("lightning-modal-header");
         expect(header).not.toBeNull();
@@ -315,7 +349,7 @@ describe("modal chrome belongs to the platform", () => {
 
     it("hand-rolls no modal chrome of its own", async () => {
         const element = build();
-        await Promise.resolve();
+        await flushPromises();
 
         // Each of these was part of the arrangement that bled. The close button and
         // the backdrop wash are the platform's now, and the width override that
@@ -332,7 +366,7 @@ describe("modal chrome belongs to the platform", () => {
         element.sections = SECTIONS;
         element.values = {};
         document.body.appendChild(element);
-        await Promise.resolve();
+        await flushPromises();
 
         expect(element.shadowRoot.querySelector("c-fgrid_column-config")).toBeNull();
         expect(element.shadowRoot.querySelector(".studio__columns").textContent).toContain("Data Source");
@@ -352,7 +386,7 @@ describe("preview size", () => {
         // Large is not pinned to a viewport fraction: the preview already sits in a
         // large modal, so a fraction would make the default narrower than its pane.
         const element = build();
-        await Promise.resolve();
+        await flushPromises();
 
         expect(selector(element).value).toBe("large");
         expect(selector(element).options.map((option) => option.value)).toEqual(["large", "medium", "small"]);
@@ -361,15 +395,15 @@ describe("preview size", () => {
 
     it("narrows the frame to simulate a smaller container", async () => {
         const element = build();
-        await Promise.resolve();
+        await flushPromises();
 
         selector(element).dispatchEvent(new CustomEvent("change", { detail: { value: "small" } }));
-        await Promise.resolve();
+        await flushPromises();
 
         expect(frame(element).style.maxWidth).toBe("20rem");
 
         selector(element).dispatchEvent(new CustomEvent("change", { detail: { value: "medium" } }));
-        await Promise.resolve();
+        await flushPromises();
 
         expect(frame(element).style.maxWidth).toBe("40rem");
     });
@@ -379,12 +413,12 @@ describe("preview size", () => {
         // narrower container, so the preview must degrade by the same rule. A floor
         // that applied here but not at runtime would make the preview flatter it.
         const element = build();
-        await Promise.resolve();
+        await flushPromises();
 
         expect(datatable(element).minColumnWidth).toBe(MIN_COLUMN_WIDTH);
 
         selector(element).dispatchEvent(new CustomEvent("change", { detail: { value: "small" } }));
-        await Promise.resolve();
+        await flushPromises();
 
         expect(datatable(element).minColumnWidth).toBe(MIN_COLUMN_WIDTH);
     });
@@ -393,7 +427,7 @@ describe("preview size", () => {
         // The toolbar, filter pills and pagination are all part of what an admin
         // needs to see reflow, so the frame wraps the whole simulated grid.
         const element = build({ showHeader: true, tableLabel: "Accounts" });
-        await Promise.resolve();
+        await flushPromises();
 
         expect(frame(element).querySelector("c-fgrid_custom-datatable")).not.toBeNull();
         expect(frame(element).querySelector(".preview__header")).not.toBeNull();
@@ -408,7 +442,7 @@ describe("nested filter dialog", () => {
                 detail: { action: { name: "fgridFilter" }, columnDefinition: { fieldName: "Name" } }
             })
         );
-        await Promise.resolve();
+        await flushPromises();
         return element.shadowRoot.querySelector("c-fgrid_filter-editor");
     }
 
@@ -436,7 +470,7 @@ describe("no longer fights Flow Builder's stacking context", () => {
         // Host elevation via the kit's setPopoverHostActive was attempt two of
         // three and never worked. Reintroducing it here would be cargo cult.
         const element = build();
-        await Promise.resolve();
+        await flushPromises();
 
         expect(element.style.position).toBe("");
         expect(element.style.zIndex).toBe("");

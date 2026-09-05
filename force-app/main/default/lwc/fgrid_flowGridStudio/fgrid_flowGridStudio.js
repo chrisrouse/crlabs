@@ -217,6 +217,7 @@ export default class FgridFlowGridStudio extends LightningModal {
     /** Signature of the object + columns the current sample was fetched for. */
     _sampleSignature = null;
     _isLoadingSample = false;
+    _hasLoadedSampleOnce = false;
     /** Filters applied to the preview. Real, not decorative: the preview holds real
      *  sample records, so filtering them demonstrates the actual behaviour rather
      *  than showing a control that does nothing. */
@@ -526,6 +527,27 @@ export default class FgridFlowGridStudio extends LightningModal {
         return this.isRealSample ? "utility:success" : "utility:preview";
     }
 
+    /**
+     * True only while the FIRST sample is in flight.
+     *
+     * The datatable computes its column widths when it renders and does not
+     * recompute them until something else makes it re-render. On open it was
+     * rendering with fabricated rows while the modal was still animating in, and
+     * `lightning/modal` scales as it opens -- a transform skews
+     * getBoundingClientRect without changing layout width -- so the widths came
+     * out short and then snapped wider the moment real records arrived and forced
+     * a second render.
+     *
+     * Holding the table back until the sample resolves means it renders once, by
+     * which time the animation is long over. Deliberately only the first load: a
+     * later refetch, when the admin changes the object or a column, keeps the old
+     * table on screen rather than flickering to a spinner, and by then the pane
+     * measures correctly anyway.
+     */
+    get isFirstSamplePending() {
+        return this._isLoadingSample && !this._hasLoadedSampleOnce;
+    }
+
     get previewBannerClass() {
         return this.isRealSample ? "preview__banner preview__banner_live" : "preview__banner";
     }
@@ -593,6 +615,7 @@ export default class FgridFlowGridStudio extends LightningModal {
         } finally {
             if (signature === this._sampleSignature) {
                 this._isLoadingSample = false;
+                this._hasLoadedSampleOnce = true;
             }
         }
     }
