@@ -4,8 +4,12 @@ Branch `feature/flow-grid`. Everything below is deployed to the **Preview Org**
 (`chris-b4pw@force.com`). The branch is committed but **not pushed** — around twenty
 commits are local only.
 
-Local checks: **411 Jest tests**, ESLint and Prettier clean, zero SLDS linter
-violations, full-package deploy succeeds.
+Local checks: **516 Jest tests**, ESLint and Prettier clean, full-package deploy
+succeeds. The SLDS linter reports **0 errors and 127 warnings**, all of them
+pre-existing hardcoded colours and spacing — 55 in `fgrid_flowGridStudio.css`, 34 in
+`fgrid_flowGrid.css`, and 70 auto-fixable with `--fix`. Nothing added since
+2026-09-05 contributes to them. (An earlier note here claimed zero violations; the
+linter had not actually been run.)
 
 ---
 
@@ -21,7 +25,7 @@ Test in this order — later items depend on earlier ones working.
 
 ### 1.1 Design time — the property editor
 
-Open the smoke flow — it lives in the org, not the repo — and click the Flow Grid element:
+Open the smoke flow — now tracked at `force-app/main/default/flows/FlowGrid_Smoke_Test.flow-meta.xml`, see §2.14 — and click the Flow Grid element:
 `/builder_platform_interaction/flowBuilder.app?flowDefId=300Ws00001Ef2jeIAB`
 
 - [ ] The custom editor loads (ten accordion sections, not a flat list of inputs)
@@ -41,12 +45,22 @@ Open the smoke flow — it lives in the org, not the repo — and click the Flow
 
 ### 1.2 Design time — Grid Studio
 
-- [ ] **Open Grid Studio** renders the two-pane modal
+- [x] **Open Grid Studio** renders the two-pane modal — verified 2026-09-05
 - [ ] Preview banner is green and says "Live preview using real records"
 - [ ] Column attributes table edits round-trip
-- [ ] Backdrop is opaque: no canvas chip or Move/Delete buttons visible through
-      it, and no double-shade. Select a component on the canvas, click in and out
-      of Records, then reopen the Studio — that was the trigger. See §3.2.
+- [x] **No canvas bleed-through** and no double-shade — fixed by moving to the
+      platform modal, §3.2. Verified 2026-09-05 including with a component selected
+      on the canvas, which was the original trigger.
+- [x] **Collapsible settings pane** — chevron hides the left pane so the preview
+      takes the full width. Verified 2026-09-05.
+- [x] **Preview Size** at Large, Medium and Small narrows the simulated grid.
+      Verified 2026-09-05.
+- [x] **Filter dialog opens inside the Studio** with a single dim rather than three
+      compounding. Verified 2026-09-05.
+- [x] **Panes scroll independently**, so opening several settings sections does not
+      drag the preview off screen. Verified 2026-09-05.
+- [x] **Preview table renders at full width on open**, with no narrow-then-snap.
+      Verified 2026-09-05.
 
 ### 1.3 Runtime — Debug the smoke flow
 
@@ -303,11 +317,14 @@ Everything else in §1 has either been verified or closed by decision. These hav
 
 - [ ] **Kit picker popover positioning.** Open **Records** and check the popover is not
       clipped or misplaced. Never confirmed, and it was the original risk when the
-      Studio was designed.
+      Studio was designed. Worth re-checking rather than assuming: the Studio is now a
+      platform modal rendered in the overlay container, and the kit's three pickers
+      still call `setPopoverHostActive` internally, which in there is either harmless
+      or actively wrong. The left pane also scrolls with `overflow-y: auto`, which can
+      clip a popover regardless.
 - [ ] **Flow variable mapping.** Blank means "do not send"; a name the flow does not
       declare should be reported rather than failing the interview or going quiet.
 - [ ] **Preview banner** reads "Live preview using real records" and is green.
-- [ ] **Grid Studio backdrop** — the canvas bleed-through, §3.2. Known open.
 
 **Runtime — the row action**
 
@@ -749,6 +766,147 @@ Nothing here is scheduled. Deferred by decision, not oversight.
   format works incidentally. No action, but the constraint is the same.
 
 ---
+
+## 2.14 Studio workspace and column widths — 2026-09-05
+
+The Studio modal migration is §3.2. Everything else from that day:
+
+### Collapsible settings pane, and Preview Size
+
+A chevron leading the banner row hides the left pane so the preview and the column
+attribute grid can use the full modal width. A **Preview Size** combobox — Large,
+Medium, Small — narrows the simulated grid, mirroring Flow Builder's own Preview Size
+control so an admin does not learn a second idiom. It frames the whole simulated grid,
+toolbar and filter pills and pagination included, because all of it reflows.
+
+Neither is a Flow property. Both are view preferences for one sitting, and the grid's
+runtime width comes from wherever the flow is embedded. Persisting the collapsed pane
+would mean an admin's next visit opened with no settings visible.
+
+The Medium and Small widths (`40rem`, `20rem`) are **ours**, not the platform's. SLDS 2
+defines modal widths as viewport fractions inside `slds-plus.css`, which a component
+stylesheet cannot read, and Flow Builder publishes no widths. Measured in the org:
+`medium` 39% of viewport, `large` 89%. Large is deliberately unconstrained — the preview
+already sits inside a large modal, so pinning it to a fraction would make the default
+narrower than its own pane. One `PREVIEW_SIZES` constant if they need adjusting.
+
+The panes scroll independently again via `max-height: calc(85vh - 11rem)` on
+`.studio__content`. That clamp is what makes each pane's `overflow-y: auto` engage; it
+was dropped during the modal migration on the reasoning that `lightning-modal-body`
+owns the height, and without it the panes grew to their content and the whole modal
+body scrolled. The height has to be a viewport fraction because the modal body is in
+another shadow root and sizes itself with a `max-height`, so `height: 100%` would not
+resolve against it. The `rem` subtraction models the platform chrome, which is absolute
+rather than proportional, so it degrades in the right direction on a short viewport. If
+there is dead space below the panes, raise the `85vh`; if a second scrollbar appears
+beside a pane's own, lower it.
+
+### Column widths — `min-column-width`, not `column-widths-mode`
+
+**Negative result, recorded so nobody repeats it.** `column-widths-mode="auto"` does
+**not** stop columns collapsing in a narrow container. It reallocates the *available*
+width by content rather than letting columns claim their natural width and overflow, so
+a narrow container still squeezes. Tried in the preview at Medium and Small, both by
+switching after render and by mounting in `auto` from the start; no improvement either
+way. Turning per-column Wrap off made no difference either. The premise was also wrong
+to begin with: there was no "auto-fit" setting in play, because no width attributes were
+set at all — the collapse was the datatable's plain default.
+
+The only lever is `min-column-width`, whose platform default of 50px is precisely what
+the columns were collapsing to. `MIN_COLUMN_WIDTH = 100` in `fgrid_gridModel`, bound on
+both the runtime grid and the Studio preview so a narrow preview degrades by the runtime
+rule and cannot flatter it. The default mode already fills the container, so columns
+still expand when there is room; the floor only bites when there is not, and then the
+table scrolls.
+
+The trade is real and was accepted knowingly: a wide grid that previously squeezed to
+fit will now scroll horizontally. A scrollbar is legible and a 50px column is not.
+
+### Toolbar: shrink, then wrap
+
+The header title and the search collided at narrow widths. The search is now the elastic
+element — `flex: 1 1 20rem` with an `11rem` floor — so it gives up width first; past that
+the row wraps and the search takes its own line. Wrapping rather than truncating, for the
+reason the filter pills already state: horizontal space is the scarce resource in an
+Experience Cloud column, vertical space is not.
+
+The Studio's preview toolbar was missing the `flex: 1 1 auto; min-width: 0` that the
+runtime grid's title block always had — its title was a bare `<div>` — so the preview
+degraded *worse* than the runtime it is meant to predict. `min-width: 0` is the
+load-bearing part: a flex item's automatic minimum is its min-content width, so without
+it the title refuses to yield and shoves the search out of the row.
+
+### Preview table renders once, after the first sample
+
+The Studio sometimes opened with a narrow table that snapped wider a moment later. The
+datatable fixes its column widths on the render that creates it and does not revisit
+them, and it was being created with fabricated rows while the modal was still animating
+in — `lightning/modal` scales as it opens, and a transform skews
+`getBoundingClientRect` without changing layout width. Real records then forced a second
+render, which recomputed wider. The grid box now holds a spinner until the first sample
+resolves, keeping its configured height so nothing jumps vertically. Only the first load
+is gated; a later refetch keeps the existing table on screen rather than flickering.
+
+The animation timing is inference, not measurement — `getBoundingClientRect`
+mid-animation is not observable from a test. What is established is that the table
+rendered pre-load and re-rendered on arrival, which is enough to explain a recompute.
+
+### Title Style — SHIPPED AND REMOVED THE SAME DAY
+
+A picklist of H1–H6 plus Body, setting the header title's size and heading level. Removed
+within the hour: seven sizes for a header title is the kind of choice SLDS exists to
+remove, and the only thing it could reliably produce was grids inconsistent with each
+other. The header is back to `<h2 class="slds-text-heading_small">`, byte-identical to
+before the attempt.
+
+Three things worth keeping from it:
+
+1. **SLDS resets native headings globally** — `h1,h2,h3,h4,h5,h6 { font-weight: inherit;
+   font-size: 1em }`. A bare heading tag has no size of its own and the platform will not
+   style it. What styles the rich text component's `h1..h6` is a scoped opt-in class,
+   `.slds-rich-text-editor__output`, which restores a ladder for its own subtree only:
+   h1 1.5rem, h2 1.125rem/700, h3 1.125rem, h4 0.875rem/700, h5 0.875rem, h6 0.75rem/700.
+   That class belongs to a component blueprint, not to us.
+2. **The canonical answer for this header, if it is ever restyled**, is
+   `.slds-card__header-title` — 1rem at weight 700, themeable org-wide through
+   `--slds-c-card-heading-font-size` and `--slds-c-card-heading-font-weight`. It was not
+   adopted only because it would make the title bold, a visual change nobody asked for.
+   The original `slds-text-heading_small` got the size right (1rem) by accident: it was
+   written in the first Flow Grid commit with no recorded reasoning, and the datatable
+   this replaced never rendered a visible title at all — `tableLabel` was only ever an
+   `aria-label` on the table element.
+3. **`--slds-g-font-scale-*` is the real typography surface**, verified against the SLDS
+   hook index rather than inferred: neg-2 0.625rem, neg-1 0.75rem, 1 0.875rem, 2 1rem,
+   3 1.25rem, 4 1.5rem, 5 1.75rem, 6 2rem. `--slds-g-font-size-N` does **not** exist;
+   only `--slds-g-font-size-base` and that ladder. Weights are `--slds-g-font-weight-1`
+   through `-7` for 100–700. **`design/pagination-mockup.html` claims to use "verified
+   global styling hooks" and its fallbacks are wrong** — it has `font-scale-2, 1.125rem`
+   when the value is 1rem, and `font-scale-1, 1rem` when it is 0.875rem. That file loads
+   SLDS 1 from unpkg, where none of those hooks are defined, so only the fallbacks ever
+   applied and nobody noticed. Do not trust that comment.
+
+### Shipping a property is close to irreversible — hit twice now
+
+Removing `titleStyle` failed on deploy:
+
+> The targetConfig is missing a property that's referenced in these flow versions:
+> 'Flow Grid Smoke Test-8'. Add this property to the targetConfig: 'titleStyle'
+
+A **saved flow version pins a `targetConfig` property permanently**, and a declared
+property needs a matching `@api` or the component cannot be set. This is the second time
+the trap has been hit. The interim fix is to keep the property declared but out of
+`fgrid_propertySchema`, so nothing writes it and the editor does not show it.
+
+Dropping it for real required deleting the flow version that referenced it. All eight
+versions were checked individually first — only v8 did, matching the error.
+`FlowGrid_Smoke_Test` is now **tracked in the project** at
+`flowgrid/force-app/main/default/flows/`, retrieved before the delete; note
+`sf project retrieve` put it in the *default* package directory, not `flowgrid/`, so it
+had to be moved. Redeploying the cleaned copy **replaced the remaining draft rather than
+creating a new version**, so the smoke test kept v8's configuration minus the property.
+
+**The lesson: be slower to add a property than to add behaviour.** A setting can only be
+withdrawn cleanly before anyone saves a flow with it.
 
 ## 2.13 Record-type and dependent picklists — 2026-08-27
 
@@ -1500,61 +1658,78 @@ for its selected-check icon, inside its shadow DOM. A styling hook
 guarantee honouring it. If it still looks indented, the fix is a custom listbox
 rather than `lightning-combobox`.
 
-### 3.2 Grid Studio modal — canvas bleed-through — STILL OPEN, PARKED
+### 3.2 Grid Studio modal — canvas bleed-through — FIXED 2026-09-05
 
-Three attempts have failed. Stacking is not the lever, and neither was backdrop
-translucency.
+**The cause was never CSS. It was where the modal lived in the DOM.**
 
-Measured in Flow Builder with a shadow-piercing walk over both DOM branches: the
-Studio resolves to `z-index: 1000000` and the canvas's selected-component
-highlight (`.highlight.selected`) to `5`, both positioned inside the *same*
-stacking context — the one created by Flow Builder's transformed
-`.slds-modal__container` — with no intervening stacking context on either branch.
-The modal already won the paint order outright. That is why two earlier attempts,
-an explicit `z-index` and then host elevation via `setPopoverHostActive`, only
-moved the symptom around: neither was the lever.
+Flow Builder wraps the property panel in transformed ancestors. A transform creates
+both a containing block for `position: fixed` and a new stacking context, so a
+z-index on anything *inside* the property editor is scoped to that ancestor and
+cannot outrank the canvas beside it. The Studio was hand-rolled `slds-modal` markup
+rendered in the editor's own subtree, so it was always inside that trap.
 
-Attempt three targeted the Studio's own backdrop: `.studio` carried
-`background-color: rgba(8, 7, 7, 0.16)`, a 16%-opaque wash over the whole modal
-box, which at 84% transparent showed the canvas behind it by design. Making it
-opaque (`#e5e5e5`) **did not fix the bleed** — so translucency was not the cause
-either, and something is genuinely painting above the modal in a way the
-measurement above does not account for.
+Three attempts failed, and all three were aimed at the wrong thing: an explicit
+`z-index`, host elevation via the kit's `setPopoverHostActive`, and an opaque
+backdrop. The measurement that made this confusing still stands — the Studio
+resolved to `z-index: 1000000` and the canvas highlight to `5`, both in the same
+stacking context, so the modal *should* have won outright. It did not, and what bled
+was the canvas chip **and** the connector lines.
 
-The opaque backdrop is kept regardless: harmless, it removes the double-shade
-that used to arise from Flow Builder's own 0.8 dim compounding with this one
-(previously logged separately as §3.3), and it eliminates one variable.
+**What settled it.** The reduced repro at `repro/canvas-bleed-through/` reproduced the
+bleed with **every custom style removed** — which exonerated the ~190-line stylesheet
+completely — and then did **not** bleed once rebuilt on the platform's own SLDS 2
+`lightning/modal`, at either `medium` or `large`. A large native modal is wider than
+the panel and still did not bleed, which also killed the "it overlaps the canvas
+column" theory that had been the documented fallback.
 
-**Next step, when this is picked up again.** Stop theorising about stacking. The
-measurement says the canvas highlight cannot paint above the modal, so the
-bleeding element is probably not `.highlight.selected` at all. Identify it
-directly — reproduce the bleed, then hit-test the visible pixels
-(`document.elementFromPoint` at the chip's coordinates, walking shadow roots) to
-name the element rather than assuming it. The documented fallback, if it resists,
-is sizing the Studio so it never overlaps the canvas column.
+**The fix.** `fgrid_flowGridStudio` extends `LightningModal` and is opened with
+`FgridFlowGridStudio.open({ size: "large" })`. The platform renders it in its own
+overlay container, outside those transformed ancestors. Deleted along the way: the
+`z-index`, the opaque background, the `92vw` width override, the hand-rolled chrome
+and its close button, and **both** host elevations (the Studio's and the editor's).
 
-Failed so far: explicit `z-index`; host elevation via the kit's
-`setPopoverHostActive`; opaque backdrop.
+`size="large"` is not a downgrade. SLDS 2 modal sizes are viewport-relative, and
+`large` measured at 89% of the viewport against the old 92% — about 90px on a wide
+monitor.
 
-**A minimal reproduction exists for Salesforce support**, at
-`repro/canvas-bleed-through/` — its own SFDX project so it can be handed over without
-any product code. Three LWCs, no Apex, no dependencies: a Flow screen component, a
-property editor with one button, and the modal. It carries NONE of the Studio's
-stylesheet; only four rules survive, so anything it shows is caused by those rather
-than by our styling. The most suspicious is the 92vw container, which is what makes
-the modal overlap the canvas column rather than sit inside the panel's width.
+**Consequences worth knowing.**
 
-Host elevation is still applied there, inlined as two lines, so support sees the
-documented workaround failing rather than absent.
+- **Relays are callbacks, not events.** A modal's events do not reach the component
+  that opened it, so handlers are passed into `open()`. They are named `notify*`
+  rather than `on*`: LWC reserves `on*` property names for event handlers and rejects
+  them on `@api`, which is the same rule that makes an `on*` key in `open()` bind an
+  event. Invoking passed functions directly also sidesteps the documented requirement
+  that modal *events* need LWS enabled — a real distribution risk otherwise.
+- **The Studio hands itself to the editor** through `notifyReady`, because `open()`
+  returns a promise rather than an instance and the modal cannot be reached with
+  `querySelector`. That handle is what keeps `values` flowing down as the editor
+  commits and keeps `collectValidity()` reachable during validation.
+- **`sfdx-lwc-jest` 7.9.0 ships no `lightning/modal` stub**, despite the component's
+  docs describing shorthand selectors for one. It stubs `modalBody`, `modalFooter` and
+  `modalHeader` but not the base class. There is a local stub at
+  `flowgrid/test/jest-mocks/lightning/modal.js` and a `moduleNameMapper` entry; delete
+  both if a later release adds it. Note the stub keeps its pending resolvers in module
+  scope, because LWC bridges only `@api` members between a host element and its
+  instance — anything else assigned to the host is invisible to `close()`.
+- **LWC freezes component prototypes**, so `close()` cannot be spied. Test it through
+  the real contract instead: `open()` mounts it and `this.close()` resolves the
+  promise.
+- **The nested filter dialog compounds dims.** It carries its own 60% wash, which over
+  the platform backdrop and Flow Builder's dim underneath went nearly black by the
+  third layer. It now takes a `suppressBackdrop` flag, set only by the Studio. The dim
+  stays on by default because the runtime grid opens the same dialog straight onto a
+  flow screen. It cannot become a `lightning/modal` itself: that component is
+  documented for Lightning Experience and standalone apps, and this one has to work in
+  an Experience Cloud site.
+- **The platform's modal container carries no transform** — established incidentally,
+  since the nested dialog's `position: fixed` still resolves against the viewport
+  inside it.
 
-It also carries the hit-test the next step calls for, as an **Identify element at
-click** button: it swallows the next click and logs the element stack at those
-coordinates, piercing shadow roots, plus the ancestors with `position`, `z-index` and
-`transform`. That is the cheapest route to naming what is actually painting there —
-run it before theorising again, whoever picks this up.
-
-`repro/` is deliberately outside the root `packageDirectories`, so it deploys only when
-asked for explicitly.
+The repro is kept at `repro/canvas-bleed-through/` as the evidence. A support ticket is
+now optional rather than blocking: Flow Builder's canvas out-painting a
+`z-index: 1000000` element in its own stacking context is still a real platform defect,
+but it no longer blocks us. `repro/` is deliberately outside the root
+`packageDirectories`, so it deploys only when asked for explicitly.
 
 ---
 
