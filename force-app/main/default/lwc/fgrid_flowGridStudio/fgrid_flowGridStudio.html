@@ -9,7 +9,7 @@
     </lightning-modal-header>
 
     <lightning-modal-body>
-        <div class="studio__content">
+        <div class={contentClass}>
             <!-- ==================== left: controls ==================== -->
             <div class="studio__controls">
                 <template lwc:if={hasValidationErrors}>
@@ -44,9 +44,22 @@
             <!-- ================= right: preview + columns ============== -->
             <div class="studio__preview">
                 <div class="preview">
-                    <div class={previewBannerClass}>
-                        <lightning-icon icon-name={previewBannerIcon} size="x-small"></lightning-icon>
-                        <span class="slds-m-left_xx-small">{previewBannerText}</span>
+                    <!-- The toggle leads the banner row so it holds the same spot
+                         whether the settings pane is showing or not. -->
+                    <div class="preview__chrome">
+                        <lightning-button-icon
+                            icon-name={sidebarToggleIcon}
+                            variant="border-filled"
+                            size="small"
+                            alternative-text={sidebarToggleLabel}
+                            title={sidebarToggleLabel}
+                            aria-expanded={sidebarExpanded}
+                            onclick={handleToggleSidebar}
+                        ></lightning-button-icon>
+                        <div class={previewBannerClass}>
+                            <lightning-icon icon-name={previewBannerIcon} size="x-small"></lightning-icon>
+                            <span class="slds-m-left_xx-small">{previewBannerText}</span>
+                        </div>
                     </div>
 
                     <template lwc:if={hasColumns}>
@@ -192,6 +205,7 @@
             <c-fgrid_filter-editor
                 column={previewFilterEditorColumn}
                 filter={previewFilterEditorFilter}
+                suppress-backdrop
                 onfiltersave={handlePreviewFilterSave}
                 onfilterremove={handlePreviewFilterRemove}
                 onfilterclose={handlePreviewFilterEditorClose}

@@ -5,6 +5,13 @@
     background-color: rgba(8, 7, 7, 0.6);
 }
 
+/* Inside the Grid Studio, where the platform modal's backdrop is already doing
+   this job. A second wash on top of it, over Flow Builder's dim under both, went
+   nearly black. */
+.editor_no-dim {
+    background-color: transparent;
+}
+
 /* Narrow on purpose. Two controls do not need a wide dialog, and this has to be
    usable in an Experience Cloud column. */
 .editor__container {

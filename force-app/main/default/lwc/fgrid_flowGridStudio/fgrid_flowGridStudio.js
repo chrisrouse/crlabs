@@ -126,6 +126,40 @@ export default class FgridFlowGridStudio extends LightningModal {
     /** Section names expanded in the left pane. */
     openSections = ["source", "rows", "columns"];
 
+    /* ------------------------------------------------------------------ *
+     * Settings pane
+     * ------------------------------------------------------------------ */
+
+    /**
+     * Whether the settings pane is hidden, giving the preview the full width.
+     *
+     * Deliberately not a Flow property: it is a per-session view preference, and
+     * persisting it would mean an admin's collapsed pane greeted the next person
+     * to open the element with no settings visible.
+     */
+    isSidebarCollapsed = false;
+
+    handleToggleSidebar() {
+        this.isSidebarCollapsed = !this.isSidebarCollapsed;
+    }
+
+    get contentClass() {
+        return this.isSidebarCollapsed ? "studio__content studio__content_collapsed" : "studio__content";
+    }
+
+    get sidebarToggleIcon() {
+        return this.isSidebarCollapsed ? "utility:chevronright" : "utility:chevronleft";
+    }
+
+    get sidebarToggleLabel() {
+        return this.isSidebarCollapsed ? "Show the Settings Pane" : "Hide the Settings Pane";
+    }
+
+    /** aria-expanded wants the string, not the boolean. */
+    get sidebarExpanded() {
+        return String(!this.isSidebarCollapsed);
+    }
+
     _values = {};
     _objectApiName;
     /** Real field metadata, keyed by field path. Null until Apex answers. */

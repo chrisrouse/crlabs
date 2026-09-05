@@ -40,6 +40,28 @@ export default class FgridFilterEditor extends LightningElement {
     /** Mirrors the grid's Match Case setting, so the popup can say so. */
     @api matchCase = false;
 
+    /**
+     * Drops this dialog's own dim, for when it opens inside something already
+     * dimmed.
+     *
+     * The Grid Studio is a `lightning/modal`, which brings the platform's
+     * backdrop with it. This dialog laying its own 60% wash over the top of that
+     * -- and over Flow Builder's dim under both -- compounded into near black by
+     * the third layer.
+     *
+     * The dim is kept by default rather than dropped, because the runtime grid
+     * opens this straight onto a flow screen with nothing dimmed behind it. It
+     * cannot simply become a `lightning/modal` too: that component is documented
+     * for Lightning Experience and standalone apps, and this has to work in an
+     * Experience Cloud site.
+     */
+    @api suppressBackdrop = false;
+
+    get sectionClass() {
+        const base = "slds-modal slds-fade-in-open editor";
+        return this.suppressBackdrop ? `${base} editor_no-dim` : base;
+    }
+
     /** Existing filter for that column, if any. */
     @api
     get filter() {

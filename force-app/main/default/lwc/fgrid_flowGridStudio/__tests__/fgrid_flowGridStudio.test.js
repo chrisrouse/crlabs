@@ -83,6 +83,54 @@ describe("layout", () => {
     });
 });
 
+describe("settings pane", () => {
+    function toggle(element) {
+        return element.shadowRoot.querySelector(".preview__chrome lightning-button-icon");
+    }
+
+    it("starts expanded", async () => {
+        const element = build();
+        await Promise.resolve();
+
+        expect(element.shadowRoot.querySelector(".studio__controls")).not.toBeNull();
+        expect(element.shadowRoot.querySelector(".studio__content_collapsed")).toBeNull();
+        expect(toggle(element).iconName).toBe("utility:chevronleft");
+        expect(toggle(element).title).toBe("Hide the Settings Pane");
+    });
+
+    it("collapses to give the preview the full width, and comes back", async () => {
+        const element = build();
+        await Promise.resolve();
+
+        toggle(element).click();
+        await Promise.resolve();
+
+        // The pane is hidden by a class on the flex container rather than removed
+        // from the template: the controls keep their state while out of sight.
+        expect(element.shadowRoot.querySelector(".studio__content_collapsed")).not.toBeNull();
+        expect(element.shadowRoot.querySelector(".studio__controls")).not.toBeNull();
+        expect(toggle(element).iconName).toBe("utility:chevronright");
+        expect(toggle(element).title).toBe("Show the Settings Pane");
+
+        toggle(element).click();
+        await Promise.resolve();
+
+        expect(element.shadowRoot.querySelector(".studio__content_collapsed")).toBeNull();
+        expect(toggle(element).iconName).toBe("utility:chevronleft");
+    });
+
+    it("reports its state to assistive tech as a string", async () => {
+        const element = build();
+        await Promise.resolve();
+        expect(toggle(element).getAttribute("aria-expanded")).toBe("true");
+
+        toggle(element).click();
+        await Promise.resolve();
+
+        expect(toggle(element).getAttribute("aria-expanded")).toBe("false");
+    });
+});
+
 describe("preview reflects configuration", () => {
     it("builds a column per selected field, in order", async () => {
         const element = build();
@@ -273,6 +321,30 @@ describe("modal chrome belongs to the platform", () => {
 
         expect(element.shadowRoot.querySelector("c-fgrid_column-config")).toBeNull();
         expect(element.shadowRoot.querySelector(".studio__columns").textContent).toContain("Data Source");
+    });
+});
+
+describe("nested filter dialog", () => {
+    /** Opens the filter dialog the way the preview's column header does. */
+    async function openFilter(element) {
+        datatable(element).dispatchEvent(
+            new CustomEvent("headeraction", {
+                detail: { action: { name: "fgridFilter" }, columnDefinition: { fieldName: "Name" } }
+            })
+        );
+        await Promise.resolve();
+        return element.shadowRoot.querySelector("c-fgrid_filter-editor");
+    }
+
+    it("opens without laying a second dim over the platform backdrop", async () => {
+        // Three dims compounded to near black: Flow Builder's, the platform modal's,
+        // and this dialog's own. Only the middle one should be visible in here.
+        const element = build({ columnConfig: JSON.stringify({ Name: { filter: true } }) });
+        await flushPromises();
+
+        const filter = await openFilter(element);
+        expect(filter).not.toBeNull();
+        expect(filter.suppressBackdrop).toBe(true);
     });
 });
 

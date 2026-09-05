@@ -34,6 +34,13 @@
     background-color: #fbfbfb;
 }
 
+/* Collapsed: the preview and the column grid take the whole body. `display: none`
+   rather than a zero width, so the pane's own scroll position and the pickers
+   inside it are not left occupying layout while invisible. */
+.studio__content_collapsed .studio__controls {
+    display: none;
+}
+
 /* Right pane: preview above, column grid below, scrolling together. */
 .studio__preview {
     flex: 1 1 auto;
@@ -49,6 +56,19 @@
 }
 
 /* ---------------------------- preview ---------------------------- */
+
+/* Toggle then banner, on one row. The banner keeps its own bottom margin, so this
+   only needs to align them and let the banner take the remaining width. */
+.preview__chrome {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.preview__chrome .preview__banner {
+    flex: 1 1 auto;
+}
+
 .preview__banner {
     display: flex;
     align-items: center;
