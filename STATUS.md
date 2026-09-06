@@ -350,36 +350,57 @@ Everything else in §1 has either been verified or closed by decision. These hav
          inside this component's shadow root, invisible to the kit's `window`
          listener. Both panes now re-dispatch a `scroll` on `window`, coalesced per
          frame; a picker recomputes from its own anchor's rect, so it only needs
-         telling that something moved. Verified in the browser.
-      3. **The narrow property panel has the SAME BUG, it is PRE-EXISTING, and we
-         cannot fix it — 2026-09-05.** Scrolling the panel with a picker open detaches
-         the popover exactly as the Studio did. Confirmed by console: a capture-phase
-         `scroll` listener on `document` logs **nothing at all** while the panel
-         scrolls, so the panel's scroller sits inside Flow Builder's own shadow root
-         and is invisible to `document` and `window` alike. The kit's listener
-         therefore never fires there either.
+- [x] **Kit picker popovers stay attached to their field — FIXED 2026-09-06.** Both
+      halves, verified in the browser: the Studio's panes and the narrow property
+      panel.
 
-         Not our regression, and not caused by the Studio — this affects **any** kit
-         picker in the property panel and predates all of this work. It was never
-         noticed because you do not normally scroll the panel with a dropdown open;
-         the Studio's second scroller just made it easy to see.
+      What the phrase meant, since it said nothing on its own. The kit's resource,
+      object and field pickers do not render their dropdown inline. They render it
+      `position: fixed` at coordinates they compute themselves, and reposition from a
+      capture-phase `scroll` listener bound to `window`. `scroll` is not composed, so
+      it cannot cross a shadow boundary — neither our own scrolling panes nor Flow
+      Builder's property panel, whose scroller sits inside Flow Builder's shadow root,
+      can be observed that way. Confirmed by console: a capture-phase `scroll`
+      listener on `document` logs nothing at all while that panel scrolls. So the
+      handler never ran and the popover stayed where it was drawn.
 
-         Our Studio remedy does not transfer: that scroller is ours to listen to,
-         Flow Builder's is not. **The fix belongs upstream** — from the anchor, walk
-         up `parentElement || getRootNode().host` collecting scrollable ancestors and
-         attach the same coalesced handler to each, which catches Flow Builder's
-         panel scroller on the way out and would have fixed the Studio without our
-         workaround. The kit's positioning maths is already correct:
-         `anchorSignature` includes `anchorRect.top`, so a scroll resets the
-         corrections and forces a recompute — the handler simply never runs.
+      **`position: fixed` is not the kit's mistake.** Measured across four contexts in
+      Flow Builder, `lightning-base-combobox` uses `absolute; top: 100%` in the
+      toolbar, the canvas and Component Visibility, but switches to `fixed` with
+      computed pixels inside a `lightning-accordion-section` — which is exactly where
+      our controls live. The kit makes the same choice Salesforce does. Only the
+      update trigger was wrong.
 
-         Unverified in that plan: whether traversing out of our shadow root into Flow
-         Builder's DOM is permitted under Lightning Web Security. That is the thing to
-         establish before writing the PR.
+      **Native does track its field**, including following it out of view rather than
+      clamping, so this brings our pickers in line with the platform rather than ahead
+      of it.
 
-         Implementing the same walk locally instead is possible but not recommended:
-         it means our component reaching into Flow Builder's markup, which is fragile
-         against their changes and duplicates what the kit should do.
+      **The fix**: a per-frame anchor check in `fgrid_flowGridEditor` and
+      `fgrid_flowGridStudio`. One probe rect per animation frame; when it moves,
+      re-dispatch a `scroll` on `window` and let the kit recompute from its own
+      anchor. It covers a scroll wherever it happens, plus transforms, animations and
+      layout shifts, and never reaches outside the component — so the question of
+      whether traversing into Flow Builder's DOM is permitted under Lightning Web
+      Security never arises. A single probe is enough because everything in a scroller
+      moves together and the kit only needs telling THAT something moved.
+
+      Rejected on the way: an ancestor-scroll walk (needs cross-shadow traversal,
+      catches only the scrollers found at open time, blind to transforms) and inline
+      rendering (a 440px browsing UI clips to about two rows in a 12rem container, and
+      native is not inline here either).
+
+      **This belongs upstream, and is a workaround until it lands.** Every consumer of
+      the kit needs it otherwise. A standalone reproduction with the measurements, the
+      recommended six-line change to `createPopoverViewportController`, and the
+      rejected alternatives is at `repro/picker-popover-scroll/`. Upstream has zero
+      issues filed and its `docs/ARCHITECTURE.md` documents the listener design
+      without acknowledging the gap, so this would be a new report.
+
+      Two smaller divergences from native are noted there too, worth raising alongside:
+      the kit's `z-index: 1000000` against native's 7000/9101 — the likely reason the
+      popover paints over Flow Builder canvas chrome that native dropdowns sit within —
+      and its 440px height against native's seven-item cap.
+
 - [ ] **Flow variable mapping.** Blank means "do not send"; a name the flow does not
       declare should be reported rather than failing the interview or going quiet.
 - [ ] **Preview banner** reads "Live preview using real records" and is green.
