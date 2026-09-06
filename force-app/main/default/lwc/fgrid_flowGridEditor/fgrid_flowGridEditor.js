@@ -238,6 +238,16 @@ export default class FgridFlowGridEditor extends FlowConfigEditorBase {
      * Relays come in as callbacks rather than events, because a modal's events do
      * not reach the component that opened it.
      */
+    connectedCallback() {
+        super.connectedCallback?.();
+        this.startAnchorWatch();
+    }
+
+    disconnectedCallback() {
+        super.disconnectedCallback?.();
+        this.stopAnchorWatch();
+    }
+
     async handleOpenStudio() {
         await FgridFlowGridStudio.open({
             size: "large",
@@ -276,6 +286,78 @@ export default class FgridFlowGridEditor extends FlowConfigEditorBase {
         this._studio.objectApiName = this.objectApiName;
         this._studio.validationErrors = this.validationErrors;
     }
+
+    /* ------------------------------------------------------------------ *
+     * Kit picker popovers
+     * ------------------------------------------------------------------ */
+
+    _anchorFrame = null;
+    _anchorSignature = "";
+
+    /**
+     * Keeps an open kit picker's dropdown attached to its field.
+     *
+     * The pickers render their dropdown `position: fixed` at coordinates they
+     * compute themselves -- inside a `lightning-accordion-section`, which is where
+     * our controls live, that is the same choice `lightning-base-combobox` makes,
+     * so it is correct rather than a mistake. They then reposition from a
+     * capture-phase `scroll` listener on `window`, and THAT is the gap: `scroll` is
+     * not composed, so it never crosses a shadow boundary. Neither our own
+     * scrolling panes nor Flow Builder's property panel -- whose scroller sits
+     * inside Flow Builder's shadow root -- can be observed that way. Confirmed in a
+     * browser: a capture-phase `scroll` listener on `document` logs nothing at all
+     * while that panel scrolls.
+     *
+     * So this stops trying to observe scrollers and watches the result instead. One
+     * probe rect per animation frame; when it moves, tell the kit that something
+     * changed and let it recompute from its own anchor. That covers a scroll
+     * wherever it happens, and anything else that moves the anchor -- a transform,
+     * an animation, a layout shift -- and it never reaches outside this component,
+     * so no Lightning Web Security question arises.
+     *
+     * A single probe is enough because everything in a scroller moves together, and
+     * the kit only needs to be told THAT something moved, not what.
+     *
+     * Native comboboxes track their field this way too, including following it out
+     * of view rather than clamping. Verified against a standard Salesforce
+     * component's picklist, 2026-09-06.
+     *
+     * Deliberately not a change to the vendored kit, which VENDOR.md forbids
+     * editing so the copy stays diffable. The general fix belongs upstream -- a
+     * per-frame check inside `createPopoverViewportController`, six lines, no picker
+     * changes -- and is recorded in STATUS with a reproduction at
+     * `repro/picker-popover-scroll`.
+     */
+    startAnchorWatch() {
+        if (this._anchorFrame !== null || typeof window.requestAnimationFrame !== "function") {
+            return;
+        }
+        // eslint-disable-next-line @lwc/lwc/no-async-operation
+        this._anchorFrame = window.requestAnimationFrame(this.checkAnchors);
+    }
+
+    stopAnchorWatch() {
+        if (this._anchorFrame !== null) {
+            window.cancelAnimationFrame(this._anchorFrame);
+            this._anchorFrame = null;
+        }
+    }
+
+    checkAnchors = () => {
+        this._anchorFrame = null;
+        const probe = this.template.querySelector("c-fgrid_property-controls");
+        if (probe) {
+            const rect = probe.getBoundingClientRect();
+            const signature = `${Math.round(rect.left)}:${Math.round(rect.top)}:${Math.round(rect.width)}`;
+            if (this._anchorSignature && signature !== this._anchorSignature) {
+                // CustomEvent rather than Event only to satisfy the lint rule; a
+                // listener keys on the event TYPE, not the interface.
+                window.dispatchEvent(new CustomEvent("scroll"));
+            }
+            this._anchorSignature = signature;
+        }
+        this.startAnchorWatch();
+    };
 
     /* ------------------------------------------------------------------ *
      * Validation

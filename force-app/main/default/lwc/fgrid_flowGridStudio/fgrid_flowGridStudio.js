@@ -142,81 +142,85 @@ export default class FgridFlowGridStudio extends LightningModal {
     connectedCallback() {
         super.connectedCallback?.();
         this.notifyReady?.(this);
-    }
-
-    /* ------------------------------------------------------------------ *
-     * Picker popovers and the scrolling pane
-     * ------------------------------------------------------------------ */
-
-    _paneScrollFrame = null;
-    _boundScrollers = [];
-
-    /**
-     * Tells the outside world when the settings pane scrolls, so an open kit
-     * picker can follow its field.
-     *
-     * The kit's pickers do not render their dropdown inline. They render it
-     * `position: fixed` at coordinates they compute themselves -- Flow Builder's
-     * property panel is a narrow clipped column that would cut off a normal
-     * dropdown -- and they reposition on a capture-phase `scroll` listener bound
-     * to `window`.
-     *
-     * `scroll` does not cross a shadow boundary, so a scroll inside this
-     * component's shadow root never reaches that listener. `.studio__controls` is
-     * exactly that: a scroller we added, invisible to the kit. An open popover
-     * stayed put while its field scrolled out from under it.
-     *
-     * Re-dispatching on `window` is all that is needed, because a picker
-     * recomputes from its own anchor's rect -- it only has to be told that
-     * something moved, not what. Coalesced to one event per frame: every window
-     * scroll listener sees these, Flow Builder's included, and a pane scroll would
-     * otherwise fire around sixty a second.
-     *
-     * Deliberately NOT a change to the vendored kit, which VENDOR.md forbids
-     * editing so the copy stays diffable. The general fix belongs upstream -- let
-     * a picker discover its scrollable ancestors across shadow boundaries instead
-     * of assuming `window` can observe them -- and is recorded in STATUS §1.6.
-     */
-    /** Both panes declare `overflow-y: auto`, so either can be the scroller. */
-    static SCROLLERS = [".studio__controls", ".studio__preview"];
-
-    renderedCallback() {
-        super.renderedCallback?.();
-        FgridFlowGridStudio.SCROLLERS.forEach((selector) => {
-            const element = this.template.querySelector(selector);
-            if (element && !this._boundScrollers.includes(element)) {
-                element.addEventListener("scroll", this.handlePaneScroll);
-                this._boundScrollers.push(element);
-            }
-        });
+        this.startAnchorWatch();
     }
 
     disconnectedCallback() {
         super.disconnectedCallback?.();
-        this._boundScrollers.forEach((element) => element.removeEventListener("scroll", this.handlePaneScroll));
-        this._boundScrollers = [];
-        if (this._paneScrollFrame !== null) {
-            window.cancelAnimationFrame(this._paneScrollFrame);
-            this._paneScrollFrame = null;
-        }
+        this.stopAnchorWatch();
     }
 
-    handlePaneScroll = () => {
-        if (this._paneScrollFrame !== null) {
+    /* ------------------------------------------------------------------ *
+     * Kit picker popovers
+     * ------------------------------------------------------------------ */
+
+    _anchorFrame = null;
+    _anchorSignature = "";
+
+    /**
+     * Keeps an open kit picker's dropdown attached to its field.
+     *
+     * The pickers render their dropdown `position: fixed` at coordinates they
+     * compute themselves -- inside a `lightning-accordion-section`, which is where
+     * our controls live, that is the same choice `lightning-base-combobox` makes,
+     * so it is correct rather than a mistake. They then reposition from a
+     * capture-phase `scroll` listener on `window`, and THAT is the gap: `scroll` is
+     * not composed, so it never crosses a shadow boundary. Neither our own
+     * scrolling panes nor Flow Builder's property panel -- whose scroller sits
+     * inside Flow Builder's shadow root -- can be observed that way. Confirmed in a
+     * browser: a capture-phase `scroll` listener on `document` logs nothing at all
+     * while that panel scrolls.
+     *
+     * So this stops trying to observe scrollers and watches the result instead. One
+     * probe rect per animation frame; when it moves, tell the kit that something
+     * changed and let it recompute from its own anchor. That covers a scroll
+     * wherever it happens, and anything else that moves the anchor -- a transform,
+     * an animation, a layout shift -- and it never reaches outside this component,
+     * so no Lightning Web Security question arises.
+     *
+     * A single probe is enough because everything in a scroller moves together, and
+     * the kit only needs to be told THAT something moved, not what.
+     *
+     * Native comboboxes track their field this way too, including following it out
+     * of view rather than clamping. Verified against a standard Salesforce
+     * component's picklist, 2026-09-06.
+     *
+     * Deliberately not a change to the vendored kit, which VENDOR.md forbids
+     * editing so the copy stays diffable. The general fix belongs upstream -- a
+     * per-frame check inside `createPopoverViewportController`, six lines, no picker
+     * changes -- and is recorded in STATUS with a reproduction at
+     * `repro/picker-popover-scroll`.
+     */
+    startAnchorWatch() {
+        if (this._anchorFrame !== null || typeof window.requestAnimationFrame !== "function") {
             return;
         }
         // eslint-disable-next-line @lwc/lwc/no-async-operation
-        this._paneScrollFrame = window.requestAnimationFrame(() => {
-            this._paneScrollFrame = null;
-            // CustomEvent rather than Event only to satisfy the lint rule; a
-            // listener keys on the event TYPE, not the interface, so the kit's
-            // `scroll` handler fires either way.
-            window.dispatchEvent(new CustomEvent("scroll"));
-        });
-    };
+        this._anchorFrame = window.requestAnimationFrame(this.checkAnchors);
+    }
 
-    /** Section names expanded in the left pane. */
-    openSections = ["source", "rows", "columns"];
+    stopAnchorWatch() {
+        if (this._anchorFrame !== null) {
+            window.cancelAnimationFrame(this._anchorFrame);
+            this._anchorFrame = null;
+        }
+    }
+
+    checkAnchors = () => {
+        this._anchorFrame = null;
+        const probe = this.template.querySelector("c-fgrid_property-controls");
+        if (probe) {
+            const rect = probe.getBoundingClientRect();
+            const signature = `${Math.round(rect.left)}:${Math.round(rect.top)}:${Math.round(rect.width)}`;
+            if (this._anchorSignature && signature !== this._anchorSignature) {
+                // CustomEvent rather than Event only to satisfy the lint rule; a
+                // listener keys on the event TYPE, not the interface.
+                window.dispatchEvent(new CustomEvent("scroll"));
+            }
+            this._anchorSignature = signature;
+        }
+        this.startAnchorWatch();
+    };
 
     /* ------------------------------------------------------------------ *
      * Settings pane

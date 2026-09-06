@@ -84,14 +84,13 @@ describe("layout", () => {
     });
 });
 
-describe("pane scroll reaches the kit's pickers", () => {
+describe("kit picker popovers stay attached", () => {
     /**
-     * Counts only the events our forwarding produces, by their target.
+     * Counts only the events the watcher produces, by their target.
      *
-     * This matters: jsdom does NOT enforce the shadow boundary that causes the bug in
-     * a browser, so a raw count on `window` also sees the pane's own scroll events and
-     * would pass with the fix removed. Only the re-dispatched one is targeted at
-     * `window` itself.
+     * jsdom does NOT enforce the shadow boundary that causes the bug in a browser,
+     * so a raw count on `window` also sees unrelated scroll events. Only the
+     * re-dispatched one is targeted at `window` itself.
      */
     function countForwarded() {
         const seen = [];
@@ -101,61 +100,69 @@ describe("pane scroll reaches the kit's pickers", () => {
             }
         };
         window.addEventListener("scroll", listener, true);
-        return {
-            seen,
-            stop: () => window.removeEventListener("scroll", listener, true)
-        };
+        return { seen, stop: () => window.removeEventListener("scroll", listener, true) };
     }
 
     const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
 
-    it("re-dispatches a scroll on window when the settings pane scrolls", async () => {
-        // The kit's pickers render their dropdown position: fixed and reposition on a
-        // capture-phase scroll listener bound to window. `scroll` does not cross a
-        // shadow boundary, so a scroll inside this component is invisible to it and an
-        // open popover stayed put while its field scrolled away.
+    /** jsdom reports a zero rect for everything, so the movement has to be faked. */
+    function moveProbe(element, top) {
+        const probe = element.shadowRoot.querySelector("c-fgrid_property-controls");
+        probe.getBoundingClientRect = () => ({ left: 0, top, width: 300, height: 100 });
+        return probe;
+    }
+
+    it("tells the kit to recompute when the probe rect moves", async () => {
+        // The pickers reposition from a capture-phase `scroll` listener on `window`,
+        // which cannot see a scroll inside a shadow root -- neither our panes nor
+        // Flow Builder's property panel. Watching the rect covers both, and anything
+        // else that moves the anchor.
         const element = build();
         await flushPromises();
+
+        moveProbe(element, 100);
+        await nextFrame();
         const counter = countForwarded();
 
-        element.shadowRoot.querySelector(".studio__controls").dispatchEvent(new CustomEvent("scroll"));
+        moveProbe(element, 140);
+        await nextFrame();
         await nextFrame();
         counter.stop();
 
-        expect(counter.seen).toHaveLength(1);
+        expect(counter.seen.length).toBeGreaterThan(0);
     });
 
-    it("coalesces a burst of pane scrolls into one window event per frame", async () => {
-        // Every window scroll listener sees these, Flow Builder's included, so a pane
-        // scroll must not spray sixty a second at them.
+    it("stays quiet while nothing moves", async () => {
+        // An idle popover must cost one rect read per frame and no DOM writes.
         const element = build();
         await flushPromises();
+
+        moveProbe(element, 100);
+        await nextFrame();
         const counter = countForwarded();
 
-        const pane = element.shadowRoot.querySelector(".studio__controls");
-        for (let i = 0; i < 10; i += 1) {
-            pane.dispatchEvent(new CustomEvent("scroll"));
-        }
+        await nextFrame();
         await nextFrame();
         counter.stop();
 
-        expect(counter.seen).toHaveLength(1);
+        expect(counter.seen).toEqual([]);
     });
 
-    it("stops forwarding once the modal is destroyed", async () => {
+    it("stops watching once the modal is destroyed", async () => {
         const element = build();
         await flushPromises();
-        const pane = element.shadowRoot.querySelector(".studio__controls");
+        moveProbe(element, 100);
+        await nextFrame();
 
         document.body.removeChild(element);
         await Promise.resolve();
         const counter = countForwarded();
 
-        pane.dispatchEvent(new CustomEvent("scroll"));
+        await nextFrame();
         await nextFrame();
         counter.stop();
 
-        expect(counter.seen).toHaveLength(0);
+        expect(counter.seen).toEqual([]);
     });
 });
 
