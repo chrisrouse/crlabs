@@ -389,12 +389,25 @@ Everything else in §1 has either been verified or closed by decision. These hav
       rendering (a 440px browsing UI clips to about two rows in a 12rem container, and
       native is not inline here either).
 
-      **This belongs upstream, and is a workaround until it lands.** Every consumer of
-      the kit needs it otherwise. A standalone reproduction with the measurements, the
-      recommended six-line change to `createPopoverViewportController`, and the
-      rejected alternatives is at `repro/picker-popover-scroll/`. Upstream has zero
-      issues filed and its `docs/ARCHITECTURE.md` documents the listener design
-      without acknowledging the gap, so this would be a new report.
+      **This belongs upstream, and is a workaround until it lands. PR submitted
+      2026-09-06: RebbePod/flow-config-editor-kit#25.** Every consumer of the kit needs
+      this otherwise. The upstream version reuses the controller's existing
+      `run`/`schedule` machinery rather than adding a loop, re-entrancy guarded so a
+      synchronous `requestAnimationFrame` shim cannot recurse unboundedly — their
+      shared `pickerTestUtils` invokes rAF synchronously, which caught that. It also
+      updates `docs/ARCHITECTURE.md` and two of their tests, since an open picker now
+      occupies animation frames and a shared frame queue no longer identifies which
+      controller scheduled one. Verified with their own gates: `npm run verify` (19
+      suites, 194 tests, coverage thresholds) and `sf project deploy validate` against
+      the Preview Org, 21 components and 9 Apex tests, deploy `0AfWs00001c04GXKAY`.
+
+      **WHEN IT MERGES**: re-pin `vendor/flow-config-editor-kit` in `VENDOR.md`, refresh
+      the skill's docs with `check-upstream.sh --update`, and then DELETE the
+      consumer-side watcher from `fgrid_flowGridEditor` and `fgrid_flowGridStudio`
+      along with its tests. Keeping both would mean two mechanisms doing the same job.
+
+      A standalone reproduction is at `repro/picker-popover-scroll/` — offered in the PR
+      as available on request rather than linked, since this repo is private.
 
       Two smaller divergences from native are noted there too, worth raising alongside:
       the kit's `z-index: 1000000` against native's 7000/9101 — the likely reason the
