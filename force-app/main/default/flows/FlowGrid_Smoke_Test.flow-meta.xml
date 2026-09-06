@@ -315,14 +315,6 @@
             <fieldText>&lt;p&gt;REMAINING&lt;/p&gt;&lt;p&gt;{!FlowGrid.outputRemainingRecords}&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;&lt;p&gt;----&lt;/p&gt;&lt;p&gt;REMOVED&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;&lt;p&gt;{!FlowGrid.removedCount}&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;&lt;p&gt;{!FlowGrid.outputRemovedRecords}&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;</fieldText>
             <fieldType>DisplayText</fieldType>
         </fields>
-        <fields>
-            <name>bleed</name>
-            <extensionName>c:bleedRepro</extensionName>
-            <fieldType>ComponentInstance</fieldType>
-            <inputsOnNextNavToAssocScrn>UseStoredValues</inputsOnNextNavToAssocScrn>
-            <isRequired>true</isRequired>
-            <storeOutputAutomatically>true</storeOutputAutomatically>
-        </fields>
         <showFooter>true</showFooter>
         <showHeader>true</showHeader>
     </screens>
@@ -333,7 +325,7 @@
             <targetReference>Get_Accounts</targetReference>
         </connector>
     </start>
-    <status>Draft</status>
+    <status>Active</status>
     <variables>
         <name>currentItem_Disable_Energy_Accounts</name>
         <dataType>SObject</dataType>

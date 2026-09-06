@@ -1763,8 +1763,8 @@ resolved to `z-index: 1000000` and the canvas highlight to `5`, both in the same
 stacking context, so the modal *should* have won outright. It did not, and what bled
 was the canvas chip **and** the connector lines.
 
-**What settled it.** The reduced repro at `repro/canvas-bleed-through/` reproduced the
-bleed with **every custom style removed** — which exonerated the ~190-line stylesheet
+**What settled it.** A reduced repro reproduced the bleed with **every custom style
+removed** — which exonerated the ~190-line stylesheet
 completely — and then did **not** bleed once rebuilt on the platform's own SLDS 2
 `lightning/modal`, at either `medium` or `large`. A large native modal is wider than
 the panel and still did not bleed, which also killed the "it overlaps the canvas
@@ -1813,11 +1813,17 @@ monitor.
   since the nested dialog's `position: fixed` still resolves against the viewport
   inside it.
 
-The repro is kept at `repro/canvas-bleed-through/` as the evidence. A support ticket is
-now optional rather than blocking: Flow Builder's canvas out-painting a
-`z-index: 1000000` element in its own stacking context is still a real platform defect,
-but it no longer blocks us. `repro/` is deliberately outside the root
-`packageDirectories`, so it deploys only when asked for explicitly.
+**The repro has been deleted — 2026-09-06.** Its purpose was to prove the platform
+modal fixes this, and the Studio has run on it since with no bleed, so it was carrying
+no further information. Removed from the org and the repo; recoverable from git history
+if the question ever reopens. Deleting the `bleedRepro` bundle also required removing
+its component from the smoke-test flow and deleting the three flow versions that still
+referenced it — Salesforce refuses to delete a bundle any flow version mentions.
+
+No support ticket was filed. Flow Builder's canvas out-painting a `z-index: 1000000`
+element in its own stacking context is still arguably a platform defect, but it stopped
+blocking us the moment the Studio moved to `lightning/modal`, and reporting it would
+have been a courtesy rather than a need.
 
 ---
 

@@ -16,9 +16,10 @@
  * z-index, elevating the component host via the kit's `setPopoverHostActive`, and
  * an opaque backdrop.
  *
- * A reduced repro (see `repro/canvas-bleed-through`) reproduced the bleed with
- * every custom style removed, which cleared this stylesheet of blame, and showed
- * that the platform modal does not bleed at any size. `lightning/modal` renders
+ * A reduced repro reproduced the bleed with every custom style removed, which
+ * cleared this stylesheet of blame, and showed that the platform modal does not
+ * bleed at any size. That repro has been deleted now the fix is confirmed; it is
+ * in git history if it is ever needed again. `lightning/modal` renders
  * in the platform's overlay container rather than in the editor's subtree, so it
  * is not a descendant of those transformed ancestors at all. That is the fix: the
  * problem was never CSS, it was where the modal lived in the DOM.
