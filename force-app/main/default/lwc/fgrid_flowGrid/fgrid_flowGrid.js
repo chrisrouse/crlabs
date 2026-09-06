@@ -26,6 +26,8 @@
  */
 import { LightningElement, api, wire } from "lwc";
 import { FlowAttributeChangeEvent, FlowNavigationNextEvent } from "lightning/flowSupport";
+import Toast from "lightning/toast";
+import ToastContainer from "lightning/toastContainer";
 import getGridMetadata from "@salesforce/apex/FlowGridController.getGridMetadata";
 import runFlow from "@salesforce/apex/FlowGridController.runFlow";
 import getRecordsByIds from "@salesforce/apex/FlowGridController.getRecordsByIds";
@@ -64,6 +66,27 @@ const SCROLL_BATCH_SIZE = 50;
 
 /** Applied when no grid height is set, because infinite scrolling needs a scroll
  *  boundary to exist before `loadmore` will ever fire. */
+/**
+ * Stacking layer for the toast container.
+ *
+ * SLDS's own toast layer is 10000, read from `.slds-notify_container`, and it sits
+ * above `.slds-modal` at 9001. That is not enough in an Experience Cloud LWR site:
+ * a theme's sticky header was measured at 100001, so a toast fired and was
+ * invisible behind it. Confirmed by bisecting from the other side -- with the
+ * container at 10000, a header at 10000 lost and a header at 10001 won.
+ *
+ * A high value is defensible HERE in a way it would not be for a popover. A toast
+ * is the topmost layer by definition -- SLDS puts it above its own modals -- so
+ * being outranked by page chrome is a failure, not politeness. That is the opposite
+ * of the vendored kit's `z-index: 1000000` on a picker popover, which paints over
+ * Flow Builder chrome that native dropdowns correctly sit within.
+ *
+ * Tuned to an observed theme, so raise it if another site's chrome goes higher. If
+ * that happens twice, stop chasing numbers and move toasts to `bottom-center` via
+ * `toastPosition`, which cannot collide with a sticky header at all.
+ */
+const TOAST_Z_INDEX = "100002";
+
 const DEFAULT_TABLE_HEIGHT = "30rem";
 
 /**
@@ -290,6 +313,22 @@ export default class FgridFlowGrid extends LightningElement {
     _isFlowOpen = false;
     _isRunningFlow = false;
     _flowError = null;
+
+    /**
+     * A row action that finished normally but changed what the grid can show.
+     *
+     * Kept apart from `_flowError` deliberately. That channel carries four
+     * genuine failures -- no flow configured, the flow did not run, it did not
+     * complete, it returned a record with no key -- and it is rendered as a
+     * warning with `role="alert"` AND fed into the datatable's error bar under
+     * the title "This row's action did not finish". None of that is true of a
+     * record the action deleted on purpose: the action finished, and it did
+     * exactly what it was asked to.
+     *
+     * Announced politely rather than not at all, because a row disappearing is
+     * easy to miss -- especially for anyone who cannot see the row count change.
+     */
+    _flowNotice = null;
     _flowVariables = [];
     _flowInputs = [];
     /** Content signature of the last incoming collection. Null until first set,
@@ -1324,12 +1363,87 @@ export default class FgridFlowGrid extends LightningElement {
         return variables;
     }
 
-    get flowError() {
-        return this._flowError;
+    /* ------------------------------------------------------------------ *
+     * Row-action outcomes
+     * ------------------------------------------------------------------ */
+
+    /**
+     * Reports a row action's outcome as a toast.
+     *
+     * A record the action deleted on purpose used to be reported through the same
+     * channel as four real failures -- no flow configured, the flow did not run,
+     * it did not complete, it returned a record with no key -- which rendered it
+     * as a warning with `role="alert"` and titled the row "This row's action did
+     * not finish". The action had finished, and had done exactly what it was
+     * asked to.
+     *
+     * Success and failure are now separate variants, and neither occupies layout
+     * space in the grid.
+     */
+    toast(variant, label, message) {
+        this.elevateToastContainer();
+        // `lightning/toast`, NOT `lightning/platformShowToastEvent`.
+        //
+        // The platform event only surfaces where something is listening for it:
+        // Lightning Experience and Aura-based Experience Cloud sites. Verified in
+        // an org -- it worked in an Aura site and produced nothing at all in LWR,
+        // which is the worse half, since a site user would get neither the success
+        // confirmation nor the error.
+        //
+        // `Toast.show` creates its own page-level container when one does not
+        // already exist, so it renders in LWR too. `label` is its title; there is
+        // no `title` property.
+        Toast.show({ label, message, variant }, this);
     }
 
-    get hasFlowError() {
-        return Boolean(this._flowError);
+    /**
+     * Lifts the toast container above a site's sticky header.
+     *
+     * In an LWR site the container rendered UNDERNEATH a sticky header, so a toast
+     * was invisible even though it fired. `ToastContainer.instance()` is the
+     * sanctioned handle -- it returns the existing page-level container or creates
+     * one -- which is a great deal less fragile than querying for platform DOM we
+     * do not own.
+     *
+     * See TOAST_Z_INDEX for why the value is what it is.
+     *
+     * Best effort by design. If the platform ever stops handing back an element,
+     * the toast still shows -- just possibly behind a header again.
+     */
+    elevateToastContainer() {
+        try {
+            const container = ToastContainer.instance();
+            if (container?.style && container.style.zIndex !== TOAST_Z_INDEX) {
+                container.style.zIndex = TOAST_Z_INDEX;
+            }
+        } catch {
+            // Never let presentation stop the message being reported.
+        }
+    }
+
+    /**
+     * Errors keep setting `_flowError` as well as toasting, because the toast
+     * cannot say WHICH row failed and the datatable's row error can.
+     */
+    reportFlowError(message) {
+        this._flowError = message;
+        this.toast("error", "Row action failed", message);
+    }
+
+    /**
+     * Reported once the result has been folded in, so it cannot claim success for
+     * a flow whose output could not be applied. Silent when anything failed, and
+     * silent on cancel -- `handleCloseFlow` alone never reaches here, because
+     * nothing happened worth announcing.
+     *
+     * `_flowNotice` carries the extra detail when there is any, so a deletion says
+     * what became of the row rather than only that the action finished.
+     */
+    reportFlowSuccess() {
+        if (this._flowError) {
+            return;
+        }
+        this.toast("success", "Flow action completed", this._flowNotice || undefined);
     }
 
     get isRunningFlow() {
@@ -1731,12 +1845,35 @@ export default class FgridFlowGrid extends LightningElement {
      * showing a modal would mean an empty box: it runs server-side instead and
      * its outputs are folded straight back in.
      */
-    openRowActionFlow(record) {
+    async openRowActionFlow(record) {
         if (!this.rowActionFlowApiName) {
-            this._flowError = "No flow is configured for this row action.";
+            this.reportFlowError("No flow is configured for this row action.");
             return;
         }
         this._flowError = null;
+        this._flowNotice = null;
+
+        // Confirm the record is still there BEFORE launching.
+        //
+        // Without this the grid cannot tell a record the flow deleted from one that
+        // was already gone when the action was clicked, because it only re-reads
+        // afterwards. They are opposite outcomes -- one is the action succeeding,
+        // the other is a stale row -- and they were being reported identically.
+        //
+        // It also stops a flow running against a record that no longer exists,
+        // which is a better failure than whatever that flow would have done.
+        //
+        // The row is deliberately left in place. Removing it here would publish it
+        // through `outputRemovedRecords`, telling the calling flow that this action
+        // removed it -- and a Delete Records element fed from that would then fail
+        // on an already-deleted id.
+        if (!(await this.recordStillExists(record))) {
+            this.reportFlowError(
+                "That record no longer exists, so the action was not run. Refresh to update the grid."
+            );
+            return;
+        }
+
         this._flowRecord = { ...record };
         this._flowInputs = this.buildFlowInputs(this._flowRecord);
 
@@ -1745,6 +1882,30 @@ export default class FgridFlowGrid extends LightningElement {
             return;
         }
         this._isFlowOpen = true;
+    }
+
+    /**
+     * Re-reads one record by id.
+     *
+     * A read failure returns true rather than false: not being able to check is
+     * not evidence that the record is gone, and refusing to run the action on a
+     * transient Apex error would be worse than running it.
+     */
+    async recordStillExists(record) {
+        const id = record?.Id || record?.[this.keyField];
+        if (!id || this.isUserDefinedObject) {
+            return true;
+        }
+        try {
+            const fetched = await getRecordsByIds({
+                objectApiName: this.objectApiName,
+                fieldPaths: this._columnPaths,
+                recordIds: [String(id)]
+            });
+            return Array.isArray(fetched) && fetched.length > 0;
+        } catch {
+            return true;
+        }
     }
 
     /** Runs an autolaunched flow and applies whatever it returns. */
@@ -1766,8 +1927,9 @@ export default class FgridFlowGrid extends LightningElement {
             // {name, value} shape lightning-flow emits.
             const asVariables = Object.entries(outputs || {}).map(([name, value]) => ({ name, value }));
             await this.applyFlowResult(record, asVariables);
+            this.reportFlowSuccess();
         } catch (error) {
-            this._flowError = error?.body?.message || "The flow did not run.";
+            this.reportFlowError(error?.body?.message || "The flow did not run.");
         } finally {
             this._isRunningFlow = false;
             this._flowRecord = null;
@@ -1799,7 +1961,7 @@ export default class FgridFlowGrid extends LightningElement {
         const outputVariables = detail.outputVariables;
 
         if (flowStatus === "ERROR") {
-            this._flowError = "The flow did not complete. Nothing was changed.";
+            this.reportFlowError("The flow did not complete. Nothing was changed.");
             this.handleCloseFlow();
             return;
         }
@@ -1812,7 +1974,7 @@ export default class FgridFlowGrid extends LightningElement {
         // happen first and must not be reachable only after other work.
         const record = this._flowRecord;
         this.handleCloseFlow();
-        this.applyFlowResult(record, outputVariables);
+        this.applyFlowResult(record, outputVariables).then(() => this.reportFlowSuccess());
     }
 
     /**
@@ -1881,7 +2043,7 @@ export default class FgridFlowGrid extends LightningElement {
         }
         this._removedKeys = [...this._removedKeys, key];
         this._selectedKeys = this._selectedKeys.filter((selected) => String(selected) !== String(key));
-        this._flowError = "That record no longer exists, so the row was removed from the grid.";
+        this._flowNotice = "The record was deleted, so its row was removed from the grid.";
         this.publishRemoval();
         this.publishSelection();
     }
@@ -1938,7 +2100,9 @@ export default class FgridFlowGrid extends LightningElement {
     upsertRecord(record) {
         const key = record?.[this.keyField] ?? this._flowRecord?.[this.keyField];
         if (key === undefined || key === null || key === "") {
-            this._flowError = `The flow returned a record with no ${this.keyField}, so it could not be matched to a row.`;
+            this.reportFlowError(
+                `The flow returned a record with no ${this.keyField}, so it could not be matched to a row.`
+            );
             return;
         }
 

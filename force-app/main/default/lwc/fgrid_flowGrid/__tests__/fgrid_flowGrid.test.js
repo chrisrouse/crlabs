@@ -2,6 +2,8 @@ import { createElement } from "lwc";
 import FgridFlowGrid from "c/fgrid_flowGrid";
 import { MIN_COLUMN_WIDTH } from "c/fgrid_gridModel";
 import getRecordsByIds from "@salesforce/apex/FlowGridController.getRecordsByIds";
+import Toast from "lightning/toast";
+import ToastContainer from "lightning/toastContainer";
 
 // An emittable wire, so a test can give the grid real column metadata. Without it
 // describeByPath is empty, every picklist-dependent assertion passes vacuously, and
@@ -327,6 +329,173 @@ describe("actioned record reports the click", () => {
     });
 });
 
+describe("row-action outcomes are toasts, not banners", () => {
+    // A record the action deleted on purpose used to be reported through the same
+    // channel as four real failures, which rendered it as a warning with
+    // role="alert" and titled the row "This row's action did not finish". The
+    // action had finished, and had done exactly what it was asked to. Success and
+    // failure are now separate toast variants.
+    const target = records(2)[0];
+
+    /**
+     * Spies on `Toast.show` rather than listening for `lightning__showtoast`.
+     *
+     * `lightning/toast` renders through its own page-level container instead of
+     * relying on a platform listener -- which is the whole reason it works in LWR,
+     * where `platformShowToastEvent` produced nothing.
+     */
+    function toasts() {
+        const seen = [];
+        Toast.show = jest.fn((config) => seen.push(config));
+        return seen;
+    }
+
+    function clickAction(element) {
+        element.shadowRoot.querySelector("c-fgrid_custom-datatable").dispatchEvent(
+            new CustomEvent("rowaction", {
+                detail: { action: { name: "fgridRowAction" }, row: target }
+            })
+        );
+    }
+
+    const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    function build_() {
+        return build({
+            records: records(2),
+            rowActionType: "Flow",
+            rowActionFlowApiName: "Some_Flow",
+            rowActionFlowRecordVariable: "record"
+        });
+    }
+
+    it("lifts the toast container to the SLDS toast layer before showing one", async () => {
+        // In an LWR site the container rendered underneath a sticky header, so the
+        // toast fired and was invisible. An LWR theme header was measured at 100001,
+        // well above SLDS's own toast layer of 10000, so this has to clear it. A
+        // toast is the topmost layer by definition -- SLDS puts it above its own
+        // modals -- so being outranked by page chrome is a failure, not politeness.
+        const container = { style: {} };
+        ToastContainer.instance = jest.fn(() => container);
+        getRecordsByIds.mockResolvedValue([]);
+        const element = build_();
+        toasts();
+
+        clickAction(element);
+        await settle();
+
+        expect(ToastContainer.instance).toHaveBeenCalled();
+        expect(container.style.zIndex).toBe("100002");
+    });
+
+    it("still reports when the container cannot be reached", async () => {
+        // Presentation must never stop the message. A platform that stops handing
+        // back an element means a toast possibly behind a header, not a silent one.
+        ToastContainer.instance = jest.fn(() => {
+            throw new Error("no container");
+        });
+        getRecordsByIds.mockResolvedValue([]);
+        const element = build_();
+        const seen = toasts();
+
+        clickAction(element);
+        await settle();
+
+        expect(seen).toHaveLength(1);
+        expect(seen[0].variant).toBe("error");
+    });
+
+    it("refuses to launch, as an error, when the record is already gone", async () => {
+        // Opposite outcomes: a stale row is a failure, a deleted one is a success.
+        // Without checking first the grid cannot tell them apart, because it only
+        // re-reads after the flow finishes.
+        getRecordsByIds.mockResolvedValue([]);
+        const element = build_();
+        const seen = toasts();
+
+        clickAction(element);
+        await settle();
+
+        expect(element.shadowRoot.querySelector("lightning-flow")).toBeNull();
+        expect(seen).toHaveLength(1);
+        expect(seen[0].variant).toBe("error");
+        expect(seen[0].message).toContain("no longer exists");
+    });
+
+    it("leaves the stale row in the collection rather than reporting it removed", async () => {
+        // Publishing it through outputRemovedRecords would tell the calling flow
+        // that this action removed it, and a Delete Records element fed from that
+        // would then fail on an already-deleted id.
+        getRecordsByIds.mockResolvedValue([]);
+        const element = build_();
+        const removed = [];
+        element.addEventListener("fgridattributechange", (event) => {
+            if (event.detail?.attributeName === "outputRemovedRecords") {
+                removed.push(event.detail.value);
+            }
+        });
+
+        clickAction(element);
+        await settle();
+
+        expect(removed.flat().filter(Boolean)).toEqual([]);
+        expect(element.shadowRoot.querySelector("c-fgrid_custom-datatable").data).toHaveLength(2);
+    });
+
+    it("launches when the record is still there", async () => {
+        getRecordsByIds.mockResolvedValue([{ ...target }]);
+        const element = build_();
+
+        clickAction(element);
+        await settle();
+
+        expect(element.shadowRoot.querySelector("lightning-flow")).not.toBeNull();
+    });
+
+    it("reports a deletion by the flow as success, saying what became of the row", async () => {
+        getRecordsByIds.mockResolvedValueOnce([{ ...target }]).mockResolvedValue([]);
+        const element = build_();
+        const seen = toasts();
+
+        clickAction(element);
+        await settle();
+        element.shadowRoot.querySelector("lightning-flow").dispatchEvent(
+            new CustomEvent("statuschange", {
+                detail: { status: "FINISHED", outputVariables: [] }
+            })
+        );
+        await settle();
+
+        expect(seen).toHaveLength(1);
+        expect(seen[0].variant).toBe("success");
+        expect(seen[0].message).toContain("deleted");
+    });
+
+    it("reports a flow that errored as an error, and stays silent on cancel", async () => {
+        getRecordsByIds.mockResolvedValue([{ ...target }]);
+        const element = build_();
+        const seen = toasts();
+
+        clickAction(element);
+        await settle();
+        element.shadowRoot
+            .querySelector("lightning-flow")
+            .dispatchEvent(new CustomEvent("statuschange", { detail: { status: "ERROR" } }));
+        await settle();
+
+        expect(seen).toHaveLength(1);
+        expect(seen[0].variant).toBe("error");
+
+        // Cancelling is not an outcome worth announcing: nothing happened.
+        clickAction(element);
+        await settle();
+        element.shadowRoot.querySelector("lightning-button-icon[data-close-flow]")?.click();
+        await settle();
+
+        expect(seen.filter((toast) => toast.variant === "success")).toEqual([]);
+    });
+});
+
 describe("a row-action flow that saves its own changes", () => {
     // When the launched flow does its own DML the change is not pending, so it must
     // not reach Edited Records — the calling flow would save it a second time. But
@@ -355,7 +524,9 @@ describe("a row-action flow that saves its own changes", () => {
                 detail: { action: { name: "fgridRowAction" }, row: target }
             })
         );
-        await Promise.resolve();
+        // The grid now confirms the record still exists before launching, so the modal
+        // appears an Apex round-trip later than it used to.
+        await new Promise((resolve) => setTimeout(resolve, 0));
         const flow = element.shadowRoot.querySelector("lightning-flow");
         flow.dispatchEvent(
             new CustomEvent("statuschange", {
