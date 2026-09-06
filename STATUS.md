@@ -29,9 +29,9 @@ Open the smoke flow — now tracked at `force-app/main/default/flows/FlowGrid_Sm
 `/builder_platform_interaction/flowBuilder.app?flowDefId=300Ws00001Ef2jeIAB`
 
 - [ ] The custom editor loads (ten accordion sections, not a flat list of inputs)
-- [ ] **Kit picker popovers position correctly** — open **Records** and check the
-      popover is not clipped or misplaced. Never verified; it was the original
-      risk when the Studio was designed.
+- [x] **Kit picker popovers position correctly** — anchored, and they now stay
+      attached while a pane or the panel scrolls. Fixed and verified 2026-09-06;
+      see §1.6 and upstream PR RebbePod/flow-config-editor-kit#25.
 - [x] **Checkbox persistence.** Verified 2026-08-25, after four attempts — see §4.
       A Boolean that must default ON has to be stored AND labelled negatively;
       Flow Builder silently drops a `false` input parameter.
@@ -315,41 +315,6 @@ Everything else in §1 has either been verified or closed by decision. These hav
 
 **Design time**
 
-- [ ] **Kit picker popover positioning.** What this actually means, since the phrase on
-      its own says nothing: the kit's resource, object and field pickers do not render
-      their dropdown inline. They render it `position: fixed` and compute viewport
-      coordinates themselves, because Flow Builder's property panel is a narrow
-      *clipped* column that would cut off a normal dropdown. The catch is that a
-      transformed ancestor becomes the containing block for `position: fixed`, and Flow
-      Builder has transformed ancestors, so `fixed` does not land where the maths says.
-      `positionAnchoredPopover` compensates with an iterative correction loop — place,
-      measure the rendered rect, adjust, up to `correctionLimit: 3` passes — and
-      `setPopoverHostActive` elevates the picker's host while open so it paints above
-      neighbouring panel content.
-
-      Never confirmed, and it was the original risk when the Studio was designed. Now
-      worth re-checking for a specific reason: that correction loop compensates for one
-      particular containing-block offset, and the Studio has moved out of the property
-      panel into the platform's modal overlay container. That container carries **no
-      transform** (established in §3.2 — the nested filter dialog's `position: fixed`
-      resolved against the viewport inside it), so `fixed` now behaves normally in
-      there and the loop may be correcting for an offset that no longer exists.
-
-      Three things to check, not one:
-
-      1. ~~Open **Records** in the Studio — is the dropdown anchored to its input and
-         fully visible?~~ **No problems observed, 2026-09-05.** Records, Columns,
-         Pre-Selected Records and Disabled Records were all configured through the
-         Studio repeatedly that day, after the modal migration, and no menu was
-         reported clipped or misplaced. Evidence from use rather than a deliberate
-         check, so it is not ticked in the list above — but the correction loop is
-         evidently still landing the popover, which was the substance of the worry.
-      2. ~~Open a picker, then scroll the settings pane.~~ **Was broken, now FIXED
-         2026-09-05.** The popover stayed put while its field scrolled away, because
-         `scroll` does not cross a shadow boundary and both Studio panes are scrollers
-         inside this component's shadow root, invisible to the kit's `window`
-         listener. Both panes now re-dispatch a `scroll` on `window`, coalesced per
-         frame; a picker recomputes from its own anchor's rect, so it only needs
 - [x] **Kit picker popovers stay attached to their field — FIXED 2026-09-06.** Both
       halves, verified in the browser: the Studio's panes and the narrow property
       panel.
