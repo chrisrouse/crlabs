@@ -389,8 +389,19 @@ Everything else in §1 has either been verified or closed by decision. These hav
 - [ ] **Finish without changing anything**: the record does NOT appear in
       `outputEditedRecords`. This is the value-comparison path, shared with inline
       editing where it is now verified.
-- [ ] **A launched flow that DELETES its record**: the row leaves the grid and lands in
-      `outputRemovedRecords`. The reconcile path, never exercised.
+- [x] **A launched flow that DELETES its record — VERIFIED 2026-09-06.** The row
+      leaves the grid, the count drops, and the id lands in `outputRemovedRecords`.
+      The reconcile path works.
+
+      Reporting it did not. It came through `_flowError`, the same channel as four
+      real failures, so a successful deletion rendered as a warning with
+      `role="alert"` and titled the row "This row's action did not finish". And the
+      grid could not tell it from a row that was ALREADY stale when clicked, because
+      it only re-read afterwards — opposite outcomes reported identically.
+
+      Both fixed: the record is checked BEFORE launching, so a missing one is an
+      error and the flow does not run; outcomes are toasts, success or error, silent
+      on cancel. See the toast notes below.
 
 **Runtime — data**
 
@@ -398,6 +409,26 @@ Everything else in §1 has either been verified or closed by decision. These hav
       discarded — the §2.6 rule. Now narrowed to the columns in use, so a change to an
       unshown field should NOT discard them.
 - [ ] **Percent fields**, display and edit. §2.5 gap 6.
+
+**Row-action toasts — decided 2026-09-06**
+
+- Uses `lightning/toast`, NOT `lightning/platformShowToastEvent`. The platform event
+  only surfaces where something listens for it: measured in an org, it worked in an
+  Aura site and produced **nothing at all** in LWR — the worse half, since a site
+  user got neither the confirmation nor the error. `Toast.show` brings its own
+  page-level container, so it renders in LWR too. Its title property is `label`.
+- The container is lifted to `z-index: 100002` via `ToastContainer.instance()`.
+  SLDS's own toast layer of 10000 was not enough — an LWR theme's sticky header
+  measured 100001. Bisected from both sides: with the container at 10000, a header
+  at 10000 lost and 10001 won. A high value is defensible for a toast in a way it
+  is not for a popover; SLDS puts toasts above its own modals. **Tuned to an
+  observed theme: if another site's chrome goes higher, move to `bottom-center`
+  rather than raising it again.**
+- Verified: LWR shows both variants above the header; an Aura site shows a SINGLE
+  toast, which mattered because `Toast.show` also dispatches a ShowToastEvent that
+  an Aura site listens for, so it could have rendered twice.
+- [ ] **Lightning Experience / Flow Builder debug** — untested for that same
+      duplicate. Shares the mechanism with Aura, so likely fine, but unconfirmed.
 
 ## 2. Not built yet
 
