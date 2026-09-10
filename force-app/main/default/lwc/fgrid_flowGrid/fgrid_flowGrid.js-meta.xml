@@ -49,7 +49,7 @@
             <property name="showRecordCount" type="Boolean" label="Show Record Count" default="false" role="inputOnly" />
             <property name="showSelectedCount" type="Boolean" label="Show Selected Count" default="false" role="inputOnly" />
             <property name="showRowNumbers" type="Boolean" label="Show Row Numbers" default="false" role="inputOnly" description="Row numbers are always shown when any column is editable: the table needs that column to display row errors, and Salesforce does not allow it to be turned off." />
-            <property name="tableHeight" type="String" label="Table Height" role="inputOnly" />
+            <property name="tableHeight" type="String" label="Table Height" role="inputOnly" description="CSS height, for example 30rem. With Paginate, leave blank to fit the rows on the page. Load as You Scroll needs a height for more rows to load, so blank uses 30rem there." />
             <!-- INVERTED ON PURPOSE. Flow Builder does not persist a `false`
                  Boolean input parameter — it drops it — so a value that must
                  default ON can never be turned off if stored positively: the write

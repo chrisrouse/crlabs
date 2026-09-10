@@ -1149,6 +1149,43 @@ describe("errors are undefined rather than empty when nothing is wrong", () => {
     });
 });
 
+describe("grid height defaults only where a scroll boundary is needed", () => {
+    // The 30rem default exists so `loadmore` has something to fire against. It was
+    // applied unconditionally, so a paginated grid was forced to 30rem whatever it
+    // held -- ten short rows above a slab of empty grid -- and the help text's
+    // "leave blank to fit all rows" was simply false.
+    const style = (element) => element.shadowRoot.querySelector(".grid__wrapper").getAttribute("style") || "";
+
+    it("defaults to 30rem when rows load by scrolling", async () => {
+        const element = build({ records: records(50) });
+        await Promise.resolve();
+
+        expect(style(element)).toContain("height: 30rem");
+    });
+
+    it("sets no height at all when paginated and nothing is configured", async () => {
+        const element = build({ records: records(50), rowLoading: "Paginate", recordsPerPage: 10 });
+        await Promise.resolve();
+
+        expect(style(element)).not.toContain("height");
+    });
+
+    it("honours an explicit height in either mode", async () => {
+        const scrolling = build({ records: records(50), tableHeight: "20rem" });
+        await Promise.resolve();
+        expect(style(scrolling)).toContain("height: 20rem");
+
+        const paginated = build({
+            records: records(50),
+            rowLoading: "Paginate",
+            recordsPerPage: 10,
+            tableHeight: "20rem"
+        });
+        await Promise.resolve();
+        expect(style(paginated)).toContain("height: 20rem");
+    });
+});
+
 describe("row numbers continue across pages", () => {
     // The datatable numbers the rows it is HANDED, and in Paginate mode that is one
     // page at a time -- so without an offset, page two of ten-per-page showed rows

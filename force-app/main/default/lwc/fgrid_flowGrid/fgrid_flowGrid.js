@@ -119,8 +119,9 @@ const TOAST_Z_INDEX = "100002";
 const TOAST_ELEVATION_RETRY_MS = 50;
 const TOAST_ELEVATION_WINDOW_MS = 1000;
 
-/** Applied when no grid height is set, because infinite scrolling needs a scroll
- *  boundary to exist before `loadmore` will ever fire. */
+/** Applied when no grid height is set AND rows load by scrolling, because
+ *  infinite scrolling needs a scroll boundary to exist before `loadmore` will
+ *  ever fire. Paginate needs no boundary, so it gets no default. */
 const DEFAULT_TABLE_HEIGHT = "30rem";
 
 /**
@@ -1740,7 +1741,17 @@ export default class FgridFlowGrid extends LightningElement {
     get wrapperStyle() {
         // Height only. Overriding `--slds-g-font-line-clamp` was tried and is dead
         // code: SLDS 2 hardcodes `-webkit-line-clamp: 3` with no variable to override.
-        return `height: ${this.tableHeight || DEFAULT_TABLE_HEIGHT};`;
+        //
+        // NO DEFAULT WHEN PAGINATED. The 30rem exists so `loadmore` has a scroll
+        // boundary to fire against, which Paginate does not use -- and applying it
+        // there forced every page to 30rem whatever it held, so ten short rows sat
+        // above a slab of empty grid. It also made the help text false: "leave
+        // blank to fit all rows" never fitted anything, it just used 30rem.
+        //
+        // An explicit height still wins in either mode, which is how an admin keeps
+        // the foot of the screen from moving as row content varies.
+        const height = this.tableHeight || (this.isPaginated ? null : DEFAULT_TABLE_HEIGHT);
+        return height ? `height: ${height};` : "";
     }
 
     /**

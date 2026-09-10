@@ -412,7 +412,7 @@ export const SECTIONS = [
                 type: CONTROL.TEXT,
                 label: "Grid Height",
                 placeholder: "30rem",
-                help: "CSS height, for example 30rem or calc(50vh - 100px). Leave blank to fit all rows."
+                help: "CSS height, for example 30rem or calc(50vh - 100px). With Paginate, leave blank to fit the rows on the page. Load as You Scroll needs a height for more rows to load, so blank uses 30rem there. Set a height to stop the bottom of the screen moving as row content varies."
             }
         ]
     },
