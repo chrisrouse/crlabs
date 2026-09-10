@@ -1,0 +1,19 @@
+/* NO ROW-ACTION COLOUR RULES HERE, AND NONE ANYWHERE ELSE OF OURS.
+ *
+ * The colour is now an SLDS utility class -- `slds-icon-text-error` and friends --
+ * passed through the column's `typeAttributes.iconClass`. See `colorClass` in
+ * c/fgrid_gridModel for why.
+ *
+ * Short version: anything the datatable renders inside a cell belongs to
+ * `lightning-primitive-cell-factory`'s template, a grandchild of this component, so
+ * neither this stylesheet nor the grid's can select it. Declaring
+ * `.fgrid-action_red` in either place was tried and measured as having no effect.
+ * SLDS's own classes work because they are global.
+ *
+ * The same boundary is why the platform's clipped row number column cannot be
+ * fixed from here either. `.slds-row-number { padding-left: 2px !important }` does
+ * work in the SITE's global stylesheet and does nothing from this file.
+ *
+ * A subclass stylesheet reaches the datatable's OWN template. It does not reach a
+ * grandchild's. That is the operative fact for anything anyone wants to add here.
+ */

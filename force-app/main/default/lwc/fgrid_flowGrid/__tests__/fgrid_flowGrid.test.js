@@ -2,8 +2,28 @@ import { createElement } from "lwc";
 import FgridFlowGrid from "c/fgrid_flowGrid";
 import { MIN_COLUMN_WIDTH } from "c/fgrid_gridModel";
 import getRecordsByIds from "@salesforce/apex/FlowGridController.getRecordsByIds";
+import runFlow from "@salesforce/apex/FlowGridController.runFlow";
 import Toast from "lightning/toast";
 import ToastContainer from "lightning/toastContainer";
+import { loadStyle } from "lightning/platformResourceLoader";
+import FgridFlowActionModal from "c/fgrid_flowActionModal";
+
+// The row action's flow now runs in a `lightning/modal`, which renders in the
+// platform's overlay container rather than this grid's template -- so there is no
+// `lightning-flow` here to drive, and `open()` resolves with the outcome instead of
+// relaying `statuschange`. Mocking open() is the pattern the component's own docs
+// prescribe for a parent's tests.
+jest.mock("c/fgrid_flowActionModal");
+
+/** Makes the next row action resolve with a given outcome, and records the props. */
+function stubFlowModal(outcome) {
+    const opened = [];
+    FgridFlowActionModal.open = jest.fn((props) => {
+        opened.push(props);
+        return Promise.resolve(outcome);
+    });
+    return opened;
+}
 
 // An emittable wire, so a test can give the grid real column metadata. Without it
 // describeByPath is empty, every picklist-dependent assertion passes vacuously, and
@@ -245,6 +265,49 @@ describe("draft accumulation across cells", () => {
     });
 });
 
+describe("navigateNextOnSave respects the screen's available actions", () => {
+    // `navigateNextOnSave` dispatched FlowNavigationNextEvent unconditionally. On a
+    // flow's LAST screen there is no NEXT -- it is FINISH -- so the event was a
+    // no-op the runtime complains about: the admin's setting appeared to do nothing
+    // while adding console noise. `availableActions` is Flow's own list of what the
+    // current screen permits, and it is now consulted.
+    //
+    // This had no coverage at all before, in either direction.
+    async function saveWith(props) {
+        const element = build({ records: records(1), navigateNextOnSave: true, ...props });
+        // The datatable has to exist before its `save` can be dispatched.
+        await Promise.resolve();
+        const fired = [];
+        // `lightning__flownavigationnext`, not `flownavigationnext` -- the name
+        // comes from FlowNavigationNextEventName in lightning/flowSupport.
+        element.addEventListener("lightning__flownavigationnext", (event) => fired.push(event));
+        element.shadowRoot
+            .querySelector("c-fgrid_custom-datatable")
+            .dispatchEvent(new CustomEvent("save", { detail: { draftValues: [{ Id: records(1)[0].Id, Name: "Edited" }] } }));
+        await Promise.resolve();
+        return fired;
+    }
+
+    it("navigates when the screen offers NEXT", async () => {
+        expect(await saveWith({ availableActions: ["NEXT", "PAUSE"] })).toHaveLength(1);
+    });
+
+    it("does not navigate on a last screen, which offers FINISH instead", async () => {
+        expect(await saveWith({ availableActions: ["FINISH", "PAUSE"] })).toHaveLength(0);
+    });
+
+    it("still navigates when Flow supplied no action list", async () => {
+        // Permissive on an empty list. A grid outside a flow screen has no list at
+        // all, and silently disabling a configured behaviour is worse than trying.
+        expect(await saveWith({})).toHaveLength(1);
+        expect(await saveWith({ availableActions: [] })).toHaveLength(1);
+    });
+
+    it("does not navigate when the setting is off, whatever the actions say", async () => {
+        expect(await saveWith({ navigateNextOnSave: false, availableActions: ["NEXT"] })).toHaveLength(0);
+    });
+});
+
 describe("drafts keyed by columnKey", () => {
     // Columns carry a columnKey so a dragged width survives a rebuild, and the
     // datatable then reports drafts under it rather than under fieldName. Writing
@@ -359,6 +422,7 @@ describe("row-action outcomes are toasts, not banners", () => {
     }
 
     const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
     function build_() {
         return build({
@@ -369,14 +433,18 @@ describe("row-action outcomes are toasts, not banners", () => {
         });
     }
 
-    it("lifts the toast container to the SLDS toast layer before showing one", async () => {
-        // In an LWR site the container rendered underneath a sticky header, so the
-        // toast fired and was invisible. An LWR theme header was measured at 100001,
-        // well above SLDS's own toast layer of 10000, so this has to clear it. A
-        // toast is the topmost layer by definition -- SLDS puts it above its own
-        // modals -- so being outranked by page chrome is a failure, not politeness.
+    it("asks the toast container to clear the SLDS toast layer before showing one", async () => {
+        // An LWR theme header was measured at 100001, so the container has to clear
+        // it. A toast is the topmost layer by definition -- SLDS puts it above its
+        // own modals -- so being outranked by page chrome is a failure.
+        //
+        // WHAT THIS TEST CANNOT TELL YOU: the mock's `{ style: {} }` is a shape
+        // invented here, so a pass proves only that the component asks -- never
+        // that the platform honoured it. Read `elevates again after showing` below
+        // for the case a green version of this test hid for a whole day.
         const container = { style: {} };
         ToastContainer.instance = jest.fn(() => container);
+        loadStyle.mockClear();
         getRecordsByIds.mockResolvedValue([]);
         const element = build_();
         toasts();
@@ -386,6 +454,62 @@ describe("row-action outcomes are toasts, not banners", () => {
 
         expect(ToastContainer.instance).toHaveBeenCalled();
         expect(container.style.zIndex).toBe("100002");
+        // Rejected: a distributed package should not restyle a customer's whole
+        // site. The `!important` rule that does work belongs in the site's own CSS.
+        expect(loadStyle).not.toHaveBeenCalled();
+    });
+
+    it("re-asserts the z-index after the platform rewrites it", async () => {
+        // The bug this exists to catch: unmounting `lightning-modal-base` rewrites
+        // the toast container's inline style back to 10000 about 180ms after we set
+        // it, so the modal row action's toast appeared above the site header and
+        // then sank behind it. Traced with a MutationObserver on
+        // `lightning-overlay-container`'s shadow root -- one container, rewritten,
+        // never replaced.
+        //
+        // Modelled by having the platform stomp the value once, shortly after the
+        // toast. A single pre-`Toast.show` elevation loses to that; the retry window
+        // wins because nothing rewrites it after teardown.
+        //
+        // REAL timers, not fake. `settle()` waits on a `setTimeout`, which never
+        // fires while timers are mocked, so the fake-timer version of this test hung
+        // until the 5s jest timeout and took the rest of the suite down with it.
+        const container = { style: {} };
+        ToastContainer.instance = jest.fn(() => container);
+        getRecordsByIds.mockResolvedValue([]);
+        const element = build_();
+        toasts();
+
+        clickAction(element);
+        await settle();
+        expect(container.style.zIndex).toBe("100002");
+
+        // The platform undoes it, as it does when the modal unmounts.
+        container.style.zIndex = "10000";
+        await wait(150);
+
+        expect(container.style.zIndex).toBe("100002");
+    });
+
+    it("stops re-asserting once the window closes", async () => {
+        // Bounded on purpose. An unbounded interval would outlive every toast and
+        // fight anything else that legitimately restyles the container. Waits out
+        // the whole window, so this test is deliberately the slow one.
+        const container = { style: {} };
+        ToastContainer.instance = jest.fn(() => container);
+        getRecordsByIds.mockResolvedValue([]);
+        const element = build_();
+        toasts();
+
+        clickAction(element);
+        await settle();
+        await wait(1200);
+
+        // Past the window, a rewrite is left alone -- the timer is gone.
+        container.style.zIndex = "10000";
+        await wait(150);
+
+        expect(container.style.zIndex).toBe("10000");
     });
 
     it("still reports when the container cannot be reached", async () => {
@@ -410,16 +534,27 @@ describe("row-action outcomes are toasts, not banners", () => {
         // Without checking first the grid cannot tell them apart, because it only
         // re-reads after the flow finishes.
         getRecordsByIds.mockResolvedValue([]);
+        stubFlowModal(undefined);
         const element = build_();
         const seen = toasts();
 
         clickAction(element);
         await settle();
 
-        expect(element.shadowRoot.querySelector("lightning-flow")).toBeNull();
+        expect(FgridFlowActionModal.open).not.toHaveBeenCalled();
         expect(seen).toHaveLength(1);
         expect(seen[0].variant).toBe("error");
-        expect(seen[0].message).toContain("no longer exists");
+        // The toast carries the ADMIN's wording, not the diagnostic. "That record
+        // no longer exists" was a developer's sentence; a site visitor could not act
+        // on it and should not have had to read it.
+        expect(seen[0].label).toBe("There was an error updating this record.");
+        expect(seen[0].message).toBeUndefined();
+        // Same wording on the row, and no detail line -- the row error's title used
+        // to be our own "This row's action did not finish".
+        const rows = element.shadowRoot.querySelector("c-fgrid_custom-datatable").errors.rows;
+        const rowError = rows[target.Id];
+        expect(rowError.title).toBe("There was an error updating this record.");
+        expect(rowError.messages).toEqual([]);
     });
 
     it("leaves the stale row in the collection rather than reporting it removed", async () => {
@@ -444,52 +579,212 @@ describe("row-action outcomes are toasts, not banners", () => {
 
     it("launches when the record is still there", async () => {
         getRecordsByIds.mockResolvedValue([{ ...target }]);
+        const opened = stubFlowModal(undefined);
         const element = build_();
 
         clickAction(element);
         await settle();
 
-        expect(element.shadowRoot.querySelector("lightning-flow")).not.toBeNull();
+        expect(opened).toHaveLength(1);
+        expect(opened[0].flowApiName).toBe("Some_Flow");
+        expect(opened[0].size).toBe("medium");
     });
 
-    it("reports a deletion by the flow as success, saying what became of the row", async () => {
+    it("passes the close lock to the modal", async () => {
+        // `disableClose` is the base class's own property, set through `open()` as
+        // the docs prescribe. It disables the close button and blocks Escape and
+        // `close()`; it does not hide the button, which is not available to us.
+        getRecordsByIds.mockResolvedValue([{ ...target }]);
+        const opened = stubFlowModal(undefined);
+        const element = build({
+            records: records(2),
+            rowActionType: "Flow",
+            rowActionFlowApiName: "Some_Flow",
+            rowActionFlowRecordVariable: "record",
+            rowActionFlowPreventClose: true
+        });
+
+        clickAction(element);
+        await settle();
+
+        expect(opened[0].disableClose).toBe(true);
+    });
+
+    it("leaves the modal dismissible when the lock is off", async () => {
+        getRecordsByIds.mockResolvedValue([{ ...target }]);
+        const opened = stubFlowModal(undefined);
+        const element = build_();
+
+        clickAction(element);
+        await settle();
+
+        expect(opened[0].disableClose).toBe(false);
+    });
+
+    it("reports a deletion with the delete message, not the success message", async () => {
+        // "Updated" is wrong for a row that has gone, so a deletion gets its own
+        // admin-set wording -- still the success variant, because the action did
+        // what it was asked to.
         getRecordsByIds.mockResolvedValueOnce([{ ...target }]).mockResolvedValue([]);
+        stubFlowModal({ status: "FINISHED", outputVariables: [] });
         const element = build_();
         const seen = toasts();
 
         clickAction(element);
         await settle();
-        element.shadowRoot.querySelector("lightning-flow").dispatchEvent(
-            new CustomEvent("statuschange", {
-                detail: { status: "FINISHED", outputVariables: [] }
-            })
-        );
         await settle();
 
         expect(seen).toHaveLength(1);
         expect(seen[0].variant).toBe("success");
-        expect(seen[0].message).toContain("deleted");
+        expect(seen[0].label).toBe("The selected record was deleted.");
     });
 
-    it("reports a flow that errored as an error, and stays silent on cancel", async () => {
+    it("marks the failing row for every failure, not just the stale one", async () => {
+        // `_flowRecord` was nulled as soon as `open()` resolved, and the row error
+        // keys off it, so a flow ERROR marked no row at all. Still worth asserting
+        // now the wording is shared: without the record the row error cannot render
+        // however good the message is.
         getRecordsByIds.mockResolvedValue([{ ...target }]);
+        stubFlowModal({ status: "ERROR" });
+        const element = build_();
+
+        clickAction(element);
+        await settle();
+        await settle();
+
+        const rows = element.shadowRoot.querySelector("c-fgrid_custom-datatable").errors.rows;
+        expect(rows[target.Id].title).toBe("There was an error updating this record.");
+        expect(rows[target.Id].messages).toEqual([]);
+    });
+
+    it("keeps the flow's own fault text as the one detail line", async () => {
+        // The single exception to folding everything into the configured wording.
+        // `error.body.message` is the flow's own fault, wrapped by
+        // FlowGridController -- the one error here the grid does not author, and the
+        // most useful thing it ever gets. It goes on the row, never in the toast.
+        getRecordsByIds.mockResolvedValue([{ ...target }]);
+        runFlow.mockRejectedValue({ body: { message: "The flow Delete_It did not run: DML failed." } });
+        const element = build({
+            records: records(2),
+            rowActionType: "Flow",
+            rowActionFlowApiName: "Some_Flow",
+            rowActionFlowLaunchMode: "Headless",
+            rowActionFlowRecordVariable: "record"
+        });
+        const seen = toasts();
+
+        clickAction(element);
+        await settle();
+        await settle();
+
+        expect(seen[0].label).toBe("There was an error updating this record.");
+        const rows = element.shadowRoot.querySelector("c-fgrid_custom-datatable").errors.rows;
+        expect(rows[target.Id].title).toBe("There was an error updating this record.");
+        expect(rows[target.Id].messages).toEqual(["The flow Delete_It did not run: DML failed."]);
+    });
+
+    it("shows nothing on the row either when the error message is blank", async () => {
+        // The same string drives both, so clearing it silences both. A documented
+        // consequence of an explicit choice rather than a gap -- but it does mean a
+        // blank Error Message leaves the grid showing nothing at all on failure.
+        getRecordsByIds.mockResolvedValue([]);
+        stubFlowModal(undefined);
+        const element = build({
+            records: records(2),
+            rowActionType: "Flow",
+            rowActionFlowApiName: "Some_Flow",
+            rowActionFlowRecordVariable: "record",
+            rowActionFlowErrorMessage: ""
+        });
+        const seen = toasts();
+
+        clickAction(element);
+        await settle();
+
+        expect(seen).toHaveLength(0);
+        // `errors` is undefined rather than `{}` when nothing is wrong: an empty
+        // object makes the datatable switch on its own row number column, because
+        // that is where it draws the row error indicator.
+        expect(element.shadowRoot.querySelector("c-fgrid_custom-datatable").errors).toBeUndefined();
+    });
+
+    it("uses the admin's wording for each outcome", async () => {
+        // The whole point of the properties: nothing in a toast should be ours.
+        getRecordsByIds.mockResolvedValue([{ ...target }]);
+        stubFlowModal({ status: "FINISHED", outputVariables: [] });
+        const element = build({
+            records: records(2),
+            rowActionType: "Flow",
+            rowActionFlowApiName: "Some_Flow",
+            rowActionFlowRecordVariable: "record",
+            rowActionFlowSuccessMessage: "Your booking is confirmed."
+        });
+        const seen = toasts();
+
+        clickAction(element);
+        await settle();
+        await settle();
+
+        expect(seen).toHaveLength(1);
+        expect(seen[0].label).toBe("Your booking is confirmed.");
+    });
+
+    it("sends no links and no mode, so rich text stays off and dismissal is the platform's", async () => {
+        // Rich text is NOT supported. `labelLinks` is what the docs describe as
+        // switching on `lightning-formatted-rich-text`; it was tried empty and with
+        // a real link in the template, and neither rendered the markup, so nothing
+        // here sets it. Leaving `mode` unset keeps the platform's variant-derived
+        // dismissal: success auto-dismisses, error stays.
+        getRecordsByIds.mockResolvedValue([{ ...target }]);
+        stubFlowModal({ status: "FINISHED", outputVariables: [] });
         const element = build_();
         const seen = toasts();
 
         clickAction(element);
         await settle();
-        element.shadowRoot
-            .querySelector("lightning-flow")
-            .dispatchEvent(new CustomEvent("statuschange", { detail: { status: "ERROR" } }));
+        await settle();
+
+        expect(seen[0].labelLinks).toBeUndefined();
+        expect(seen[0].mode).toBeUndefined();
+        expect(Object.keys(seen[0]).sort()).toEqual(["label", "variant"]);
+    });
+
+    it("says nothing at all when the message is blank", async () => {
+        // Blank means "do not announce this", which is how an admin turns a toast
+        // off without a second property to disagree with the first.
+        getRecordsByIds.mockResolvedValue([{ ...target }]);
+        stubFlowModal({ status: "FINISHED", outputVariables: [] });
+        const element = build({
+            records: records(2),
+            rowActionType: "Flow",
+            rowActionFlowApiName: "Some_Flow",
+            rowActionFlowRecordVariable: "record",
+            rowActionFlowSuccessMessage: ""
+        });
+        const seen = toasts();
+
+        clickAction(element);
+        await settle();
+        await settle();
+
+        expect(seen).toHaveLength(0);
+    });
+
+    it("reports a flow that errored as an error, and stays silent on cancel", async () => {
+        getRecordsByIds.mockResolvedValue([{ ...target }]);
+        stubFlowModal({ status: "ERROR" });
+        const element = build_();
+        const seen = toasts();
+
+        clickAction(element);
         await settle();
 
         expect(seen).toHaveLength(1);
         expect(seen[0].variant).toBe("error");
 
-        // Cancelling is not an outcome worth announcing: nothing happened.
+        // Dismissing resolves undefined. Nothing happened, so nothing is announced.
+        stubFlowModal(undefined);
         clickAction(element);
-        await settle();
-        element.shadowRoot.querySelector("lightning-button-icon[data-close-flow]")?.click();
         await settle();
 
         expect(seen.filter((toast) => toast.variant === "success")).toEqual([]);
@@ -518,25 +813,25 @@ describe("a row-action flow that saves its own changes", () => {
         });
     }
 
+    /**
+     * Runs the row action with the flow resolving a record.
+     *
+     * The flow lives in a `lightning/modal` now, so there is no `lightning-flow` in
+     * this grid to dispatch `statuschange` on -- `open()` resolves the outcome. The
+     * two settles cover the existence pre-check and the modal's promise.
+     */
     async function runAction(element, flowReturns) {
+        stubFlowModal({
+            status: "FINISHED",
+            outputVariables: [{ name: "record", value: flowReturns }]
+        });
         element.shadowRoot.querySelector("c-fgrid_custom-datatable").dispatchEvent(
             new CustomEvent("rowaction", {
                 detail: { action: { name: "fgridRowAction" }, row: target }
             })
         );
-        // The grid now confirms the record still exists before launching, so the modal
-        // appears an Apex round-trip later than it used to.
         await new Promise((resolve) => setTimeout(resolve, 0));
-        const flow = element.shadowRoot.querySelector("lightning-flow");
-        flow.dispatchEvent(
-            new CustomEvent("statuschange", {
-                detail: { status: "FINISHED", outputVariables: [{ name: "record", value: flowReturns }] }
-            })
-        );
-        // Two turns: the status handler, then the awaited record re-read.
-        await Promise.resolve();
-        await Promise.resolve();
-        await Promise.resolve();
+        await new Promise((resolve) => setTimeout(resolve, 0));
     }
 
     function rowFor(element) {
@@ -816,6 +1111,96 @@ describe("sort state is keyed by columnKey", () => {
     });
 });
 
+describe("errors are undefined rather than empty when nothing is wrong", () => {
+    // Tidiness, not a fix. This was changed on the theory that an empty `errors`
+    // object switched on the datatable's own row number column. Measured in a
+    // running flow afterwards: `showRowNumberColumn` was still true with `errors`
+    // undefined, so the theory was wrong -- the cause was leaving
+    // `show-row-number-column` unset. Pinned anyway because `{}` is a poor way to
+    // say "nothing is wrong".
+    const datatable = (element) => element.shadowRoot.querySelector("c-fgrid_custom-datatable");
+
+    it("sends undefined, not an empty object, when nothing is wrong", async () => {
+        const element = build({ records: records(3) });
+        await Promise.resolve();
+
+        expect(datatable(element).errors).toBeUndefined();
+    });
+
+    it("still sends a real error when there is one", async () => {
+        getRecordsByIds.mockResolvedValue([]);
+        const element = build({
+            records: records(2),
+            rowActionType: "Flow",
+            rowActionFlowApiName: "Some_Flow",
+            rowActionFlowRecordVariable: "record"
+        });
+        await Promise.resolve();
+
+        datatable(element).dispatchEvent(
+            new CustomEvent("rowaction", {
+                detail: { action: { name: "fgridRowAction" }, row: records(2)[0] }
+            })
+        );
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(datatable(element).errors).toBeDefined();
+        expect(datatable(element).errors.rows).toBeDefined();
+    });
+});
+
+describe("row numbers continue across pages", () => {
+    // The datatable numbers the rows it is HANDED, and in Paginate mode that is one
+    // page at a time -- so without an offset, page two of ten-per-page showed rows
+    // 11-20 numbered 1-10. Two different records both labelled "1" is worse than no
+    // numbers at all.
+    //
+    // This matters more than it looks, because on an editable grid the platform
+    // forces its row number column ON regardless of the setting -- see
+    // `showRowNumbers`. The offset is what makes that forced column correct.
+    const datatable = (element) => element.shadowRoot.querySelector("c-fgrid_custom-datatable");
+
+    it("offsets by nothing on the first page", async () => {
+        const element = build({ records: records(30), rowLoading: "Paginate", recordsPerPage: 10, showRowNumbers: true });
+        await Promise.resolve();
+
+        expect(datatable(element).rowNumberOffset).toBe(0);
+    });
+
+    it("offsets by a page's worth on the second page", async () => {
+        const element = build({ records: records(30), rowLoading: "Paginate", recordsPerPage: 10, showRowNumbers: true });
+        await Promise.resolve();
+
+        element.shadowRoot
+            .querySelector("c-fgrid_pagination")
+            .dispatchEvent(new CustomEvent("pagechange", { detail: { page: 2 } }));
+        await Promise.resolve();
+
+        expect(datatable(element).rowNumberOffset).toBe(10);
+    });
+
+    it("offsets by nothing in scroll mode, where the window starts at the top", async () => {
+        const element = build({ records: records(300), showRowNumbers: true });
+        await Promise.resolve();
+
+        expect(datatable(element).rowNumberOffset).toBe(0);
+    });
+
+    it("passes the setting through, for the read-only grids where it is honoured", async () => {
+        // Passed faithfully, but the PLATFORM overrides it upward: an editable
+        // column forces `show-row-number-column` true and the docs say that cannot
+        // be overridden. So this asserts what we send, not what renders -- the jest
+        // stub does not model the override.
+        const on = build({ records: records(3), showRowNumbers: true });
+        await Promise.resolve();
+        expect(datatable(on).showRowNumberColumn).toBe(true);
+
+        const off = build({ records: records(3) });
+        await Promise.resolve();
+        expect(datatable(off).showRowNumberColumn).toBe(false);
+    });
+});
+
 describe("selection survives paging", () => {
     // The datatable reports only the rows it is rendering. Treating that as the whole
     // selection meant paging away deselected everything the user had picked.
@@ -1060,8 +1445,14 @@ describe("wrapped line limit", () => {
         return element.shadowRoot.querySelector("c-fgrid_custom-datatable").wrapTextMaxLines;
     }
 
-    it("sends three when the limit is on", async () => {
-        expect(linesFor({ limitWrappedLines: true })).toBe("3");
+    it("sends three when the limit is on, as a number", async () => {
+        // The TYPE is the assertion. This passed for weeks against the string "3",
+        // while `lightning-datatable` logged `The attribute "wrapTextMaxLines" value
+        // passed in is incorrect. "wrapTextMaxLines" value should be an integer > 0`
+        // on every single page load. Invisible here because the clamp still applied:
+        // the class does not depend on the value surviving validation.
+        expect(linesFor({ limitWrappedLines: true })).toBe(3);
+        expect(typeof linesFor({ limitWrappedLines: true })).toBe("number");
     });
 
     it("sends nothing when it is off, so the class is never applied", async () => {

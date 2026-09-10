@@ -1,0 +1,16 @@
+<template>
+    <lightning-modal-header label={headerLabel}></lightning-modal-header>
+
+    <lightning-modal-body>
+        <!-- flow-finish-behavior NONE stops lightning-flow restarting its interview
+             on completion, which is its default. Closing unmounts it anyway, but
+             `close()` fades out first, so this makes the restart impossible rather
+             than merely unlikely. -->
+        <lightning-flow
+            flow-api-name={flowApiName}
+            flow-input-variables={flowInputVariables}
+            flow-finish-behavior="NONE"
+            onstatuschange={handleStatusChange}
+        ></lightning-flow>
+    </lightning-modal-body>
+</template>

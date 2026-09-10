@@ -114,32 +114,9 @@
    styling from SLDS hooks. The three rules that lived here dressed the old
    First/Previous/Next/Last button row. */
 
-/* Row-action icon colours. The datatable's button-icon variant cannot express an
-   arbitrary colour, so withRowActionColumn passes one of these classes through
-   typeAttributes.class instead. */
-.fgrid-action_red {
-    --slds-c-icon-color-foreground: #ea001e;
-}
-
-.fgrid-action_green {
-    --slds-c-icon-color-foreground: #2e844a;
-}
-
-.fgrid-action_black {
-    --slds-c-icon-color-foreground: #181818;
-}
-
-/* Row-action flow modal. The close button sits inside the white header rather
-   than using slds-modal__close, which positions it outside the container. */
-.grid__flow-header {
-    position: relative;
-}
-
-.grid__flow-close {
-    position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
-}
+/* Row-action icon colours moved to fgrid_customDatatable.css. They were dead here:
+   the class lands on a button-icon inside the datatable's shadow root, which this
+   stylesheet cannot select into. See the note in that file. */
 
 /* Autolaunched flows have no UI, so this is the only feedback that one ran. */
 .grid__running {

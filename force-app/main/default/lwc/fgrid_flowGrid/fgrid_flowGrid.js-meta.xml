@@ -48,7 +48,7 @@
             <property name="tableIcon" type="String" label="Table Icon" role="inputOnly" />
             <property name="showRecordCount" type="Boolean" label="Show Record Count" default="false" role="inputOnly" />
             <property name="showSelectedCount" type="Boolean" label="Show Selected Count" default="false" role="inputOnly" />
-            <property name="showRowNumbers" type="Boolean" label="Show Row Numbers" default="false" role="inputOnly" />
+            <property name="showRowNumbers" type="Boolean" label="Show Row Numbers" default="false" role="inputOnly" description="Row numbers are always shown when any column is editable: the table needs that column to display row errors, and Salesforce does not allow it to be turned off." />
             <property name="tableHeight" type="String" label="Table Height" role="inputOnly" />
             <!-- INVERTED ON PURPOSE. Flow Builder does not persist a `false`
                  Boolean input parameter — it drops it — so a value that must
@@ -132,6 +132,10 @@
             <property name="rowActionFlowSavesChanges" type="Boolean" label="The Launched Flow Saves Its Own Changes" role="inputOnly" description="Check this when the launched flow performs its own DML. The grid then compares each change against the record as re-read from the database, and reports only what is still unsaved through Edited Records. Leave unchecked and every change a flow returns is treated as pending." />
             <property name="rowActionFlowModalHeader" type="String" label="Modal Header" default="Edit Record" role="inputOnly" />
             <property name="rowActionFlowModalSize" type="String" label="Modal Size" default="Medium" role="inputOnly" description="Small, Medium, or Large." />
+            <property name="rowActionFlowPreventClose" type="Boolean" label="Prevent Closing Until the Flow Finishes" default="false" role="inputOnly" description="Hides the close button and blocks Esc so the flow cannot be dismissed part way through, which would discard anything entered. Only the flow finishing or faulting will close it, so use it only when every branch of the flow reaches an end." />
+            <property name="rowActionFlowSuccessMessage" type="String" label="Success Message" default="The record was successfully updated." role="inputOnly" description="Message shown when row action is successful. Leave blank to hide message. Does not support rich text." />
+            <property name="rowActionFlowErrorMessage" type="String" label="Error Message" default="There was an error updating this record." role="inputOnly" description="Message shown when there is an error with the row action. Leave blank to hide message. Does not support rich text." />
+            <property name="rowActionFlowDeleteMessage" type="String" label="Deleted Record Message" default="The selected record was deleted." role="inputOnly" description="Message shown when record is successfully deleted. Leave blank to hide message. Does not support rich text." />
 
             <!-- ======================== Links and formatting ======================== -->
             <property name="hideNameFieldLink" type="Boolean" label="Do Not Link the Name Field" default="false" role="inputOnly" />

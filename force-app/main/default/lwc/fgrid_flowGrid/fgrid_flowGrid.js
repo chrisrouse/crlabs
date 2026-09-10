@@ -28,6 +28,7 @@ import { LightningElement, api, wire } from "lwc";
 import { FlowAttributeChangeEvent, FlowNavigationNextEvent } from "lightning/flowSupport";
 import Toast from "lightning/toast";
 import ToastContainer from "lightning/toastContainer";
+import FgridFlowActionModal from "c/fgrid_flowActionModal";
 import getGridMetadata from "@salesforce/apex/FlowGridController.getGridMetadata";
 import runFlow from "@salesforce/apex/FlowGridController.runFlow";
 import getRecordsByIds from "@salesforce/apex/FlowGridController.getRecordsByIds";
@@ -64,16 +65,12 @@ import {
  */
 const SCROLL_BATCH_SIZE = 50;
 
-/** Applied when no grid height is set, because infinite scrolling needs a scroll
- *  boundary to exist before `loadmore` will ever fire. */
 /**
  * Stacking layer for the toast container.
  *
- * SLDS's own toast layer is 10000, read from `.slds-notify_container`, and it sits
- * above `.slds-modal` at 9001. That is not enough in an Experience Cloud LWR site:
- * a theme's sticky header was measured at 100001, so a toast fired and was
- * invisible behind it. Confirmed by bisecting from the other side -- with the
- * container at 10000, a header at 10000 lost and a header at 10001 won.
+ * In an Experience Cloud LWR site a theme's sticky header was measured at 100001
+ * and covered the toast, so it fired and was invisible. Bisected from the other
+ * side: with the container at 10000, a header at 10000 lost and 10001 won.
  *
  * A high value is defensible HERE in a way it would not be for a popover. A toast
  * is the topmost layer by definition -- SLDS puts it above its own modals -- so
@@ -81,12 +78,49 @@ const SCROLL_BATCH_SIZE = 50;
  * of the vendored kit's `z-index: 1000000` on a picker popover, which paints over
  * Flow Builder chrome that native dropdowns correctly sit within.
  *
- * Tuned to an observed theme, so raise it if another site's chrome goes higher. If
- * that happens twice, stop chasing numbers and move toasts to `bottom-center` via
- * `toastPosition`, which cannot collide with a sticky header at all.
+ * The write always LANDS. What defeated it for the modal row action is that the
+ * platform rewrites the same element's inline style back to 10000 while unmounting
+ * `lightning-modal-base`, about 180ms after we set it.
+ *
+ * Traced with a MutationObserver on `lightning-overlay-container`'s shadow root,
+ * following each mutation's `oldValue` for one `lightning-toast-container` -- id
+ * stable throughout, so it is rewritten, never replaced:
+ *
+ *     ms 2459  was 10000    modal opens; we set 100002
+ *     ms 2459  was 100002   platform rewrites to 10000
+ *     ms 4500  was 10000    our toast() elevation sets 100002
+ *     ms 4679  was 100002   platform rewrites to 10000, in the same batch as
+ *                           `lightning-modal-base` being REMOVED
+ *
+ * Nothing rewrites it after teardown, which is what makes a late write stick. See
+ * `elevateToastContainer` for why the retry is a window rather than a delay.
+ *
+ * Do NOT raise the number. It was never too low, and it was never landing on the
+ * wrong object either -- both of those were wrong diagnoses. See STATUS.md.
  */
 const TOAST_Z_INDEX = "100002";
 
+/**
+ * How long to keep re-asserting the toast container's z-index, and how often.
+ *
+ * A WINDOW rather than a delay, deliberately. The one measurement said 180ms, but
+ * that is one machine on one render with whatever animation settings were in force,
+ * and tuning a single `setTimeout` to it would repeat the mistake that produced
+ * four failed fixes: fitting a number to one observation.
+ *
+ * Correctness here does not depend on the duration being right. It depends only on
+ * the platform stopping eventually, which the trace shows it does at teardown --
+ * so the last write wins. The `!==` guard makes every redundant pass free, and on
+ * the autolaunched paths, where the first write already sticks, all of them are
+ * redundant.
+ *
+ * A second is far longer than any teardown observed, and costs 20 property reads.
+ */
+const TOAST_ELEVATION_RETRY_MS = 50;
+const TOAST_ELEVATION_WINDOW_MS = 1000;
+
+/** Applied when no grid height is set, because infinite scrolling needs a scroll
+ *  boundary to exist before `loadmore` will ever fire. */
 const DEFAULT_TABLE_HEIGHT = "30rem";
 
 /**
@@ -95,10 +129,36 @@ const DEFAULT_TABLE_HEIGHT = "30rem";
  * `slds-plus.css` hardcodes it — `.slds-line-clamp { -webkit-line-clamp: 3 }`, no
  * `var()` — so the count passed to `wrap-text-max-lines` cannot change the outcome.
  * Passing anything gets the class; the class is always three lines.
+ *
+ * A NUMBER, not the string "3". `lightning-datatable` validates this attribute and
+ * logged `The attribute "wrapTextMaxLines" value passed in is incorrect.
+ * "wrapTextMaxLines" value should be an integer > 0` on every load with a string,
+ * which is easy to miss because the clamp still applied — the class does not depend
+ * on the value surviving validation.
  */
-const WRAPPED_LINE_CLAMP = "3";
+const WRAPPED_LINE_CLAMP = 3;
+
 
 export default class FgridFlowGrid extends LightningElement {
+    /* ----- Injected by the flow runtime -----
+     *
+     * Declared because Flow sets them on every `lightning__FlowScreen` component
+     * whether it asks for them or not, and an undeclared property logs
+     * `[LWC warn]: Unknown public property "..."` on every page load. Four such
+     * warnings were coming from this component and drowning real ones.
+     *
+     * `availableActions` is the one with a use: it lists the navigation the current
+     * screen actually permits, so `NEXT` is absent on a flow's last screen. See
+     * `navigateNextOnSave`.
+     *
+     * `navigateFlow` and `flowImplicit$dirtyProps` are deliberately NOT declared.
+     * They are runtime plumbing rather than documented screen properties, and
+     * publishing internal platform names as this component's API to silence a
+     * dev-mode warning is the worse trade. Those two warnings remain by choice.
+     */
+    @api availableActions = [];
+    @api screenHelpText;
+
     // ----- Data source -----
     @api objectApiName;
     @api keyField = "Id";
@@ -118,6 +178,24 @@ export default class FgridFlowGrid extends LightningElement {
     @api tableIcon;
     @api showRecordCount = false;
     @api showSelectedCount = false;
+    /**
+     * IGNORED WHENEVER ANY COLUMN IS EDITABLE, and not by us.
+     *
+     * From the lightning-datatable documentation: "When there's an editable
+     * column, `lightning-datatable` sets the `show-row-number-column` attribute to
+     * true to show the row errors in the number column. You can't override this
+     * setting." The row error icon lives in that column, so the datatable takes it
+     * whether asked or not.
+     *
+     * The value is still passed through, because it decides the column for a
+     * read-only grid. Grid Studio's preview is unaffected for exactly this reason:
+     * it builds its columns with `forceReadOnly`.
+     *
+     * Turning it off on an editable grid therefore does nothing, which cost a long
+     * investigation before the sentence above was found. Do not try to defeat it:
+     * an explicit `false`, omitting the attribute, dropping `errors` and adding a
+     * column of our own were all tried and all failed.
+     */
     @api showRowNumbers = false;
     @api tableHeight;
     /**
@@ -196,6 +274,56 @@ export default class FgridFlowGrid extends LightningElement {
     @api rowActionFlowSavesChanges = false;
     @api rowActionFlowModalHeader = "Edit Record";
     @api rowActionFlowModalSize = "Medium";
+
+    /**
+     * Locks the row-action modal until its flow reaches an end.
+     *
+     * For a flow that collects input across several screens, where dismissing it
+     * half way through discards everything typed so far.
+     *
+     * The trade is real and worth stating: with this on, the ONLY ways out are
+     * the flow finishing or faulting. A flow with a screen that has no path
+     * onward leaves the user stuck until they reload the page, so it belongs on
+     * flows whose every branch reaches an end -- not as a default.
+     */
+    @api rowActionFlowPreventClose = false;
+
+    /* ----- Row-action outcome messages -----
+     *
+     * The wording a SITE VISITOR reads, so it is the admin's to set. The defaults
+     * these replace -- "Flow action completed", "Row action failed" -- described
+     * our internals to someone who has no idea a flow was involved.
+     *
+     * Each is the WHOLE toast, and the error one is also the row error's title, so
+     * a failure reads the same however it surfaces. Every reason the grid authors
+     * itself is folded into it; only the flow's own fault text still gets a detail
+     * line, on the row, because that is the one message we cannot write better.
+     *
+     * BLANK SUPPRESSES the toast, including the error one. Defensible because a
+     * failure still marks the row, so silence here is not silence everywhere.
+     *
+     * Declared as `type="String"` and rendered through the kit's value input, so
+     * each one accepts a Flow resource -- a text template, formula or variable --
+     * as well as a literal.
+     *
+     * PLAIN TEXT ONLY. A template in rich-text mode shows its markup as literal
+     * `<p><strong>` characters. Supplying `labelLinks` is what the docs describe as
+     * switching on `lightning-formatted-rich-text`, and it was tried both empty and
+     * with a real link in the template; neither rendered the markup. Treat rich
+     * text as unsupported rather than as something a future tweak will unlock.
+     *
+     * Merge fields in a text template work fine, because Flow resolves them before
+     * the value reaches this component -- which is the point of keeping these
+     * resource-capable.
+     *
+     * Each message goes in `label`, and this is REQUIRED rather than stylistic:
+     * on small screens and in the mobile app the toast drops its icon and its
+     * `message`, keeping only `label`. Putting the admin's wording in `message`
+     * would show mobile users nothing at all.
+     */
+    @api rowActionFlowSuccessMessage = "The record was successfully updated.";
+    @api rowActionFlowErrorMessage = "There was an error updating this record.";
+    @api rowActionFlowDeleteMessage = "The selected record was deleted.";
 
     // ----- Links and formatting -----
     @api hideNameFieldLink = false;
@@ -310,27 +438,50 @@ export default class FgridFlowGrid extends LightningElement {
     _addedRecords = [];
     /** The record currently open in the row-action flow modal. */
     _flowRecord = null;
-    _isFlowOpen = false;
     _isRunningFlow = false;
-    _flowError = null;
+    /**
+     * A row action failed. Guards success reporting and drives the row error.
+     *
+     * A FLAG, not the message it used to be. Every reason the grid itself can give
+     * -- no flow configured, the record is gone, the flow did not complete, it
+     * returned a record with no key -- now reports as `rowActionFlowErrorMessage`,
+     * because all four were developer sentences shown to whoever is using the
+     * table. They made a failure look worse without telling that person anything
+     * they could act on.
+     */
+    _flowFailed = false;
 
     /**
-     * A row action that finished normally but changed what the grid can show.
+     * The one error detail still worth showing, or null.
      *
-     * Kept apart from `_flowError` deliberately. That channel carries four
-     * genuine failures -- no flow configured, the flow did not run, it did not
-     * complete, it returned a record with no key -- and it is rendered as a
-     * warning with `role="alert"` AND fed into the datatable's error bar under
-     * the title "This row's action did not finish". None of that is true of a
-     * record the action deleted on purpose: the action finished, and it did
-     * exactly what it was asked to.
-     *
-     * Announced politely rather than not at all, because a row disappearing is
-     * easy to miss -- especially for anyone who cannot see the row count change.
+     * Only the autolaunched path sets it, and only from the flow's OWN fault text
+     * as Apex surfaces it. That is the single message the grid does not author and
+     * cannot improve on -- it says what actually went wrong inside the flow. Every
+     * message we write ourselves is now folded into the configured wording instead.
      */
-    _flowNotice = null;
+    _flowErrorDetail = null;
+
+    /**
+     * True when the row action deleted its record rather than updating it.
+     *
+     * Selects `rowActionFlowDeleteMessage` over `rowActionFlowSuccessMessage`, and
+     * kept apart from `_flowFailed` deliberately. That flag covers four genuine
+     * failures -- no flow configured, the flow did not run, it did not complete, it
+     * returned a record with no key -- and puts `rowActionFlowErrorMessage` on the
+     * row as an error. None of that is true of a
+     * record the action deleted on purpose: the action finished, and it did exactly
+     * what it was asked to.
+     *
+     * Announced rather than passed over, because a row disappearing is easy to miss
+     * -- especially for anyone who cannot see the row count change.
+     *
+     * A FLAG, not the text it used to hold. The wording now belongs to the admin,
+     * so the decision recorded here is "which message", not "what it says".
+     */
+    _flowDeletedRecord = false;
     _flowVariables = [];
-    _flowInputs = [];
+    /** Interval handle for `keepToastContainerElevated`. Cleared on disconnect. */
+    _toastElevationTimer = null;
     /** Content signature of the last incoming collection. Null until first set,
      *  so the initial assignment is not treated as a change. */
     _recordsSignature = null;
@@ -954,6 +1105,23 @@ export default class FgridFlowGrid extends LightningElement {
         return this.pageState.rows;
     }
 
+    /**
+     * Where the datatable starts counting its row numbers.
+     *
+     * Without it the numbers RESTART AT 1 on every page: the datatable numbers the
+     * rows it was handed, and in Paginate mode it is handed one page at a time. So
+     * page two of ten-per-page showed rows 11-20 numbered 1-10, which is worse than
+     * no numbers at all -- two different records both labelled "1".
+     *
+     * `firstRow` is the 1-based position of the page's first row, and the offset is
+     * what precedes it. Scroll mode reports `firstRow: 1`, so this is 0 there and
+     * the window's numbering already runs from the top.
+     */
+    get rowNumberOffset() {
+        const firstRow = this.pageState.firstRow;
+        return firstRow > 0 ? firstRow - 1 : 0;
+    }
+
     get hasRows() {
         return this.rows.length > 0;
     }
@@ -1253,23 +1421,12 @@ export default class FgridFlowGrid extends LightningElement {
 
     /* ----- row action flow ----- */
 
-    get isFlowOpen() {
-        return this._isFlowOpen;
-    }
-
     get flowApiName() {
         return this.rowActionFlowApiName;
     }
 
     get flowModalHeader() {
         return this.rowActionFlowModalHeader || "Edit Record";
-    }
-
-    get flowModalClass() {
-        const size = String(this.rowActionFlowModalSize || "Medium").toLowerCase();
-        const modifier =
-            size === "small" ? "slds-modal_small" : size === "large" ? "slds-modal_large" : "slds-modal_medium";
-        return `slds-modal slds-fade-in-open ${modifier}`;
     }
 
     /**
@@ -1299,36 +1456,20 @@ export default class FgridFlowGrid extends LightningElement {
         return Boolean(name) && (!this._flowVariables.length || this.declaredInputNames.has(name));
     }
 
-    /**
-     * Names configured but not declared by the flow.
+    /* A configured-but-undeclared input name used to raise a warning banner in the
+     * grid, reading "<flow> does not declare an input variable named <name>, so it
+     * was not sent." It is gone, along with `unmatchedInputNames`,
+     * `hasUnmatchedInputNames` and `unmatchedInputMessage`.
      *
-     * Variable names are typed, so a typo is the likely failure. Reporting the
-     * dropped name beats both alternatives: sending it fails the whole interview,
-     * and dropping it silently leaves the flow running with nothing and no clue
-     * why.
+     * The banner told a SITE VISITOR about an admin's typo in the row action
+     * settings -- an audience that cannot act on it and should not be shown the
+     * internals of a flow's variable names. `acceptsInput` above still drops the
+     * unmatched name, which is the part that matters: sending it fails the whole
+     * interview.
+     *
+     * If this needs surfacing again, the place is design time -- Grid Studio or the
+     * property editor, where the person who can fix it is looking.
      */
-    get unmatchedInputNames() {
-        if (!this._flowVariables.length) {
-            return [];
-        }
-        const declared = this.declaredInputNames;
-        return [this.rowActionFlowRecordVariable, this.rowActionFlowIdVariable]
-            .filter((name) => name && !declared.has(name))
-            .filter((name, index, all) => all.indexOf(name) === index);
-    }
-
-    get hasUnmatchedInputNames() {
-        return this.unmatchedInputNames.length > 0;
-    }
-
-    get unmatchedInputMessage() {
-        const names = this.unmatchedInputNames;
-        if (!names.length) {
-            return null;
-        }
-        const list = names.join(", ");
-        return `${this.rowActionFlowApiName} does not declare ${names.length === 1 ? "an input variable" : "input variables"} named ${list}, so ${names.length === 1 ? "it was" : "they were"} not sent. Check the name in the row action settings.`;
-    }
 
     /**
      * Input variables handed to `lightning-flow`.
@@ -1339,9 +1480,6 @@ export default class FgridFlowGrid extends LightningElement {
      * re-render while the modal was open restarted the flow, including the
      * re-render caused by publishing outputs when it finished.
      */
-    get flowInputVariables() {
-        return this._flowInputs;
-    }
 
     /** Builds the input list once, when the flow is opened. */
     buildFlowInputs(record) {
@@ -1379,9 +1517,20 @@ export default class FgridFlowGrid extends LightningElement {
      *
      * Success and failure are now separate variants, and neither occupies layout
      * space in the grid.
+     *
+     * `message` is the whole toast and comes from an admin-set property, so a blank
+     * one means "say nothing" rather than "say something empty". Returning early is
+     * what makes clearing the field in the panel suppress the toast.
      */
-    toast(variant, label, message) {
+    toast(variant, message) {
+        if (!message) {
+            return;
+        }
         this.elevateToastContainer();
+        // And again for a while afterwards -- the platform rewrites the container's
+        // z-index while a modal unmounts, which is what made the modal row action's
+        // toast sink behind the site header.
+        this.keepToastContainerElevated();
         // `lightning/toast`, NOT `lightning/platformShowToastEvent`.
         //
         // The platform event only surfaces where something is listening for it:
@@ -1393,22 +1542,43 @@ export default class FgridFlowGrid extends LightningElement {
         // `Toast.show` creates its own page-level container when one does not
         // already exist, so it renders in LWR too. `label` is its title; there is
         // no `title` property.
-        Toast.show({ label, message, variant }, this);
+        //
+        // The admin's message goes in `label`, and `message` is left unset, so the
+        // toast is one line. Splitting it would reintroduce the title/detail shape
+        // the wording change was meant to remove -- and `message` is dropped
+        // entirely on small screens and in the mobile app, so it is the wrong slot
+        // for the only text there is.
+        //
+        // NO RICH TEXT, and not for want of trying.
+        //
+        // A Flow text template in rich-text mode arrives as visible `<p><strong>`
+        // tags. The docs say `label` renders through `lightning-formatted-rich-text`
+        // "when you use `labelLinks`", so that was tried -- an empty `labelLinks`
+        // array, and then a template containing a real link. Neither rendered the
+        // markup. Whatever unlocks that renderer is not reachable from
+        // `Toast.show`, so the properties are documented as plain text only.
+        //
+        // Merge fields in a text template DO work, because Flow resolves them
+        // before the value ever reaches this component. That is the reason the
+        // properties stay resource-capable rather than being narrowed to literals.
+        //
+        // `mode` is left unset ON PURPOSE. The platform's default depends on the
+        // variant: a `success` toast with no links auto-dismisses after 4.8s, while
+        // `error` stays until dismissed. That is the behaviour we want in both
+        // cases -- a confirmation should get out of the way, a failure should not.
+        Toast.show({ label: message, variant }, this);
     }
 
     /**
-     * Lifts the toast container above a site's sticky header.
+     * Lifts the toast container above a site's sticky header, once.
      *
-     * In an LWR site the container rendered UNDERNEATH a sticky header, so a toast
-     * was invisible even though it fired. `ToastContainer.instance()` is the
-     * sanctioned handle -- it returns the existing page-level container or creates
-     * one -- which is a great deal less fragile than querying for platform DOM we
-     * do not own.
+     * `ToastContainer.instance()` is the sanctioned handle -- it returns the
+     * existing page-level container or creates one -- which is a great deal less
+     * fragile than querying for platform DOM we do not own. It reaches the live
+     * element: the container is inside `lightning-overlay-container`'s NATIVE
+     * shadow root, so `document.querySelector` cannot see it, but this can.
      *
-     * See TOAST_Z_INDEX for why the value is what it is.
-     *
-     * Best effort by design. If the platform ever stops handing back an element,
-     * the toast still shows -- just possibly behind a header again.
+     * The `!==` guard is what makes the retry in `keepToastContainerElevated` free.
      */
     elevateToastContainer() {
         try {
@@ -1422,28 +1592,72 @@ export default class FgridFlowGrid extends LightningElement {
     }
 
     /**
-     * Errors keep setting `_flowError` as well as toasting, because the toast
-     * cannot say WHICH row failed and the datatable's row error can.
+     * Re-asserts the z-index for a while, because the platform undoes it.
+     *
+     * Unmounting `lightning-modal-base` rewrites the toast container's inline style
+     * back to `z-index: 10000` roughly 180ms after we set it -- so the row action
+     * that runs a screen flow in a modal showed its toast above the site header and
+     * then watched it sink behind it, while the autolaunched actions were fine. See
+     * TOAST_Z_INDEX for the trace.
+     *
+     * A window rather than a delay. Nothing rewrites the style after teardown, so
+     * the last write wins and this only has to outlast the teardown -- it does not
+     * have to know how long the teardown takes. That distinction matters: four
+     * earlier fixes failed by fitting a single number to a single observation.
+     *
+     * `no-async-operation` guards against timers outliving a component and leaking.
+     * This one is bounded, cleared on disconnect, and its callback touches only a
+     * platform singleton -- never `this.template` or component state -- so a grid
+     * unmounted mid-window is harmless.
      */
-    reportFlowError(message) {
-        this._flowError = message;
-        this.toast("error", "Row action failed", message);
+    keepToastContainerElevated() {
+        this.stopElevatingToastContainer();
+        const until = Date.now() + TOAST_ELEVATION_WINDOW_MS;
+        // eslint-disable-next-line @lwc/lwc/no-async-operation
+        this._toastElevationTimer = setInterval(() => {
+            this.elevateToastContainer();
+            if (Date.now() >= until) {
+                this.stopElevatingToastContainer();
+            }
+        }, TOAST_ELEVATION_RETRY_MS);
+    }
+
+    stopElevatingToastContainer() {
+        if (this._toastElevationTimer) {
+            clearInterval(this._toastElevationTimer);
+            this._toastElevationTimer = null;
+        }
+    }
+
+    /**
+     * `detail` is optional and only passed for the flow's own fault text.
+     *
+     * Called with nothing for every reason the grid authors itself, so those report
+     * as the configured message and nothing else.
+     */
+    reportFlowError(detail) {
+        this._flowFailed = true;
+        this._flowErrorDetail = detail || null;
+        this.toast("error", this.rowActionFlowErrorMessage);
     }
 
     /**
      * Reported once the result has been folded in, so it cannot claim success for
      * a flow whose output could not be applied. Silent when anything failed, and
-     * silent on cancel -- `handleCloseFlow` alone never reaches here, because
-     * nothing happened worth announcing.
+     * silent on cancel -- dismissing the modal resolves `undefined` and returns
+     * before this, because nothing happened worth announcing.
      *
-     * `_flowNotice` carries the extra detail when there is any, so a deletion says
-     * what became of the row rather than only that the action finished.
+     * A deletion gets its own message, because "updated" is wrong for a row that
+     * has gone. Still the success variant: the action did what it was asked to.
      */
     reportFlowSuccess() {
-        if (this._flowError) {
+        if (this._flowFailed) {
             return;
         }
-        this.toast("success", "Flow action completed", this._flowNotice || undefined);
+        this.toast(
+            "success",
+            this._flowDeletedRecord ? this.rowActionFlowDeleteMessage : this.rowActionFlowSuccessMessage
+        );
     }
 
     get isRunningFlow() {
@@ -1549,18 +1763,43 @@ export default class FgridFlowGrid extends LightningElement {
      */
     get tableErrors() {
         const errors = {};
-        if (this._flowError && this._flowRecord) {
+        // Same wording as the toast, deliberately. The title used to read "This
+        // row's action did not finish", which is our voice in the most prominent
+        // spot a site visitor looks. One configured string now covers both, so a
+        // failure reads the same however it surfaces.
+        //
+        // A blank message therefore silences the row error as well as the toast.
+        // That is the admin saying "do not announce this", and it is consistent
+        // rather than a gap -- but it does mean a cleared Error Message leaves the
+        // grid showing nothing at all on failure.
+        if (this._flowFailed && this._flowRecord && this.rowActionFlowErrorMessage) {
             const key = this._flowRecord[this.keyField];
             if (key !== null && key !== undefined) {
                 errors.rows = {
-                    [key]: { title: "This row's action did not finish", messages: [this._flowError] }
+                    [key]: {
+                        title: this.rowActionFlowErrorMessage,
+                        // Only the flow's own fault text ever gets a detail line.
+                        messages: this._flowErrorDetail ? [this._flowErrorDetail] : []
+                    }
                 };
             }
         }
         if (this._metadataError) {
             errors.table = { title: "Column setup problem", messages: [this._metadataError] };
         }
-        return errors;
+        // Undefined when there is nothing wrong, rather than an empty object.
+        //
+        // Tidiness only. This was changed on the theory that an empty `errors`
+        // object was switching on the datatable's own row number column -- the
+        // indicator does live in that column, and Grid Studio, which passes no
+        // `errors`, was unaffected. Deployed and measured: `showRowNumberColumn`
+        // stayed true with `errors` undefined, so that theory was WRONG. Removing
+        // the binding entirely did not change it either.
+        //
+        // Kept because `{}` is a poor way to say "nothing is wrong", and because
+        // the datatable normalises either form to the same internal shape, so it
+        // costs nothing. It is NOT the cause of anything.
+        return errors.rows || errors.table ? errors : undefined;
     }
 
     /** Remembers a dragged width so a re-render does not undo it. */
@@ -1590,6 +1829,12 @@ export default class FgridFlowGrid extends LightningElement {
         }
         this._scrolledForPage = this._page;
         this.template.querySelector("c-fgrid_custom-datatable")?.scrollToTop?.();
+    }
+
+    /** Only the toast elevation window needs tearing down; nothing else here is
+     *  asynchronous beyond a component's own lifetime. */
+    disconnectedCallback() {
+        this.stopElevatingToastContainer();
     }
 
     /** Shown once the user has interacted and a required selection is missing. */
@@ -1847,11 +2092,14 @@ export default class FgridFlowGrid extends LightningElement {
      */
     async openRowActionFlow(record) {
         if (!this.rowActionFlowApiName) {
-            this.reportFlowError("No flow is configured for this row action.");
+            // No detail: an admin pointed the action at nothing, which a site
+            // visitor can neither read nor fix.
+            this.reportFlowError();
             return;
         }
-        this._flowError = null;
-        this._flowNotice = null;
+        this._flowFailed = false;
+        this._flowErrorDetail = null;
+        this._flowDeletedRecord = false;
 
         // Confirm the record is still there BEFORE launching.
         //
@@ -1867,21 +2115,72 @@ export default class FgridFlowGrid extends LightningElement {
         // through `outputRemovedRecords`, telling the calling flow that this action
         // removed it -- and a Delete Records element fed from that would then fail
         // on an already-deleted id.
+        // Set BEFORE the existence check, not after, so a refused launch still has
+        // a row to attach its error to. The row error keys off `_flowRecord`, and
+        // assigning it later meant the staleness reason was reported nowhere once
+        // the toast stopped carrying diagnostics -- in precisely the case where
+        // knowing WHICH row is stale matters most. Nothing treats a non-null
+        // `_flowRecord` as "a flow is open"; the reads are the row error, the
+        // flow's inputs, and the patch helpers, none of which run on this path.
+        this._flowRecord = { ...record };
+
         if (!(await this.recordStillExists(record))) {
-            this.reportFlowError(
-                "That record no longer exists, so the action was not run. Refresh to update the grid."
-            );
+            // No detail. "Refresh to update the grid" was the one genuinely
+            // actionable sentence here, so an admin who wants to keep that advice
+            // should put it in the Error Message itself.
+            this.reportFlowError();
             return;
         }
-
-        this._flowRecord = { ...record };
-        this._flowInputs = this.buildFlowInputs(this._flowRecord);
 
         if (this.isHeadlessFlowAction) {
             this.runHeadlessFlow(record);
             return;
         }
-        this._isFlowOpen = true;
+
+        // The modal closes itself and resolves with the outcome, so there is no
+        // modal state to track here and no `statuschange` to relay. It also means
+        // the flow is unmounted before its result is folded in, which
+        // `lightning-flow` requires -- it restarts its interview if it finishes
+        // while still on the page, which used to discard the edits.
+        const outcome = await FgridFlowActionModal.open({
+            size: String(this.rowActionFlowModalSize || "Medium").toLowerCase(),
+            label: this.flowModalHeader,
+            headerLabel: this.flowModalHeader,
+            description: "Row action flow",
+            flowApiName: this.rowActionFlowApiName,
+            flowInputVariables: this.buildFlowInputs(this._flowRecord),
+            // `disableClose` is the base class's own property, set through `open()`
+            // as the docs prescribe. It DISABLES the close button rather than
+            // hiding it, and also blocks Escape and `close()` -- see the notes in
+            // fgrid_flowActionModal for why hiding it is not available to us.
+            disableClose: this.rowActionFlowPreventClose
+        });
+
+        // Dismissed with the close button or Escape. Nothing happened, so nothing
+        // is reported -- announcing a cancel would be noise.
+        if (!outcome) {
+            this._flowRecord = null;
+            return;
+        }
+        if (outcome.status === "ERROR") {
+            // No detail available anyway: `lightning-flow` reports only
+            // `status: "ERROR"` for a screen flow, with no reason attached.
+            this.reportFlowError();
+            return;
+        }
+        await this.applyFlowResult(record, outcome.outputVariables);
+        this.reportFlowSuccess();
+        // Cleared only once the outcome has been reported.
+        //
+        // `_flowRecord` used to be nulled here as soon as `open()` resolved, which
+        // looked harmless while the toast carried the diagnostic. It is not: the
+        // row error needs it, so nulling it first meant "the flow did not complete"
+        // and "returned a record with no key" were reported NOWHERE once the toast
+        // stopped repeating them. Deliberately not in a `finally` -- the failing
+        // paths above keep the record so their row error can render.
+        if (!this._flowFailed) {
+            this._flowRecord = null;
+        }
     }
 
     /**
@@ -1929,52 +2228,20 @@ export default class FgridFlowGrid extends LightningElement {
             await this.applyFlowResult(record, asVariables);
             this.reportFlowSuccess();
         } catch (error) {
-            this.reportFlowError(error?.body?.message || "The flow did not run.");
+            // The ONE case that keeps a detail line. `error.body.message` is the
+            // flow's own fault text, wrapped by FlowGridController -- the only
+            // error message here the grid does not author. Undefined when Apex
+            // sends none, which correctly leaves the row error title-only.
+            this.reportFlowError(error?.body?.message);
         } finally {
             this._isRunningFlow = false;
-            this._flowRecord = null;
+            // Kept on failure so the row error can render -- the flow's own fault
+            // message is the most useful diagnostic the grid ever gets, and the
+            // `finally` was discarding the record it needs to be attached to.
+            if (!this._flowFailed) {
+                this._flowRecord = null;
+            }
         }
-    }
-
-    handleCloseFlow() {
-        this._isFlowOpen = false;
-        this._flowRecord = null;
-        this._flowInputs = [];
-    }
-
-    /**
-     * Reads the launched flow's result and folds it back into the grid.
-     *
-     * This is the half that replaces the Get First Record / Upsert Record By Key
-     * chain: the grid already knows which row was clicked, so it can match the
-     * returned data by key itself.
-     */
-    handleFlowStatusChange(event) {
-        const detail = event.detail || {};
-        // `lightning-flow` reports this as `status`, not `flowStatus`. Reading the
-        // wrong key meant this handler returned early every time, so the modal was
-        // never unmounted and the component restarted its interview — which also
-        // discarded the edits. Both the component this replaces and the BasePack's
-        // fsc_modalFlow read `status`; `flowStatus` is a fallback in case a future
-        // API version renames it.
-        const flowStatus = detail.status ?? detail.flowStatus;
-        const outputVariables = detail.outputVariables;
-
-        if (flowStatus === "ERROR") {
-            this.reportFlowError("The flow did not complete. Nothing was changed.");
-            this.handleCloseFlow();
-            return;
-        }
-        if (flowStatus !== "FINISHED" && flowStatus !== "FINISHED_SCREEN") {
-            return;
-        }
-
-        // Unmount before folding the result in. `lightning-flow` restarts its
-        // interview once finished if it is still on the page, so closing has to
-        // happen first and must not be reachable only after other work.
-        const record = this._flowRecord;
-        this.handleCloseFlow();
-        this.applyFlowResult(record, outputVariables).then(() => this.reportFlowSuccess());
     }
 
     /**
@@ -2043,7 +2310,7 @@ export default class FgridFlowGrid extends LightningElement {
         }
         this._removedKeys = [...this._removedKeys, key];
         this._selectedKeys = this._selectedKeys.filter((selected) => String(selected) !== String(key));
-        this._flowNotice = "The record was deleted, so its row was removed from the grid.";
+        this._flowDeletedRecord = true;
         this.publishRemoval();
         this.publishSelection();
     }
@@ -2100,9 +2367,9 @@ export default class FgridFlowGrid extends LightningElement {
     upsertRecord(record) {
         const key = record?.[this.keyField] ?? this._flowRecord?.[this.keyField];
         if (key === undefined || key === null || key === "") {
-            this.reportFlowError(
-                `The flow returned a record with no ${this.keyField}, so it could not be matched to a row.`
-            );
+            // No detail: a flow returning an unkeyed record is a flow-design
+            // problem, and naming the key field tells a visitor nothing.
+            this.reportFlowError();
             return;
         }
 
@@ -2234,9 +2501,28 @@ export default class FgridFlowGrid extends LightningElement {
         // are rendered through allKnownRecords.
         this._draftValues = [];
 
-        if (this.navigateNextOnSave) {
+        if (this.navigateNextOnSave && this.canNavigateNext) {
             this.dispatchEvent(new FlowNavigationNextEvent());
         }
+    }
+
+    /**
+     * True when the screen this grid is on actually offers a Next action.
+     *
+     * `availableActions` is Flow's own list of the navigation the current screen
+     * permits, and NEXT is absent on a flow's last screen -- where it is FINISH
+     * instead. Dispatching FlowNavigationNextEvent there is a no-op the runtime
+     * complains about, so the admin's "navigate next on save" setting would appear
+     * to do nothing while also logging noise.
+     *
+     * Permissive when the list is empty. Flow populates it, but a grid rendered
+     * outside a flow screen -- an App Builder page, a unit test -- has no list at
+     * all, and refusing to navigate is the worse default: it would silently disable
+     * a configured behaviour rather than attempt it.
+     */
+    get canNavigateNext() {
+        const actions = this.availableActions;
+        return !Array.isArray(actions) || !actions.length || actions.includes("NEXT");
     }
 
     /** Discards pending edits without touching the working collection. */
