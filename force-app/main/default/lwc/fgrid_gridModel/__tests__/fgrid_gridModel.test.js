@@ -23,8 +23,81 @@ import {
     PICKLIST_SELECTED_SUFFIX,
     PICKLIST_OPTIONS_SUFFIX,
     PICKLIST_LOCKED_SUFFIX,
-    MASTER_RECORD_TYPE_ID
+    MASTER_RECORD_TYPE_ID,
+    withRowActionColumn,
+    ROW_ACTION_NAME
 } from "c/fgrid_gridModel";
+
+describe("the row-action icon colour uses SLDS classes", () => {
+    // Ours never worked. `typeAttributes.class` lands the class on an element
+    // `lightning-primitive-cell-factory` renders -- a grandchild of the datatable --
+    // so no stylesheet of ours can select it. Declaring `.fgrid-action_red` in the
+    // grid's CSS failed, and moving it to the datatable subclass's CSS failed too;
+    // both were measured in a running org and the colour never applied.
+    //
+    // SLDS's own icon utilities are in the global stylesheet, so their selectors
+    // match wherever the element lives, and they set the same custom property to
+    // the same values. Pinning the class names because a name of our own here is
+    // silently dead again.
+    const iconClassFor = (color) => {
+        const columns = withRowActionColumn([], { actionType: "Flow", display: "Icon", color });
+        return columns.find((c) => c.fieldName === ROW_ACTION_NAME).typeAttributes.iconClass;
+    };
+
+    it("uses SLDS utilities, never a class of ours", () => {
+        expect(iconClassFor("Red")).toBe("slds-icon-text-error");
+        expect(iconClassFor("Green")).toBe("slds-icon-text-success");
+        expect(iconClassFor("Black")).toBe("slds-icon-text-default");
+        ["Red", "Green", "Black"].forEach((color) => {
+            expect(iconClassFor(color)).not.toMatch(/fgrid/);
+        });
+    });
+
+    it("passes it as iconClass, which is a documented button-icon attribute", () => {
+        const columns = withRowActionColumn([], { actionType: "Flow", display: "Icon", color: "Green" });
+        const action = columns.find((c) => c.fieldName === ROW_ACTION_NAME);
+
+        expect(action.typeAttributes.iconClass).toBe("slds-icon-text-success");
+        expect(action.typeAttributes.class).toBeUndefined();
+    });
+
+    it("defaults a Remove action to red without being told", () => {
+        const columns = withRowActionColumn([], { actionType: "Remove", display: "Icon" });
+        const action = columns.find((c) => c.fieldName === ROW_ACTION_NAME);
+
+        expect(action.typeAttributes.iconClass).toBe("slds-icon-text-error");
+    });
+});
+
+describe("the row-action column header stays blank", () => {
+    // `label` is documented as required and as what assistive tech reads, so a real
+    // label plus `hideLabel: true` was tried. It made things WORSE: `hideLabel` only
+    // works paired with `iconName`, swapping text for an icon, so alone the text
+    // stayed and truncated to "Ru..." inside the 60px column.
+    //
+    // This pins the empty label so that is not retried without also setting
+    // `iconName`. The action itself is labelled on every cell through
+    // `typeAttributes.title` and `alternativeText`.
+    it("leaves the icon variant's header label empty and sets no hideLabel", () => {
+        const columns = withRowActionColumn([], { actionType: "Flow", display: "Icon" });
+        const action = columns.find((c) => c.fieldName === ROW_ACTION_NAME);
+
+        expect(action.label).toBe("");
+        expect(action.hideLabel).toBeUndefined();
+        // The cell still describes itself.
+        expect(action.typeAttributes.title).toBeTruthy();
+        expect(action.typeAttributes.alternativeText).toBeTruthy();
+    });
+
+    it("leaves the button variant's header label empty", () => {
+        const columns = withRowActionColumn([], { actionType: "Remove", display: "Button" });
+        const action = columns.find((c) => c.fieldName === ROW_ACTION_NAME);
+
+        expect(action.label).toBe("");
+        expect(action.hideLabel).toBeUndefined();
+        expect(action.typeAttributes.label).toBeTruthy();
+    });
+});
 
 describe("inferType", () => {
     it("honors an explicit override over any guess", () => {

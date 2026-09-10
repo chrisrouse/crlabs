@@ -164,7 +164,15 @@ export const DEFAULTS = {
     rowActionButtonIconPosition: "Left",
     rowActionButtonVariant: "neutral",
     rowActionFlowModalHeader: "Edit Record",
-    rowActionFlowModalSize: "Medium"
+    rowActionFlowModalSize: "Medium",
+    // Must be listed here as well as in the `@api` initialisers and js-meta.xml.
+    // A default in the component only affects the RUNTIME; this map is what seeds
+    // the editor's fields, so omitting these three showed the admin three empty
+    // boxes whose help text says a blank hides the message -- exactly backwards
+    // from what the component would actually do.
+    rowActionFlowSuccessMessage: "The record was successfully updated.",
+    rowActionFlowErrorMessage: "There was an error updating this record.",
+    rowActionFlowDeleteMessage: "The selected record was deleted."
 };
 
 /**
@@ -381,7 +389,12 @@ export const SECTIONS = [
                 label: "Show the Selected Count in the Header",
                 when: ["headerShown"]
             },
-            { property: "showRowNumbers", type: CONTROL.CHECKBOX, label: "Show Row Numbers" },
+            {
+                property: "showRowNumbers",
+                type: CONTROL.CHECKBOX,
+                label: "Show Row Numbers",
+                help: "Row numbers are always shown when any column is editable: the table needs that column to display row errors, and Salesforce does not allow it to be turned off."
+            },
             {
                 property: "limitWrappedLines",
                 type: CONTROL.CHECKBOX,
@@ -581,6 +594,41 @@ export const SECTIONS = [
                 label: "Modal Size",
                 options: MODAL_SIZES,
                 when: ["screenFlowAction"]
+            },
+            /* Outcome wording. `flowAction` rather than `screenFlowAction`, because
+             * an autolaunched row action toasts too -- it has no modal, not no
+             * outcome.
+             *
+             * CONTROL.TEXT rather than a new control type: it renders the kit's
+             * value input, so each of these already accepts a text template,
+             * formula or variable as well as a literal. */
+            {
+                property: "rowActionFlowPreventClose",
+                type: CONTROL.CHECKBOX,
+                label: "Prevent Closing Until the Flow Finishes",
+                when: ["screenFlowAction"],
+                help: "Hides the close button and blocks Esc so the flow cannot be dismissed part way through. Only the flow finishing or faulting will close it, so use it only when every branch of the flow reaches an end."
+            },
+            {
+                property: "rowActionFlowSuccessMessage",
+                type: CONTROL.TEXT,
+                label: "Success Message",
+                when: ["flowAction", "flowConfigured"],
+                help: "Message shown when row action is successful. Leave blank to hide message. Does not support rich text."
+            },
+            {
+                property: "rowActionFlowErrorMessage",
+                type: CONTROL.TEXT,
+                label: "Error Message",
+                when: ["flowAction", "flowConfigured"],
+                help: "Message shown when there is an error with the row action. Leave blank to hide message. Does not support rich text."
+            },
+            {
+                property: "rowActionFlowDeleteMessage",
+                type: CONTROL.TEXT,
+                label: "Deleted Record Message",
+                when: ["flowAction", "flowConfigured"],
+                help: "Message shown when record is successfully deleted. Leave blank to hide message. Does not support rich text."
             }
         ]
     },

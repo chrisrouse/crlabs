@@ -50,6 +50,18 @@ describe("schema integrity", () => {
         Object.keys(DEFAULTS).forEach((name) => expect(known.has(name)).toBe(true));
     });
 
+    it("seeds the row-action messages, whose blank state means something else", () => {
+        // A default in the component's `@api` initialiser only affects the RUNTIME.
+        // This map is what fills the editor's fields, and omitting these three
+        // showed the admin empty boxes whose own help text says a blank hides the
+        // message -- so the panel implied "no toast" while the component would have
+        // shown one. Any property where blank is a MEANINGFUL setting has to be
+        // seeded here or the editor misrepresents it.
+        expect(DEFAULTS.rowActionFlowSuccessMessage).toBeTruthy();
+        expect(DEFAULTS.rowActionFlowErrorMessage).toBeTruthy();
+        expect(DEFAULTS.rowActionFlowDeleteMessage).toBeTruthy();
+    });
+
     it("keeps editor-managed properties out of the declarative controls", () => {
         // Each of these is owned by a dedicated component, so a control for it
         // would fight that component for the same value.

@@ -14,6 +14,11 @@
                 ></lightning-input>
             </div>
             <template lwc:if={hasValue}>
+                <!-- Untinted on purpose. Colouring this to match the chosen Icon
+                     Color was built and removed: `lightning-icon` sets the icon
+                     colour property on its own svg, so a class on the host is only
+                     inherited and loses, and the documented `variant` lever did not
+                     move it either. The grid itself colours correctly. -->
                 <div class="picker__preview" title={value}>
                     <lightning-icon icon-name={value} size="small"></lightning-icon>
                 </div>

@@ -1513,15 +1513,18 @@ export function withRowActionColumn(columns, options = {}) {
 
     const defaultLabelText = isRemove ? REMOVE_LABEL : FLOW_LABEL;
     const defaultIconName = ROW_ACTION_DEFAULT_ICONS[isRemove ? "Remove" : "Flow"];
-    // Removal reads as destructive, so it defaults to red even when nothing is
-    // stored. A contract-level default cannot express this: it would colour the
-    // flow action red too.
-    const effectiveColor = color || (isRemove ? "Red" : null);
     const column =
         display === "Button"
             ? {
                   type: "button",
                   fieldName: ROW_ACTION_NAME,
+                  /* EMPTY ON PURPOSE. `label` is documented as required and as what
+                     assistive tech reads, so this was tried as `defaultLabelText` plus
+                     `hideLabel: true`. `hideLabel` only works PAIRED WITH `iconName` --
+                     it swaps the text for an icon -- so on its own the text stayed and
+                     truncated to "Ru..." in a 60px column, which is worse than blank.
+                     The action is described on every cell through `typeAttributes.title`
+                     and `alternativeText`; only the header is unlabelled. */
                   label: "",
                   hideDefaultActions: true,
                   typeAttributes: {
@@ -1535,6 +1538,13 @@ export function withRowActionColumn(columns, options = {}) {
             : {
                   type: "button-icon",
                   fieldName: ROW_ACTION_NAME,
+                  /* EMPTY ON PURPOSE. `label` is documented as required and as what
+                     assistive tech reads, so this was tried as `defaultLabelText` plus
+                     `hideLabel: true`. `hideLabel` only works PAIRED WITH `iconName` --
+                     it swaps the text for an icon -- so on its own the text stayed and
+                     truncated to "Ru..." in a 60px column, which is worse than blank.
+                     The action is described on every cell through `typeAttributes.title`
+                     and `alternativeText`; only the header is unlabelled. */
                   label: "",
                   fixedWidth: 60,
                   hideDefaultActions: true,
@@ -1545,7 +1555,9 @@ export function withRowActionColumn(columns, options = {}) {
                       title: label || defaultLabelText,
                       alternativeText: label || defaultLabelText,
                       variant: "bare",
-                      class: colorClass(effectiveColor)
+                      // `iconClass`, NOT `class`, and an SLDS class rather than one of
+                      // ours -- see colorClass.
+                      iconClass: rowActionIconClass(actionType, color)
                   }
               };
 
@@ -1557,19 +1569,55 @@ export function withRowActionColumn(columns, options = {}) {
     return base;
 }
 
-/** Maps the configured colour name to a class the component's CSS defines. */
+/**
+ * The SLDS icon class a row action will actually ship with.
+ *
+ * EXPORTED SO THE EDITOR CAN SHOW THE SAME THING. The property panel previews the
+ * chosen icon next to the picker, and that preview has to be tinted by the same
+ * rule the grid uses -- including the Remove-defaults-to-red fallback, which is
+ * not stored anywhere and so cannot be read off the values map. Two copies of this
+ * would drift, exactly as ROW_ACTION_DEFAULT_ICONS notes for the icon itself.
+ */
+export function rowActionIconClass(actionType, color) {
+    const isRemove = String(actionType || "") === "Remove";
+    return colorClass(color || (isRemove ? "Red" : null));
+}
+
+/**
+ * Maps the configured colour to an SLDS icon utility class.
+ *
+ * SLDS'S CLASSES, NOT OURS, AND THAT IS THE WHOLE POINT. This used to return
+ * `fgrid-action_red` and friends, declared in a stylesheet of ours. The class lands
+ * on an element `lightning-primitive-cell-factory` renders -- a grandchild of the
+ * datatable -- so no stylesheet of ours can select it. Declaring the rules in the
+ * grid's CSS failed, and moving them into the datatable subclass's CSS failed too;
+ * measured in a running org, the configured colour never applied in either place.
+ *
+ * These classes are defined in `salesforce-lightning-design-system.min.css`, which
+ * is global, so the selector matches wherever the element lives. They set the same
+ * custom property our own rules did, to the same values:
+ *
+ *     .slds-icon-text-error   --slds-c-icon-color-foreground: #ea001e
+ *     .slds-icon-text-success --slds-c-icon-color-foreground: #2e844a
+ *
+ * Black has no SLDS equivalent. `slds-icon-text-default` is the neutral grey the
+ * datatable already uses, so choosing Black now renders as the default rather than
+ * the #181818 it nominally promised. The option is kept because saved flows store
+ * it; the alternative was renaming a stored value.
+ */
 function colorClass(color) {
     switch (String(color || "").toLowerCase()) {
         case "green":
-            return "fgrid-action_green";
+            return "slds-icon-text-success";
         case "black":
-            return "fgrid-action_black";
+            return "slds-icon-text-default";
         case "red":
-            return "fgrid-action_red";
+            return "slds-icon-text-error";
         default:
             return undefined;
     }
 }
+
 
 /** Field paths worth searching: real data columns, not generated link URLs. */
 /**
