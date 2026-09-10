@@ -410,6 +410,115 @@ Everything else in §1 has either been verified or closed by decision. These hav
       unshown field should NOT discard them.
 - [ ] **Percent fields**, display and edit. §2.5 gap 6.
 
+**Row numbers cannot be turned off on an editable grid — settled 2026-09-10**
+
+From the `lightning-datatable` documentation, under Handle Errors:
+
+> To show errors for a column, you must make the column editable. When there's an
+> editable column, `lightning-datatable` sets the `show-row-number-column`
+> attribute to true to show the row errors in the number column. **You can't
+> override this setting.**
+
+The row error icon lives in the row number column, so any editable column takes
+that column whether asked or not. Flow Grid's runtime grid has editable columns,
+so **Show Row Numbers has no effect there** — the column is always on. Grid Studio
+is unaffected because its preview builds columns with `forceReadOnly: true`.
+
+`showRowNumbers` is still passed through, because it does decide the column on a
+read-only grid.
+
+**Confirmed by experiment, not only by the documentation:** with editing removed
+from every column, Show Row Numbers off does hide the column. Turn editing back on
+for any column and it returns. So the doc sentence is exactly right and there is
+nothing further to look for.
+
+**Everything tried before finding that sentence, so none of it is repeated:**
+
+| Attempt | Result |
+| --- | --- |
+| Blamed a stale bundle, twice | Wrong. A `BUILD_MARKER` in a temporary diagnostic proved current code was running |
+| `errors` returning `{}` rather than undefined | Wrong. Changed it, column stayed |
+| Removed the `errors` attribute entirely | Wrong. Column stayed |
+| Bound `show-row-number-column` to a constant `false` | Ignored, exactly as documented |
+| Omitted the attribute | Property still read `true` |
+| Removed `row-number-offset` | Not the cause either |
+| Replaced it with a row number column of our own | Rendered fine and un-clipped, but the forced column appeared alongside it, so there were two |
+
+The custom column is reverted. It worked, but it cannot solve the problem while
+the platform's column is also forced on, and two number columns is worse than one.
+
+**The clipping is a separate, still-open platform defect.** The forced column is
+sized one digit short of its largest number, so a ten-row grid clips at 10. See
+repro/datatable-row-number-clip. Nothing in our code affects it.
+
+**The lesson, since it cost the most time in this project so far:** the answer was
+one sentence in the component's own documentation, in a section about errors rather
+than about row numbers. Six deploys of instrumentation and five wrong theories
+preceded reading it. When a platform attribute does not behave as set, search the
+whole component doc for the attribute NAME before theorising about causes.
+
+**Row-action outcome wording — decided 2026-09-07**
+
+- Three properties carry every message a site visitor reads:
+  `rowActionFlowSuccessMessage`, `rowActionFlowErrorMessage`,
+  `rowActionFlowDeleteMessage`. Each is the WHOLE toast, in `label` with `message`
+  left unset — required, not stylistic, because small screens and the mobile app
+  drop `message` and keep only `label`. Blank suppresses.
+- The error message is ALSO the row error's title, replacing our own "This row's
+  action did not finish". Every reason the grid authors itself now reports as that
+  one string; only the flow's own fault text, wrapped by
+  [FlowGridController.cls:155](force-app/main/default/classes/FlowGridController.cls),
+  still gets a detail line, because it is the one message we cannot write better.
+  So a blank error message silences the row error too.
+- Lost deliberately: "Refresh to update the grid" for a stale row. It was the one
+  actionable sentence in the set; an admin who wants it puts it in their message.
+- `mode` is left unset on `Toast.show`. The platform derives it from the variant:
+  `success` with no links auto-dismisses after 4.8s, `error` stays until closed,
+  which is the behaviour we want in both cases. There is no `pester` mode and no
+  fixed default — both were things I claimed and neither is true.
+- **Defaults must be listed in `DEFAULTS` in fgrid_propertySchema as well as in the
+  `@api` initialisers and js-meta.xml.** The `@api` default only affects the runtime;
+  that map is what seeds the editor's fields. Omitting them showed three empty boxes
+  whose help text says a blank hides the message — the panel implying "no toast"
+  while the component would have shown one. A test guards it, and the rule
+  generalises: any property where BLANK is a meaningful setting has to be seeded.
+
+**Preventing dismissal mid-flow — added 2026-09-07**
+
+- `rowActionFlowPreventClose`, off by default, screen-flow actions only. For a flow
+  that gathers input across several screens, where dismissing half way through
+  discards everything typed.
+- **Two mechanisms, because one is not enough.** `disableClose` — the base class's
+  property, passed through `open()` — blocks Escape and `close()` and sets
+  `disabled` on the close button. It does NOT hide it: measured in the site,
+  `display: flex` and `opacity: 1`, so the X was drawn at full strength and did
+  nothing when clicked. Users found that more confusing than either extreme.
+  `renderedCallback` therefore also sets `display: none` on it.
+- **Hiding it needs platform DOM we do not own, and there is no alternative.** The
+  button is in `lightning-modal-base`'s NATIVE shadow root:
+  `document.querySelectorAll(".slds-modal__close").length` is 0 with a modal open,
+  so neither our CSS nor the site's can select it, and no styling hook covers
+  visibility. Custom properties DO cross that boundary — which is how site branding
+  recolours the X, and why it looked enabled rather than dimmed — but cannot express
+  `display`. The path used is one hop and not a search: this component is slotted
+  into the container, so `host.getRootNode()` is its shadow root and the button is a
+  sibling of the slot.
+- Both are kept rather than replacing one with the other: if LWS blocks the
+  traversal or the platform renames `data-close-button`, the button returns
+  **disabled**, so a stray click still cannot discard a half-finished flow.
+- `disableClose` blocks `close()` too, so every close routes through
+  `closeWithOutcome`, which releases the lock first. Setting the lock and calling
+  `close()` directly would trap the user with no way out at all, including the flow
+  succeeding. A test asserts `open()` still resolves while locked; remove the
+  release and it never settles.
+- The trade, stated in the help text: with the lock on, only the flow finishing or
+  faulting closes the modal. A flow with a screen that has no path onward leaves the
+  user stuck until they reload. Use it only where every branch reaches an end.
+- **"No declarative route" was mistaken for "no route" here**, and written into the
+  code as settled fact before being tested. CSS was correctly ruled out; the
+  imperative path was never tried until the third time it was asked for.
+- [x] Verified in the LWR site, locked and unlocked.
+
 **Row-action toasts — decided 2026-09-06**
 
 - Uses `lightning/toast`, NOT `lightning/platformShowToastEvent`. The platform event
@@ -417,16 +526,96 @@ Everything else in §1 has either been verified or closed by decision. These hav
   Aura site and produced **nothing at all** in LWR — the worse half, since a site
   user got neither the confirmation nor the error. `Toast.show` brings its own
   page-level container, so it renders in LWR too. Its title property is `label`.
-- The container is lifted to `z-index: 100002` via `ToastContainer.instance()`.
-  SLDS's own toast layer of 10000 was not enough — an LWR theme's sticky header
-  measured 100001. Bisected from both sides: with the container at 10000, a header
-  at 10000 lost and 10001 won. A high value is defensible for a toast in a way it
-  is not for a popover; SLDS puts toasts above its own modals. **Tuned to an
-  observed theme: if another site's chrome goes higher, move to `bottom-center`
-  rather than raising it again.**
-- Verified: LWR shows both variants above the header; an Aura site shows a SINGLE
-  toast, which mattered because `Toast.show` also dispatches a ShowToastEvent that
-  an Aura site listens for, so it could have rendered twice.
+- The container is lifted to `z-index: 100002` via `ToastContainer.instance()`, the
+  sanctioned handle. An LWR theme's sticky header measured 100001. Bisected from
+  both sides: with the container at 10000, a header at 10000 lost and 10001 won. A
+  high value is defensible for a toast in a way it is not for a popover; SLDS puts
+  toasts above its own modals. **Tuned to an observed theme: if another site's
+  chrome goes higher, move to `bottom-center` rather than raising it again.**
+- **Re-asserted for a 1s window after every toast, at 50ms intervals — 2026-09-07.**
+  The write always landed; the platform kept undoing it.
+
+  The modal row action's toast appeared above the site header and then **sank behind
+  it**, while the two autolaunched actions were fine. That "briefly correct, then
+  sinks" detail is what cracked it — it meant our value was being applied and then
+  overwritten, not failing to apply.
+
+  Traced with a `MutationObserver` on `lightning-overlay-container`'s shadow root,
+  following each mutation's `oldValue` for `lightning-toast-container`. The element
+  id was stable throughout, so it is **rewritten, never replaced**:
+
+  | ms | `oldValue` | what happened |
+  |---|---|---|
+  | 2459 | `10000` | modal opens; we set 100002 |
+  | 2459 | `100002` | platform rewrites to 10000 |
+  | 4500 | `10000` | our `toast()` elevation sets 100002 |
+  | 4679 | `100002` | platform rewrites to 10000, same batch as `lightning-modal-base` being REMOVED |
+
+  Nothing rewrites it after teardown, so a late write sticks. Note `open()`'s promise
+  resolved at ~4500 while the modal was not removed until ~4679 — awaiting the modal
+  is not enough.
+
+  **A window, not a delay.** The measured gap was ~180ms, but tuning one
+  `setTimeout` to it would repeat the mistake behind four failed fixes: fitting a
+  number to a single observation. Correctness here needs only that the platform
+  stops eventually. The `!==` guard makes redundant passes free, and on the
+  autolaunched paths every pass is redundant. Cleared in `disconnectedCallback`.
+
+  **Four earlier attempts, all measured and all reverted:**
+
+  1. Elevate before `Toast.show` only — the platform overwrote it 180ms later.
+  2. Elevate again on the next animation frame — one frame is ~16ms, far too early.
+  3. Elevate a host found via `document.querySelector` — returns nothing, because the
+     container is inside a **native** shadow root. Reachable via
+     `overlay.shadowRoot.querySelectorAll(...)` from the console, and via
+     `ToastContainer.instance()` from code, but never from a document query.
+  4. Elevate before `open()` so the container pre-dates the overlay — still rewritten.
+
+  **Also rejected:**
+
+  - *`toastPosition: "bottom-center"`* — worked, reverted. It dodged the header, but
+    a confirmation at the bottom of a long site page is easy to miss.
+  - *A `loadStyle` static resource injecting `lightning-toast-container { z-index:
+    1000001 !important }`* — rejected on packaging grounds, and probably would not
+    have worked anyway: a document stylesheet cannot cross into a native shadow
+    root. The hand test that appeared to prove it was almost certainly DevTools
+    injecting into the right shadow context for the selected element. **Do not
+    recommend site CSS for this**; it was recorded as the fallback for several hours
+    and was likely never viable.
+  - *Raising the number.* It was never too low.
+
+- **Five wrong diagnoses preceded the answer, from three repeated mistakes.**
+
+  *Reasoning about the failing case without a control.* Broken by noticing the
+  autolaunched actions worked and only the modal path did not. **Compare a working
+  path against a broken one before theorising.**
+
+  *Treating the jest stubs as platform documentation.* A round went to concluding
+  `instance()` returns a style-less component instance, because `sfdx-lwc-jest`'s
+  hand-written stub exposes only `containerPosition`, `maxToasts`, `toastPosition`
+  and `close()`. The real one returns the live element with a usable `style`.
+
+  *Reading a negative result as proof of impossibility.* `querySelectorAll` returning
+  0 was taken as "unreachable from JS", which killed the whole approach for several
+  rounds. It only ever meant "not reachable *that way*" — `instance()` had been
+  reaching it the entire time, as the 100002 rows above show.
+
+  And underneath all three: the original unit test asserted `container.style.zIndex`
+  against a `{ style: {} }` mock invented to match the code, so it stayed green
+  throughout. **A mock invented to match the code under test proves nothing about the
+  platform.** Both current tests were checked against the mutation they guard — one
+  fails when the retry call is removed, the other when the window is made unbounded.
+- Verified: an Aura site shows a SINGLE toast, which mattered because `Toast.show`
+  also dispatches a ShowToastEvent that an Aura site listens for, so it could have
+  rendered twice.
+- [x] **Confirmed in the LWR site, 2026-09-07.** The modal row action's toast now
+      stays above the site header instead of sinking behind it. All three row-action
+      paths clear the header.
+- Verified: an Aura site shows a SINGLE toast, which mattered because `Toast.show`
+  also dispatches a ShowToastEvent that an Aura site listens for, so it could have
+  rendered twice.
+- [ ] **Re-verify in the LWR site** — 1000001 on the host was confirmed by hand in
+      DevTools, but not yet as deployed code.
 - [ ] **Lightning Experience / Flow Builder debug** — untested for that same
       duplicate. Shares the mechanism with Aura, so likely fine, but unconfirmed.
 
