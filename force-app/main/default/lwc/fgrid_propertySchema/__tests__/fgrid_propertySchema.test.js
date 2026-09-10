@@ -5,7 +5,9 @@ import {
     schemaProperties,
     CONTROL,
     EDITOR_MANAGED_PROPERTIES,
-    DATA_TYPE_FOR
+    DATA_TYPE_FOR,
+    parseDimension,
+    formatDimension
 } from "c/fgrid_propertySchema";
 
 function section(name) {
@@ -43,6 +45,19 @@ describe("schema integrity", () => {
                 expect(resolveSection({ controls: [{ ...control, when: [key] }] }, {})).toBeInstanceOf(Array);
             });
         });
+    });
+
+    it("hands the grid height to the panel already split into a number and a unit", () => {
+        // The control renders two inputs, so the split has to happen here rather
+        // than in the panel: a free-text CSS box was what let "30 rem" and half a
+        // calc() into the property in the first place.
+        const height = (values) =>
+            resolveSection(section("display"), { showHeader: true, ...values }).find(
+                (c) => c.property === "tableHeight"
+            );
+
+        expect(height({ tableHeight: "24px" }).dimension).toEqual({ number: 24, unit: "px" });
+        expect(height({}).dimension).toEqual({ number: null, unit: "rem" });
     });
 
     it("defaults only properties the editor actually writes", () => {
@@ -243,11 +258,6 @@ describe("dynamic placeholders", () => {
         expect(icon("Flow")).toBe("utility:flow");
     });
 
-    it("leaves static placeholders alone", () => {
-        const height = resolveSection(section("display"), {}).find((c) => c.property === "tableHeight");
-        expect(height.placeholder).toBe("30rem");
-    });
-
     it("returns null where no placeholder is declared", () => {
         const tableIcon = resolveSection(section("display"), { showHeader: true }).find(
             (c) => c.property === "tableIcon"
@@ -332,5 +342,32 @@ describe("the wrapped line limit is a switch", () => {
         expect(controls.find((c) => c.property === "limitWrappedLines").isCheckbox).toBe(true);
         // The deprecated property is unread and must not reappear in the editor.
         expect(controls.find((c) => c.property === "wrapTextMaxLines")).toBeUndefined();
+    });
+});
+
+describe("dimensions", () => {
+    it("reads a stored length back into its two fields", () => {
+        expect(parseDimension("30rem")).toEqual({ number: 30, unit: "rem" });
+        expect(parseDimension(" 12.5 PX ")).toEqual({ number: 12.5, unit: "px" });
+    });
+
+    it("shows an empty number for anything it cannot split", () => {
+        // calc() was supported before this control existed, so a saved flow can
+        // still hold one. It surfaces as a blank field rather than as a broken
+        // number, and is only overwritten once the admin types something.
+        ["calc(100vh - 4rem)", "", null, undefined, "30", "auto"].forEach((value) =>
+            expect(parseDimension(value)).toEqual({ number: null, unit: "rem" })
+        );
+    });
+
+    it("composes the pair back into one CSS length", () => {
+        expect(formatDimension(30, "rem")).toBe("30rem");
+        expect(formatDimension("24", "px")).toBe("24px");
+    });
+
+    it("clears the property when the number is cleared", () => {
+        // Blank has a meaning of its own here -- fit the rows -- so an empty
+        // number field must not become "0rem" or a bare unit.
+        [null, undefined, ""].forEach((value) => expect(formatDimension(value, "rem")).toBeNull());
     });
 });

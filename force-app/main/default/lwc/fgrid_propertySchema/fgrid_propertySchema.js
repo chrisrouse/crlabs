@@ -38,6 +38,11 @@ export const CONTROL = {
     INTEGER: "integer",
     TEXT: "text",
     NUMBER: "number",
+    /** A number paired with a CSS unit, written back as one string like "30rem".
+     *  Use it where the value is a length: a free-text CSS box invites `calc()`
+     *  and typos, and offers a Flow resource picker for something that is really
+     *  a number and a unit. */
+    DIMENSION: "dimension",
     ICON: "icon",
     RESOURCE: "resource",
     FIELD: "field",
@@ -62,10 +67,51 @@ export const DATA_TYPE_FOR = {
     // "can't access property 1, Object.entries(...).find(...) is undefined" from
     // builder_platform_interaction:elementFactory, on save. The kit's own number input
     // sends "Number", which is the path that has always worked.
-    [CONTROL.INTEGER]: "Number"
+    [CONTROL.INTEGER]: "Number",
+    // A CSS length is composed into a string before it is published.
+    [CONTROL.DIMENSION]: "String"
     // TEXT and NUMBER take their data type from the picker's event, because the
     // admin may supply either a literal or a Flow reference.
 };
+
+/**
+ * Units a dimension control offers, matching the set Experience Builder uses for
+ * its own height and width fields so the two feel like the same control.
+ */
+export const DIMENSION_UNITS = [
+    { label: "px", value: "px" },
+    { label: "rem", value: "rem" },
+    { label: "em", value: "em" },
+    { label: "vw", value: "vw" },
+    { label: "vh", value: "vh" }
+];
+
+const DEFAULT_DIMENSION_UNIT = "rem";
+
+/**
+ * Splits a stored CSS length into the number and unit a dimension control edits.
+ *
+ * Anything that is not a plain number-and-unit returns a null number, which
+ * renders as an empty field. `calc()` is the case that matters: the property used
+ * to accept any CSS and the help text advertised it, so a saved flow may still
+ * hold one. The value is left alone until the admin sets a number -- editing is
+ * what discards it, not merely opening the panel.
+ */
+export function parseDimension(value) {
+    const match = /^\s*(-?\d*\.?\d+)\s*(px|rem|em|vw|vh)\s*$/i.exec(String(value ?? ""));
+    return match
+        ? { number: Number(match[1]), unit: match[2].toLowerCase() }
+        : { number: null, unit: DEFAULT_DIMENSION_UNIT };
+}
+
+/** Composes the pair back into the CSS string the component consumes. */
+export function formatDimension(number, unit) {
+    const parsed = Number(number);
+    if (number === null || number === undefined || number === "" || !Number.isFinite(parsed)) {
+        return null;
+    }
+    return `${parsed}${unit || DEFAULT_DIMENSION_UNIT}`;
+}
 
 export const SELECTION_MODES = [
     { label: "Multiple", value: "Multiple" },
@@ -409,10 +455,9 @@ export const SECTIONS = [
             },
             {
                 property: "tableHeight",
-                type: CONTROL.TEXT,
+                type: CONTROL.DIMENSION,
                 label: "Grid Height",
-                placeholder: "30rem",
-                help: "CSS height, for example 30rem or calc(50vh - 100px). With Paginate, leave blank to fit the rows on the page. Load as You Scroll needs a height for more rows to load, so blank uses 30rem there. Set a height to stop the bottom of the screen moving as row content varies."
+                help: "With Paginate, leave blank to fit the rows on the page. Load as You Scroll needs a height for more rows to load, so blank uses 30rem there. Set a height to stop the bottom of the screen moving as row content varies."
             }
         ]
     },
@@ -732,6 +777,10 @@ export function resolveSection(section, values) {
             isInteger: control.type === CONTROL.INTEGER,
             isText: control.type === CONTROL.TEXT,
             isNumber: control.type === CONTROL.NUMBER,
+            isDimension: control.type === CONTROL.DIMENSION,
+            // A dimension edits a number and a unit but stores one string, so the
+            // control needs both halves resolved for it.
+            dimension: control.type === CONTROL.DIMENSION ? parseDimension(values[control.property]) : null,
             isIcon: control.type === CONTROL.ICON,
             isResource: control.type === CONTROL.RESOURCE,
             isField: control.type === CONTROL.FIELD,

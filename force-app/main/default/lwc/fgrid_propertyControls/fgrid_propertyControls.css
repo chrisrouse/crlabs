@@ -26,3 +26,35 @@
     font-weight: 700;
     color: var(--slds-g-color-neutral-base-30, #444);
 }
+
+/* The hoisted label and its help icon on one line, so the label reads as one
+   piece above the pair of inputs it belongs to. */
+.control__labelrow {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.control__labelrow .control__label {
+    margin-bottom: 0;
+}
+
+/* Number and unit on one line. Top-aligned, not bottom-aligned: both inputs are
+   32px, but lightning-input's host runs 2px taller than its input, so matching
+   bottoms puts the visible boxes 2px apart. The unit is fixed-width and the
+   number takes the rest, which keeps the pair usable in the narrow Flow Builder
+   panel. */
+.control__dimension {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.25rem;
+}
+
+.control__dimension > lightning-input {
+    flex: 1 1 auto;
+    min-width: 0;
+}
+
+.control__dimension > lightning-combobox {
+    flex: 0 0 5.5rem;
+}

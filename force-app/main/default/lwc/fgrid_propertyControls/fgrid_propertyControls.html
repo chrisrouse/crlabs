@@ -106,6 +106,45 @@
                         ></c-flow-config-value-input>
                     </template>
 
+                    <template lwc:elseif={control.isDimension}>
+                        <!-- A number and a unit, stored as one CSS string. Deliberately
+                             NOT the kit's value input: a length is not a place for a
+                             Flow resource or freehand CSS.
+
+                             The label is ours, and both inputs hide their own, so the
+                             two boxes can be top-aligned against each other. Left to
+                             their own labels they sit 2px out of step: lightning-input
+                             keeps descender space below its input that the combobox's
+                             faux-input button does not. -->
+                        <div class="control__labelrow">
+                            <span class="control__label" aria-hidden="true">{control.label}</span>
+                            <lightning-helptext content={control.help}></lightning-helptext>
+                        </div>
+                        <div class="control__dimension">
+                            <lightning-input
+                                data-validatable
+                                data-property={control.property}
+                                type="number"
+                                variant="label-hidden"
+                                label={control.label}
+                                value={control.dimension.number}
+                                disabled={control.disabled}
+                                min="0"
+                                step="any"
+                                onchange={handleDimensionNumber}
+                            ></lightning-input>
+                            <lightning-combobox
+                                data-property={control.property}
+                                label="Unit"
+                                variant="label-hidden"
+                                value={control.dimension.unit}
+                                options={dimensionUnits}
+                                disabled={control.disabled}
+                                onchange={handleDimensionUnit}
+                            ></lightning-combobox>
+                        </div>
+                    </template>
+
                     <template lwc:elseif={control.isIcon}>
                         <c-fgrid_icon-picker
                             data-validatable

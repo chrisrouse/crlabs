@@ -10,7 +10,14 @@
  * generic type mapping, clearing dependents — stays in the editor.
  */
 import { LightningElement, api } from "lwc";
-import { resolveSection, DATA_TYPE_FOR, CONTROL } from "c/fgrid_propertySchema";
+import {
+    resolveSection,
+    DATA_TYPE_FOR,
+    CONTROL,
+    DIMENSION_UNITS,
+    parseDimension,
+    formatDimension
+} from "c/fgrid_propertySchema";
 
 export default class FgridPropertyControls extends LightningElement {
     /** Section descriptor from SECTIONS. */
@@ -45,6 +52,10 @@ export default class FgridPropertyControls extends LightningElement {
 
     get hasControls() {
         return this.controls.length > 0;
+    }
+
+    get dimensionUnits() {
+        return DIMENSION_UNITS;
     }
 
     /* ------------------------------------------------------------------ *
@@ -90,6 +101,31 @@ export default class FgridPropertyControls extends LightningElement {
     handleValue(event) {
         const { name, newValue, newValueDataType } = event.detail;
         this.publish(name, newValue, newValueDataType);
+    }
+
+    /**
+     * Number and unit are two inputs writing one string, so each reads the other
+     * off the resolved control rather than off its sibling in the DOM.
+     *
+     * Clearing the number publishes null, which is what makes a blank Grid Height
+     * mean "fit the rows" rather than "zero high".
+     */
+    handleDimensionNumber(event) {
+        const property = event.target.dataset.property;
+        const { unit } = this.dimensionFor(property);
+        this.publish(property, formatDimension(event.target.value, unit), DATA_TYPE_FOR[CONTROL.DIMENSION]);
+    }
+
+    handleDimensionUnit(event) {
+        const property = event.target.dataset.property;
+        const { number } = this.dimensionFor(property);
+        // Changing the unit with no number set stores nothing: "rem" alone is not
+        // a length, and writing one would make a blank field look configured.
+        this.publish(property, formatDimension(number, event.detail.value), DATA_TYPE_FOR[CONTROL.DIMENSION]);
+    }
+
+    dimensionFor(property) {
+        return parseDimension(this.values?.[property]);
     }
 
     handleIcon(event) {
