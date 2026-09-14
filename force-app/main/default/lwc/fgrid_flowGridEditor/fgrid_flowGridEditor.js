@@ -19,7 +19,7 @@
  * This class is the only writer to Flow Builder.
  */
 import FlowConfigEditorBase from "c/flowConfigEditorBase";
-import { SECTIONS, DEFAULTS, schemaProperties, EDITOR_MANAGED_PROPERTIES } from "c/fgrid_propertySchema";
+import { SECTIONS, DEFAULTS, DEFAULTS_FROM, schemaProperties, EDITOR_MANAGED_PROPERTIES } from "c/fgrid_propertySchema";
 import FgridFlowGridStudio from "c/fgrid_flowGridStudio";
 
 /** Generic SObject type letter declared in fgrid_flowGrid.js-meta.xml. */
@@ -67,9 +67,15 @@ export default class FgridFlowGridEditor extends FlowConfigEditorBase {
     resolve(name, asReference = false) {
         if (Object.prototype.hasOwnProperty.call(this.pending, name)) {
             const pendingValue = this.pending[name];
-            return pendingValue === null || pendingValue === undefined ? (DEFAULTS[name] ?? null) : pendingValue;
+            return pendingValue === null || pendingValue === undefined ? this.defaultFor(name) : pendingValue;
         }
-        return this.input(name, DEFAULTS[name] ?? null, asReference);
+        return this.input(name, this.defaultFor(name), asReference);
+    }
+
+    /** The schema default, which for a few properties depends on another value. */
+    defaultFor(name) {
+        const from = DEFAULTS_FROM[name];
+        return from ? from((other) => this.resolve(other)) : (DEFAULTS[name] ?? null);
     }
 
     /** Writes a property and records it optimistically. */

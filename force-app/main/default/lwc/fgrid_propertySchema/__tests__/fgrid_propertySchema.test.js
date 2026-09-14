@@ -6,6 +6,7 @@ import {
     CONTROL,
     EDITOR_MANAGED_PROPERTIES,
     DATA_TYPE_FOR,
+    DEFAULTS_FROM,
     parseDimension,
     formatDimension
 } from "c/fgrid_propertySchema";
@@ -63,6 +64,23 @@ describe("schema integrity", () => {
     it("defaults only properties the editor actually writes", () => {
         const known = new Set([...schemaProperties(), ...EDITOR_MANAGED_PROPERTIES]);
         Object.keys(DEFAULTS).forEach((name) => expect(known.has(name)).toBe(true));
+    });
+
+    it("defaults each property in one place only", () => {
+        const known = new Set([...schemaProperties(), ...EDITOR_MANAGED_PROPERTIES]);
+        Object.keys(DEFAULTS_FROM).forEach((name) => {
+            expect(known.has(name)).toBe(true);
+            // A property with a resolver must not also sit in the flat map, or which
+            // default applies depends on the order the editor happens to read them.
+            expect(DEFAULTS[name]).toBeUndefined();
+        });
+    });
+
+    it("offers red as a default only for the action that deletes", () => {
+        const color = (rowActionType) => DEFAULTS_FROM.rowActionColor(() => rowActionType);
+        expect(color("Remove")).toBe("Red");
+        expect(color("Flow")).toBe("Black");
+        expect(color("None")).toBe("Black");
     });
 
     it("seeds the row-action messages, whose blank state means something else", () => {

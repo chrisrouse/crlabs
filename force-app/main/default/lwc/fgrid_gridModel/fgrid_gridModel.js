@@ -1580,7 +1580,10 @@ export function withRowActionColumn(columns, options = {}) {
  */
 export function rowActionIconClass(actionType, color) {
     const isRemove = String(actionType || "") === "Remove";
-    return colorClass(color || (isRemove ? "Red" : null));
+    // Spelled "Black" rather than left null so this matches DEFAULTS_FROM in the
+    // schema exactly. Both sides then name the same colour for an unset action,
+    // and the panel cannot preview one thing while the grid renders another.
+    return colorClass(color || (isRemove ? "Red" : "Black"));
 }
 
 /**
@@ -1617,7 +1620,6 @@ function colorClass(color) {
             return undefined;
     }
 }
-
 
 /** Field paths worth searching: real data columns, not generated link URLs. */
 /**

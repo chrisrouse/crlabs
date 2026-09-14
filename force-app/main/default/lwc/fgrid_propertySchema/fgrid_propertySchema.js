@@ -195,6 +195,21 @@ export const EDITOR_MANAGED_PROPERTIES = [
     "rowActionFlowIdVariable"
 ];
 
+/**
+ * Defaults that depend on another value, resolved by the editor alongside DEFAULTS.
+ *
+ * Kept separate because DEFAULTS is a plain map the editor reads without context.
+ * A resolver is handed a `get` for other properties, which are themselves resolved
+ * against DEFAULTS -- so a resolver must not depend on another resolved property.
+ */
+export const DEFAULTS_FROM = {
+    // Red belongs to deleting, not to row actions in general. The runtime already
+    // works this way: `rowActionIconClass` tints an unset Remove action red and
+    // leaves everything else neutral. A flat "Red" here showed a Flow action a
+    // colour the grid would not actually use.
+    rowActionColor: (get) => (get("rowActionType") === "Remove" ? "Red" : "Black")
+};
+
 /** Values Flow Grid assumes when an admin has not set the property. */
 export const DEFAULTS = {
     keyField: "Id",
@@ -206,7 +221,6 @@ export const DEFAULTS = {
     rowActionType: "None",
     rowActionDisplay: "Icon",
     rowActionPosition: "Left",
-    rowActionColor: "Red",
     rowActionButtonIconPosition: "Left",
     rowActionButtonVariant: "neutral",
     rowActionFlowModalHeader: "Edit Record",

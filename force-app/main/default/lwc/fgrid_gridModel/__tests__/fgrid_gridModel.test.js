@@ -67,6 +67,15 @@ describe("the row-action icon colour uses SLDS classes", () => {
 
         expect(action.typeAttributes.iconClass).toBe("slds-icon-text-error");
     });
+
+    it("leaves every other action neutral, matching what the panel offers", () => {
+        // The panel resolves an unset colour through DEFAULTS_FROM, which answers
+        // Black here. Red is for deleting, so an unset Flow action must not borrow it.
+        const columns = withRowActionColumn([], { actionType: "Flow", display: "Icon" });
+        const action = columns.find((c) => c.fieldName === ROW_ACTION_NAME);
+
+        expect(action.typeAttributes.iconClass).toBe(iconClassFor("Black"));
+    });
 });
 
 describe("the row-action column header stays blank", () => {
