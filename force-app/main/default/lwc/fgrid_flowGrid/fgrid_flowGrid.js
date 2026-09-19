@@ -139,7 +139,6 @@ const DEFAULT_TABLE_HEIGHT = "30rem";
  */
 const WRAPPED_LINE_CLAMP = 3;
 
-
 export default class FgridFlowGrid extends LightningElement {
     /* ----- Injected by the flow runtime -----
      *

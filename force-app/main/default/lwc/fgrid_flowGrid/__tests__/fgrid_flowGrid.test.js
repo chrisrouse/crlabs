@@ -283,7 +283,9 @@ describe("navigateNextOnSave respects the screen's available actions", () => {
         element.addEventListener("lightning__flownavigationnext", (event) => fired.push(event));
         element.shadowRoot
             .querySelector("c-fgrid_custom-datatable")
-            .dispatchEvent(new CustomEvent("save", { detail: { draftValues: [{ Id: records(1)[0].Id, Name: "Edited" }] } }));
+            .dispatchEvent(
+                new CustomEvent("save", { detail: { draftValues: [{ Id: records(1)[0].Id, Name: "Edited" }] } })
+            );
         await Promise.resolve();
         return fired;
     }
@@ -1198,14 +1200,24 @@ describe("row numbers continue across pages", () => {
     const datatable = (element) => element.shadowRoot.querySelector("c-fgrid_custom-datatable");
 
     it("offsets by nothing on the first page", async () => {
-        const element = build({ records: records(30), rowLoading: "Paginate", recordsPerPage: 10, showRowNumbers: true });
+        const element = build({
+            records: records(30),
+            rowLoading: "Paginate",
+            recordsPerPage: 10,
+            showRowNumbers: true
+        });
         await Promise.resolve();
 
         expect(datatable(element).rowNumberOffset).toBe(0);
     });
 
     it("offsets by a page's worth on the second page", async () => {
-        const element = build({ records: records(30), rowLoading: "Paginate", recordsPerPage: 10, showRowNumbers: true });
+        const element = build({
+            records: records(30),
+            rowLoading: "Paginate",
+            recordsPerPage: 10,
+            showRowNumbers: true
+        });
         await Promise.resolve();
 
         element.shadowRoot
