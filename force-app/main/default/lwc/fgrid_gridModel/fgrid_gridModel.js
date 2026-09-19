@@ -42,6 +42,10 @@ const SAMPLE_PICK = ["Technology", "Manufacturing", "Healthcare", "Retail", "Ene
  * The kit's field picker persists multiple fields as a JSON array inside a String
  * but a single field as the bare API name, so both shapes are valid input. Any
  * non-empty string that is not JSON is therefore one field, not an error.
+ *
+ * A user-defined object has no object to describe, so its columns are typed by
+ * hand as a comma-separated list instead of picked. No Salesforce field API path
+ * can contain a comma, so splitting on one cannot corrupt a real single field.
  */
 export function parseFieldList(raw) {
     if (Array.isArray(raw)) {
@@ -57,8 +61,16 @@ export function parseFieldList(raw) {
         }
         return isNonEmptyString(parsed) ? [parsed] : [];
     } catch {
-        return [raw];
+        return splitFieldNames(raw);
     }
+}
+
+/** Splits a hand-typed field list, tolerating stray spaces and trailing commas. */
+function splitFieldNames(raw) {
+    return raw
+        .split(",")
+        .map((name) => name.trim())
+        .filter(isNonEmptyString);
 }
 
 /** Reads the `columnConfig` property into an attribute map. */

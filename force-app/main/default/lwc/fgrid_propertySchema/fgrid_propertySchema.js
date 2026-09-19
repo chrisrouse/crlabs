@@ -411,6 +411,16 @@ export const SECTIONS = [
                 label: "Unique Identifier",
                 when: ["sobjectSource", "hasObject"],
                 help: "Field that uniquely identifies each row. Normally Id."
+            },
+            {
+                property: "keyField",
+                type: CONTROL.TEXT,
+                label: "Unique Identifier",
+                // Defaults to Id, which a user-defined object need not have — this is
+                // exactly the case where the key is a code or an external reference,
+                // so leaving the control hidden made the default unescapable.
+                when: ["userDefinedSource"],
+                help: "The JSON key that uniquely identifies each row. Defaults to Id, but a user-defined object often keys on something else."
             }
         ]
     },
@@ -425,8 +435,21 @@ export const SECTIONS = [
                 type: CONTROL.FIELDS,
                 label: "Columns",
                 required: true,
-                when: ["hasObject"],
+                // `sobjectSource` as well as `hasObject`: an admin who configures a
+                // record collection and then switches to a user-defined object leaves
+                // objectApiName behind, which would otherwise render both variants.
+                when: ["sobjectSource", "hasObject"],
                 help: "Pick the fields to show, in the order they should appear. Drag to reorder."
+            },
+            {
+                property: "columnFields",
+                type: CONTROL.TEXT,
+                label: "Columns",
+                required: true,
+                // A user-defined object has no describe, so there is no field list to
+                // pick from and the kit's picker has nothing to show. Typed by hand.
+                when: ["userDefinedSource"],
+                help: "Comma-separated keys from your JSON, in the order they should appear: Id, Name, Amount. There is no Salesforce object to read them from, so they cannot be offered as a list. Every column is text unless you set Field Type Override for it in Grid Studio."
             }
         ]
     },
@@ -744,9 +767,16 @@ export const SECTIONS = [
     }
 ];
 
-/** Every property name the schema drives, for tests and validation. */
+/**
+ * Every property name the schema drives, for tests and validation.
+ *
+ * Deduplicated: a property may declare more than one control when the way it is
+ * edited depends on the mode — `columnFields` is picked from a describe for an
+ * SObject and typed by hand for a user-defined object. Their `when` predicates
+ * are mutually exclusive, so only ever one of them renders.
+ */
 export function schemaProperties() {
-    return SECTIONS.flatMap((section) => section.controls.map((control) => control.property));
+    return [...new Set(SECTIONS.flatMap((section) => section.controls.map((control) => control.property)))];
 }
 
 /** True when every named predicate in `keys` passes for `values`. */

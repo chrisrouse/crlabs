@@ -206,7 +206,7 @@
 
                 <div class="studio__columns">
                     <h3 class="slds-text-heading_small slds-m-bottom_x-small">Column attributes</h3>
-                    <template lwc:if={hasObject}>
+                    <template lwc:if={canConfigureColumns}>
                         <c-fgrid_column-config
                             column-fields={values.columnFields}
                             column-config={values.columnConfig}

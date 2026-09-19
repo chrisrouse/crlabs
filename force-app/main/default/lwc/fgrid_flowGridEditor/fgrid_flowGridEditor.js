@@ -174,11 +174,15 @@ export default class FgridFlowGridEditor extends FlowConfigEditorBase {
     }
 
     get studioButtonLabel() {
-        return this.hasObject ? "Open Grid Studio" : "Open Grid Studio (choose records first)";
+        if (this.hasObject || this.values.isUserDefinedObject) {
+            return "Open Grid Studio";
+        }
+        return "Open Grid Studio (choose records first)";
     }
 
+    /** A user-defined object has no object, but it does have columns. */
     get columnSummaryVisible() {
-        return this.hasObject && Boolean(this.values.columnFields);
+        return (this.hasObject || Boolean(this.values.isUserDefinedObject)) && Boolean(this.values.columnFields);
     }
 
     /* ------------------------------------------------------------------ *

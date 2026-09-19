@@ -330,6 +330,21 @@ describe("validate()", () => {
         expect(element.validate()).toEqual([]);
     });
 
+    it("passes for a user-defined object with JSON and typed columns", async () => {
+        // The mode used to be unfinishable: columnFields was required but its only
+        // control was gated on an object a user-defined object never has.
+        const element = build({
+            inputVariables: [
+                { name: "isUserDefinedObject", value: true, valueDataType: "Boolean" },
+                { name: "recordsJson", value: "gridJson", valueDataType: "reference" },
+                { name: "columnFields", value: "Id, Name, Amount", valueDataType: "String" }
+            ]
+        });
+        await Promise.resolve();
+
+        expect(element.validate()).toEqual([]);
+    });
+
     it("bounds records per page when pagination is on", async () => {
         const element = build({
             inputVariables: [

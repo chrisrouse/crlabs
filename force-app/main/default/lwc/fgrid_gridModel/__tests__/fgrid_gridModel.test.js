@@ -25,8 +25,36 @@ import {
     PICKLIST_LOCKED_SUFFIX,
     MASTER_RECORD_TYPE_ID,
     withRowActionColumn,
-    ROW_ACTION_NAME
+    ROW_ACTION_NAME,
+    parseFieldList
 } from "c/fgrid_gridModel";
+
+describe("parseFieldList reads every shape columnFields arrives in", () => {
+    it("reads the kit picker's JSON array", () => {
+        expect(parseFieldList('["Id","Name","Owner.Alias"]')).toEqual(["Id", "Name", "Owner.Alias"]);
+    });
+
+    it("reads a single bare API name", () => {
+        expect(parseFieldList("Name")).toEqual(["Name"]);
+    });
+
+    it("reads a hand-typed comma-separated list", () => {
+        // How a user-defined object names its columns: there is no describe to pick
+        // from, so the admin types the JSON keys. Previously this parsed as ONE
+        // field literally called "Id, Name, Amount".
+        expect(parseFieldList("Id, Name, Amount")).toEqual(["Id", "Name", "Amount"]);
+    });
+
+    it("forgives stray spacing and a trailing comma", () => {
+        expect(parseFieldList("  Id ,Name,  Amount ,")).toEqual(["Id", "Name", "Amount"]);
+    });
+
+    it("still reads nothing from nothing", () => {
+        expect(parseFieldList("")).toEqual([]);
+        expect(parseFieldList(null)).toEqual([]);
+        expect(parseFieldList("   ")).toEqual([]);
+    });
+});
 
 describe("the row-action icon colour uses SLDS classes", () => {
     // Ours never worked. `typeAttributes.class` lands the class on an element

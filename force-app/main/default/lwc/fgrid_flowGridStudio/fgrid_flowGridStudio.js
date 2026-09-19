@@ -328,6 +328,18 @@ export default class FgridFlowGridStudio extends LightningModal {
         return Boolean(this.objectApiName);
     }
 
+    /**
+     * Whether the per-column attribute grid has anything to edit.
+     *
+     * A user-defined object never establishes an object, so gating this on
+     * `hasObject` alone hid the grid in the one mode that needs it most: with no
+     * describe, Field Type Override is the ONLY way to make a column anything
+     * other than text.
+     */
+    get canConfigureColumns() {
+        return this.hasObject || Boolean(this.values?.isUserDefinedObject);
+    }
+
     /** Same switch the runtime applies, so the preview wraps the same way. */
     get previewWrappedLines() {
         return this.values?.limitWrappedLines ? "3" : undefined;

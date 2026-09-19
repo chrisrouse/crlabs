@@ -25,6 +25,22 @@ describe("schema integrity", () => {
         expect(new Set(names).size).toBe(names.length);
     });
 
+    it("declares a control twice only to edit one property two ways", () => {
+        // schemaProperties() dedupes, so it can no longer catch an accidental
+        // second declaration. A property MAY have one control per mode --
+        // columnFields and keyField do -- but nothing else should be repeated,
+        // and the variants must be told apart by their visibility.
+        const declared = SECTIONS.flatMap((s) => s.controls).map((c) => c.property);
+        const repeated = [...new Set(declared.filter((p, i) => declared.indexOf(p) !== i))];
+        expect(repeated.sort()).toEqual(["columnFields", "keyField"]);
+
+        repeated.forEach((property) => {
+            const variants = SECTIONS.flatMap((s) => s.controls).filter((c) => c.property === property);
+            const predicates = variants.map((v) => (v.when || []).join("+"));
+            expect(new Set(predicates).size).toBe(variants.length);
+        });
+    });
+
     it("gives every control a known type and a label", () => {
         const types = new Set(Object.values(CONTROL));
         SECTIONS.flatMap((s) => s.controls).forEach((control) => {
@@ -132,6 +148,31 @@ describe("data source visibility", () => {
             "disabledRecordsJson",
             "isSerializedRecordData"
         ]);
+    });
+
+    it("offers columns and a key for a user-defined source too", () => {
+        // Both were gated on hasObject, which a user-defined object never sets, so
+        // the mode could be turned on and then never finished: no way to name a
+        // column, and validation refusing the save for want of one.
+        const udo = { isUserDefinedObject: true };
+        expect(visible("columns", udo)).toEqual(["columnFields"]);
+        expect(visible("rows", udo)).toContain("keyField");
+    });
+
+    it("types those two by hand, since there is no object to describe", () => {
+        const udo = { isUserDefinedObject: true };
+        const columns = resolveSection(section("columns"), udo);
+        expect(columns[0].type).toBe(CONTROL.TEXT);
+        const key = resolveSection(section("rows"), udo).find((c) => c.property === "keyField");
+        expect(key.type).toBe(CONTROL.TEXT);
+    });
+
+    it("never shows both variants of a control at once", () => {
+        // Switching an already-configured grid to a user-defined object leaves
+        // objectApiName behind, which would satisfy the SObject variant as well.
+        const stale = { isUserDefinedObject: true, objectApiName: "Account" };
+        expect(visible("columns", stale)).toEqual(["columnFields"]);
+        expect(visible("rows", stale).filter((p) => p === "keyField")).toHaveLength(1);
     });
 
     it("reveals serialized data only when both flags are on", () => {
