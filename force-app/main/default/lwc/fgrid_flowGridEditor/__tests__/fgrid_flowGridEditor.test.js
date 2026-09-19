@@ -277,6 +277,50 @@ describe("record collection change", () => {
         expect(byName.keyField.newValue).toBe("Id");
     });
 
+    it("clears the columns when the source mode changes", async () => {
+        // Account fields carried into the JSON mode and were offered in a box
+        // asking for JSON keys: ["Name","Industry"] as though a user-defined
+        // object had an Industry. Both modes read the one columnFields.
+        const element = build({
+            inputVariables: [
+                { name: "records", value: "accountList", valueDataType: "reference" },
+                { name: "columnFields", value: '["Name","Industry"]', valueDataType: "String" },
+                { name: "columnConfig", value: '{"Name":{"width":200}}', valueDataType: "String" },
+                { name: "keyField", value: "Name", valueDataType: "String" }
+            ],
+            genericTypeMappings: [{ typeName: "T", typeValue: "Account" }]
+        });
+        await Promise.resolve();
+        const events = captureEvents(element);
+
+        changeProperty(element, { property: "isUserDefinedObject", value: true, dataType: "Boolean" });
+        await Promise.resolve();
+
+        const byName = Object.fromEntries(events.input.map((d) => [d.name, d]));
+        expect(byName.isUserDefinedObject.newValue).toBe(true);
+        expect(byName.columnFields.newValue).toBeNull();
+        expect(byName.columnConfig.newValue).toBeNull();
+        expect(byName.keyField.newValue).toBe("Id");
+    });
+
+    it("keeps the columns when the source mode is rewritten to what it already was", async () => {
+        // Flow Builder republishes inputVariables, so an unchanged value must not
+        // be treated as a toggle and quietly wipe a configured grid.
+        const element = build({
+            inputVariables: [
+                { name: "isUserDefinedObject", value: true, valueDataType: "Boolean" },
+                { name: "columnFields", value: "Id, Name", valueDataType: "String" }
+            ]
+        });
+        await Promise.resolve();
+        const events = captureEvents(element);
+
+        changeProperty(element, { property: "isUserDefinedObject", value: true, dataType: "Boolean" });
+        await Promise.resolve();
+
+        expect(events.input.map((d) => d.name)).not.toContain("columnFields");
+    });
+
     it("reflects the new object immediately for the field pickers", async () => {
         const element = build({
             inputVariables: [{ name: "records", value: "accountList", valueDataType: "reference" }],

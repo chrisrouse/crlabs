@@ -202,7 +202,38 @@ export default class FgridFlowGridEditor extends FlowConfigEditorBase {
             this.applyRecordsChange(value, dataType, resource);
             return;
         }
+        if (property === "isUserDefinedObject") {
+            this.applySourceModeChange(value, dataType);
+            return;
+        }
         this.commit(property, value, dataType || "String");
+    }
+
+    /**
+     * Switching between a record collection and a user-defined object invalidates
+     * the columns, for the same reason changing the object does: they name fields
+     * on a source that is no longer the source.
+     *
+     * Without this the SObject columns survived into the JSON mode and showed up
+     * in a box asking for JSON keys — `["Name","Industry",...]` offered as though
+     * a user-defined object had an Industry. Left alone they would also have gone
+     * on addressing the grid, since both modes read the one `columnFields`.
+     *
+     * `objectApiName` is deliberately NOT cleared: it mirrors a generic type
+     * mapping that belongs to the Flow, and the SObject controls are already held
+     * back by their own `sobjectSource` predicate.
+     */
+    applySourceModeChange(newValue, dataType) {
+        const changed = Boolean(newValue) !== Boolean(this.values.isUserDefinedObject);
+
+        this.commit("isUserDefinedObject", newValue, dataType || "Boolean");
+
+        if (!changed) {
+            return;
+        }
+        this.commit("columnFields", null, "String");
+        this.commit("columnConfig", null, "String");
+        this.commit("keyField", "Id", "String");
     }
 
     applyRecordsChange(newValue, dataType, resource) {
