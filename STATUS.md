@@ -883,6 +883,35 @@ collapsed — it records WHICH rows were actioned, not how many clicks. The sing
 which is what makes it useful for reacting to on the same screen and useless for
 reporting afterwards. Two questions, two outputs, neither replacing the other.
 
+### 2.3c Row actions on a user-defined object — 2026-09-19
+
+Row actions work in this mode. Two things behave differently, both correctly, and
+both worth knowing before someone reports them as bugs.
+
+**The record variable is shaped from the flow's own declaration.** A user-defined
+row is not an SObject, and Record Input Variable is a free-text box, so an admin
+here has no choice but to name a Text variable — which was then handed over as
+`type: "SObject"` and mismatched. `recordInput` now reads `dataType` off the
+flow's variable list and sends JSON to a Text variable, the record to an SObject
+variable. This corrected the SObject mode too, where naming a Text variable was
+silently broken the same way. Before the variable list arrives there is nothing
+to ask, so it falls back to the source mode — the same "trust the configuration"
+stance `acceptsInput` takes.
+
+`readReturnedRecord` closes the return leg: a flow handing the row back through a
+Text variable returns a JSON string, which previously matched no branch and was
+silently dropped despite the help text promising otherwise. A malformed string
+falls through to the field-level outputs rather than losing the result.
+
+**Deliberately unchanged:**
+
+- `outputActionedRecord` (typed) stays null — there is no SObject to publish.
+  `Actioned Record (JSON)` carries it. Same for selected, edited, removed and
+  remaining.
+- `recordStillExists` and `reconcileRow` both return early, so there is no
+  staleness detection and no post-action database refresh. Correct: there is no
+  record to re-read. A flow that wants the row updated must return it.
+
 ### 2.4 Resource-capable Boolean properties — DROPPED 2026-08-25
 
 Every checkbox in the editor stores a literal, so none can be bound to
@@ -1018,15 +1047,33 @@ Nothing here is scheduled. Deferred by decision, not oversight.
 
 ### Open questions
 
-- **Apex-defined types — DECIDED 2026-08-25: genuine support is needed.** Not an
-  open question any more. The baseline treats these as a first-class mode:
-  reactivity, editing, and "unable to edit Apex-Defined columns unless Type was
-  specified". Flow Grid's user-defined-object mode takes serialized JSON, which
-  covers the data shape but is not the same as a Flow Apex-Defined variable.
-  Scoped as its own piece of work, to be planned separately — it needs a real
-  design pass, not an incremental patch, and it interacts with inline editing
-  (which is where the baseline's own Apex-defined support struggled). Sequenced
-  after inline editing for that reason.
+- **Apex-defined types — REASSESSED 2026-09-19, the gap is much smaller than
+  recorded.** The entry below used to say the baseline treats Apex-defined as a
+  first-class typed mode while Flow Grid only takes serialized JSON. That is
+  wrong, and it was overstating the work.
+
+  **The baseline takes a String too.** Its inputs are `tableDataString` and
+  `preSelectedRowsString`, both `type="String"`, with a matching set of `*String`
+  outputs. There is no Apex-typed property anywhere in its metadata. Its CPE
+  labels the flag "Input data is Apex-Defined" while the property is named
+  `isUserDefinedObject` — one feature, two names. "Apex-Defined" describes where
+  the JSON usually comes FROM (an invocable action returning a serialized class),
+  not the parameter type.
+
+  So Flow Grid is at parity on the input, and ahead on the output: it already
+  ships JSON mirrors for selected, edited, removed, remaining and actioned.
+
+  A genuine Apex-defined input would mean `type="apex://SomeClass[]"`, which is a
+  real Flow capability — several components in this repo use it. It is not
+  available to a datatable, because it names ONE class at design time and there
+  is no generic Apex-defined type the way `{T[]}` is generic over SObjects. Any
+  real support therefore means a wrapper class consumers extend, which is a
+  design question, not a missing feature. Still sequenced after inline editing,
+  but no longer blocking parity.
+
+  Original text, kept because the sequencing decision stands: "DECIDED
+  2026-08-25: genuine support is needed... it needs a real design pass, not an
+  incremental patch, and it interacts with inline editing."
 - **Filters: header actions or a filter row?** The baseline puts Set Filter and
   Clear Filter in each column's header menu. Flow Grid uses a filter row above the
   table — simpler and more discoverable, but a different mental model for anyone

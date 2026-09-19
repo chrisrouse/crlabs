@@ -39,9 +39,16 @@ jest.mock(
 );
 jest.mock("@salesforce/apex/FlowGridController.runFlow", () => ({ default: jest.fn() }), { virtual: true });
 jest.mock("@salesforce/apex/FlowGridController.getRecordsByIds", () => ({ default: jest.fn() }), { virtual: true });
+// An emittable wire so a test can declare what the launched flow's variables
+// actually are. Left un-emitted it provisions nothing, which is the
+// "trust the configuration" path the component takes before the list arrives.
 jest.mock(
     "@salesforce/apex/FlowGridController.getFlowVariables",
-    () => ({ default: jest.fn(() => Promise.resolve([])) }),
+    () => {
+        // eslint-disable-next-line no-undef
+        const { createApexTestWireAdapter } = require("@salesforce/wire-service-jest-util");
+        return { default: createApexTestWireAdapter(jest.fn()) };
+    },
     { virtual: true }
 );
 
@@ -415,10 +422,10 @@ describe("row-action outcomes are toasts, not banners", () => {
         return seen;
     }
 
-    function clickAction(element) {
+    function clickAction(element, row = target) {
         element.shadowRoot.querySelector("c-fgrid_custom-datatable").dispatchEvent(
             new CustomEvent("rowaction", {
-                detail: { action: { name: "fgridRowAction" }, row: target }
+                detail: { action: { name: "fgridRowAction" }, row }
             })
         );
     }
@@ -610,6 +617,106 @@ describe("row-action outcomes are toasts, not banners", () => {
         await settle();
 
         expect(opened[0].disableClose).toBe(true);
+    });
+
+    describe("the row is shaped for the variable the flow declared", () => {
+        // eslint-disable-next-line no-undef
+        const flowVariables = require("@salesforce/apex/FlowGridController.getFlowVariables").default;
+
+        /** A user-defined grid whose row action launches a flow. */
+        function buildUdo(props = {}) {
+            return build({
+                isUserDefinedObject: true,
+                objectApiName: "User",
+                columnFields: "Id, Name, Amount",
+                recordsJson: '[{"Id":"1","Name":"Acme","Amount":5000}]',
+                rowActionType: "Flow",
+                rowActionFlowApiName: "Some_Flow",
+                rowActionFlowRecordVariable: "row",
+                ...props
+            });
+        }
+
+        it("sends JSON to a Text variable", async () => {
+            // The Record Input Variable is free text, so a user-defined grid has no
+            // choice but to name a Text variable. It used to be handed over as
+            // type SObject regardless.
+            const opened = stubFlowModal(undefined);
+            const element = buildUdo();
+            flowVariables.emit([{ apiName: "row", dataType: "String", isInput: true, isOutput: true }]);
+            await settle();
+
+            clickAction(element, { Id: "1", Name: "Acme", Amount: 5000 });
+            await settle();
+
+            const sent = opened[0].flowInputVariables.find((v) => v.name === "row");
+            expect(sent.type).toBe("String");
+            expect(JSON.parse(sent.value)).toMatchObject({ Id: "1", Name: "Acme" });
+        });
+
+        it("still sends the record itself to an SObject variable", async () => {
+            getRecordsByIds.mockResolvedValue([{ ...target }]);
+            const opened = stubFlowModal(undefined);
+            const element = build_();
+            flowVariables.emit([{ apiName: "record", dataType: "SObject", isInput: true, isOutput: true }]);
+            await settle();
+
+            clickAction(element);
+            await settle();
+
+            const sent = opened[0].flowInputVariables.find((v) => v.name === "record");
+            expect(sent.type).toBe("SObject");
+            expect(sent.value).toMatchObject({ Id: target.Id });
+        });
+
+        it("falls back to the source mode before the variable list arrives", async () => {
+            const opened = stubFlowModal(undefined);
+            const element = buildUdo();
+
+            clickAction(element, { Id: "1", Name: "Acme", Amount: 5000 });
+            await settle();
+
+            expect(opened[0].flowInputVariables.find((v) => v.name === "row").type).toBe("String");
+        });
+
+        it("reads the edited row back out of a Text variable", async () => {
+            // The help text promises the flow can hand the record back. Through a
+            // Text variable that returns a JSON string, which used to match no
+            // branch at all, so the edit was silently dropped.
+            stubFlowModal({
+                status: "FINISHED",
+                outputVariables: [{ name: "row", value: '{"Id":"1","Name":"Acme Renamed","Amount":9000}' }]
+            });
+            const element = buildUdo();
+            flowVariables.emit([{ apiName: "row", dataType: "String", isInput: true, isOutput: true }]);
+            await settle();
+
+            clickAction(element, { Id: "1", Name: "Acme", Amount: 5000 });
+            await settle();
+
+            const table = element.shadowRoot.querySelector("c-fgrid_custom-datatable");
+            expect(table.data.find((r) => r.Id === "1").Name).toBe("Acme Renamed");
+        });
+
+        it("ignores a malformed string rather than losing the result", async () => {
+            stubFlowModal({
+                status: "FINISHED",
+                outputVariables: [
+                    { name: "row", value: "not json" },
+                    { name: "Name", value: "From Field Output" }
+                ]
+            });
+            const element = buildUdo();
+            flowVariables.emit([{ apiName: "row", dataType: "String", isInput: true, isOutput: true }]);
+            await settle();
+
+            clickAction(element, { Id: "1", Name: "Acme", Amount: 5000 });
+            await settle();
+
+            // Falls through to the field-level outputs instead of dropping it.
+            const table = element.shadowRoot.querySelector("c-fgrid_custom-datatable");
+            expect(table.data.find((r) => r.Id === "1").Name).toBe("From Field Output");
+        });
     });
 
     it("leaves the modal dismissible when the lock is off", async () => {

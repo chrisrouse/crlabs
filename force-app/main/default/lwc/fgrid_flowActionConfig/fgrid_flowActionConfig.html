@@ -38,7 +38,7 @@
                 label="Record Input Variable"
                 placeholder="Variable name in the launched flow"
                 value={recordVariable}
-                field-level-help="Passes the entire record into the launched flow — enter the variable's API name, or leave blank to omit it. Mark the variable available for output as well if the flow should hand the edited record back, including unsaved changes; input only means the grid re-reads the row from the database instead."
+                field-level-help="Passes the entire record into the launched flow — enter the variable's API name, or leave blank to omit it. Mark the variable available for output as well if the flow should hand the edited record back, including unsaved changes; input only means the grid re-reads the row from the database instead. With a user-defined object, declare it as a Text variable: the row is sent as JSON, and JSON is what the flow should return."
                 onchange={handleVariableChange}
             ></lightning-input>
 

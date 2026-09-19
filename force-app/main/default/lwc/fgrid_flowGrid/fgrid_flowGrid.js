@@ -139,6 +139,9 @@ const DEFAULT_TABLE_HEIGHT = "30rem";
  */
 const WRAPPED_LINE_CLAMP = 3;
 
+/** `FlowVariableView.DataType` for a record variable, as Apex reports it. */
+const SOBJECT_DATA_TYPE = "SObject";
+
 export default class FgridFlowGrid extends LightningElement {
     /* ----- Injected by the flow runtime -----
      *
@@ -1493,17 +1496,38 @@ export default class FgridFlowGrid extends LightningElement {
             return variables;
         }
         if (this.acceptsInput(this.rowActionFlowRecordVariable)) {
-            variables.push({
-                name: this.rowActionFlowRecordVariable,
-                type: "SObject",
-                value: record
-            });
+            variables.push(this.recordInput(record));
         }
         const id = record.Id || record[this.keyField];
         if (id && this.acceptsInput(this.rowActionFlowIdVariable)) {
             variables.push({ name: this.rowActionFlowIdVariable, type: "String", value: id });
         }
         return variables;
+    }
+
+    /**
+     * The row, shaped for whatever the launched flow actually declared.
+     *
+     * A user-defined row is not an SObject, and the Record Input Variable is a
+     * free-text box, so an admin in that mode has no choice but to name a Text
+     * variable — which was then handed over as type SObject and mismatched.
+     *
+     * The flow's own variable list already carries `dataType`, so ask it rather
+     * than assuming. Text gets the row as JSON. This corrects the SObject mode
+     * too, where naming a Text variable was silently broken in the same way.
+     *
+     * Before the variable list arrives there is nothing to ask, so fall back to
+     * the source mode — the same "trust the configuration" stance `acceptsInput`
+     * takes for the same reason.
+     */
+    recordInput(record) {
+        const name = this.rowActionFlowRecordVariable;
+        const declared = this._flowVariables.find((variable) => variable?.apiName === name);
+        const wantsSObject = declared ? declared.dataType === SOBJECT_DATA_TYPE : !this.isUserDefinedObject;
+
+        return wantsSObject
+            ? { name, type: "SObject", value: record }
+            : { name, type: "String", value: JSON.stringify(record) };
     }
 
     /* ------------------------------------------------------------------ *
@@ -2350,11 +2374,15 @@ export default class FgridFlowGrid extends LightningElement {
         // handed, which is how a Flow SObject variable marked for input and output
         // behaves.
         const recordName = this.rowActionFlowRecordVariable;
-        const recordOutput = outputs.find(
-            (output) => recordName && output?.name === recordName && output?.value && typeof output.value === "object"
-        );
+        const recordOutput = outputs.find((output) => recordName && output?.name === recordName && output?.value);
         if (recordOutput) {
-            return Array.isArray(recordOutput.value) ? recordOutput.value[0] || null : recordOutput.value;
+            // Matched by name but unreadable — a malformed JSON string — falls
+            // through to the field-level outputs below rather than losing the
+            // result outright.
+            const returned = readReturnedRecord(recordOutput.value);
+            if (returned) {
+                return returned;
+            }
         }
 
         // Fall back to field-level outputs whose names match displayed columns.
@@ -2919,6 +2947,26 @@ function signatureValue(value) {
         return "";
     }
     return typeof value === "object" ? JSON.stringify(value) : String(value);
+}
+
+/**
+ * Reads the row a launched flow handed back.
+ *
+ * A flow given an SObject variable returns an object; one given a Text variable
+ * — which is all a user-defined row can use — returns the JSON string it was
+ * sent. Without this the second case fell through to the field-level outputs,
+ * which never match the record variable's name, so the edit was silently lost
+ * despite the help text promising it would come back.
+ */
+function readReturnedRecord(value) {
+    if (typeof value === "string") {
+        const parsed = parseRecordJson(value);
+        return parsed.length ? parsed[0] : null;
+    }
+    if (Array.isArray(value)) {
+        return value[0] || null;
+    }
+    return value && typeof value === "object" ? value : null;
 }
 
 /**
