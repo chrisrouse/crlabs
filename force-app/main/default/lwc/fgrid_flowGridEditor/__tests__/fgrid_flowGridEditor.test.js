@@ -303,6 +303,34 @@ describe("record collection change", () => {
         expect(byName.keyField.newValue).toBe("Id");
     });
 
+    it("maps the generic type to a placeholder so Flow Builder will save", async () => {
+        // A user-defined object never picks a record collection, so T stayed
+        // unmapped and Flow Builder blocked the save with no way to resolve it
+        // from the panel.
+        const element = build();
+        await Promise.resolve();
+        const events = captureEvents(element);
+
+        changeProperty(element, { property: "isUserDefinedObject", value: true, dataType: "Boolean" });
+        await Promise.resolve();
+
+        expect(events.generic).toEqual([{ typeName: "T", typeValue: "User" }]);
+    });
+
+    it("leaves a real object mapping alone when switching to a user-defined object", async () => {
+        const element = build({
+            inputVariables: [{ name: "records", value: "accountList", valueDataType: "reference" }],
+            genericTypeMappings: [{ typeName: "T", typeValue: "Account" }]
+        });
+        await Promise.resolve();
+        const events = captureEvents(element);
+
+        changeProperty(element, { property: "isUserDefinedObject", value: true, dataType: "Boolean" });
+        await Promise.resolve();
+
+        expect(events.generic).toEqual([]);
+    });
+
     it("keeps the columns when the source mode is rewritten to what it already was", async () => {
         // Flow Builder republishes inputVariables, so an unchanged value must not
         // be treated as a toggle and quietly wipe a configured grid.

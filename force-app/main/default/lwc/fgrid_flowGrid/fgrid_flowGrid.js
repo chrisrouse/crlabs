@@ -622,10 +622,27 @@ export default class FgridFlowGrid extends LightningElement {
     }
 
     /**
+     * The object to describe, or undefined to describe nothing.
+     *
+     * A user-defined object has no SObject behind it, but it CAN carry an
+     * objectApiName: Flow Builder refuses to save a screen whose generic type is
+     * unmapped, so the editor maps T to a placeholder purely to satisfy it. Left
+     * unguarded, the wire would then ask Apex to describe that placeholder using
+     * the JSON's own keys and fail on fields it has never heard of.
+     *
+     * Undefined rather than null: an undefined reactive parameter stops an Apex
+     * wire provisioning at all, which is the same mechanism that keeps it quiet
+     * before an object has been chosen.
+     */
+    get describeObjectApiName() {
+        return this.isUserDefinedObject ? undefined : this.objectApiName;
+    }
+
+    /**
      * Real field metadata. Cacheable, so repeated interviews on the same object
      * and columns cost one server call.
      */
-    @wire(getGridMetadata, { objectApiName: "$objectApiName", fieldPaths: "$_columnPaths" })
+    @wire(getGridMetadata, { objectApiName: "$describeObjectApiName", fieldPaths: "$_columnPaths" })
     wiredMetadata({ data, error }) {
         if (data) {
             this._metadata = data;

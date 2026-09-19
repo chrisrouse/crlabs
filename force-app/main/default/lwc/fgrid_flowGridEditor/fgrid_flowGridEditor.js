@@ -25,6 +25,14 @@ import FgridFlowGridStudio from "c/fgrid_flowGridStudio";
 /** Generic SObject type letter declared in fgrid_flowGrid.js-meta.xml. */
 const GENERIC_TYPE = "T";
 
+/**
+ * Stands in for the unmapped generic type of a user-defined object.
+ *
+ * Any SObject present in every org would do; User is what the component this
+ * replaces uses for the same purpose, so a migrated flow maps to the same thing.
+ */
+const PLACEHOLDER_OBJECT = "User";
+
 const MAX_RECORDS_PER_PAGE = 200;
 
 /** Properties stored as a `{!Reference}` rather than a literal, so they must be
@@ -230,6 +238,19 @@ export default class FgridFlowGridEditor extends FlowConfigEditorBase {
 
         if (!changed) {
             return;
+        }
+        if (newValue && !this.objectApiName) {
+            // Flow Builder will not save a screen whose generic type is unmapped,
+            // and a user-defined object never picks a record collection to map it.
+            // So map T to a placeholder that exists in every org. The component
+            // ignores it — `describeObjectApiName` withholds it from the describe
+            // wire — and the mirrored objectApiName property is deliberately NOT
+            // written, so the runtime never sees it either.
+            //
+            // The component this replaces does the same thing, for the same reason
+            // and with the same object, commenting it "Arbitrary Object just so we
+            // can dispatch the event".
+            this.setGenericType(GENERIC_TYPE, PLACEHOLDER_OBJECT);
         }
         this.commit("columnFields", null, "String");
         this.commit("columnConfig", null, "String");

@@ -1676,6 +1676,49 @@ describe("change detection is scoped to the columns in use", () => {
     });
 });
 
+describe("a user-defined object never describes an SObject", () => {
+    // eslint-disable-next-line no-undef
+    const metadata = require("@salesforce/apex/FlowGridController.getGridMetadata").default;
+
+    it("withholds the object from the describe wire", async () => {
+        // The editor maps the generic type to a placeholder so Flow Builder will
+        // save the screen, which means objectApiName CAN be set here while there
+        // is no real object. Describing it would ask Apex for the JSON's own keys
+        // on an object that has never heard of them.
+        build({
+            isUserDefinedObject: true,
+            objectApiName: "User",
+            columnFields: "Id, Name, Amount",
+            recordsJson: '[{"Id":"1","Name":"Acme","Amount":5000}]'
+        });
+        await Promise.resolve();
+
+        expect(metadata.getLastConfig().objectApiName).toBeUndefined();
+    });
+
+    it("still describes the object for an ordinary record collection", async () => {
+        build({ records: records(2) });
+        await Promise.resolve();
+
+        expect(metadata.getLastConfig().objectApiName).toBe("Account");
+    });
+
+    it("renders the JSON rows with the hand-typed columns", async () => {
+        const element = build({
+            isUserDefinedObject: true,
+            objectApiName: "User",
+            columnFields: "Id, Name, Amount",
+            recordsJson: '[{"Id":"1","Name":"Acme","Amount":5000},{"Id":"2","Name":"Globex","Amount":2500}]'
+        });
+        await Promise.resolve();
+
+        const table = element.shadowRoot.querySelector("c-fgrid_custom-datatable");
+        expect(table.data).toHaveLength(2);
+        expect(table.columns.map((c) => c.fieldName)).toEqual(["Id", "Name", "Amount"]);
+        expect(table.data[0].Name).toBe("Acme");
+    });
+});
+
 describe("picklist record types are fetched once each", () => {
     // eslint-disable-next-line no-undef
     const metadata = require("@salesforce/apex/FlowGridController.getGridMetadata").default;
