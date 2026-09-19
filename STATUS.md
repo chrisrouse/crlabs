@@ -912,6 +912,151 @@ falls through to the field-level outputs rather than losing the result.
   staleness detection and no post-action database refresh. Correct: there is no
   record to re-read. A flow that wants the row updated must return it.
 
+### 2.3d Conditional cell formatting — DESIGNED 2026-09-19, NOT BUILT
+
+Declarative per-column formatting rules: when a condition matches, colour the
+cell and optionally add an icon. Replaces the Cell Attributes JSON box, which is
+the thing an admin currently cannot use.
+
+Everything below was measured with `repro/datatable-cell-colour/`, over two
+rounds and six surfaces. **Read that README before touching this** — nearly
+every assumption we started with turned out to be wrong.
+
+#### Why the current mechanism does not work
+
+To colour a cell today an admin types `{"class": {"fieldName": "Helper__c"}}`
+into Cell Attributes. That needs four undocumented things known at once, and
+then still fails: `buildRows` copies only the key, `Id` and the DISPLAYED column
+paths into a row, so the helper field is not there unless it is itself a visible
+column. The datatable cannot hide a column. So the escape hatch is a dead end
+for the use case it exists for.
+
+#### What we measured
+
+1. **Component CSS cannot reach inside `lightning-datatable`. A static resource
+   loaded with `loadStyle` can** — verified on a record page AND in an LWR site.
+   Round 1 concluded the opposite and was wrong: it tested component CSS. The
+   component we replace ships exactly such a stylesheet, headed "style sheet to
+   bypass shadow dom", and uses it for datatable hover rules.
+2. **`slds-theme_*` is unusable.** It is an SLDS 1 construct and rendered five
+   different ways across Flow debug, SLDS 1, SLDS 2 light, SLDS 2 dark and LWR —
+   `slds-theme_warning` loses its background entirely under SLDS 2 light,
+   `slds-theme_inverse` inverts in dark mode, `slds-theme_info` is invisible in
+   LWR. It also bundles a text colour that cannot be separated from the
+   background.
+3. **It breaks on hover, and that was the real bug.** The theme class sets a
+   background and a text colour; the datatable's row hover repaints the
+   background and the white text survives on top of it. Captured on
+   `slds-theme_inverse`: white on light grey, value gone. Rows given a hover
+   rule held; rows without one broke. Nothing to do with branding sets.
+4. **SLDS 2 global styling hooks are the answer.** They come in guaranteed pairs
+   — `--slds-g-color-<x>-container-1` for the background and
+   `--slds-g-color-on-<x>-1` documented as the text colour for it — each with
+   its own light and dark value. That is the contrast guarantee `slds-theme_*`
+   never had. They also restore blue, which the theme set could not reach.
+5. **The icon follows the cell's text colour.** `cellAttributes` has no
+   `iconColor` (confirmed against the component reference), and
+   `--slds-c-icon-color-foreground` set on our host did not reach the
+   datatable's icons. So there is no separate icon colour control, and none
+   would make sense.
+6. **Type formatting survives.** Currency stayed `$25,000.00`, right-aligned,
+   under every class.
+
+#### The design
+
+Flow Grid ships its own classes in a static resource, coloured from SLDS 2 hooks
+with SLDS 1 fallbacks, each with a matching hover rule, every selector scoped
+under `c-fgrid_flow-grid`:
+
+```css
+c-fgrid_flow-grid .fgridFormat_error,
+c-fgrid_flow-grid .slds-table tbody tr:hover > td .fgridFormat_error {
+    background-color: var(--slds-g-color-error-container-1, #fddde3);
+    color: var(--slds-g-color-on-error-1, #b60554);
+}
+```
+
+Palette: Error, Warning, Success, Accent (blue), Neutral. **Do not use
+`--slds-g-color-disabled-container-1` for the neutral** — it is near-illegible
+grey-on-grey in LWR, correctly, because those tokens are for disabled UI that is
+meant to recede. Try `--slds-g-color-surface-container-2` with
+`--slds-g-color-on-surface-1`.
+
+Controls are named semantically — **Success, never Green**. A control labelled
+Green renders teal under SLDS 2 dark and pale mint under SLDS 2 light. For the
+same reason Grid Studio's preview must render live rather than draw a fixed
+swatch: a static swatch would be wrong on four surfaces out of five.
+
+Rule grammar mirrors Salesforce's own conditional formatting, so it is familiar
+and so importing rulesets stays mechanical if that ever becomes worthwhile:
+ordered rules, first match wins, each with conditions of field + operator +
+value and an All / Any / Custom / Always selector matching `booleanFilter`.
+Conditions may test **any column, not only the one being formatted** — that is
+what native does, confirmed from its editor.
+
+#### Build order — none of it started
+
+1. **The static resource.** Five semantic classes plus text-only variants, each
+   with its hover rule.
+2. **The rule model** on `columnConfig`. Reuse `FILTER_OPERATOR` and
+   `operatorsFor` — the filter row already has the whole operator vocabulary,
+   tested.
+3. **Evaluation** in `buildRows`, writing a synthetic `<field>__fgridFormat`
+   value per row; `buildColumns` points `cellAttributes.class` at it. Includes
+   extending the paths list so a rule can test a column that is not displayed.
+4. **The editor** — per-column Formatting Rules in Grid Studio, live preview.
+
+1–3 are the engine and are Jest-testable. 4 needs a deploy to judge.
+
+#### Reverses the `loadStyle` rejection, deliberately
+
+§1.4's toast work records `loadStyle` as rejected: "a distributed package should
+not restyle a customer's whole site." That was about an `!important` rule
+fighting platform chrome. Here every selector is scoped under our own tag, so
+nothing outside the component can be affected. The objection stands for the
+toast case and does not apply to this one.
+
+### 2.3e Native Conditional Field Formatting — INVESTIGATED AND DECLINED 2026-09-19
+
+Whether Flow Grid could read the rulesets an admin already defines in Setup
+(Dynamic Forms conditional formatting) rather than making them redefine
+everything. Measured in the org; the answer is no, for a reason that will not
+change on its own.
+
+**The data is good.** `UiFormatSpecificationSet` is object- and field-scoped
+rather than welded to a Lightning page, and the condition grammar is closed and
+simple — `criteria[]` of `leftValue` / `operator` / `rightValue` plus a
+`booleanFilter`, with `{!Record.Field}` on the left. No formula engine needed.
+
+**It is unreachable from Apex.** Measured three ways:
+
+```
+plain SOQL         -> sObject type 'UiFormatSpecificationSet' is not supported.
+Apex describe      -> Schema.getGlobalDescribe() does not contain it
+Apex Metadata API  -> Metadata.MetadataType.values() is exactly three types:
+                      OmniInteractionAccessConfig, CustomMetadata, Layout
+```
+
+It lives in the Tooling API, which Salesforce does not project into Apex. Reading
+it at runtime therefore needs an HTTP callout with a Named Credential —
+`UserInfo.getSessionId()` is rejected for API callouts from a Lightning context.
+
+**And it only draws an icon.** `FormatType` is a picklist whose complete set of
+values is `['ICON']`, on both the set and the specification. It cannot colour or
+shade anything, so it was never an alternative source for the cell formatting in
+2.3d — only for the icon half.
+
+**Declined**: a Named Credential dependency plus a Tooling callout, to import
+rules that can only place an icon, while we build our own engine for the colour
+regardless. Revisit if `FormatType` ever gains a background or text value — the
+grammar in 2.3d is deliberately shaped like theirs so that mapping would be
+mechanical.
+
+Worth knowing: its six colours are a fixed palette stored as names, not a hex
+picker — Gray `#747474`, Blue `#0176D3`, Green `#2E844A`, Orange `#DD7A01`, Red
+`#BA0517`, Purple `#9050E9`. Being fixed hex, they presumably do not adapt to
+dark mode, which is an argument for our hook-based approach over copying theirs.
+
 ### 2.4 Resource-capable Boolean properties — DROPPED 2026-08-25
 
 Every checkbox in the editor stores a literal, so none can be bound to
