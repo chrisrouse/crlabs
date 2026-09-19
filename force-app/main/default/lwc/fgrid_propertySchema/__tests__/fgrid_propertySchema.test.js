@@ -145,8 +145,7 @@ describe("data source visibility", () => {
             "isUserDefinedObject",
             "recordsJson",
             "preSelectedRecordsJson",
-            "disabledRecordsJson",
-            "isSerializedRecordData"
+            "disabledRecordsJson"
         ]);
     });
 
@@ -175,11 +174,12 @@ describe("data source visibility", () => {
         expect(visible("rows", stale).filter((p) => p === "keyField")).toHaveLength(1);
     });
 
-    it("reveals serialized data only when both flags are on", () => {
-        expect(visible("source", { isSerializedRecordData: true })).not.toContain("serializedRecordData");
-        expect(visible("source", { isUserDefinedObject: true, isSerializedRecordData: true })).toContain(
-            "serializedRecordData"
-        );
+    it("no longer offers a second box for the same JSON", () => {
+        // Removed 2026-09-19. It only chose which String property to read, so it
+        // duplicated Records (JSON) under a name promising something else.
+        const everything = SECTIONS.flatMap((s) => s.controls).map((c) => c.property);
+        expect(everything).not.toContain("isSerializedRecordData");
+        expect(everything).not.toContain("serializedRecordData");
     });
 });
 

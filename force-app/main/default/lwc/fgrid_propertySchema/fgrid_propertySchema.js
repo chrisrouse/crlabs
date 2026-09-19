@@ -242,7 +242,6 @@ export const DEFAULTS = {
 export const VISIBILITY = {
     sobjectSource: (v) => !v.isUserDefinedObject,
     userDefinedSource: (v) => Boolean(v.isUserDefinedObject),
-    serialized: (v) => Boolean(v.isUserDefinedObject) && Boolean(v.isSerializedRecordData),
     hasObject: (v) => Boolean(v.objectApiName),
     headerShown: (v) => Boolean(v.showHeader),
     selectable: (v) => v.selectionMode !== "None",
@@ -346,19 +345,21 @@ export const SECTIONS = [
                 label: "Disabled Records (JSON)",
                 when: ["userDefinedSource"],
                 help: "Serialized collection of the rows the user cannot select or edit. Matched to rows by the key field."
-            },
-            {
-                property: "isSerializedRecordData",
-                type: CONTROL.CHECKBOX,
-                label: "Records Arrive Pre-Serialized",
-                when: ["userDefinedSource"]
-            },
-            {
-                property: "serializedRecordData",
-                type: CONTROL.TEXT,
-                label: "Serialized Record Data",
-                when: ["serialized"]
             }
+            /* REMOVED 2026-09-19: "Records Arrive Pre-Serialized" and its companion
+               "Serialized Record Data". The pair only chose which String property the
+               JSON was read from -- same parse, same result -- so it duplicated
+               Records (JSON) while promising something else.
+
+               In the component this replaces the flag means something real, and
+               something different: a bidirectional channel whose setter REPLACES the
+               table mid-screen, used to push SObject data back in before Flow had
+               reactive screens. It is mutually exclusive with the user-defined mode
+               there, not nested under it as it was here.
+
+               Flow Grid does not need it. Reactivity is handled by the "incoming data
+               is authoritative" rule, so recordsJson already reloads the grid when the
+               Flow reassigns it. */
         ]
     },
     {

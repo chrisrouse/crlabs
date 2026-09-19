@@ -169,8 +169,6 @@ export default class FgridFlowGrid extends LightningElement {
        below simply reads whatever the Flow currently supplies. */
     @api disabledRecords;
     @api disabledRecordsJson;
-    @api isSerializedRecordData = false;
-    @api serializedRecordData;
 
     // ----- Table display -----
     @api showHeader = false;
@@ -684,17 +682,7 @@ export default class FgridFlowGrid extends LightningElement {
         }
         // Memoized because this parses JSON, and an unmemoized parse per read was
         // multiplied by every entry into the row pipeline.
-        return this.memoized(
-            "sourceRecords",
-            [this.isSerializedRecordData, this.serializedRecordData, this.recordsJson],
-            () => {
-                const raw =
-                    this.isSerializedRecordData && this.serializedRecordData
-                        ? this.serializedRecordData
-                        : this.recordsJson;
-                return parseRecordJson(raw);
-            }
-        );
+        return this.memoized("sourceRecords", [this.recordsJson], () => parseRecordJson(this.recordsJson));
     }
 
     /**

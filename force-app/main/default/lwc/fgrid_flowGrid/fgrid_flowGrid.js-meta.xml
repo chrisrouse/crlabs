@@ -29,8 +29,6 @@
             <property name="recordsJson" type="String" label="Records (JSON)" role="inputOnly" />
             <property name="preSelectedRecordsJson" type="String" label="Pre-Selected Records (JSON)" role="inputOnly" />
             <property name="disabledRecordsJson" type="String" label="Disabled Records (JSON)" role="inputOnly" />
-            <property name="isSerializedRecordData" type="Boolean" label="Records Are Serialized" default="false" role="inputOnly" />
-            <property name="serializedRecordData" type="String" label="Serialized Record Data" role="inputOnly" />
 
             <!-- ============================== Columns ==============================
                  columnFields  - JSON array of field API paths, ordered. Written by the
