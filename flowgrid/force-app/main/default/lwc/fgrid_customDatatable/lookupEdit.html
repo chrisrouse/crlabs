@@ -1,0 +1,21 @@
+<!-- Changing the related parent record. `lightning-record-picker` searches one
+     object and yields a recordId, which is exactly what the field stores, so the
+     draft needs no conversion on save.
+
+     object-api-name is resolved per column from the field's single target. A
+     polymorphic lookup never reaches this template: c/fgrid_gridModel forces such
+     a column read-only, because one picker cannot search several objects.
+
+     data-inputable="true" is load-bearing, not decorative — it is how the
+     inline-edit machinery reads the committed value. See fgrid_customDatatable. -->
+<template>
+    <lightning-record-picker
+        label={columnLabel}
+        variant="label-hidden"
+        placeholder="Search records…"
+        object-api-name={typeAttributes.objectApiName}
+        value={editedValue}
+        required={required}
+        data-inputable="true"
+    ></lightning-record-picker>
+</template>

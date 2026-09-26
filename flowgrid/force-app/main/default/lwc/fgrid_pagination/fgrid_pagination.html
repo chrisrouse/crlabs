@@ -1,0 +1,85 @@
+<!-- A nav landmark with real list semantics, because this is navigation rather than
+     a group of actions. The current page carries aria-current AND weight and a
+     border, so colour is never the only signal. Each ellipsis is aria-hidden and
+     unfocusable: it conveys nothing a screen reader needs and must not take a tab
+     stop. -->
+<template>
+    <nav class="fgrid-pg" aria-label="Pagination">
+        <span class="fgrid-pg__summary">{summary}</span>
+
+        <ul class="fgrid-pg__list">
+            <li>
+                <button
+                    type="button"
+                    class="fgrid-pg__item"
+                    disabled={isFirstPage}
+                    aria-disabled={isFirstPage}
+                    title="Previous page"
+                    onclick={handlePrevious}
+                >
+                    <lightning-icon
+                        icon-name="utility:chevronleft"
+                        size="xx-small"
+                        alternative-text="Previous page"
+                    ></lightning-icon>
+                </button>
+            </li>
+
+            <template for:each={items} for:item="item">
+                <li key={item.key}>
+                    <template lwc:if={item.isGap}>
+                        <span class="fgrid-pg__ellipsis" aria-hidden="true">&hellip;</span>
+                    </template>
+                    <template lwc:else>
+                        <button
+                            type="button"
+                            class={item.itemClass}
+                            data-page={item.page}
+                            aria-current={item.ariaCurrent}
+                            title={item.label}
+                            onclick={handlePage}
+                        >
+                            {item.page}
+                        </button>
+                    </template>
+                </li>
+            </template>
+
+            <li>
+                <button
+                    type="button"
+                    class="fgrid-pg__item"
+                    disabled={isLastPage}
+                    aria-disabled={isLastPage}
+                    title="Next page"
+                    onclick={handleNext}
+                >
+                    <lightning-icon
+                        icon-name="utility:chevronright"
+                        size="xx-small"
+                        alternative-text="Next page"
+                    ></lightning-icon>
+                </button>
+            </li>
+        </ul>
+
+        <div class="fgrid-pg__perpage">
+            <template lwc:if={showPerPage}>
+                <!-- The visible label is rendered here and the combobox's own label
+                     hidden, so only the SELECT is width-constrained. label-inline let
+                     the whole control stretch to fill the grid track.
+                     aria-hidden on the span because the combobox still carries the
+                     real label — without it a screen reader announces it twice. -->
+                <span class="fgrid-pg__perpage-label" aria-hidden="true">Rows per page</span>
+                <lightning-combobox
+                    class="fgrid-pg__perpage-select"
+                    label="Rows per page"
+                    variant="label-hidden"
+                    value={perPageValue}
+                    options={perPageOptions}
+                    onchange={handlePerPage}
+                ></lightning-combobox>
+            </template>
+        </div>
+    </nav>
+</template>

@@ -1,0 +1,117 @@
+/* Custom classes only — no `.slds-*` is overridden. Every value comes from a
+   verified global styling hook with a fallback, so org branding carries through.
+
+   SLDS ships no pagination blueprint and its button-group blueprint excludes
+   navigation, so this is the hierarchy's "custom with hooks" tier. */
+
+/* Three tracks so the numbers are centred in the GRID's full width, not merely in
+   whatever space the summary leaves over. With flexbox the numbers drifted as the
+   summary text changed length — "1–10 of 314" versus "311–314 of 314". */
+.fgrid-pg {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: var(--slds-g-spacing-2, 0.5rem);
+    padding-top: var(--slds-g-spacing-2, 0.5rem);
+}
+
+.fgrid-pg__summary {
+    font-size: var(--slds-g-font-scale-neg-1, 0.75rem);
+    color: var(--slds-g-color-on-surface-3, #5c5c5c);
+    white-space: nowrap;
+}
+
+.fgrid-pg__list {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--slds-g-spacing-1, 0.25rem);
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.fgrid-pg__item {
+    min-width: var(--slds-g-sizing-9, 2rem);
+    height: var(--slds-g-sizing-9, 2rem);
+    padding: 0 var(--slds-g-spacing-2, 0.5rem);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: var(--slds-g-sizing-border-1, 1px) solid transparent;
+    border-radius: var(--slds-g-radius-border-2, 0.25rem);
+    background: transparent;
+    color: var(--slds-g-color-accent-1, #0176d3);
+    font-size: var(--slds-g-font-scale-neg-1, 0.8125rem);
+    cursor: pointer;
+}
+
+.fgrid-pg__item:hover:not([disabled]):not([aria-current]) {
+    background: var(--slds-g-color-surface-2, #f3f3f3);
+}
+
+.fgrid-pg__item:focus-visible {
+    outline: var(--slds-g-sizing-border-2, 2px) solid var(--slds-g-color-accent-1, #0176d3);
+    outline-offset: 2px;
+}
+
+/* Weight and border as well as colour: the current page must be identifiable
+   without relying on hue. */
+.fgrid-pg__item_current {
+    background: var(--slds-g-color-surface-2, #f3f3f3);
+    border-color: var(--slds-g-color-border-2, #c9c9c9);
+    color: var(--slds-g-color-on-surface-2, #181818);
+    font-weight: var(--slds-g-font-weight-7, 700);
+    cursor: default;
+}
+
+.fgrid-pg__item[disabled] {
+    color: var(--slds-g-color-on-surface-3, #a8a8a8);
+    cursor: not-allowed;
+}
+
+.fgrid-pg__ellipsis {
+    display: inline-flex;
+    justify-content: center;
+    min-width: var(--slds-g-sizing-7, 1.5rem);
+    user-select: none;
+    color: var(--slds-g-color-on-surface-3, #5c5c5c);
+    font-size: var(--slds-g-font-scale-neg-1, 0.8125rem);
+}
+
+.fgrid-pg__perpage {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--slds-g-spacing-2, 0.5rem);
+}
+
+.fgrid-pg__perpage-label {
+    font-size: var(--slds-g-font-scale-neg-1, 0.75rem);
+    color: var(--slds-g-color-on-surface-3, #5c5c5c);
+    white-space: nowrap;
+}
+
+/* Only the select is constrained. Wide enough for a three-digit option plus the
+   chevron; the label sits outside it. */
+.fgrid-pg__perpage-select {
+    width: var(--slds-g-sizing-12, 5rem);
+    flex: 0 0 auto;
+}
+
+/* Narrow columns — Experience Cloud is the binding constraint. The numbers are the
+   first thing to go; prev/next and the summary remain, which is still complete
+   navigation. */
+@media (max-width: 30rem) {
+    .fgrid-pg {
+        grid-template-columns: 1fr;
+        justify-items: center;
+        gap: var(--slds-g-spacing-1, 0.25rem);
+    }
+    .fgrid-pg__list li:not(:first-child):not(:last-child) {
+        display: none;
+    }
+    .fgrid-pg__perpage {
+        justify-content: center;
+    }
+}

@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>67.0</apiVersion>
+    <isExposed>true</isExposed>
+    <masterLabel>Flow Grid</masterLabel>
+    <description>Configurable record grid for Flow screens. Built on the Flow Config Editor Kit.</description>
+    <targets>
+        <target>lightning__FlowScreen</target>
+    </targets>
+    <targetConfigs>
+        <targetConfig targets="lightning__FlowScreen" configurationEditor="c-fgrid_flow-grid-editor">
+            <!--
+                Property labels and help text live in fgrid_flowGridEditor. The values here
+                are the fallback Flow Builder shows if the custom editor fails to load.
+
+                One generic type: every record property below is the same collection.
+            -->
+            <propertyType name="T" extends="SObject" label="Grid Object" description="The object shown in the grid." />
+
+            <!-- ============================ Data source ============================ -->
+            <property name="records" type="{T[]}" label="Records" role="inputOnly" />
+            <property name="objectApiName" type="String" label="Object API Name" role="inputOnly" />
+            <property name="preSelectedRecords" type="{T[]}" label="Pre-Selected Records" role="inputOnly" />
+            <property name="disabledRecords" type="{T[]}" label="Disabled Records" role="inputOnly" description="Records the user cannot select or edit. They still render, greyed, so a user can see why a row is unavailable instead of wondering where it went." />
+            <property name="keyField" type="String" label="Key Field" default="Id" role="inputOnly" />
+
+            <!-- User-defined (non-SObject) source. Records arrive as serialized JSON. -->
+            <property name="isUserDefinedObject" type="Boolean" label="Use a User-Defined Object" default="false" role="inputOnly" />
+            <property name="recordsJson" type="String" label="Records (JSON)" role="inputOnly" />
+            <property name="preSelectedRecordsJson" type="String" label="Pre-Selected Records (JSON)" role="inputOnly" />
+            <property name="disabledRecordsJson" type="String" label="Disabled Records (JSON)" role="inputOnly" />
+
+            <!-- ============================== Columns ==============================
+                 columnFields  - JSON array of field API paths, ordered. Written by the
+                                 kit field picker in multiple + sortable mode.
+                 columnConfig  - JSON object keyed by field API path, holding that
+                                 column's attributes. Replaces the 13 parallel
+                                 delimited strings of the component this replaces.
+            -->
+            <property name="columnFields" type="String" label="Columns" role="inputOnly" />
+            <property name="columnConfig" type="String" label="Column Configuration" role="inputOnly" />
+
+            <!-- =========================== Table display =========================== -->
+            <property name="showHeader" type="Boolean" label="Show Table Header" default="false" role="inputOnly" />
+            <property name="tableLabel" type="String" label="Table Label" role="inputOnly" />
+            <property name="tableIcon" type="String" label="Table Icon" role="inputOnly" />
+            <property name="showRecordCount" type="Boolean" label="Show Record Count" default="false" role="inputOnly" />
+            <property name="showSelectedCount" type="Boolean" label="Show Selected Count" default="false" role="inputOnly" />
+            <property name="showRowNumbers" type="Boolean" label="Show Row Numbers" default="false" role="inputOnly" description="Row numbers are always shown when any column is editable: the table needs that column to display row errors, and Salesforce does not allow it to be turned off." />
+            <property name="tableHeight" type="String" label="Table Height" role="inputOnly" description="CSS height, for example 30rem. With Paginate, leave blank to fit the rows on the page. Load as You Scroll needs a height for more rows to load, so blank uses 30rem there." />
+            <!-- INVERTED ON PURPOSE. Flow Builder does not persist a `false`
+                 Boolean input parameter — it drops it — so a value that must
+                 default ON can never be turned off if stored positively: the write
+                 vanishes and absence reads back as the default.
+                 Verified by inspecting a saved flow's inputParameters: every stored
+                 Boolean was `true` and no `false` existed anywhere.
+                 These therefore store the NEGATIVE, which is the state worth
+                 persisting. The editor still shows a positive label and inverts on
+                 read and write (see `invert` in fgrid_propertySchema), so nothing
+                 changes for the admin. Same reason hideHeaderActions is framed
+                 this way. -->
+            <!-- DEPRECATED and unread, superseded by limitWrappedLines. Cannot be
+                 removed while a saved flow version still stores a value for it; see
+                 the removal TODO in STATUS.md. -->
+            <property name="wrapTextMaxLines" type="Integer" label="Wrapped Lines (Deprecated)" role="inputOnly" description="No longer used. Superseded by Limit Wrapped Text to Three Lines." />
+            <property name="limitWrappedLines" type="Boolean" label="Limit Wrapped Text to Three Lines" default="false" role="inputOnly" description="Limit the number of lines shown when text is wrapped to three lines. Three is the only clamp available: SLDS 2 hardcodes it in slds-plus.css, so an arbitrary count cannot be honoured." />
+            <property name="showReadOnlyIcon" type="Boolean" label="Show a Lock on Read-Only Columns" default="false" role="inputOnly" />
+
+            <!-- ============================= Selection =============================
+                 selectionMode replaces the baseline's hideCheckboxColumn +
+                 singleRowSelection boolean pair: None | Single | Multiple.
+            -->
+            <property name="selectionMode" type="String" label="Row Selection Mode" default="Multiple" role="inputOnly" />
+            <property name="isRequired" type="Boolean" label="Require a Selection" default="false" role="inputOnly" description="Single selection only. For Multiple, a Minimum Selection of 1 or more says the same thing." />
+            <property name="minSelection" type="Integer" label="Minimum Selection" role="inputOnly" description="Fewest rows the user must select before the screen will advance. Multiple selection only." />
+            <property name="maxSelection" type="Integer" label="Maximum Selection" role="inputOnly" description="Most rows the user can select. Multiple selection only; leave blank for no limit." />
+            <property name="singleSelectControl" type="String" label="Row Selector Type" default="Radio" role="inputOnly" description="Radio or Checkbox, for single-row selection. Checkbox allows users to deselect a row; a radio cannot be cleared once chosen." />
+
+            <!-- ======================= Search, filter, sort ======================== -->
+            <property name="showSearchBar" type="Boolean" label="Show Search Bar" default="false" role="inputOnly" />
+            <property name="searchWholePhrase" type="Boolean" label="Search the Whole Phrase in One Column" default="false" role="inputOnly" description="Off (the default): every word typed must appear somewhere in the row, in any column and in any order, so a full name is still found when first and last name are separate columns. On: the whole phrase must appear within a single column." />
+            <property name="hideHeaderActions" type="Boolean" label="Hide Column Header Actions" default="false" role="inputOnly" />
+            <property name="matchCaseOnFilters" type="Boolean" label="Match Case on Filters" default="false" role="inputOnly" />
+
+            <!-- ====================== Row loading and paging ======================= -->
+            <property name="rowLoading" type="String" label="Row Loading" role="inputOnly" description="Scroll (default): render a batch of rows and grow as the user scrolls. Paginate: a fixed page size with First/Previous/Next/Last. There is deliberately no default here — it lives in the runtime getter, so it is not pinned by the platform." />
+            <!-- DEPRECATED, and kept only because flows already reference it: an input
+                 property cannot be removed while any flow version uses it. Superseded
+                 by rowLoading and no longer read. -->
+            <property name="showPagination" type="Boolean" label="Show Pagination (Deprecated)" default="false" role="inputOnly" />
+            <property name="recordsPerPage" type="Integer" label="Records per Page" role="inputOnly" />
+            <!-- DEPRECATED: the truncated navigation always shows page 1 and the last
+                 page, so explicit First/Last buttons are redundant. Kept only because
+                 a referenced property cannot be removed. -->
+            <property name="showFirstLastButtons" type="Boolean" label="Show First/Last Buttons (Deprecated)" default="false" role="inputOnly" />
+            <property name="showRowsPerPage" type="Boolean" label="Let Users Change the Page Size" default="false" role="inputOnly" description="Adds a Rows per page picker offering 10, 25, 50 and 100, bounded by the maximum row count." />
+            <property name="maxNumberOfRows" type="Integer" label="Maximum Records to Display" role="inputOnly" />
+
+            <!-- ========================== Inline editing =========================== -->
+            <property name="autoSaveEdits" type="Boolean" label="Hide the Cancel/Save Buttons" default="false" role="inputOnly" description="Applies each edit as soon as the user leaves the cell, so nothing is ever pending and the Cancel and Save buttons never appear. The bottom bar itself remains, which is where table-level errors are shown. There is no undo." />
+            <property name="navigateNextOnSave" type="Boolean" label="Navigate Next on Save" default="false" role="inputOnly" />
+
+            <!-- ============================ Row action =============================
+                 rowActionType replaces the baseline's isRemoveRowAction boolean +
+                 rowActionType string pair: None | Standard | Remove.
+            -->
+            <property name="rowActionType" type="String" label="Row Action" default="None" role="inputOnly" description="None, Standard, Remove, or Flow. Flow launches a screen flow in a modal for the clicked row and upserts whatever it returns back into the grid." />
+            <property name="rowActionDisplay" type="String" label="Row Action Display" default="Icon" role="inputOnly" />
+            <property name="rowActionPosition" type="String" label="Row Action Column Position" default="Left" role="inputOnly" />
+            <property name="rowActionLabel" type="String" label="Row Action Label" role="inputOnly" />
+            <property name="rowActionIcon" type="String" label="Row Action Icon" role="inputOnly" />
+            <property name="rowActionColor" type="String" label="Row Action Icon Color" role="inputOnly" />
+            <property name="rowActionButtonLabel" type="String" label="Row Action Button Label" role="inputOnly" />
+            <property name="rowActionButtonIcon" type="String" label="Row Action Button Icon" role="inputOnly" />
+            <property name="rowActionButtonIconPosition" type="String" label="Row Action Button Icon Position" default="Left" role="inputOnly" />
+            <property name="rowActionButtonVariant" type="String" label="Row Action Button Variant" default="neutral" role="inputOnly" />
+            <property name="maxRemovedRows" type="Integer" label="Maximum Rows Removable" role="inputOnly" />
+
+            <!-- ===================== Flow row action ======================
+                 Replaces the four-component Flow pattern this component's
+                 predecessor required (Get First Record -> Flow Launcher ->
+                 Upsert Record By Key -> Reactive Record Collection). The grid
+                 launches the flow, takes the returned record, and upserts it
+                 into its own working collection by key.
+            -->
+            <property name="rowActionFlowApiName" type="String" label="Flow API Name" role="inputOnly" description="API name of the screen flow to launch when a row action is clicked." />
+            <property name="rowActionFlowLaunchMode" type="String" label="Flow Launch Mode" role="inputOnly" description="Screen or Headless. Set by the property editor from the chosen flow's type; a screen flow opens in a modal, an autolaunched flow runs with no UI." />
+            <property name="rowActionFlowRecordVariable" type="String" label="Flow Record Variable" role="inputOnly" description="Name of the flow's input variable that receives the clicked record. Leave blank to pass no record." />
+            <property name="rowActionFlowIdVariable" type="String" label="Flow Record Id Variable" role="inputOnly" description="Name of the flow's input variable that receives the record Id. Leave blank to pass no Id." />
+            <property name="rowActionFlowSavesChanges" type="Boolean" label="The Launched Flow Saves Its Own Changes" role="inputOnly" description="Check this when the launched flow performs its own DML. The grid then compares each change against the record as re-read from the database, and reports only what is still unsaved through Edited Records. Leave unchecked and every change a flow returns is treated as pending." />
+            <property name="rowActionFlowModalHeader" type="String" label="Modal Header" default="Edit Record" role="inputOnly" />
+            <property name="rowActionFlowModalSize" type="String" label="Modal Size" default="Medium" role="inputOnly" description="Small, Medium, or Large." />
+            <property name="rowActionFlowPreventClose" type="Boolean" label="Prevent Closing Until the Flow Finishes" default="false" role="inputOnly" description="Hides the close button and blocks Esc so the flow cannot be dismissed part way through, which would discard anything entered. Only the flow finishing or faulting will close it, so use it only when every branch of the flow reaches an end." />
+            <property name="rowActionFlowSuccessMessage" type="String" label="Success Message" default="The record was successfully updated." role="inputOnly" description="Message shown when row action is successful. Leave blank to hide message. Does not support rich text." />
+            <property name="rowActionFlowErrorMessage" type="String" label="Error Message" default="There was an error updating this record." role="inputOnly" description="Message shown when there is an error with the row action. Leave blank to hide message. Does not support rich text." />
+            <property name="rowActionFlowDeleteMessage" type="String" label="Deleted Record Message" default="The selected record was deleted." role="inputOnly" description="Message shown when record is successfully deleted. Leave blank to hide message. Does not support rich text." />
+
+            <!-- ======================== Links and formatting ======================== -->
+            <property name="hideNameFieldLink" type="Boolean" label="Do Not Link the Name Field" default="false" role="inputOnly" />
+            <property name="openLinkInSameTab" type="Boolean" label="Open Links in the Same Tab" default="false" role="inputOnly" />
+            <property name="suppressCurrencyConversion" type="Boolean" label="Suppress Currency Conversion" default="false" role="inputOnly" />
+
+            <!-- =================== Picklist editing (record type) =================== -->
+            <property name="recordTypeId" type="String" label="Record Type Id" role="inputOnly" />
+            <!-- DEPRECATED and unread, superseded by picklistRecordTypeMode. Kept only
+                 because a targetConfig cannot drop a property a saved flow version
+                 references; see the removal TODO in STATUS.md. -->
+            <property name="showAllPicklistValues" type="Boolean" label="Show All Picklist Values (Deprecated)" default="false" role="inputOnly" description="No longer used. Superseded by Filter Picklists by Record Type." />
+            <property name="picklistRecordTypeMode" type="String" label="Filter Picklists by Record Type" default="None" role="inputOnly" description="None, Global or PerRow. Global filters every picklist by the Record Type Id below; PerRow filters each row by its own RecordTypeId, which requires the Get Records to have retrieved that field. Dependent picklists narrow by their controlling field regardless." />
+            <property name="dependentPicklistIcon" type="String" label="Dependent Picklist Icon" default="utility:hierarchy" role="inputOnly" description="Header icon marking a column whose values depend on another field. Blank shows no icon." />
+            <property name="hideNoneOption" type="Boolean" label="Hide the --None-- Picklist Option" default="false" role="inputOnly" />
+
+            <!-- Flow supplies its runtime API version; the editor forwards it to pickers. -->
+            <property name="flowRuntimeApiVersion" type="Double" label="Flow Runtime API Version" role="inputOnly" flowRole="flowRuntimeApiVersion" />
+
+            <!-- ============================== Outputs =============================== -->
+            <property name="outputSelectedRecords" type="{T[]}" label="Selected Records" role="outputOnly" />
+            <property name="outputSelectedRecord" type="{T}" label="Selected Record (Single)" role="outputOnly" />
+            <property name="outputEditedRecords" type="{T[]}" label="Edited Records" role="outputOnly" />
+            <property name="outputRemovedRecords" type="{T[]}" label="Removed Records" role="outputOnly" />
+            <property name="outputRemainingRecords" type="{T[]}" label="Remaining Records" role="outputOnly" />
+            <property name="outputActionedRecord" type="{T}" label="Actioned Record" role="outputOnly" />
+            <property name="outputActionedRecordIds" type="String[]" label="Actioned Record Ids" role="outputOnly" description="Key value of every row whose action has been clicked, in click order, with repeats collapsed. Actioned Record above holds only the most recent one and is overwritten by the next click; this accumulates them for the whole screen." />
+
+            <!-- JSON output mirrors, for the user-defined-object source -->
+            <property name="outputSelectedRecordsJson" type="String" label="Selected Records (JSON)" role="outputOnly" />
+            <property name="outputEditedRecordsJson" type="String" label="Edited Records (JSON)" role="outputOnly" />
+            <property name="outputRemovedRecordsJson" type="String" label="Removed Records (JSON)" role="outputOnly" />
+            <property name="outputRemainingRecordsJson" type="String" label="Remaining Records (JSON)" role="outputOnly" />
+            <property name="outputActionedRecordJson" type="String" label="Actioned Record (JSON)" role="outputOnly" />
+
+            <property name="selectedCount" type="Integer" label="Number of Selected Records" role="outputOnly" />
+            <property name="editedCount" type="Integer" label="Number of Edited Records" role="outputOnly" />
+            <property name="removedCount" type="Integer" label="Number of Removed Records" role="outputOnly" />
+            <property name="selectedRowKey" type="String" label="Selected Row Key Value" role="outputOnly" />
+            <property name="sortedBy" type="String" label="Sorted by" role="outputOnly" />
+            <property name="sortDirection" type="String" label="Sort Direction" role="outputOnly" />
+        </targetConfig>
+    </targetConfigs>
+</LightningComponentBundle>

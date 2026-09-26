@@ -1,0 +1,7 @@
+<!-- Long text reads as ordinary text. Wrapping is handled by the standard cell
+     layout and the column's own wrapText, so nothing is forced here — a
+     `slds-truncate` would override it, which is the mistake the picklist and lookup
+     cells originally made. -->
+<template>
+    <span title={value}>{value}</span>
+</template>

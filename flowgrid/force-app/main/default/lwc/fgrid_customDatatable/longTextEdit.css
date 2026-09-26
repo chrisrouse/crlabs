@@ -1,0 +1,19 @@
+/* Wide and tall enough to be worth using, without pushing the inline-edit panel's
+   Cancel/Save buttons off screen.
+
+   Both dimensions come from the SLDS sizing scale rather than a value picked by eye.
+   Neither 22rem nor 6rem — the sizes this started with — has a hook, and the scale
+   exists precisely so dimensions stay consistent, so each is nudged to the nearest
+   step it offers. Deleting the constraint instead is what previously let the rows
+   per page control stretch across a whole grid track.
+
+   Named to match its template, which is how LWC binds a stylesheet to a
+   non-default template in a multi-template bundle. */
+.fgrid-longtext {
+    width: var(--slds-g-sizing-15, 20rem);
+    max-width: 60vw;
+}
+
+.fgrid-longtext textarea {
+    min-height: var(--slds-g-sizing-12, 5rem);
+}

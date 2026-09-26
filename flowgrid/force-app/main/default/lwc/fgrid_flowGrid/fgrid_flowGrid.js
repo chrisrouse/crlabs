@@ -1,0 +1,3005 @@
+/**
+ * Flow Grid — runtime screen component.
+ *
+ * Renders the record collection a Flow supplies, using real field metadata from
+ * `FlowGridController.getGridMetadata` and the two JSON configuration properties
+ * the property editor writes: `columnFields` (ordered paths) and `columnConfig`
+ * (per-column attributes keyed by path).
+ *
+ * Column derivation is shared with the Grid Studio preview through
+ * `c/fgrid_gridModel`, so what an admin previews is what runs.
+ *
+ * The row pipeline runs in a fixed order, which is what makes the counts read
+ * correctly: source -> minus removed -> cap -> search -> filter -> sort -> page.
+ * The cap (maxNumberOfRows) sits before search and filter on purpose: it is a
+ * ceiling on what the grid will handle, not a ceiling on results.
+ *
+ * IMPLEMENTED: display, real labels and types, record links, selection and its
+ * outputs, sorting, search, per-column filters, pagination, row actions (remove
+ * and launch-a-flow), required validation, header and counts, row cap, the
+ * user-defined-object JSON source, and inline editing — standard types plus
+ * picklist, multi-select picklist and lookup cells via `c/fgrid_customDatatable`.
+ *
+ * Picklist options can be narrowed two ways, both fed by the same UI API payload:
+ * by record type, globally or per row, and by a controlling field for a dependent
+ * picklist. See `picklistContext`.
+ */
+import { LightningElement, api, wire } from "lwc";
+import { FlowAttributeChangeEvent, FlowNavigationNextEvent } from "lightning/flowSupport";
+import Toast from "lightning/toast";
+import ToastContainer from "lightning/toastContainer";
+import FgridFlowActionModal from "c/fgrid_flowActionModal";
+import getGridMetadata from "@salesforce/apex/FlowGridController.getGridMetadata";
+import runFlow from "@salesforce/apex/FlowGridController.runFlow";
+import getRecordsByIds from "@salesforce/apex/FlowGridController.getRecordsByIds";
+import getFlowVariables from "@salesforce/apex/FlowGridController.getFlowVariables";
+import {
+    MIN_COLUMN_WIDTH,
+    buildColumns,
+    buildRows,
+    sortRows,
+    searchRows,
+    filterRows,
+    paginate,
+    withRowActionColumn,
+    parseFieldList,
+    parseColumnConfig,
+    joinMultiPicklist,
+    fractionToPercent,
+    filterKindFor,
+    isFilterActive,
+    describeFilter,
+    FILTER_ACTION_NAME,
+    BLANKS_FIRST_ACTION_NAME,
+    PICKLIST_SELECTED_SUFFIX,
+    MASTER_RECORD_TYPE_ID,
+    ROW_ACTION_NAME
+} from "c/fgrid_gridModel";
+
+/**
+ * Rows rendered per batch in scroll mode, and the amount each `loadmore` adds.
+ *
+ * The records are already in memory — a Flow hands over the whole collection — so
+ * this is a RENDERING window, not a fetch size. Growing the window is what keeps the
+ * DOM small; there is nothing to load from the server.
+ */
+const SCROLL_BATCH_SIZE = 50;
+
+/**
+ * Stacking layer for the toast container.
+ *
+ * In an Experience Cloud LWR site a theme's sticky header was measured at 100001
+ * and covered the toast, so it fired and was invisible. Bisected from the other
+ * side: with the container at 10000, a header at 10000 lost and 10001 won.
+ *
+ * A high value is defensible HERE in a way it would not be for a popover. A toast
+ * is the topmost layer by definition -- SLDS puts it above its own modals -- so
+ * being outranked by page chrome is a failure, not politeness. That is the opposite
+ * of the vendored kit's `z-index: 1000000` on a picker popover, which paints over
+ * Flow Builder chrome that native dropdowns correctly sit within.
+ *
+ * The write always LANDS. What defeated it for the modal row action is that the
+ * platform rewrites the same element's inline style back to 10000 while unmounting
+ * `lightning-modal-base`, about 180ms after we set it.
+ *
+ * Traced with a MutationObserver on `lightning-overlay-container`'s shadow root,
+ * following each mutation's `oldValue` for one `lightning-toast-container` -- id
+ * stable throughout, so it is rewritten, never replaced:
+ *
+ *     ms 2459  was 10000    modal opens; we set 100002
+ *     ms 2459  was 100002   platform rewrites to 10000
+ *     ms 4500  was 10000    our toast() elevation sets 100002
+ *     ms 4679  was 100002   platform rewrites to 10000, in the same batch as
+ *                           `lightning-modal-base` being REMOVED
+ *
+ * Nothing rewrites it after teardown, which is what makes a late write stick. See
+ * `elevateToastContainer` for why the retry is a window rather than a delay.
+ *
+ * Do NOT raise the number. It was never too low, and it was never landing on the
+ * wrong object either -- both of those were wrong diagnoses. See STATUS.md.
+ */
+const TOAST_Z_INDEX = "100002";
+
+/**
+ * How long to keep re-asserting the toast container's z-index, and how often.
+ *
+ * A WINDOW rather than a delay, deliberately. The one measurement said 180ms, but
+ * that is one machine on one render with whatever animation settings were in force,
+ * and tuning a single `setTimeout` to it would repeat the mistake that produced
+ * four failed fixes: fitting a number to one observation.
+ *
+ * Correctness here does not depend on the duration being right. It depends only on
+ * the platform stopping eventually, which the trace shows it does at teardown --
+ * so the last write wins. The `!==` guard makes every redundant pass free, and on
+ * the autolaunched paths, where the first write already sticks, all of them are
+ * redundant.
+ *
+ * A second is far longer than any teardown observed, and costs 20 property reads.
+ */
+const TOAST_ELEVATION_RETRY_MS = 50;
+const TOAST_ELEVATION_WINDOW_MS = 1000;
+
+/** Applied when no grid height is set AND rows load by scrolling, because
+ *  infinite scrolling needs a scroll boundary to exist before `loadmore` will
+ *  ever fire. Paginate needs no boundary, so it gets no default. */
+const DEFAULT_TABLE_HEIGHT = "30rem";
+
+/**
+ * The clamp SLDS 2 applies, and the only one available.
+ *
+ * `slds-plus.css` hardcodes it — `.slds-line-clamp { -webkit-line-clamp: 3 }`, no
+ * `var()` — so the count passed to `wrap-text-max-lines` cannot change the outcome.
+ * Passing anything gets the class; the class is always three lines.
+ *
+ * A NUMBER, not the string "3". `lightning-datatable` validates this attribute and
+ * logged `The attribute "wrapTextMaxLines" value passed in is incorrect.
+ * "wrapTextMaxLines" value should be an integer > 0` on every load with a string,
+ * which is easy to miss because the clamp still applied — the class does not depend
+ * on the value surviving validation.
+ */
+const WRAPPED_LINE_CLAMP = 3;
+
+/** `FlowVariableView.DataType` for a record variable, as Apex reports it. */
+const SOBJECT_DATA_TYPE = "SObject";
+
+export default class FgridFlowGrid extends LightningElement {
+    /* ----- Injected by the flow runtime -----
+     *
+     * Declared because Flow sets them on every `lightning__FlowScreen` component
+     * whether it asks for them or not, and an undeclared property logs
+     * `[LWC warn]: Unknown public property "..."` on every page load. Four such
+     * warnings were coming from this component and drowning real ones.
+     *
+     * `availableActions` is the one with a use: it lists the navigation the current
+     * screen actually permits, so `NEXT` is absent on a flow's last screen. See
+     * `navigateNextOnSave`.
+     *
+     * `navigateFlow` and `flowImplicit$dirtyProps` are deliberately NOT declared.
+     * They are runtime plumbing rather than documented screen properties, and
+     * publishing internal platform names as this component's API to silence a
+     * dev-mode warning is the worse trade. Those two warnings remain by choice.
+     */
+    @api availableActions = [];
+    @api screenHelpText;
+
+    // ----- Data source -----
+    @api objectApiName;
+    @api keyField = "Id";
+    @api isUserDefinedObject = false;
+    @api recordsJson;
+    /* No accessor needed, unlike preSelectedRecords: this is not user-mutable, so
+       there is no local selection for an incoming value to fight over. The getter
+       below simply reads whatever the Flow currently supplies. */
+    @api disabledRecords;
+    @api disabledRecordsJson;
+
+    // ----- Table display -----
+    @api showHeader = false;
+    @api tableLabel;
+    @api tableIcon;
+    @api showRecordCount = false;
+    @api showSelectedCount = false;
+    /**
+     * IGNORED WHENEVER ANY COLUMN IS EDITABLE, and not by us.
+     *
+     * From the lightning-datatable documentation: "When there's an editable
+     * column, `lightning-datatable` sets the `show-row-number-column` attribute to
+     * true to show the row errors in the number column. You can't override this
+     * setting." The row error icon lives in that column, so the datatable takes it
+     * whether asked or not.
+     *
+     * The value is still passed through, because it decides the column for a
+     * read-only grid. Grid Studio's preview is unaffected for exactly this reason:
+     * it builds its columns with `forceReadOnly`.
+     *
+     * Turning it off on an editable grid therefore does nothing, which cost a long
+     * investigation before the sentence above was found. Do not try to defeat it:
+     * an explicit `false`, omitting the attribute, dropping `errors` and adding a
+     * column of our own were all tried and all failed.
+     */
+    @api showRowNumbers = false;
+    @api tableHeight;
+    /**
+     * DEPRECATED and unread. Superseded by `limitWrappedLines`.
+     *
+     * Kept only because Salesforce refuses to deploy a targetConfig that drops a
+     * property a saved flow version still references, and then refuses a targetConfig
+     * property with no matching @api. See the removal TODO in STATUS.
+     */
+    @api wrapTextMaxLines;
+
+    @api limitWrappedLines = false;
+    @api showReadOnlyIcon = false;
+
+    // ----- Selection -----
+    @api selectionMode = "Multiple";
+    /**
+     * Commit each edit as the user leaves the cell, instead of on Save.
+     *
+     * The Cancel and Save buttons then never appear — not because they are hidden,
+     * but because nothing is ever pending for them to act on. The bottom bar itself
+     * stays available, which is where table-level errors surface.
+     */
+    @api autoSaveEdits = false;
+    @api isRequired = false;
+    @api minSelection;
+    @api maxSelection;
+    @api singleSelectControl = "Radio";
+
+    // ----- Search, filter, sort -----
+    @api showSearchBar = false;
+    /* Inverted: Flow Builder drops a false Boolean, so the persistable state is
+       "whole phrase" and word mode is the absence of it. See the meta.xml note. */
+    @api searchWholePhrase = false;
+    @api hideHeaderActions = false;
+    @api matchCaseOnFilters = false;
+
+    // ----- Row loading and paging -----
+    /** Scroll | Paginate. Default resolved in `rowLoadingMode`, not here. */
+    @api rowLoading;
+    /** Deprecated, superseded by rowLoading. Still declared because the contract
+     *  cannot drop a property a flow references, but no longer read. */
+    @api showPagination = false;
+    @api recordsPerPage;
+    /** Deprecated: the truncated navigation always shows page 1 and the last page,
+     *  so explicit First/Last buttons are redundant. Kept only because the contract
+     *  cannot drop a property a flow references. */
+    @api showFirstLastButtons = false;
+    /** Lets the user change page size at runtime. Off by default, so a screen sized
+     *  around a fixed page size stays that way. */
+    @api showRowsPerPage = false;
+    @api maxNumberOfRows;
+
+    // ----- Inline editing -----
+    @api navigateNextOnSave = false;
+
+    // ----- Row action -----
+    @api rowActionType = "None";
+    @api rowActionDisplay = "Icon";
+    @api rowActionPosition = "Left";
+    @api rowActionLabel;
+    @api rowActionIcon;
+    @api rowActionColor;
+    @api rowActionButtonLabel;
+    @api rowActionButtonIcon;
+    @api rowActionButtonIconPosition = "Left";
+    @api rowActionButtonVariant = "neutral";
+    @api maxRemovedRows;
+
+    // ----- Flow row action -----
+    @api rowActionFlowApiName;
+    @api rowActionFlowLaunchMode;
+    @api rowActionFlowRecordVariable;
+    @api rowActionFlowIdVariable;
+    /** The launched flow does its own DML, so its changes are not pending. */
+    @api rowActionFlowSavesChanges = false;
+    @api rowActionFlowModalHeader = "Edit Record";
+    @api rowActionFlowModalSize = "Medium";
+
+    /**
+     * Locks the row-action modal until its flow reaches an end.
+     *
+     * For a flow that collects input across several screens, where dismissing it
+     * half way through discards everything typed so far.
+     *
+     * The trade is real and worth stating: with this on, the ONLY ways out are
+     * the flow finishing or faulting. A flow with a screen that has no path
+     * onward leaves the user stuck until they reload the page, so it belongs on
+     * flows whose every branch reaches an end -- not as a default.
+     */
+    @api rowActionFlowPreventClose = false;
+
+    /* ----- Row-action outcome messages -----
+     *
+     * The wording a SITE VISITOR reads, so it is the admin's to set. The defaults
+     * these replace -- "Flow action completed", "Row action failed" -- described
+     * our internals to someone who has no idea a flow was involved.
+     *
+     * Each is the WHOLE toast, and the error one is also the row error's title, so
+     * a failure reads the same however it surfaces. Every reason the grid authors
+     * itself is folded into it; only the flow's own fault text still gets a detail
+     * line, on the row, because that is the one message we cannot write better.
+     *
+     * BLANK SUPPRESSES the toast, including the error one. Defensible because a
+     * failure still marks the row, so silence here is not silence everywhere.
+     *
+     * Declared as `type="String"` and rendered through the kit's value input, so
+     * each one accepts a Flow resource -- a text template, formula or variable --
+     * as well as a literal.
+     *
+     * PLAIN TEXT ONLY. A template in rich-text mode shows its markup as literal
+     * `<p><strong>` characters. Supplying `labelLinks` is what the docs describe as
+     * switching on `lightning-formatted-rich-text`, and it was tried both empty and
+     * with a real link in the template; neither rendered the markup. Treat rich
+     * text as unsupported rather than as something a future tweak will unlock.
+     *
+     * Merge fields in a text template work fine, because Flow resolves them before
+     * the value reaches this component -- which is the point of keeping these
+     * resource-capable.
+     *
+     * Each message goes in `label`, and this is REQUIRED rather than stylistic:
+     * on small screens and in the mobile app the toast drops its icon and its
+     * `message`, keeping only `label`. Putting the admin's wording in `message`
+     * would show mobile users nothing at all.
+     */
+    @api rowActionFlowSuccessMessage = "The record was successfully updated.";
+    @api rowActionFlowErrorMessage = "There was an error updating this record.";
+    @api rowActionFlowDeleteMessage = "The selected record was deleted.";
+
+    // ----- Links and formatting -----
+    @api hideNameFieldLink = false;
+    @api openLinkInSameTab = false;
+    @api suppressCurrencyConversion = false;
+
+    // ----- Picklist editing -----
+    @api recordTypeId;
+
+    /** "None", "Global" or "PerRow" — see picklistRecordTypeIds. */
+    @api picklistRecordTypeMode = "None";
+
+    /** Header icon for a dependent picklist column. */
+    @api dependentPicklistIcon = "utility:hierarchy";
+    /**
+     * DEPRECATED and unread. Superseded by `picklistRecordTypeMode`, whose "Do Not
+     * Filter" says the same thing explicitly. Kept only so a targetConfig that a saved
+     * flow version references still deploys; see the removal TODO in STATUS.
+     */
+    @api showAllPicklistValues = false;
+    @api hideNoneOption = false;
+
+    @api flowRuntimeApiVersion;
+
+    // ----- Outputs -----
+    @api outputSelectedRecords = [];
+    @api outputSelectedRecord;
+    @api outputEditedRecords = [];
+    @api outputRemovedRecords = [];
+    @api outputRemainingRecords = [];
+    @api outputActionedRecord;
+    @api outputSelectedRecordsJson;
+    @api outputEditedRecordsJson;
+    @api outputRemovedRecordsJson;
+    @api outputRemainingRecordsJson;
+    @api outputActionedRecordIds;
+    @api outputActionedRecordJson;
+
+    @api selectedCount = 0;
+    @api editedCount = 0;
+    @api removedCount = 0;
+    @api selectedRowKey;
+    @api sortedBy;
+    @api sortDirection;
+
+    /**
+     * Returns a cached derived value, recomputing only when a dependency changes.
+     *
+     * Dependencies are compared by identity, which works because every mutable
+     * piece of state here is replaced rather than mutated — `_filters`,
+     * `_editsByKey`, `_removedKeys` and friends are all reassigned to new objects.
+     * A dependency list that misses an input would serve a stale value, so each
+     * call site lists them explicitly rather than relying on a coarser key.
+     */
+    memoized(name, deps, compute) {
+        const cached = this._memo[name];
+        if (cached && cached.deps.length === deps.length && cached.deps.every((dep, i) => dep === deps[i])) {
+            return cached.value;
+        }
+        const value = compute();
+        this._memo[name] = { deps, value };
+        return value;
+    }
+
+    /* ------------------------------------------------------------------ *
+     * Reactive inputs
+     * ------------------------------------------------------------------ */
+
+    _records = [];
+    _columnPaths = [];
+    _columnConfig = {};
+    _selectedKeys = [];
+    _metadata;
+    _metadataError;
+    _sortField;
+    _sortDirection = "asc";
+
+    /** Column the table draws its sort arrow on; see tableSortedBy. */
+    _tableSortedBy = null;
+
+    /** Fields whose sort puts blanks at the top, toggled from the header menu. */
+    _blanksFirst = [];
+
+    /** UI API payloads by record type id, filled by the fan-out children. */
+    _picklistValues = {};
+    _touched = false;
+    _searchTerm = "";
+    /** Per-column filter text, keyed by field path. */
+    _filters = {};
+    _page = 1;
+    /** Keys of rows the user removed with the Remove row action. */
+    _removedKeys = [];
+    _removalBlockedMessage = null;
+
+    /** Field patches applied by the row-action flow, keyed by keyField. */
+    _editsByKey = {};
+
+    /**
+     * Values confirmed to be in the database already, applied for display only.
+     *
+     * A row-action flow that does its own DML has already saved its change, so the
+     * change is not pending and must not appear in Edited Records — otherwise the
+     * calling flow saves it a second time. But the cell still has to SHOW it, and the
+     * source collection the grid was handed is now stale. Hence a second overlay:
+     * `_editsByKey` is what the calling flow should save, this is what the user sees.
+     */
+    _savedByKey = {};
+
+    /** Keys of every row whose action has been clicked, in click order, deduped. */
+    _actionedKeys = [];
+    /** Records the flow returned whose key was not already in the grid. */
+    _addedRecords = [];
+    /** The record currently open in the row-action flow modal. */
+    _flowRecord = null;
+    _isRunningFlow = false;
+    /**
+     * A row action failed. Guards success reporting and drives the row error.
+     *
+     * A FLAG, not the message it used to be. Every reason the grid itself can give
+     * -- no flow configured, the record is gone, the flow did not complete, it
+     * returned a record with no key -- now reports as `rowActionFlowErrorMessage`,
+     * because all four were developer sentences shown to whoever is using the
+     * table. They made a failure look worse without telling that person anything
+     * they could act on.
+     */
+    _flowFailed = false;
+
+    /**
+     * The one error detail still worth showing, or null.
+     *
+     * Only the autolaunched path sets it, and only from the flow's OWN fault text
+     * as Apex surfaces it. That is the single message the grid does not author and
+     * cannot improve on -- it says what actually went wrong inside the flow. Every
+     * message we write ourselves is now folded into the configured wording instead.
+     */
+    _flowErrorDetail = null;
+
+    /**
+     * True when the row action deleted its record rather than updating it.
+     *
+     * Selects `rowActionFlowDeleteMessage` over `rowActionFlowSuccessMessage`, and
+     * kept apart from `_flowFailed` deliberately. That flag covers four genuine
+     * failures -- no flow configured, the flow did not run, it did not complete, it
+     * returned a record with no key -- and puts `rowActionFlowErrorMessage` on the
+     * row as an error. None of that is true of a
+     * record the action deleted on purpose: the action finished, and it did exactly
+     * what it was asked to.
+     *
+     * Announced rather than passed over, because a row disappearing is easy to miss
+     * -- especially for anyone who cannot see the row count change.
+     *
+     * A FLAG, not the text it used to hold. The wording now belongs to the admin,
+     * so the decision recorded here is "which message", not "what it says".
+     */
+    _flowDeletedRecord = false;
+    _flowVariables = [];
+    /** Interval handle for `keepToastContainerElevated`. Cleared on disconnect. */
+    _toastElevationTimer = null;
+    /** Content signature of the last incoming collection. Null until first set,
+     *  so the initial assignment is not treated as a change. */
+    _recordsSignature = null;
+    _preSelectedRecords;
+    _preSelectedRecordsJson;
+    /** Pending inline edits the datatable is showing in its Cancel/Save bar. */
+    _draftValues = [];
+    /** Signature of the last applied preselection, so a user who deselects
+     *  everything does not get it silently restored. */
+    _preSelectionSignature = null;
+    /** Field path whose filter editor is open, or null. */
+    _filterEditorPath = null;
+    /** Widths the user dragged, by columnKey. The columns array is rebuilt on every
+     *  render, which resets the datatable's own width state, so they are re-applied
+     *  from here or every re-render would snap the columns back. */
+    _columnWidths = {};
+    /** Page the grid last scrolled to the top for. */
+    _scrolledForPage = 1;
+    /** Rows rendered so far in scroll mode. Reset whenever the result set changes,
+     *  or the grid would keep showing a window sized for the previous results. */
+    _visibleCount = SCROLL_BATCH_SIZE;
+    /** Page size the user picked at runtime, overriding the configured one. */
+    _userRecordsPerPage = null;
+    /**
+     * Derived-value cache, keyed by dependency identity.
+     *
+     * LWC getters are not memoized, and this component's row pipeline is a deep
+     * chain with many entry points: the template alone reads rows, hasRows,
+     * isFilteredEmpty, showPaginationBar, pageSummary, isFirstPage, isLastPage and
+     * headerCounts, and each one re-entered the chain from the top. With 300 records
+     * that meant buildRows running about nine times per render and buildColumns more
+     * than ten, each rebuilding describeByPath from scratch — several seconds before
+     * the table would respond.
+     *
+     * Mutated in place rather than reassigned, so LWC does not treat filling the
+     * cache during render as a state change and re-render because of it.
+     */
+    _memo = {};
+
+    /* Reactive, so a preselection recomputed upstream reaches the grid. Both
+       accessors funnel into applyPreSelection, which decides whether the value
+       actually changed. */
+    @api
+    get preSelectedRecords() {
+        return this._preSelectedRecords;
+    }
+    set preSelectedRecords(value) {
+        this._preSelectedRecords = value;
+        this.applyPreSelection();
+    }
+
+    @api
+    get preSelectedRecordsJson() {
+        return this._preSelectedRecordsJson;
+    }
+    set preSelectedRecordsJson(value) {
+        this._preSelectedRecordsJson = value;
+        this.applyPreSelection();
+    }
+
+    /**
+     * Fields the change signature is computed over: the key, plus the columns.
+     *
+     * NOT every field on the record. A Get Records set to "automatically store all
+     * fields" hands us everything the object has, and hashing all of it was
+     * O(records x fields) with a sort per record — 2000 records of a 200-field object
+     * meant 2000 sorts and 400,000 string concatenations, on EVERY re-render, because
+     * Flow reassigns the collection each time an output is published.
+     *
+     * Narrowing to the used fields is also more correct. The signature exists to
+     * decide whether the incoming data changed enough to discard unsaved edits, and a
+     * field the grid never displays or edits is not a reason to throw a user's work
+     * away.
+     */
+    get signatureFields() {
+        const fields = new Set([this.keyField, ...(this._columnPaths || [])]);
+        return [...fields].filter(Boolean).sort();
+    }
+
+    @api
+    get records() {
+        return this._records;
+    }
+    set records(value) {
+        const next = Array.isArray(value) ? value : [];
+        // Upstream data is authoritative: a genuine change to the incoming
+        // collection discards unsaved inline edits and reapplies the
+        // preselection. Compared by CONTENT, never by array identity — Flow
+        // reassigns collection arrays on virtually every re-render, so keying off
+        // identity would throw away a user's half-finished edit whenever anything
+        // else on the screen moved.
+        const signature = recordSignature(next, this.signatureFields);
+        const changed = this._recordsSignature !== null && this._recordsSignature !== signature;
+        this._recordsSignature = signature;
+        this._records = next;
+        if (changed) {
+            this.discardUnsavedEdits();
+            this.resetVisibleRows();
+        }
+        this.applyPreSelection();
+    }
+
+    /** Ordered field paths. Also the reactive key for the Apex describe call. */
+    @api
+    get columnFields() {
+        return this._columnFieldsRaw;
+    }
+    set columnFields(value) {
+        this._columnFieldsRaw = value;
+        this._columnPaths = parseFieldList(value);
+    }
+
+    @api
+    get columnConfig() {
+        return this._columnConfigRaw;
+    }
+    set columnConfig(value) {
+        this._columnConfigRaw = value;
+        this._columnConfig = parseColumnConfig(value);
+    }
+
+    /**
+     * Variables the configured row-action flow actually declares.
+     *
+     * The mapping properties carry platform defaults of `record` and `recordId`
+     * that cannot be removed — an immutable flow version references them, and
+     * Salesforce refuses to drop a default that is in use. So rather than trust
+     * the configured names, the runtime checks them against the flow and sends
+     * only variables that exist. A flow declaring neither used to be handed both
+     * and fail with "the input variable doesn't exist in the active version".
+     *
+     * This also covers a variable being edited out of a flow after the row action
+     * was configured.
+     */
+    @wire(getFlowVariables, { flowApiName: "$rowActionFlowApiName" })
+    wiredFlowVariables({ data }) {
+        this._flowVariables = data || [];
+    }
+
+    /**
+     * The object to describe, or undefined to describe nothing.
+     *
+     * A user-defined object has no SObject behind it, but it CAN carry an
+     * objectApiName: Flow Builder refuses to save a screen whose generic type is
+     * unmapped, so the editor maps T to a placeholder purely to satisfy it. Left
+     * unguarded, the wire would then ask Apex to describe that placeholder using
+     * the JSON's own keys and fail on fields it has never heard of.
+     *
+     * Undefined rather than null: an undefined reactive parameter stops an Apex
+     * wire provisioning at all, which is the same mechanism that keeps it quiet
+     * before an object has been chosen.
+     */
+    get describeObjectApiName() {
+        return this.isUserDefinedObject ? undefined : this.objectApiName;
+    }
+
+    /**
+     * Real field metadata. Cacheable, so repeated interviews on the same object
+     * and columns cost one server call.
+     */
+    @wire(getGridMetadata, { objectApiName: "$describeObjectApiName", fieldPaths: "$_columnPaths" })
+    wiredMetadata({ data, error }) {
+        if (data) {
+            this._metadata = data;
+            this._metadataError = undefined;
+        } else if (error) {
+            this._metadata = undefined;
+            this._metadataError = reduceError(error);
+        }
+    }
+
+    /* ------------------------------------------------------------------ *
+     * Derived state
+     * ------------------------------------------------------------------ */
+
+    /** Describe keyed by field path, for buildColumns. */
+    get describeByPath() {
+        return this.memoized("describeByPath", [this._metadata], () => {
+            const columns = this._metadata?.columns;
+            if (!columns) {
+                return null;
+            }
+            return columns.reduce((map, column) => {
+                map[column.fieldPath] = column;
+                return map;
+            }, {});
+        });
+    }
+
+    /**
+     * The records to display, from whichever source is configured.
+     *
+     * In user-defined mode the Flow supplies serialized JSON instead of a record
+     * collection, so there is no SObject and no describe; column types come from
+     * columnConfig or the name-based guess.
+     */
+    get sourceRecords() {
+        if (!this.isUserDefinedObject) {
+            return this._records;
+        }
+        // Memoized because this parses JSON, and an unmemoized parse per read was
+        // multiplied by every entry into the row pipeline.
+        return this.memoized("sourceRecords", [this.recordsJson], () => parseRecordJson(this.recordsJson));
+    }
+
+    /**
+     * The grid's live working collection.
+     *
+     * This is what replaces the "Reactive Record Collection" helper the previous
+     * component needed: the grid seeds from its input and then owns the current
+     * state itself, applying flow edits, upserted additions, and removals.
+     */
+    /**
+     * Every record the grid knows about, edits applied, including removed ones.
+     *
+     * Removed rows stay reachable here so an actioned row can still be reported
+     * after it has been taken out of the grid.
+     */
+    get allKnownRecords() {
+        return this.memoized(
+            "allKnownRecords",
+            [this.sourceRecords, this._addedRecords, this._editsByKey, this._savedByKey, this.keyField],
+            () => {
+                const all = this._addedRecords.length
+                    ? [...this.sourceRecords, ...this._addedRecords]
+                    : this.sourceRecords;
+                return all.map((record) => {
+                    const key = record?.[this.keyField];
+                    // Saved first, then pending: a later inline edit of the same
+                    // field must win over what the database happens to hold.
+                    const saved = this._savedByKey[key];
+                    const patch = this._editsByKey[key];
+                    if (!saved && !patch) {
+                        return record;
+                    }
+                    return { ...record, ...(saved || {}), ...(patch || {}) };
+                });
+            }
+        );
+    }
+
+    get remainingRecords() {
+        if (!this._removedKeys.length) {
+            return this.allKnownRecords;
+        }
+        return this.memoized("remainingRecords", [this.allKnownRecords, this._removedKeys, this.keyField], () => {
+            const removed = new Set(this._removedKeys);
+            return this.allKnownRecords.filter((record) => !removed.has(record?.[this.keyField]));
+        });
+    }
+
+    /**
+     * Records whose values a row action actually changed.
+     *
+     * `_editsByKey` only holds fields that genuinely differed, so a flow that
+     * hands back an untouched record does not appear here. The difference between
+     * this and `actionedRecords` is exactly "touched" versus "changed".
+     */
+    get editedRecords() {
+        const keys = new Set(Object.keys(this._editsByKey));
+        if (!keys.size) {
+            return [];
+        }
+        // A row the user has since REMOVED is not reported as edited, matching the
+        // component this replaces. Otherwise a row edited and then removed appears in
+        // both outputEditedRecords and outputRemovedRecords, and a flow told to update
+        // it and delete it has been given contradictory instructions.
+        const removed = new Set(this._removedKeys.map((key) => String(key)));
+        return this.allKnownRecords.filter((record) => {
+            const key = String(record?.[this.keyField]);
+            return keys.has(key) && !removed.has(key);
+        });
+    }
+
+    get columns() {
+        // Every scalar that feeds buildColumns or withRowActionColumn is listed, so a
+        // configuration change still rebuilds. Missing one here would show stale
+        // columns after an edit in the property panel.
+        return this.memoized(
+            "columns",
+            [
+                this._columnPaths,
+                this._columnConfig,
+                this.describeByPath,
+                this._columnWidths,
+                this.hideHeaderActions,
+                this.isNameFieldLinked,
+                this.isUserDefinedObject,
+                this.openLinkInSameTab,
+                this.isNoneAllowed,
+                this.showReadOnlyIcon,
+                this.rowActionType,
+                this.rowActionDisplay,
+                this.rowActionPosition,
+                this.rowActionLabel,
+                this.rowActionIcon,
+                this.rowActionColor,
+                this.rowActionButtonLabel,
+                this.rowActionButtonIcon,
+                this.rowActionButtonIconPosition,
+                this.rowActionButtonVariant,
+                this._blanksFirst
+            ],
+            () => this.buildGridColumns()
+        );
+    }
+
+    /* ----- picklist narrowing ----- */
+
+    /**
+     * Record type ids to fetch picklist values for.
+     *
+     * Global is one id. Per row is however many distinct ids the collection holds,
+     * read off the RECORDS rather than the rows — `RecordTypeId` is rarely a displayed
+     * column, and a Get Records set to store all fields already carries it.
+     *
+     * Even with filtering off, one fetch happens when any column is a dependent
+     * picklist: `validFor` lives in the same payload, so narrowing by a controlling
+     * field needs it whether or not record types are involved. The master id is used
+     * for that, which is what an object without record types has anyway.
+     */
+    get picklistRecordTypeIds() {
+        if (!this.objectApiName || !this.hasPicklistColumns) {
+            return [];
+        }
+        if (this.picklistRecordTypeMode === "Global") {
+            return this.recordTypeId ? [this.recordTypeId] : [MASTER_RECORD_TYPE_ID];
+        }
+        if (this.picklistRecordTypeMode === "PerRow") {
+            const ids = new Set();
+            this.sourceRecords.forEach((record) => {
+                ids.add(record?.RecordTypeId || MASTER_RECORD_TYPE_ID);
+            });
+            return [...ids];
+        }
+        return this.hasDependentPicklistColumns ? [MASTER_RECORD_TYPE_ID] : [];
+    }
+
+    /** The ids above, as keyed rows a template can iterate. */
+    get picklistRecordTypes() {
+        return this.picklistRecordTypeIds.map((id) => ({ key: id, recordTypeId: id }));
+    }
+
+    get hasPicklistColumns() {
+        return Object.values(this.describeByPath || {}).some((describe) => describe?.picklistOptions?.length);
+    }
+
+    get hasDependentPicklistColumns() {
+        return Object.values(this.describeByPath || {}).some((describe) => describe?.controllerField);
+    }
+
+    /** True when options can differ row to row, which moves them to a row field. */
+    get hasPerRowPicklists() {
+        return this.picklistRecordTypeMode === "PerRow" || this.hasDependentPicklistColumns;
+    }
+
+    /**
+     * What `buildRows` needs to resolve one cell's options: which record type a record
+     * belongs to, and the payload for it.
+     */
+    get picklistContext() {
+        if (!this.hasPerRowPicklists && this.picklistRecordTypeMode !== "Global") {
+            return null;
+        }
+        const values = this._picklistValues;
+        const perRow = this.picklistRecordTypeMode === "PerRow";
+        const fixed =
+            this.picklistRecordTypeMode === "Global"
+                ? this.recordTypeId || MASTER_RECORD_TYPE_ID
+                : MASTER_RECORD_TYPE_ID;
+        const drafts = this.draftFieldValues;
+        return {
+            recordTypeFor: (record) => (perRow ? record?.RecordTypeId || MASTER_RECORD_TYPE_ID : fixed),
+            valuesFor: (recordTypeId, field) => values[recordTypeId]?.[field] || null,
+            // An unsaved change to the controlling field wins over the stored value,
+            // so the dependent picklist narrows as soon as it is chosen.
+            controllingValueFor: (record, field) => {
+                const pending = drafts?.[String(record?.[this.keyField])];
+                return pending && field in pending ? pending[field] : undefined;
+            }
+        };
+    }
+
+    /**
+     * Maps each column's `columnKey` back to its field name.
+     *
+     * Drafts are keyed by columnKey, NOT fieldName. Columns carry a columnKey so a
+     * dragged width survives a rebuild, and the datatable then reports edits under it —
+     * an edit to `Date_Test__c` arrived as `Date_Test__c__3` and was once written to
+     * the record verbatim, leaving the real field untouched while a phantom one held
+     * the edit. Every draft path goes through this.
+     */
+    get fieldByColumnKey() {
+        return new Map(
+            this.columns.filter((column) => column.columnKey).map((column) => [column.columnKey, column.fieldName])
+        );
+    }
+
+    /**
+     * Pending draft values by row key, resolved to real field names.
+     *
+     * A dependent picklist has to narrow the moment its controlling field changes,
+     * before anything is saved — that is how a record page behaves. Committed edits
+     * already reach `buildRows` through `allKnownRecords`, but a draft sitting in the
+     * Cancel/Save bar does not, so it is read from here.
+     *
+     * Drafts arrive keyed by columnKey, not fieldName, so they need the same
+     * translation `normalizeDraft` does.
+     */
+    get draftFieldValues() {
+        if (!this._draftValues.length) {
+            return null;
+        }
+        const fieldByColumnKey = this.fieldByColumnKey;
+        const byKey = {};
+        this._draftValues.forEach((draft) => {
+            const rowKey = draft?.[this.keyField];
+            if (rowKey === null || rowKey === undefined) {
+                return;
+            }
+            const values = {};
+            Object.keys(draft).forEach((key) => {
+                if (key === this.keyField) {
+                    return;
+                }
+                values[fieldByColumnKey.get(key) || key] = draft[key];
+            });
+            byKey[String(rowKey)] = values;
+        });
+        return byKey;
+    }
+
+    /** Collects one record type's payload from a fan-out child. */
+    handlePicklistValues(event) {
+        const { recordTypeId, picklistFieldValues } = event.detail;
+        if (!recordTypeId || !picklistFieldValues) {
+            return;
+        }
+        // Replaced rather than mutated, so the rows memo sees a new dependency and
+        // rebuilds once the values arrive.
+        this._picklistValues = { ...this._picklistValues, [recordTypeId]: picklistFieldValues };
+    }
+
+    buildGridColumns() {
+        const columns = buildColumns(this._columnPaths, this._columnConfig, {
+            hideHeaderActions: this.hideHeaderActions,
+            describeByPath: this.describeByPath,
+            // A user-defined object has no record id, so there is nothing to
+            // link to.
+            linkNameField: this.isNameFieldLinked && !this.isUserDefinedObject,
+            openLinksInSameTab: this.openLinkInSameTab,
+            allowNone: this.isNoneAllowed,
+            // Only the runtime offers filtering. The Studio preview shows layout and
+            // cannot filter, so a header action there would do nothing.
+            filterActions: true,
+            readOnlyIcon: Boolean(this.showReadOnlyIcon),
+            blanksFirstFields: this._blanksFirst,
+            perRowPicklists: this.hasPerRowPicklists,
+            dependentPicklistIcon: this.dependentPicklistIcon,
+            userTimeZone: this._metadata?.userTimeZone
+        });
+
+        // Re-apply anything the user dragged. Rebuilding `columns` on every render
+        // resets the datatable's internal width state, so without this a resize was
+        // lost the moment anything else changed — paging, sorting, a filter.
+        const dragged = this._columnWidths;
+        if (Object.keys(dragged).length) {
+            columns.forEach((column) => {
+                const width = dragged[column.columnKey];
+                if (width) {
+                    // initialWidth, not fixedWidth: a column the user has already
+                    // dragged must stay draggable.
+                    column.initialWidth = width;
+                    delete column.fixedWidth;
+                }
+            });
+        }
+
+        return withRowActionColumn(columns, {
+            actionType: this.rowActionType,
+            display: this.rowActionDisplay,
+            position: this.rowActionPosition,
+            label: this.rowActionLabel,
+            iconName: this.rowActionIcon,
+            color: this.rowActionColor,
+            buttonLabel: this.rowActionButtonLabel,
+            buttonIcon: this.rowActionButtonIcon,
+            buttonIconPosition: this.rowActionButtonIconPosition,
+            buttonVariant: this.rowActionButtonVariant
+        });
+    }
+
+    /** Every row available after removals and the display cap. */
+    get cappedRows() {
+        return this.memoized(
+            "cappedRows",
+            [
+                this.remainingRecords,
+                this.columns,
+                this.keyField,
+                this.maxNumberOfRows,
+                // Rows carry per-row option lists once picklists are narrowed, so the
+                // arriving payloads have to invalidate them.
+                this._picklistValues,
+                // And so does an unsaved change to a controlling field — but only
+                // where a dependent picklist exists to care. Otherwise every draft
+                // would rebuild every row for nothing.
+                this.hasDependentPicklistColumns ? this._draftValues : null
+            ],
+            () => {
+                const rows = buildRows(this.remainingRecords, this.columns, this.keyField, this.picklistContext);
+                const cap = Number(this.maxNumberOfRows);
+                return Number.isFinite(cap) && cap > 0 ? rows.slice(0, cap) : rows;
+            }
+        );
+    }
+
+    /** Rows surviving search and per-column filters, then sorted. */
+    get matchedRows() {
+        return this.memoized(
+            "matchedRows",
+            [
+                this.cappedRows,
+                this.columns,
+                this._searchTerm,
+                this._filters,
+                this._sortField,
+                this._sortDirection,
+                this.matchCaseOnFilters,
+                this.isSearchByWord,
+                this._blanksFirst
+            ],
+            () => {
+                const columns = this.columns;
+                let rows = searchRows(
+                    this.cappedRows,
+                    columns,
+                    this._searchTerm,
+                    this.matchCaseOnFilters,
+                    this.isSearchByWord
+                );
+                rows = filterRows(rows, this._filters, this.matchCaseOnFilters);
+                if (this._sortField) {
+                    rows = sortRows(
+                        rows,
+                        this._sortField,
+                        this._sortDirection,
+                        this._blanksFirst.includes(this._sortField)
+                    );
+                }
+                return rows;
+            }
+        );
+    }
+
+    /**
+     * Scroll or Paginate, defaulting to Scroll.
+     *
+     * The default lives here rather than in the contract, following the rule in §4:
+     * a declared default is re-asserted by Flow Builder and cannot be changed later.
+     *
+     * There is no third "render everything" mode. The standard datatable has no such
+     * behaviour, and it was the previous default — which is what made a 300-record
+     * grid render 300 rows of DOM before anyone could touch it.
+     */
+    get rowLoadingMode() {
+        return this.rowLoading === "Paginate" ? "Paginate" : "Scroll";
+    }
+
+    get isPaginated() {
+        return this.rowLoadingMode === "Paginate";
+    }
+
+    get isScrolling() {
+        return this.rowLoadingMode === "Scroll";
+    }
+
+    /**
+     * Whether the datatable should keep asking for more rows.
+     *
+     * Turned off once the window covers everything, so the datatable stops firing
+     * `loadmore` at the bottom of a fully rendered list.
+     */
+    get enableInfiniteLoading() {
+        return this.isScrolling && this._visibleCount < this.matchedRows.length;
+    }
+
+    /**
+     * Page size in force: the user's runtime choice if they made one, otherwise the
+     * configured value.
+     */
+    get effectiveRecordsPerPage() {
+        return this._userRecordsPerPage || this.recordsPerPage;
+    }
+
+    /** Page state for the current result set. */
+    get pageState() {
+        return this.memoized(
+            "pageState",
+            [this.matchedRows, this.rowLoadingMode, this._page, this.effectiveRecordsPerPage, this._visibleCount],
+            () => this.computePageState()
+        );
+    }
+
+    computePageState() {
+        if (this.isPaginated) {
+            return paginate(this.matchedRows, this._page, this.effectiveRecordsPerPage);
+        }
+        // Scroll mode: a window over the matched rows, grown by `loadmore`. The page
+        // fields are filled in so every consumer of pageState keeps working, but
+        // there is only ever one "page".
+        const matched = this.matchedRows;
+        const rows = matched.length > this._visibleCount ? matched.slice(0, this._visibleCount) : matched;
+        return {
+            rows,
+            page: 1,
+            totalPages: 1,
+            totalRows: matched.length,
+            firstRow: rows.length ? 1 : 0,
+            lastRow: rows.length,
+            isFirstPage: true,
+            isLastPage: true
+        };
+    }
+
+    /** The rows actually handed to the datatable. */
+    get rows() {
+        return this.pageState.rows;
+    }
+
+    /**
+     * Where the datatable starts counting its row numbers.
+     *
+     * Without it the numbers RESTART AT 1 on every page: the datatable numbers the
+     * rows it was handed, and in Paginate mode it is handed one page at a time. So
+     * page two of ten-per-page showed rows 11-20 numbered 1-10, which is worse than
+     * no numbers at all -- two different records both labelled "1".
+     *
+     * `firstRow` is the 1-based position of the page's first row, and the offset is
+     * what precedes it. Scroll mode reports `firstRow: 1`, so this is 0 there and
+     * the window's numbering already runs from the top.
+     */
+    get rowNumberOffset() {
+        const firstRow = this.pageState.firstRow;
+        return firstRow > 0 ? firstRow - 1 : 0;
+    }
+
+    get hasRows() {
+        return this.rows.length > 0;
+    }
+
+    /** True when rows exist but search or filters hid them all. */
+    get isFilteredEmpty() {
+        return !this.hasRows && this.cappedRows.length > 0;
+    }
+
+    get hasColumns() {
+        return this._columnPaths.length > 0;
+    }
+
+    /** Columns the running user cannot read, surfaced rather than left blank. */
+    get inaccessibleColumns() {
+        return this.columns
+            .filter((column) => column.fgridInaccessible)
+            .map((column) => column.fgridError || `${column.fieldName} is not accessible.`);
+    }
+
+    get hasInaccessibleColumns() {
+        return this.inaccessibleColumns.length > 0;
+    }
+
+    get hasError() {
+        return Boolean(this._metadataError);
+    }
+
+    get errorMessage() {
+        return this._metadataError;
+    }
+
+    /* True-defaulting booleans: undefined means the admin never touched it. */
+
+    get isNameFieldLinked() {
+        return !this.hideNameFieldLink;
+    }
+
+    /** Default ON: matching each word separately is what finds a name split across
+     *  First Name and Last Name, which is the common case. */
+    get isSearchByWord() {
+        return !this.searchWholePhrase;
+    }
+
+    get isNoneAllowed() {
+        return !this.hideNoneOption;
+    }
+
+    /* ----- selection ----- */
+
+    get isSelectable() {
+        return this.selectionMode !== "None";
+    }
+
+    get hideCheckboxColumn() {
+        return !this.isSelectable;
+    }
+
+    get maxRowSelection() {
+        if (this.selectionMode === "Single") {
+            return 1;
+        }
+        const limit = Number(this.maxSelection);
+        return Number.isFinite(limit) && limit > 0 ? limit : undefined;
+    }
+
+    /**
+     * Radio unless the admin asked for a checkbox.
+     *
+     * The distinction is whether a single selection can be undone: a radio cannot be
+     * cleared once chosen, a checkbox can be unticked. This is the platform's own
+     * mechanism for it, and the reason no Clear Selection button is needed.
+     */
+    /** Shared with the Studio preview, so the preview cannot flatter the runtime. */
+    get minColumnWidth() {
+        return MIN_COLUMN_WIDTH;
+    }
+
+    get singleRowSelectionMode() {
+        return this.selectionMode === "Single" && this.singleSelectControl === "Checkbox" ? "checkbox" : undefined;
+    }
+
+    /** Fewest rows that must be selected, or 0 when nothing is required. */
+    get requiredSelectionCount() {
+        // View only has no selection column, so nothing can be required. The stored
+        // values survive a mode change — Flow keeps a property it was given, and the
+        // editor only stops SHOWING min/max and Require — so a grid switched from
+        // Multiple to View only was still demanding rows the user had no way to pick,
+        // and the screen could not be advanced at all.
+        if (!this.isSelectable) {
+            return 0;
+        }
+        if (this.selectionMode === "Single") {
+            return this.isRequired ? 1 : 0;
+        }
+        const minimum = Number(this.minSelection);
+        return Number.isFinite(minimum) && minimum > 0 ? Math.trunc(minimum) : 0;
+    }
+
+    /**
+     * Selected keys for the rows currently on screen.
+     *
+     * Two reasons this is not simply `_selectedKeys`.
+     *
+     * It is FILTERED because the datatable can only tick a row it is rendering, and
+     * handing it keys for rows it cannot see tells it nothing.
+     *
+     * It is MEMOIZED ON `rows` so the array identity changes whenever the page does.
+     * Returning the same array meant that after paging away and back, the datatable —
+     * which had rebuilt its internal selection when the data changed — was never
+     * handed the prop again, so a row stayed selected in our state and unticked on
+     * screen. The count was right and the checkbox was wrong.
+     */
+    get selectedRowKeys() {
+        return this.memoized("selectedRowKeys", [this.rows, this._selectedKeys, this.keyField], () => {
+            const selected = new Set(this._selectedKeys.map((key) => String(key)));
+            return this.rows.map((row) => row?.[this.keyField]).filter((key) => selected.has(String(key)));
+        });
+    }
+
+    /**
+     * Keys of rows the user can neither select nor edit.
+     *
+     * The Flow decides what "unavailable" means — typically a filtered collection
+     * such as Status = Pending — and the datatable greys them. Showing them greyed
+     * rather than omitting them is the whole point: the user can see why a row is
+     * not offered instead of wondering where it went.
+     *
+     * A disabled row that is ALSO preselected still counts toward the selection
+     * limit, per the component reference. Nothing here can change that, but it is
+     * worth knowing before setting both to the same collection.
+     */
+    get disabledRows() {
+        const source = this.isUserDefinedObject ? parseRecordJson(this.disabledRecordsJson) : this.disabledRecords;
+        const configured = Array.isArray(source)
+            ? source.map((record) => record?.[this.keyField]).filter((key) => key !== null && key !== undefined)
+            : [];
+
+        if (!this.isSelectionFull) {
+            return configured;
+        }
+
+        // At the maximum, every row that is NOT already selected is disabled — on
+        // every page, which is the part the datatable cannot do for itself. Its own
+        // `max-row-selection` only sees the current page, so it greyed the remaining
+        // checkboxes there and left them live everywhere else. Deselecting a row frees
+        // a slot and these re-enable, because this is derived rather than stored.
+        const selected = new Set(this._selectedKeys.map((key) => String(key)));
+        const unselected = this.rows
+            .map((row) => row?.[this.keyField])
+            .filter((key) => key !== null && key !== undefined && !selected.has(String(key)));
+
+        return [...configured, ...unselected];
+    }
+
+    /** True when a maximum is set and the user has reached it. */
+    get isSelectionFull() {
+        if (this.selectionMode !== "Multiple") {
+            return false;
+        }
+        const cap = Number(this.maxSelection);
+        return Number.isFinite(cap) && cap > 0 && this._selectedKeys.length >= cap;
+    }
+
+    /**
+     * Whether the toolbar row has anything in it.
+     *
+     * Note this makes Clear Selection reachable with the header switched off. It
+     * was previously nested inside the header markup, so its own conditions could
+     * all be met and the button still never rendered.
+     */
+    get showToolbar() {
+        return Boolean(this.showHeader) || Boolean(this.showSearchBar);
+    }
+
+    /* ----- header ----- */
+
+    get headerLabel() {
+        return this.tableLabel || this._metadata?.objectInfo?.pluralLabel || "Records";
+    }
+
+    get headerIcon() {
+        return this.tableIcon || this._metadata?.objectInfo?.iconName;
+    }
+
+    get hasHeaderIcon() {
+        return Boolean(this.headerIcon);
+    }
+
+    /* ----- search and filters ----- */
+
+    get searchTerm() {
+        return this._searchTerm;
+    }
+
+    /**
+     * Columns the admin marked filterable, each with the control it needs.
+     *
+     * A picklist filter offers the field's own values, so the options come from the
+     * same describe the editable cell uses.
+     */
+    get filterColumns() {
+        return this.columns
+            .filter((column) => column.fieldName !== ROW_ACTION_NAME)
+            .map((column) => ({
+                // THREE distinct keys, and they really are different things:
+                //   fieldName — what the datatable calls the column, and therefore
+                //               what `onheaderaction` reports. A linked Name column
+                //               reports the generated `Name__fgridUrl`.
+                //   configKey — where the column's attributes are stored, always the
+                //               real field path.
+                //   path      — the row field matching runs against: a lookup's
+                //               displayed name, not its stored Id.
+                // Conflating any two of them breaks a different column type.
+                fieldName: column.fieldName,
+                configKey: column.fgridLinkFor || column.fieldName,
+                path: column.fgridTextField || column.fgridLinkFor || column.fieldName,
+                label: column.label,
+                kind: filterKindFor(column),
+                options: (column.fgridPicklistOptions || []).map((option) => ({
+                    label: option.label,
+                    value: option.value
+                }))
+            }))
+            .filter((entry) => this._columnConfig?.[entry.configKey]?.filter === true);
+    }
+
+    /** Filters that would actually narrow anything. */
+    get activeFilterCount() {
+        return Object.values(this._filters).filter((filter) => isFilterActive(filter)).length;
+    }
+
+    /**
+     * One pill per active filter, above the table.
+     *
+     * This is how a filter set from a column header menu stays visible after the
+     * menu closes — without it the grid silently hides rows with nothing on screen
+     * to explain why. Pills wrap onto further lines rather than growing sideways,
+     * which is what makes this workable in a narrow Experience Cloud column.
+     */
+    get filterPills() {
+        const byPath = new Map(this.filterColumns.map((column) => [column.path, column]));
+        return Object.entries(this._filters)
+            .filter(([, filter]) => isFilterActive(filter))
+            .map(([path, filter]) => ({
+                path,
+                label: describeFilter(byPath.get(path)?.label || path, filter)
+            }));
+    }
+
+    /** Column descriptor whose filter editor is open. */
+    get filterEditorColumn() {
+        return this.filterColumns.find((column) => column.path === this._filterEditorPath) || null;
+    }
+
+    get isFilterEditorOpen() {
+        return Boolean(this.filterEditorColumn);
+    }
+
+    get filterEditorFilter() {
+        return this._filterEditorPath ? this._filters[this._filterEditorPath] || null : null;
+    }
+
+    get hasActiveFilters() {
+        return this.activeFilterCount > 0;
+    }
+
+    /* ----- pagination ----- */
+
+    get showPaginationBar() {
+        return this.isPaginated && this.matchedRows.length > 0;
+    }
+
+    /* Page facts handed to c/fgrid_pagination, which owns the summary text and the
+       first/last disabled states itself. `pageSummary`, `isFirstPage` and
+       `isLastPage` lived here for the old four-button bar and are gone with it. */
+
+    get currentPage() {
+        return this.pageState.page;
+    }
+
+    get totalPages() {
+        return this.pageState.totalPages;
+    }
+
+    get totalRows() {
+        return this.pageState.totalRows;
+    }
+
+    get firstRow() {
+        return this.pageState.firstRow;
+    }
+
+    get lastRow() {
+        return this.pageState.lastRow;
+    }
+
+    /* ----- row action flow ----- */
+
+    get flowApiName() {
+        return this.rowActionFlowApiName;
+    }
+
+    get flowModalHeader() {
+        return this.rowActionFlowModalHeader || "Edit Record";
+    }
+
+    /**
+     * Input variables for the launched flow.
+     *
+     * Both the record and its Id are offered because edit flows come in both
+     * shapes: some take an SObject variable, others just take recordId and
+     * re-query. Either name can be left blank to omit it.
+     */
+    /**
+     * Input variables for the launched flow.
+     *
+     * Only what the admin explicitly mapped is sent. These used to default to
+     * `record` and `recordId`, which meant a flow declaring neither was handed
+     * both and failed with "the input variable does not exist in the active
+     * version of the flow".
+     */
+    /** Names of input variables the configured flow declares. */
+    get declaredInputNames() {
+        return new Set(this._flowVariables.filter((variable) => variable?.isInput).map((variable) => variable.apiName));
+    }
+
+    /** True when the flow declares an input by this name. */
+    acceptsInput(name) {
+        // Before the variable list arrives, trust the configuration rather than
+        // dropping inputs and launching the flow with nothing.
+        return Boolean(name) && (!this._flowVariables.length || this.declaredInputNames.has(name));
+    }
+
+    /* A configured-but-undeclared input name used to raise a warning banner in the
+     * grid, reading "<flow> does not declare an input variable named <name>, so it
+     * was not sent." It is gone, along with `unmatchedInputNames`,
+     * `hasUnmatchedInputNames` and `unmatchedInputMessage`.
+     *
+     * The banner told a SITE VISITOR about an admin's typo in the row action
+     * settings -- an audience that cannot act on it and should not be shown the
+     * internals of a flow's variable names. `acceptsInput` above still drops the
+     * unmatched name, which is the part that matters: sending it fails the whole
+     * interview.
+     *
+     * If this needs surfacing again, the place is design time -- Grid Studio or the
+     * property editor, where the person who can fix it is looking.
+     */
+
+    /**
+     * Input variables handed to `lightning-flow`.
+     *
+     * Deliberately a stored field rather than a computed getter. `lightning-flow`
+     * treats a new `flowInputVariables` identity as a reason to restart the
+     * interview, and a getter returns a fresh array on every render — so any
+     * re-render while the modal was open restarted the flow, including the
+     * re-render caused by publishing outputs when it finished.
+     */
+
+    /** Builds the input list once, when the flow is opened. */
+    buildFlowInputs(record) {
+        const variables = [];
+        if (!record) {
+            return variables;
+        }
+        if (this.acceptsInput(this.rowActionFlowRecordVariable)) {
+            variables.push(this.recordInput(record));
+        }
+        const id = record.Id || record[this.keyField];
+        if (id && this.acceptsInput(this.rowActionFlowIdVariable)) {
+            variables.push({ name: this.rowActionFlowIdVariable, type: "String", value: id });
+        }
+        return variables;
+    }
+
+    /**
+     * The row, shaped for whatever the launched flow actually declared.
+     *
+     * A user-defined row is not an SObject, and the Record Input Variable is a
+     * free-text box, so an admin in that mode has no choice but to name a Text
+     * variable — which was then handed over as type SObject and mismatched.
+     *
+     * The flow's own variable list already carries `dataType`, so ask it rather
+     * than assuming. Text gets the row as JSON. This corrects the SObject mode
+     * too, where naming a Text variable was silently broken in the same way.
+     *
+     * Before the variable list arrives there is nothing to ask, so fall back to
+     * the source mode — the same "trust the configuration" stance `acceptsInput`
+     * takes for the same reason.
+     */
+    recordInput(record) {
+        const name = this.rowActionFlowRecordVariable;
+        const declared = this._flowVariables.find((variable) => variable?.apiName === name);
+        const wantsSObject = declared ? declared.dataType === SOBJECT_DATA_TYPE : !this.isUserDefinedObject;
+
+        return wantsSObject
+            ? { name, type: "SObject", value: record }
+            : { name, type: "String", value: JSON.stringify(record) };
+    }
+
+    /* ------------------------------------------------------------------ *
+     * Row-action outcomes
+     * ------------------------------------------------------------------ */
+
+    /**
+     * Reports a row action's outcome as a toast.
+     *
+     * A record the action deleted on purpose used to be reported through the same
+     * channel as four real failures -- no flow configured, the flow did not run,
+     * it did not complete, it returned a record with no key -- which rendered it
+     * as a warning with `role="alert"` and titled the row "This row's action did
+     * not finish". The action had finished, and had done exactly what it was
+     * asked to.
+     *
+     * Success and failure are now separate variants, and neither occupies layout
+     * space in the grid.
+     *
+     * `message` is the whole toast and comes from an admin-set property, so a blank
+     * one means "say nothing" rather than "say something empty". Returning early is
+     * what makes clearing the field in the panel suppress the toast.
+     */
+    toast(variant, message) {
+        if (!message) {
+            return;
+        }
+        this.elevateToastContainer();
+        // And again for a while afterwards -- the platform rewrites the container's
+        // z-index while a modal unmounts, which is what made the modal row action's
+        // toast sink behind the site header.
+        this.keepToastContainerElevated();
+        // `lightning/toast`, NOT `lightning/platformShowToastEvent`.
+        //
+        // The platform event only surfaces where something is listening for it:
+        // Lightning Experience and Aura-based Experience Cloud sites. Verified in
+        // an org -- it worked in an Aura site and produced nothing at all in LWR,
+        // which is the worse half, since a site user would get neither the success
+        // confirmation nor the error.
+        //
+        // `Toast.show` creates its own page-level container when one does not
+        // already exist, so it renders in LWR too. `label` is its title; there is
+        // no `title` property.
+        //
+        // The admin's message goes in `label`, and `message` is left unset, so the
+        // toast is one line. Splitting it would reintroduce the title/detail shape
+        // the wording change was meant to remove -- and `message` is dropped
+        // entirely on small screens and in the mobile app, so it is the wrong slot
+        // for the only text there is.
+        //
+        // NO RICH TEXT, and not for want of trying.
+        //
+        // A Flow text template in rich-text mode arrives as visible `<p><strong>`
+        // tags. The docs say `label` renders through `lightning-formatted-rich-text`
+        // "when you use `labelLinks`", so that was tried -- an empty `labelLinks`
+        // array, and then a template containing a real link. Neither rendered the
+        // markup. Whatever unlocks that renderer is not reachable from
+        // `Toast.show`, so the properties are documented as plain text only.
+        //
+        // Merge fields in a text template DO work, because Flow resolves them
+        // before the value ever reaches this component. That is the reason the
+        // properties stay resource-capable rather than being narrowed to literals.
+        //
+        // `mode` is left unset ON PURPOSE. The platform's default depends on the
+        // variant: a `success` toast with no links auto-dismisses after 4.8s, while
+        // `error` stays until dismissed. That is the behaviour we want in both
+        // cases -- a confirmation should get out of the way, a failure should not.
+        Toast.show({ label: message, variant }, this);
+    }
+
+    /**
+     * Lifts the toast container above a site's sticky header, once.
+     *
+     * `ToastContainer.instance()` is the sanctioned handle -- it returns the
+     * existing page-level container or creates one -- which is a great deal less
+     * fragile than querying for platform DOM we do not own. It reaches the live
+     * element: the container is inside `lightning-overlay-container`'s NATIVE
+     * shadow root, so `document.querySelector` cannot see it, but this can.
+     *
+     * The `!==` guard is what makes the retry in `keepToastContainerElevated` free.
+     */
+    elevateToastContainer() {
+        try {
+            const container = ToastContainer.instance();
+            if (container?.style && container.style.zIndex !== TOAST_Z_INDEX) {
+                container.style.zIndex = TOAST_Z_INDEX;
+            }
+        } catch {
+            // Never let presentation stop the message being reported.
+        }
+    }
+
+    /**
+     * Re-asserts the z-index for a while, because the platform undoes it.
+     *
+     * Unmounting `lightning-modal-base` rewrites the toast container's inline style
+     * back to `z-index: 10000` roughly 180ms after we set it -- so the row action
+     * that runs a screen flow in a modal showed its toast above the site header and
+     * then watched it sink behind it, while the autolaunched actions were fine. See
+     * TOAST_Z_INDEX for the trace.
+     *
+     * A window rather than a delay. Nothing rewrites the style after teardown, so
+     * the last write wins and this only has to outlast the teardown -- it does not
+     * have to know how long the teardown takes. That distinction matters: four
+     * earlier fixes failed by fitting a single number to a single observation.
+     *
+     * `no-async-operation` guards against timers outliving a component and leaking.
+     * This one is bounded, cleared on disconnect, and its callback touches only a
+     * platform singleton -- never `this.template` or component state -- so a grid
+     * unmounted mid-window is harmless.
+     */
+    keepToastContainerElevated() {
+        this.stopElevatingToastContainer();
+        const until = Date.now() + TOAST_ELEVATION_WINDOW_MS;
+        // eslint-disable-next-line @lwc/lwc/no-async-operation
+        this._toastElevationTimer = setInterval(() => {
+            this.elevateToastContainer();
+            if (Date.now() >= until) {
+                this.stopElevatingToastContainer();
+            }
+        }, TOAST_ELEVATION_RETRY_MS);
+    }
+
+    stopElevatingToastContainer() {
+        if (this._toastElevationTimer) {
+            clearInterval(this._toastElevationTimer);
+            this._toastElevationTimer = null;
+        }
+    }
+
+    /**
+     * `detail` is optional and only passed for the flow's own fault text.
+     *
+     * Called with nothing for every reason the grid authors itself, so those report
+     * as the configured message and nothing else.
+     */
+    reportFlowError(detail) {
+        this._flowFailed = true;
+        this._flowErrorDetail = detail || null;
+        this.toast("error", this.rowActionFlowErrorMessage);
+    }
+
+    /**
+     * Reported once the result has been folded in, so it cannot claim success for
+     * a flow whose output could not be applied. Silent when anything failed, and
+     * silent on cancel -- dismissing the modal resolves `undefined` and returns
+     * before this, because nothing happened worth announcing.
+     *
+     * A deletion gets its own message, because "updated" is wrong for a row that
+     * has gone. Still the success variant: the action did what it was asked to.
+     */
+    reportFlowSuccess() {
+        if (this._flowFailed) {
+            return;
+        }
+        this.toast(
+            "success",
+            this._flowDeletedRecord ? this.rowActionFlowDeleteMessage : this.rowActionFlowSuccessMessage
+        );
+    }
+
+    get isRunningFlow() {
+        return this._isRunningFlow;
+    }
+
+    /* ----- row removal ----- */
+
+    get removalBlockedMessage() {
+        return this._removalBlockedMessage;
+    }
+
+    get hasRemovalBlockedMessage() {
+        return Boolean(this._removalBlockedMessage);
+    }
+
+    /**
+     * Announced as soon as the maximum is reached, not only when a click is refused.
+     *
+     * Every unselected row is disabled at that point, so without this the grid simply
+     * stops responding with no stated reason — and the reason may be a selection on a
+     * page the user cannot see.
+     */
+    get selectionBlockedMessage() {
+        if (!this.isSelectionFull) {
+            return null;
+        }
+        const cap = Number(this.maxSelection);
+        return `Maximum of ${cap} ${cap === 1 ? "row" : "rows"} selected. Deselect a row to choose another.`;
+    }
+
+    get hasSelectionBlockedMessage() {
+        return Boolean(this.selectionBlockedMessage);
+    }
+
+    get headerCounts() {
+        const parts = [];
+        if (this.showRecordCount) {
+            const total = this.rows.length;
+            parts.push(`${total} ${total === 1 ? "item" : "items"}`);
+        }
+        if (this.showSelectedCount) {
+            parts.push(`${this._selectedKeys.length} selected`);
+        }
+        return parts.join(" • ");
+    }
+
+    get hasHeaderCounts() {
+        return Boolean(this.headerCounts);
+    }
+
+    /* ----- layout ----- */
+
+    /**
+     * Always emits a height, falling back to 30rem.
+     *
+     * Two reasons it cannot stay optional. Infinite scrolling needs a scroll boundary
+     * or `loadmore` never fires, and a grid with no height renders every row at full
+     * length — the DOM cost scroll mode exists to avoid. The 30rem was previously only
+     * PLACEHOLDER text on the property, so the field looked populated while nothing
+     * was enforced.
+     *
+     * NO `overflow` is emitted, deliberately. `lightning-datatable` scrolls itself
+     * once its container has a definite height, so adding `overflow: auto` here
+     * stacked a SECOND scroll container outside the first — and the outer one
+     * reserved its own scrollbar gutter, which showed as dead space down the right
+     * edge beyond the visible scrollbar.
+     *
+     * That also removed the point of the old `allowOverflow` property, which set
+     * `overflow: visible` — the CSS default — on a wrapper that no longer declares
+     * any overflow, and so did nothing. It could not have worked regardless: a
+     * clipped dropdown is clipped by the datatable's OWN scroll container, inside its
+     * shadow DOM, which our CSS cannot reach.
+     */
+    /** Three when a limit is wanted, otherwise nothing, which wraps without limit. */
+    get wrappedLines() {
+        return this.limitWrappedLines ? WRAPPED_LINE_CLAMP : undefined;
+    }
+
+    get wrapperStyle() {
+        // Height only. Overriding `--slds-g-font-line-clamp` was tried and is dead
+        // code: SLDS 2 hardcodes `-webkit-line-clamp: 3` with no variable to override.
+        //
+        // NO DEFAULT WHEN PAGINATED. The 30rem exists so `loadmore` has a scroll
+        // boundary to fire against, which Paginate does not use -- and applying it
+        // there forced every page to 30rem whatever it held, so ten short rows sat
+        // above a slab of empty grid. It also made the help text false: "leave
+        // blank to fit all rows" never fitted anything, it just used 30rem.
+        //
+        // An explicit height still wins in either mode, which is how an admin keeps
+        // the foot of the screen from moving as row content varies.
+        const height = this.tableHeight || (this.isPaginated ? null : DEFAULT_TABLE_HEIGHT);
+        return height ? `height: ${height};` : "";
+    }
+
+    /**
+     * Names the table for assistive technology.
+     *
+     * The datatable has no accessible name of its own, so without this a screen
+     * reader announces an unlabelled grid. Falls back to the object's plural label
+     * when the admin has not set a table label.
+     */
+    get tableAriaLabel() {
+        return this.tableLabel || this._metadata?.object?.pluralLabel || "Records";
+    }
+
+    /**
+     * Row- and table-level errors in the shape the datatable expects.
+     *
+     * Previously every failure was a banner above the grid, which cannot say WHICH
+     * row failed. A row-action flow knows exactly which record it was launched for,
+     * so that failure belongs on the row.
+     */
+    get tableErrors() {
+        const errors = {};
+        // Same wording as the toast, deliberately. The title used to read "This
+        // row's action did not finish", which is our voice in the most prominent
+        // spot a site visitor looks. One configured string now covers both, so a
+        // failure reads the same however it surfaces.
+        //
+        // A blank message therefore silences the row error as well as the toast.
+        // That is the admin saying "do not announce this", and it is consistent
+        // rather than a gap -- but it does mean a cleared Error Message leaves the
+        // grid showing nothing at all on failure.
+        if (this._flowFailed && this._flowRecord && this.rowActionFlowErrorMessage) {
+            const key = this._flowRecord[this.keyField];
+            if (key !== null && key !== undefined) {
+                errors.rows = {
+                    [key]: {
+                        title: this.rowActionFlowErrorMessage,
+                        // Only the flow's own fault text ever gets a detail line.
+                        messages: this._flowErrorDetail ? [this._flowErrorDetail] : []
+                    }
+                };
+            }
+        }
+        if (this._metadataError) {
+            errors.table = { title: "Column setup problem", messages: [this._metadataError] };
+        }
+        // Undefined when there is nothing wrong, rather than an empty object.
+        //
+        // Tidiness only. This was changed on the theory that an empty `errors`
+        // object was switching on the datatable's own row number column -- the
+        // indicator does live in that column, and Grid Studio, which passes no
+        // `errors`, was unaffected. Deployed and measured: `showRowNumberColumn`
+        // stayed true with `errors` undefined, so that theory was WRONG. Removing
+        // the binding entirely did not change it either.
+        //
+        // Kept because `{}` is a poor way to say "nothing is wrong", and because
+        // the datatable normalises either form to the same internal shape, so it
+        // costs nothing. It is NOT the cause of anything.
+        return errors.rows || errors.table ? errors : undefined;
+    }
+
+    /** Remembers a dragged width so a re-render does not undo it. */
+    handleColumnResize(event) {
+        const widths = event.detail?.columnWidths;
+        if (!Array.isArray(widths) || !event.detail?.isUserTriggered) {
+            return;
+        }
+        const next = { ...this._columnWidths };
+        this.columns.forEach((column, index) => {
+            if (Number.isFinite(widths[index]) && widths[index] > 0) {
+                next[column.columnKey] = widths[index];
+            }
+        });
+        this._columnWidths = next;
+    }
+
+    /**
+     * Sends the table back to the top after a page change.
+     *
+     * Without it, moving to page two leaves the viewport where it was, so the user
+     * lands mid-table on rows they have not seen the start of.
+     */
+    renderedCallback() {
+        if (this._scrolledForPage === this._page) {
+            return;
+        }
+        this._scrolledForPage = this._page;
+        this.template.querySelector("c-fgrid_custom-datatable")?.scrollToTop?.();
+    }
+
+    /** Only the toast elevation window needs tearing down; nothing else here is
+     *  asynchronous beyond a component's own lifetime. */
+    disconnectedCallback() {
+        this.stopElevatingToastContainer();
+    }
+
+    /** Shown once the user has interacted and a required selection is missing. */
+    get validationMessage() {
+        const required = this.requiredSelectionCount;
+        if (!this._touched || required === 0 || this._selectedKeys.length >= required) {
+            return null;
+        }
+        return required === 1
+            ? "Select at least one row to continue."
+            : `Select at least ${required} rows to continue.`;
+    }
+
+    get hasValidationMessage() {
+        return Boolean(this.validationMessage);
+    }
+
+    /* ------------------------------------------------------------------ *
+     * Handlers
+     * ------------------------------------------------------------------ */
+
+    handleRowSelection(event) {
+        this._touched = true;
+        const selected = (event.detail.selectedRows || []).map((row) => row?.[this.keyField]);
+
+        // The datatable reports the rows IT is rendering, so its answer is
+        // authoritative for the current page and silent about every other one.
+        // Replacing the whole selection with it meant paging away deselected
+        // everything the user had picked — and in scroll mode, so did scrolling past
+        // it. Only the visible rows are reconciled; the rest are left alone.
+        const visible = new Set(this.rows.map((row) => String(row?.[this.keyField])));
+        const offPage = this._selectedKeys.filter((key) => !visible.has(String(key)));
+
+        // Enforce Maximum Selection HERE, not through the datatable. It is handed
+        // only the keys for rows it can see, so its own cap counts one page at a time:
+        // three selected on page one left three more available on page two.
+        //
+        // Already-selected rows keep their place and only the newly ticked ones are
+        // refused, so reaching the limit does not silently reshuffle what the user
+        // already had.
+        const cap = this.selectionMode === "Multiple" ? Number(this.maxSelection) : 0;
+        const capped = Number.isFinite(cap) && cap > 0;
+        let merged = [...offPage, ...selected];
+
+        if (capped && merged.length > cap) {
+            const previous = new Set(this._selectedKeys.map((key) => String(key)));
+            const kept = [...offPage, ...selected.filter((key) => previous.has(String(key)))];
+            const room = Math.max(cap - kept.length, 0);
+            const added = selected.filter((key) => !previous.has(String(key))).slice(0, room);
+            merged = [...kept, ...added];
+        }
+
+        this._selectedKeys = merged;
+        this.publishSelection();
+    }
+
+    /**
+     * Grows the rendered window.
+     *
+     * Synchronous, because the records are already in memory: there is nothing to
+     * fetch, so no spinner and no async gap. `enableInfiniteLoading` turns itself off
+     * once the window covers everything, which stops the datatable firing this again
+     * at the bottom of a fully rendered list.
+     */
+    handleLoadMore() {
+        if (!this.isScrolling) {
+            return;
+        }
+        const total = this.matchedRows.length;
+        if (this._visibleCount >= total) {
+            return;
+        }
+        this._visibleCount = Math.min(total, this._visibleCount + SCROLL_BATCH_SIZE);
+    }
+
+    /** Back to one batch. Anything that changes the result set must call this, or the
+     *  window stays sized for results the user is no longer looking at. */
+    resetVisibleRows() {
+        this._visibleCount = SCROLL_BATCH_SIZE;
+    }
+
+    handleSearch(event) {
+        this._searchTerm = event.target.value || "";
+        this._page = 1;
+        this.resetVisibleRows();
+    }
+
+    /**
+     * Opens the filter editor for the column whose header menu was used.
+     *
+     * `onheaderaction` reports the column by its datatable fieldName, which is not
+     * always what the filter is keyed on — a lookup filters on its displayed name,
+     * a linked Name column on its underlying value — so the path is resolved
+     * through the same descriptor list the pills use.
+     */
+    handleHeaderAction(event) {
+        const { action, columnDefinition } = event.detail;
+
+        if (action?.name === BLANKS_FIRST_ACTION_NAME) {
+            // Keyed by the field the column SORTS on, which for a linked Name column
+            // or a lookup is not the field the datatable reports.
+            const sorted = this.columns.find((candidate) => candidate.fieldName === columnDefinition?.fieldName);
+            const field = sorted?.fgridTextField || sorted?.fgridLinkFor || columnDefinition?.fieldName;
+            if (!field) {
+                return;
+            }
+            this._blanksFirst = this._blanksFirst.includes(field)
+                ? this._blanksFirst.filter((candidate) => candidate !== field)
+                : [...this._blanksFirst, field];
+            return;
+        }
+
+        if (action?.name !== FILTER_ACTION_NAME) {
+            return;
+        }
+        // Match on the datatable's own fieldName, which is what this event reports.
+        // A linked Name column reports the generated `Name__fgridUrl`, which equals
+        // neither its config key nor its match path — comparing against those left
+        // the most prominent column in a grid unable to open its own filter.
+        const name = columnDefinition?.fieldName;
+        const column = this.filterColumns.find((candidate) => candidate.fieldName === name);
+        this._filterEditorPath = column?.path || null;
+    }
+
+    handleFilterEditorClose() {
+        this._filterEditorPath = null;
+    }
+
+    handleFilterSave(event) {
+        this.applyFilter(event.detail.path, event.detail.filter);
+        this._filterEditorPath = null;
+    }
+
+    handleFilterRemove(event) {
+        this.applyFilter(event.detail.path, null);
+        this._filterEditorPath = null;
+    }
+
+    /** Reopens a pill's editor, so a filter can be corrected rather than redone. */
+    handleEditPill(event) {
+        this._filterEditorPath = event.currentTarget.dataset.path;
+    }
+
+    handleRemovePill(event) {
+        this.applyFilter(event.currentTarget.dataset.path, null);
+    }
+
+    /**
+     * Stores one column's whole filter, whatever its shape.
+     *
+     * The panel owns the shape per kind, so this does not need to know whether the
+     * payload is text, a value list, or a range. A null filter is removed outright
+     * rather than left as an inert entry, which keeps the active count honest.
+     */
+    applyFilter(path, filter) {
+        const next = { ...this._filters };
+        if (filter === null || filter === undefined) {
+            delete next[path];
+        } else {
+            next[path] = filter;
+        }
+        this._filters = next;
+        // Row one of the old page may no longer exist.
+        this._page = 1;
+        this.resetVisibleRows();
+    }
+
+    handleClearFilters() {
+        this._filters = {};
+        this._searchTerm = "";
+        this._page = 1;
+        this.resetVisibleRows();
+    }
+
+    /** Clamped rather than trusted: a stale click could name a page that no longer
+     *  exists after a filter narrowed the results. */
+    handlePageChange(event) {
+        const requested = Number(event.detail?.page);
+        if (!Number.isFinite(requested)) {
+            return;
+        }
+        this._page = Math.min(Math.max(1, requested), this.pageState.totalPages);
+    }
+
+    /**
+     * Applies a runtime page size.
+     *
+     * Resets to page one, because page 5 of 32 at ten rows is page 2 of 7 at fifty —
+     * holding the number would land the user somewhere they did not ask for.
+     */
+    handleRowsPerPageChange(event) {
+        const size = Number(event.detail?.value);
+        if (!Number.isFinite(size) || size < 1) {
+            return;
+        }
+        this._userRecordsPerPage = size;
+        this._page = 1;
+    }
+
+    /**
+     * Row action. `Remove` takes the row out of the grid and republishes the
+     * removed and remaining collections.
+     */
+    handleRowAction(event) {
+        if (event.detail.action?.name !== ROW_ACTION_NAME) {
+            return;
+        }
+        const key = event.detail.row?.[this.keyField];
+        const record = this.sourceRecords.find((candidate) => candidate?.[this.keyField] === key);
+        if (!record) {
+            return;
+        }
+
+        // Actioned means CLICKED, and nothing more. Published here, before either
+        // branch, so it reports the row the user acted on regardless of what the
+        // action then did — a cancelled flow, a flow that changed nothing, or a
+        // removal refused by the cap all still count. It used to wait for an outcome,
+        // which made it a second, weaker "edited" rather than a record of intent.
+        this.publishActioned(record);
+
+        if (this.rowActionType === "Flow") {
+            this.openRowActionFlow(record);
+            return;
+        }
+
+        if (this.rowActionType !== "Remove") {
+            return;
+        }
+
+        // maxRemovedRows of 0 or blank means no limit.
+        const cap = Number(this.maxRemovedRows);
+        if (Number.isFinite(cap) && cap > 0 && this._removedKeys.length >= cap) {
+            this._removalBlockedMessage = `You can only remove ${cap} ${cap === 1 ? "row" : "rows"} at once.`;
+            return;
+        }
+        this._removalBlockedMessage = null;
+        this._removedKeys = [...this._removedKeys, key];
+        // A removed row cannot stay selected, and the current page may no longer
+        // exist once the result set shrinks.
+        this._selectedKeys = this._selectedKeys.filter((selected) => selected !== key);
+        this.publishRemoval();
+        this.publishSelection();
+    }
+
+    get isHeadlessFlowAction() {
+        return this.rowActionFlowLaunchMode === "Headless";
+    }
+
+    /**
+     * Launches the configured flow for a row.
+     *
+     * A screen flow renders in a modal. An autolaunched flow has no screens, so
+     * showing a modal would mean an empty box: it runs server-side instead and
+     * its outputs are folded straight back in.
+     */
+    async openRowActionFlow(record) {
+        if (!this.rowActionFlowApiName) {
+            // No detail: an admin pointed the action at nothing, which a site
+            // visitor can neither read nor fix.
+            this.reportFlowError();
+            return;
+        }
+        this._flowFailed = false;
+        this._flowErrorDetail = null;
+        this._flowDeletedRecord = false;
+
+        // Confirm the record is still there BEFORE launching.
+        //
+        // Without this the grid cannot tell a record the flow deleted from one that
+        // was already gone when the action was clicked, because it only re-reads
+        // afterwards. They are opposite outcomes -- one is the action succeeding,
+        // the other is a stale row -- and they were being reported identically.
+        //
+        // It also stops a flow running against a record that no longer exists,
+        // which is a better failure than whatever that flow would have done.
+        //
+        // The row is deliberately left in place. Removing it here would publish it
+        // through `outputRemovedRecords`, telling the calling flow that this action
+        // removed it -- and a Delete Records element fed from that would then fail
+        // on an already-deleted id.
+        // Set BEFORE the existence check, not after, so a refused launch still has
+        // a row to attach its error to. The row error keys off `_flowRecord`, and
+        // assigning it later meant the staleness reason was reported nowhere once
+        // the toast stopped carrying diagnostics -- in precisely the case where
+        // knowing WHICH row is stale matters most. Nothing treats a non-null
+        // `_flowRecord` as "a flow is open"; the reads are the row error, the
+        // flow's inputs, and the patch helpers, none of which run on this path.
+        this._flowRecord = { ...record };
+
+        if (!(await this.recordStillExists(record))) {
+            // No detail. "Refresh to update the grid" was the one genuinely
+            // actionable sentence here, so an admin who wants to keep that advice
+            // should put it in the Error Message itself.
+            this.reportFlowError();
+            return;
+        }
+
+        if (this.isHeadlessFlowAction) {
+            this.runHeadlessFlow(record);
+            return;
+        }
+
+        // The modal closes itself and resolves with the outcome, so there is no
+        // modal state to track here and no `statuschange` to relay. It also means
+        // the flow is unmounted before its result is folded in, which
+        // `lightning-flow` requires -- it restarts its interview if it finishes
+        // while still on the page, which used to discard the edits.
+        const outcome = await FgridFlowActionModal.open({
+            size: String(this.rowActionFlowModalSize || "Medium").toLowerCase(),
+            label: this.flowModalHeader,
+            headerLabel: this.flowModalHeader,
+            description: "Row action flow",
+            flowApiName: this.rowActionFlowApiName,
+            flowInputVariables: this.buildFlowInputs(this._flowRecord),
+            // `disableClose` is the base class's own property, set through `open()`
+            // as the docs prescribe. It DISABLES the close button rather than
+            // hiding it, and also blocks Escape and `close()` -- see the notes in
+            // fgrid_flowActionModal for why hiding it is not available to us.
+            disableClose: this.rowActionFlowPreventClose
+        });
+
+        // Dismissed with the close button or Escape. Nothing happened, so nothing
+        // is reported -- announcing a cancel would be noise.
+        if (!outcome) {
+            this._flowRecord = null;
+            return;
+        }
+        if (outcome.status === "ERROR") {
+            // No detail available anyway: `lightning-flow` reports only
+            // `status: "ERROR"` for a screen flow, with no reason attached.
+            this.reportFlowError();
+            return;
+        }
+        await this.applyFlowResult(record, outcome.outputVariables);
+        this.reportFlowSuccess();
+        // Cleared only once the outcome has been reported.
+        //
+        // `_flowRecord` used to be nulled here as soon as `open()` resolved, which
+        // looked harmless while the toast carried the diagnostic. It is not: the
+        // row error needs it, so nulling it first meant "the flow did not complete"
+        // and "returned a record with no key" were reported NOWHERE once the toast
+        // stopped repeating them. Deliberately not in a `finally` -- the failing
+        // paths above keep the record so their row error can render.
+        if (!this._flowFailed) {
+            this._flowRecord = null;
+        }
+    }
+
+    /**
+     * Re-reads one record by id.
+     *
+     * A read failure returns true rather than false: not being able to check is
+     * not evidence that the record is gone, and refusing to run the action on a
+     * transient Apex error would be worse than running it.
+     */
+    async recordStillExists(record) {
+        const id = record?.Id || record?.[this.keyField];
+        if (!id || this.isUserDefinedObject) {
+            return true;
+        }
+        try {
+            const fetched = await getRecordsByIds({
+                objectApiName: this.objectApiName,
+                fieldPaths: this._columnPaths,
+                recordIds: [String(id)]
+            });
+            return Array.isArray(fetched) && fetched.length > 0;
+        } catch {
+            return true;
+        }
+    }
+
+    /** Runs an autolaunched flow and applies whatever it returns. */
+    async runHeadlessFlow(record) {
+        this._isRunningFlow = true;
+        try {
+            const outputs = await runFlow({
+                flowApiName: this.rowActionFlowApiName,
+                objectApiName: this.objectApiName,
+                recordJson: JSON.stringify(record),
+                recordVariable: this.acceptsInput(this.rowActionFlowRecordVariable)
+                    ? this.rowActionFlowRecordVariable
+                    : null,
+                idVariable: this.acceptsInput(this.rowActionFlowIdVariable) ? this.rowActionFlowIdVariable : null,
+                recordId: record?.Id || record?.[this.keyField]
+            });
+
+            // Apex returns a name-keyed map; the shared handler works on the
+            // {name, value} shape lightning-flow emits.
+            const asVariables = Object.entries(outputs || {}).map(([name, value]) => ({ name, value }));
+            await this.applyFlowResult(record, asVariables);
+            this.reportFlowSuccess();
+        } catch (error) {
+            // The ONE case that keeps a detail line. `error.body.message` is the
+            // flow's own fault text, wrapped by FlowGridController -- the only
+            // error message here the grid does not author. Undefined when Apex
+            // sends none, which correctly leaves the row error title-only.
+            this.reportFlowError(error?.body?.message);
+        } finally {
+            this._isRunningFlow = false;
+            // Kept on failure so the row error can render -- the flow's own fault
+            // message is the most useful diagnostic the grid ever gets, and the
+            // `finally` was discarding the record it needs to be attached to.
+            if (!this._flowFailed) {
+                this._flowRecord = null;
+            }
+        }
+    }
+
+    /**
+     * Folds a completed flow's result back into the grid.
+     *
+     * Shared by both launch paths so a screen flow and an autolaunched flow are
+     * handled identically once they have finished.
+     */
+    async applyFlowResult(record, outputVariables) {
+        // The actioned record was published on click, so nothing to report here.
+        const patch = this.readFlowResult(outputVariables);
+        if (patch) {
+            this.upsertRecord(patch);
+        }
+        await this.reconcileRow(record, Boolean(patch));
+    }
+
+    /**
+     * Re-reads the actioned row from the database and reconciles the grid.
+     *
+     * One query, three outcomes:
+     *   gone                       - the flow deleted it, so remove the row and
+     *                                report it through Removed Records
+     *   returned, flow gave nothing - the flow changed the record without handing
+     *                                it back, which is what happens when only the
+     *                                Id was passed and the flow did its own DML.
+     *                                The fetched values are the refresh.
+     *   returned, flow gave a patch - trust the patch and ignore the fetch. The
+     *                                patch may be an unsaved edit, and the
+     *                                database would overwrite it with stale values.
+     *
+     * @param record the row the action ran on
+     * @param hadPatch whether the flow returned usable data
+     */
+    async reconcileRow(record, hadPatch) {
+        const id = record?.Id || record?.[this.keyField];
+        if (this.isUserDefinedObject || !this.objectApiName || !id) {
+            return;
+        }
+
+        let fetched;
+        try {
+            fetched = await getRecordsByIds({
+                objectApiName: this.objectApiName,
+                fieldPaths: this._columnPaths,
+                recordIds: [String(id)]
+            });
+        } catch {
+            // Not being able to re-read is never a reason to drop or rewrite a row.
+            return;
+        }
+
+        const current = Array.isArray(fetched) ? fetched[0] : null;
+        if (current) {
+            if (!hadPatch) {
+                this.upsertRecord({ ...current, [this.keyField]: record[this.keyField] });
+            } else if (this.rowActionFlowSavesChanges) {
+                this.settleSavedEdits(record?.[this.keyField], current);
+            }
+            return;
+        }
+
+        const key = record?.[this.keyField];
+        if (key === undefined || key === null || this._removedKeys.some((seen) => String(seen) === String(key))) {
+            return;
+        }
+        this._removedKeys = [...this._removedKeys, key];
+        this._selectedKeys = this._selectedKeys.filter((selected) => String(selected) !== String(key));
+        this._flowDeletedRecord = true;
+        this.publishRemoval();
+        this.publishSelection();
+    }
+
+    /**
+     * Extracts the changed data from the flow's outputs.
+     *
+     * Accepts either shape, because edit flows are written both ways:
+     *   - a whole record in the configured output variable, or
+     *   - individual field values named after the grid's columns
+     *
+     * @returns {object|null} a record-shaped patch, or null when nothing usable
+     *          came back
+     */
+    readFlowResult(outputVariables) {
+        const outputs = Array.isArray(outputVariables) ? outputVariables : [];
+        if (!outputs.length) {
+            return null;
+        }
+
+        // The launched flow returns the edited record in the same variable it was
+        // handed, which is how a Flow SObject variable marked for input and output
+        // behaves.
+        const recordName = this.rowActionFlowRecordVariable;
+        const recordOutput = outputs.find((output) => recordName && output?.name === recordName && output?.value);
+        if (recordOutput) {
+            // Matched by name but unreadable — a malformed JSON string — falls
+            // through to the field-level outputs below rather than losing the
+            // result outright.
+            const returned = readReturnedRecord(recordOutput.value);
+            if (returned) {
+                return returned;
+            }
+        }
+
+        // Fall back to field-level outputs whose names match displayed columns.
+        const byLowerName = new Map(this._columnPaths.map((path) => [path.toLowerCase(), path]));
+        const patch = {};
+        outputs.forEach((output) => {
+            const path = byLowerName.get(String(output?.name || "").toLowerCase());
+            if (path && output.value !== undefined) {
+                patch[path] = output.value;
+            }
+        });
+        if (!Object.keys(patch).length) {
+            return null;
+        }
+        // Carry the key so the patch can be matched to its row.
+        return { ...patch, [this.keyField]: this._flowRecord?.[this.keyField] };
+    }
+
+    /**
+     * Upserts a record into the working collection, matched on keyField.
+     *
+     * Update when the key is already present, insert when it is not, which is
+     * what "upsert by key" meant in the helper component this replaces.
+     */
+    upsertRecord(record) {
+        const key = record?.[this.keyField] ?? this._flowRecord?.[this.keyField];
+        if (key === undefined || key === null || key === "") {
+            // No detail: a flow returning an unkeyed record is a flow-design
+            // problem, and naming the key field tells a visitor nothing.
+            this.reportFlowError();
+            return;
+        }
+
+        const existing = this.allKnownRecords.find((candidate) => candidate?.[this.keyField] === key);
+        if (!existing) {
+            this._addedRecords = [...this._addedRecords, { ...record, [this.keyField]: key }];
+        } else {
+            // Measured against the BASELINE, never against allKnownRecords.
+            //
+            // allKnownRecords already has the pending edits applied, so comparing to it
+            // asked "is this different from what I last typed" instead of "is this
+            // different from what we started with". Editing a cell and then putting the
+            // original value back therefore registered as another change and the record
+            // stayed flagged as edited for good — visible immediately with auto-save,
+            // where every keystroke commits.
+            const baseline = this.baselineRecord(key);
+            const merged = { ...(this._editsByKey[key] || {}) };
+            Object.keys(record).forEach((field) => {
+                // `attributes` is the SObject envelope Flow and Apex attach; it is
+                // not a field and would otherwise register as an edit every time.
+                if (field === this.keyField || field === "attributes") {
+                    return;
+                }
+                merged[field] = record[field];
+            });
+
+            // Anything now equal to the baseline is no longer an edit, so it leaves the
+            // pending set — and a record with nothing left drops out entirely rather
+            // than lingering with a full set of unchanged values.
+            const pending = {};
+            Object.keys(merged).forEach((field) => {
+                if (!sameValue(baseline?.[field], merged[field])) {
+                    pending[field] = merged[field];
+                }
+            });
+
+            const next = { ...this._editsByKey };
+            if (Object.keys(pending).length) {
+                next[key] = pending;
+            } else {
+                delete next[key];
+            }
+            this._editsByKey = next;
+        }
+
+        this.publishEdits();
+        this.publishRemoval();
+        this.publishSelection();
+    }
+
+    /* ------------------------------------------------------------------ *
+     * Inline editing
+     * ------------------------------------------------------------------ */
+
+    /** Pending edits, handed back to the datatable so it can show its bar. */
+    get draftValues() {
+        return this._draftValues;
+    }
+
+    /**
+     * Tracks in-progress edits so the datatable's Cancel/Save bar stays visible.
+     *
+     * The datatable would manage its own drafts if `draft-values` were never
+     * bound, but then there is no way to clear them after a save — the bar would
+     * sit there implying unsaved work that has already been applied.
+     *
+     * MERGE, NEVER REPLACE. `cellchange` reports only the cell that just changed,
+     * not the accumulated draft set. Assigning it wholesale therefore threw away
+     * every earlier edit the moment a second cell was touched — and because
+     * `draft-values` is bound straight back to the table, the first cell visibly
+     * reverted too. Drafts are merged per row so editing three cells leaves three
+     * fields pending on one draft record.
+     */
+    handleCellChange(event) {
+        const incoming = event.detail?.draftValues || [];
+        if (!incoming.length) {
+            return;
+        }
+
+        // Auto-save: commit and keep nothing pending, so the Cancel/Save buttons have
+        // no reason to appear. Deliberately no undo — that is what Cancel was for, and
+        // an admin choosing this has chosen immediacy over it.
+        if (this.autoSaveEdits) {
+            incoming.forEach((draft) => {
+                const key = draft?.[this.keyField];
+                if (key !== null && key !== undefined && key !== "") {
+                    this.upsertRecord(this.normalizeDraft(draft));
+                }
+            });
+            this._draftValues = [];
+            return;
+        }
+
+        const merged = this._draftValues.map((draft) => ({ ...draft }));
+        incoming.forEach((draft) => {
+            const key = draft?.[this.keyField];
+            const existing =
+                key === null || key === undefined
+                    ? undefined
+                    : merged.find((candidate) => candidate[this.keyField] === key);
+            if (existing) {
+                Object.assign(existing, draft);
+            } else {
+                merged.push({ ...draft });
+            }
+        });
+        this._draftValues = merged;
+    }
+
+    /**
+     * Commits inline edits into the grid's working collection.
+     *
+     * Each draft arrives as `{ [keyField]: key, Field: value }`, which is the same
+     * shape a row-action flow hands back, so `upsertRecord` does the work — it
+     * already keeps only fields that genuinely differ and publishes the outputs.
+     *
+     * Nothing is written to the database here. Flow Grid never performs DML; the
+     * calling flow commits `outputEditedRecords` if it wants the change persisted.
+     */
+    handleInlineSave(event) {
+        const drafts = event.detail?.draftValues || [];
+        drafts.forEach((draft) => {
+            const key = draft?.[this.keyField];
+            if (key !== null && key !== undefined && key !== "") {
+                this.upsertRecord(this.normalizeDraft(draft));
+            }
+        });
+        // Clearing drafts dismisses the bar; the edits now live in _editsByKey and
+        // are rendered through allKnownRecords.
+        this._draftValues = [];
+
+        if (this.navigateNextOnSave && this.canNavigateNext) {
+            this.dispatchEvent(new FlowNavigationNextEvent());
+        }
+    }
+
+    /**
+     * True when the screen this grid is on actually offers a Next action.
+     *
+     * `availableActions` is Flow's own list of the navigation the current screen
+     * permits, and NEXT is absent on a flow's last screen -- where it is FINISH
+     * instead. Dispatching FlowNavigationNextEvent there is a no-op the runtime
+     * complains about, so the admin's "navigate next on save" setting would appear
+     * to do nothing while also logging noise.
+     *
+     * Permissive when the list is empty. Flow populates it, but a grid rendered
+     * outside a flow screen -- an App Builder page, a unit test -- has no list at
+     * all, and refusing to navigate is the worse default: it would silently disable
+     * a configured behaviour rather than attempt it.
+     */
+    get canNavigateNext() {
+        const actions = this.availableActions;
+        return !Array.isArray(actions) || !actions.length || actions.includes("NEXT");
+    }
+
+    /** Discards pending edits without touching the working collection. */
+    handleInlineCancel() {
+        this._draftValues = [];
+    }
+
+    /**
+     * Moves a row action's already-saved changes out of the pending set.
+     *
+     * Only runs when the admin has said the launched flow does its own DML, and even
+     * then it does not take their word for it: each pending field is compared against
+     * the record as re-read from the database. A field that matches was genuinely
+     * saved and moves to the display-only overlay; one that does not is still pending
+     * and stays in Edited Records. So a flow that saves some fields and returns others
+     * reports exactly the unsaved remainder rather than all or nothing.
+     */
+    settleSavedEdits(key, current) {
+        const pending = this._editsByKey[key];
+        if (!pending) {
+            return;
+        }
+        const stillPending = {};
+        const saved = {};
+        Object.keys(pending).forEach((field) => {
+            if (sameValue(current[field], pending[field])) {
+                saved[field] = pending[field];
+            } else {
+                stillPending[field] = pending[field];
+            }
+        });
+        if (!Object.keys(saved).length) {
+            return;
+        }
+
+        const nextEdits = { ...this._editsByKey };
+        if (Object.keys(stillPending).length) {
+            nextEdits[key] = stillPending;
+        } else {
+            delete nextEdits[key];
+        }
+        this._editsByKey = nextEdits;
+        this._savedByKey = { ...this._savedByKey, [key]: { ...(this._savedByKey[key] || {}), ...saved } };
+        this.publishEdits();
+    }
+
+    /**
+     * The record as it stood before any pending edit, for deciding what changed.
+     *
+     * Source or added record, with the display-only saved overlay applied — a value a
+     * row-action flow has already committed to the database is part of what we started
+     * with, not something still pending.
+     */
+    baselineRecord(key) {
+        const source =
+            this.sourceRecords.find((candidate) => candidate?.[this.keyField] === key) ||
+            this._addedRecords.find((candidate) => candidate?.[this.keyField] === key);
+        if (!source) {
+            return null;
+        }
+        const saved = this._savedByKey[key];
+        return saved ? { ...source, ...saved } : source;
+    }
+
+    /**
+     * Converts a draft into the shape the record stores.
+     *
+     * A multi-select picklist is edited with a checkbox group, whose value is an
+     * array, while Salesforce stores the field as a `;`-delimited string. Writing
+     * the array straight through would put an array into a text field and make
+     * every subsequent comparison report a change.
+     *
+     * Also drops the synthetic option-list and selected-array fields, which exist
+     * only to feed the edit cell and are not fields on the record.
+     */
+    normalizeDraft(draft) {
+        const fieldByColumnKey = this.fieldByColumnKey;
+        const multiFields = new Set(
+            this.columns.filter((column) => column.fgridIsMultiPicklist).map((column) => column.fieldName)
+        );
+        // A percent cell is edited as the fraction the datatable displays, so the
+        // draft comes back as 0.25 for 25%. Stored unconverted it would be 100x out.
+        const percentFields = new Set(
+            this.columns.filter((column) => column.type === "percent").map((column) => column.fieldName)
+        );
+        const normalized = {};
+        Object.keys(draft).forEach((key) => {
+            // The key field and anything without a columnKey pass through unchanged.
+            const field = fieldByColumnKey.get(key) || key;
+            if (field.endsWith(PICKLIST_SELECTED_SUFFIX)) {
+                return;
+            }
+            if (multiFields.has(field)) {
+                normalized[field] = joinMultiPicklist(draft[key]);
+            } else if (percentFields.has(field)) {
+                normalized[field] = fractionToPercent(draft[key]);
+            } else {
+                normalized[field] = draft[key];
+            }
+        });
+        return normalized;
+    }
+
+    /**
+     * The column the datatable should draw its arrow on, and which way.
+     *
+     * Deliberately NOT the `sortedBy` / `sortDirection` output properties, even
+     * though they hold the same values. Those belong to Flow: it owns them, may
+     * write them back on its own schedule, and an outputOnly property is not a
+     * dependable place to keep view state. Binding the table to them meant the
+     * table could not see its own current direction, so every click reported `asc`
+     * and the sort would never invert.
+     */
+    get tableSortedBy() {
+        return this._tableSortedBy;
+    }
+
+    get tableSortDirection() {
+        return this._sortDirection;
+    }
+
+    handleSort(event) {
+        const { fieldName, columnKey, sortDirection } = event.detail;
+
+        // MATCH ON columnKey, NOT fieldName. Our columns carry a columnKey, and the
+        // datatable then identifies them by it — the sort event reports both, and
+        // `sorted-by` has to be echoed back as the columnKey or the table never
+        // recognises the column as sorted. It then refuses to flip: the second click
+        // produced no event at all, so a grid could only ever sort ascending.
+        //
+        // Exactly the trap inline editing hit, where drafts arrive keyed by columnKey
+        // (see normalizeDraft). Any state the datatable keys per column belongs to
+        // columnKey once columnKey exists.
+        const column =
+            this.columns.find((candidate) => candidate.columnKey === columnKey) ||
+            this.columns.find((candidate) => candidate.fieldName === fieldName);
+
+        // Sort on what the column SHOWS, not on what it stores. A link column would
+        // otherwise order rows by record id via its generated URL, and a lookup by the
+        // parent's Id rather than the parent's name.
+        this._sortField = column?.fgridTextField || column?.fgridLinkFor || column?.fieldName || fieldName;
+        this._sortDirection = sortDirection;
+        this._tableSortedBy = columnKey || fieldName;
+
+        // The flow gets the field an admin would recognise, never the generated URL
+        // field a linked column sorts through.
+        this.publish("sortedBy", this._sortField);
+        this.publish("sortDirection", sortDirection);
+        this.resetVisibleRows();
+    }
+
+    /* ------------------------------------------------------------------ *
+     * Flow contract
+     * ------------------------------------------------------------------ */
+
+    /**
+     * Flow calls this before advancing the screen.
+     *
+     * @returns {{isValid: boolean, errorMessage: string}} Flow validation result
+     */
+    @api
+    validate() {
+        const required = this.requiredSelectionCount;
+        if (required > 0 && this._selectedKeys.length < required) {
+            this._touched = true;
+            return {
+                isValid: false,
+                errorMessage:
+                    required === 1
+                        ? "Select at least one row to continue."
+                        : `Select at least ${required} rows to continue.`
+            };
+        }
+        return { isValid: true };
+    }
+
+    /**
+     * Applies `preSelectedRecords` to the grid, reactively.
+     *
+     * Upstream is authoritative: when the incoming preselection genuinely
+     * changes, it replaces whatever the user had selected. Between real changes
+     * the user's own selection is left alone.
+     *
+     * The guard is a content signature, not "is anything selected". The earlier
+     * `if (this._selectedKeys.length) return` meant a user who deselected
+     * everything had the preselection silently restored the next time the
+     * collection was reassigned — their deliberate "select nothing" was
+     * indistinguishable from "not seeded yet".
+     *
+     * Unset and empty differ. `undefined`/`null` means the flow has no opinion,
+     * so the selection is untouched; `[]` is a deliberate instruction to
+     * deselect everything.
+     */
+    applyPreSelection() {
+        const source = this.isUserDefinedObject
+            ? parseRecordJson(this.preSelectedRecordsJson)
+            : this.preSelectedRecords;
+        if (!Array.isArray(source)) {
+            return;
+        }
+
+        const keys = source.map((record) => record?.[this.keyField]).filter(Boolean);
+        const signature = keys.join("~");
+        if (this._preSelectionSignature === signature) {
+            return;
+        }
+        this._preSelectionSignature = signature;
+        this._selectedKeys = keys;
+        this.publishSelection();
+    }
+
+    /**
+     * Drops unsaved inline edits, because the incoming collection changed.
+     *
+     * Only the unsaved overlay goes. Removals and additions are the grid's own
+     * committed state, not pending user input, so they survive.
+     *
+     * Silent by design: the behaviour is documented in the Records property's
+     * help text rather than announced with a banner the user cannot act on.
+     */
+    discardUnsavedEdits() {
+        const hadEdits = Object.keys(this._editsByKey).length > 0;
+        this._draftValues = [];
+        if (!hadEdits) {
+            return;
+        }
+        this._editsByKey = {};
+        // The display-only overlay goes too. A recalculated collection is a fresh read
+        // that already carries anything the database holds, and keeping the overlay
+        // would mask a value the source has since changed back.
+        this._savedByKey = {};
+        this.publishEdits();
+    }
+
+    /** Publishes every selection-derived output in one pass. */
+    publishSelection() {
+        const keys = new Set(this._selectedKeys);
+        const selected = this.remainingRecords.filter((record) => keys.has(record?.[this.keyField]));
+
+        this.publish("outputSelectedRecords", this.isUserDefinedObject ? [] : selected);
+        this.publish("outputSelectedRecord", !this.isUserDefinedObject && selected.length === 1 ? selected[0] : null);
+        this.publish("outputSelectedRecordsJson", selected.length ? JSON.stringify(selected) : null);
+        this.publish("selectedCount", selected.length);
+        this.publish("selectedRowKey", selected.length === 1 ? selected[0]?.[this.keyField] : null);
+    }
+
+    /**
+     * Publishes the record the most recent row action was performed on.
+     *
+     * Deliberately publishes a NEW object each time rather than the record
+     * reference. This output is the hook for the pop-up-screen-flow pattern: a
+     * sibling component on the same screen watches it and launches a subflow for
+     * the actioned record. Flow only propagates a reactive output when it sees a
+     * change, so re-publishing the same reference after the user actions the same
+     * row twice would silently do nothing the second time. The component this
+     * replaces spreads the row for the same reason.
+     *
+     * The source record is published rather than the flattened datatable row, so
+     * the output carries only real fields — the flattened row also holds the
+     * generated link URLs, which are not fields on the object.
+     */
+    /**
+     * Reports the row the most recent action ran on.
+     *
+     * Publishes a new object each time rather than the record reference: this
+     * output is the hook for a sibling component reacting to a row action, and
+     * Flow only propagates a reactive output when it sees a change, so reusing
+     * the reference would silently do nothing on a repeat action.
+     */
+    publishActioned(record) {
+        const snapshot = { ...record };
+        this.publish("outputActionedRecord", this.isUserDefinedObject ? null : snapshot);
+        this.publish("outputActionedRecordJson", JSON.stringify(snapshot));
+
+        // The single output above answers "which row just now", and is overwritten by
+        // the next click — useful for reacting on the same screen, useless for
+        // reporting afterwards. The collection answers "which rows in total". Repeats
+        // collapse because it records WHICH rows were actioned, not how many clicks.
+        const key = record?.Id ?? record?.[this.keyField];
+        if (key === undefined || key === null || key === "") {
+            return;
+        }
+        const id = String(key);
+        if (!this._actionedKeys.includes(id)) {
+            this._actionedKeys = [...this._actionedKeys, id];
+            this.publish("outputActionedRecordIds", this._actionedKeys);
+        }
+    }
+
+    /** Publishes the edited-records outputs. */
+    publishEdits() {
+        const edited = this.editedRecords;
+        this.publish("outputEditedRecords", this.isUserDefinedObject ? [] : edited);
+        this.publish("outputEditedRecordsJson", edited.length ? JSON.stringify(edited) : null);
+        this.publish("editedCount", edited.length);
+    }
+
+    /** Publishes both sides of the removal split. */
+    publishRemoval() {
+        const removed = new Set(this._removedKeys);
+        const removedRecords = this.sourceRecords.filter((record) => removed.has(record?.[this.keyField]));
+        const remaining = this.remainingRecords;
+
+        this.publish("outputRemovedRecords", this.isUserDefinedObject ? [] : removedRecords);
+        this.publish("outputRemainingRecords", this.isUserDefinedObject ? [] : remaining);
+        this.publish("outputRemovedRecordsJson", removedRecords.length ? JSON.stringify(removedRecords) : null);
+        this.publish("outputRemainingRecordsJson", remaining.length ? JSON.stringify(remaining) : null);
+        this.publish("removedCount", removedRecords.length);
+    }
+
+    /** Assigns a Flow output and mirrors it locally so getters stay in step. */
+    publish(name, value) {
+        this[name] = value;
+        this.dispatchEvent(new FlowAttributeChangeEvent(name, value));
+    }
+}
+
+/**
+ * Compares two field values the way an admin would judge "did this change".
+ *
+ * Blank forms are treated as equivalent: a flow that clears a field may return
+ * an empty string where the record held null, and reporting that as an edit
+ * would be noise. Objects are compared structurally.
+ */
+function sameValue(before, after) {
+    const blank = (value) => value === null || value === undefined || value === "";
+    if (blank(before) && blank(after)) {
+        return true;
+    }
+    if (blank(before) !== blank(after)) {
+        return false;
+    }
+    if (typeof before === "object" || typeof after === "object") {
+        return JSON.stringify(before) === JSON.stringify(after);
+    }
+    return String(before) === String(after);
+}
+
+/**
+ * Builds a content fingerprint for an incoming record collection.
+ *
+ * Exists so "the collection changed" can be judged by VALUE rather than by array
+ * identity. Flow hands over a freshly-built array on virtually every re-render,
+ * so an identity check would report a change constantly — and the consequence of
+ * a false positive here is discarding a user's unsaved inline edits.
+ *
+ * Field names are sorted so a differently-ordered but identical record does not
+ * read as a change, and `attributes` — the SObject envelope Apex and Flow attach
+ * — is excluded for the same reason it is excluded from edit detection.
+ */
+function recordSignature(records, fields) {
+    if (!Array.isArray(records) || !records.length) {
+        return "0";
+    }
+    // `fields` arrives already sorted and de-duplicated, so there is no per-record
+    // sort and the cost is records x COLUMNS rather than records x every field the
+    // Get happened to retrieve.
+    const names = Array.isArray(fields) && fields.length ? fields : null;
+    const parts = records.map((record) => {
+        if (!record || typeof record !== "object") {
+            return String(record);
+        }
+        if (!names) {
+            // No columns configured yet. Length alone still catches a collection
+            // being swapped, and there is nothing on screen to protect.
+            return "";
+        }
+        return names.map((field) => `${field}=${signatureValue(record[field])}`).join(",");
+    });
+    // The field list is part of the signature: reconfiguring columns changes what
+    // "the same data" means, and a stale comparison across two different bases would
+    // read as a change that never happened.
+    return `${records.length}|${names ? names.join(",") : ""}:${parts.join("~")}`;
+}
+
+/** Renders one field value for a signature, collapsing blank forms. */
+function signatureValue(value) {
+    if (value === null || value === undefined) {
+        return "";
+    }
+    return typeof value === "object" ? JSON.stringify(value) : String(value);
+}
+
+/**
+ * Reads the row a launched flow handed back.
+ *
+ * A flow given an SObject variable returns an object; one given a Text variable
+ * — which is all a user-defined row can use — returns the JSON string it was
+ * sent. Without this the second case fell through to the field-level outputs,
+ * which never match the record variable's name, so the edit was silently lost
+ * despite the help text promising it would come back.
+ */
+function readReturnedRecord(value) {
+    if (typeof value === "string") {
+        const parsed = parseRecordJson(value);
+        return parsed.length ? parsed[0] : null;
+    }
+    if (Array.isArray(value)) {
+        return value[0] || null;
+    }
+    return value && typeof value === "object" ? value : null;
+}
+
+/**
+ * Reads a serialized record collection supplied by a Flow.
+ *
+ * Returns an empty list rather than throwing: a malformed string is an admin
+ * configuration problem, and the empty state reports it better than a crash.
+ */
+function parseRecordJson(raw) {
+    if (Array.isArray(raw)) {
+        return raw;
+    }
+    if (typeof raw !== "string" || !raw.trim()) {
+        return [];
+    }
+    try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+            return parsed;
+        }
+        return parsed && typeof parsed === "object" ? [parsed] : [];
+    } catch {
+        return [];
+    }
+}
+
+/** Flattens an Apex or wire error into one readable sentence. */
+function reduceError(error) {
+    if (!error) {
+        return null;
+    }
+    if (Array.isArray(error.body)) {
+        return error.body.map((entry) => entry.message).join(", ");
+    }
+    return error.body?.message || error.message || "Unable to load field information.";
+}

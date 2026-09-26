@@ -1,0 +1,425 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Flow Grid — pagination in context</title>
+        <link
+            rel="stylesheet"
+            href="https://unpkg.com/@salesforce-ux/design-system@2.24.2/assets/styles/salesforce-lightning-design-system.min.css"
+        />
+        <style>
+            /* STATIC MOCKUP. Look B's layout (no container, reads as part of the table) with
+     Look A's centred numbering. First/last buttons dropped. Window of four
+     consecutive pages. Custom `fgrid-pg-*` classes over verified global hooks; no
+     `.slds-*` class overridden. */
+
+            body {
+                background: var(--slds-g-color-surface-2, #f3f3f3);
+                padding: 2rem;
+            }
+            .demo {
+                max-width: 66rem;
+                margin: 0 auto;
+            }
+            .demo h1 {
+                font-size: var(--slds-g-font-scale-4, 1.5rem);
+                margin-bottom: 0.25rem;
+            }
+            .demo h2 {
+                font-size: var(--slds-g-font-scale-2, 1.125rem);
+                margin: 2.5rem 0 0.5rem;
+                padding-top: 1.5rem;
+                border-top: 1px solid var(--slds-g-color-border-1, #e5e5e5);
+            }
+            .demo p.note {
+                font-size: var(--slds-g-font-scale-neg-1, 0.75rem);
+                color: var(--slds-g-color-on-surface-3, #5c5c5c);
+                max-width: 46rem;
+                margin: 0 0 1rem;
+            }
+            .card {
+                background: var(--slds-g-color-surface-1, #fff);
+                border: 1px solid var(--slds-g-color-border-1, #e5e5e5);
+                border-radius: var(--slds-g-radius-border-2, 0.25rem);
+                padding: var(--slds-g-spacing-4, 1rem);
+                margin-bottom: 0.75rem;
+            }
+            .card__label {
+                font-size: var(--slds-g-font-scale-neg-1, 0.75rem);
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.0625rem;
+                color: var(--slds-g-color-on-surface-3, #5c5c5c);
+                margin-bottom: 0.75rem;
+            }
+            .narrow {
+                max-width: 22rem;
+            }
+
+            /* ===================== pagination ===================== */
+            /* Three tracks so the numbers are optically centred in the grid's full width,
+     not merely centred in whatever space the summary leaves over. */
+            .fgrid-pg {
+                display: grid;
+                grid-template-columns: 1fr auto 1fr;
+                align-items: center;
+                gap: var(--slds-g-spacing-2, 0.5rem);
+                padding-top: var(--slds-g-spacing-2, 0.5rem);
+            }
+            .fgrid-pg__summary {
+                font-size: var(--slds-g-font-scale-neg-1, 0.75rem);
+                color: var(--slds-g-color-on-surface-3, #5c5c5c);
+                white-space: nowrap;
+            }
+            .fgrid-pg__perpage {
+                display: flex;
+                align-items: center;
+                justify-content: flex-end;
+                gap: var(--slds-g-spacing-2, 0.5rem);
+                font-size: var(--slds-g-font-scale-neg-1, 0.75rem);
+                color: var(--slds-g-color-on-surface-3, #5c5c5c);
+                white-space: nowrap;
+            }
+            .fgrid-pg__select {
+                height: 2rem;
+                border: 1px solid var(--slds-g-color-border-2, #c9c9c9);
+                border-radius: var(--slds-g-radius-border-2, 0.25rem);
+                background: var(--slds-g-color-surface-1, #fff);
+                color: var(--slds-g-color-on-surface-2, #181818);
+                padding: 0 var(--slds-g-spacing-2, 0.5rem);
+                font-size: var(--slds-g-font-scale-neg-1, 0.8125rem);
+            }
+
+            /* A list, not a button group: this is navigation. */
+            .fgrid-pg__list {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: var(--slds-g-spacing-1, 0.25rem);
+                list-style: none;
+                margin: 0;
+                padding: 0;
+            }
+            .fgrid-pg__item {
+                min-width: 2rem;
+                height: 2rem;
+                padding: 0 var(--slds-g-spacing-2, 0.5rem);
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                border: 1px solid transparent;
+                border-radius: var(--slds-g-radius-border-2, 0.25rem);
+                background: transparent;
+                color: var(--slds-g-color-accent-1, #0176d3);
+                font-size: var(--slds-g-font-scale-neg-1, 0.8125rem);
+                cursor: pointer;
+            }
+            .fgrid-pg__item:hover:not([disabled]):not([aria-current]) {
+                background: var(--slds-g-color-surface-2, #f3f3f3);
+            }
+            .fgrid-pg__item:focus-visible {
+                outline: 2px solid var(--slds-g-color-accent-1, #0176d3);
+                outline-offset: 2px;
+            }
+            /* Current page carries weight and a border too — colour is never the only cue. */
+            .fgrid-pg__item[aria-current="page"] {
+                background: var(--slds-g-color-surface-2, #f3f3f3);
+                border-color: var(--slds-g-color-border-2, #c9c9c9);
+                color: var(--slds-g-color-on-surface-2, #181818);
+                font-weight: 700;
+                cursor: default;
+            }
+            .fgrid-pg__item[disabled] {
+                color: var(--slds-g-color-on-surface-3, #a8a8a8);
+                cursor: not-allowed;
+            }
+            .fgrid-pg__ellipsis {
+                min-width: 1.5rem;
+                text-align: center;
+                user-select: none;
+                color: var(--slds-g-color-on-surface-3, #5c5c5c);
+                font-size: var(--slds-g-font-scale-neg-1, 0.8125rem);
+            }
+            .fgrid-pg__icon {
+                width: 0.875rem;
+                height: 0.875rem;
+                fill: currentColor;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="demo">
+            <h1>Pagination — Look B layout, centred numbers</h1>
+            <p class="note">
+                No container, so it reads as the table's own footer; numbers optically centred via three grid tracks
+                rather than centred in the leftover space. First/last dropped. Window of four consecutive pages.
+            </p>
+
+            <!-- ======================= IN CONTEXT ======================= -->
+            <h2>In context</h2>
+            <div class="card">
+                <div class="slds-grid slds-grid_vertical-align-center slds-m-bottom_x-small">
+                    <span class="slds-icon_container slds-icon-standard-account slds-m-right_x-small">
+                        <svg class="slds-icon slds-icon_small" viewBox="0 0 52 52" aria-hidden="true">
+                            <path
+                                d="M25.4 3.2L4.6 12.5c-.6.3-.6 1.2 0 1.5l20.8 9.3c.4.2.8.2 1.2 0l20.8-9.3c.6-.3.6-1.2 0-1.5L26.6 3.2c-.4-.2-.8-.2-1.2 0z"
+                            />
+                        </svg>
+                        <span class="slds-assistive-text">Account</span>
+                    </span>
+                    <div>
+                        <h3 class="slds-text-heading_small">Accounts</h3>
+                        <p class="slds-text-body_small slds-text-color_weak">314 items • 0 selected</p>
+                    </div>
+                </div>
+
+                <table class="slds-table slds-table_bordered slds-table_fixed-layout slds-table_cell-buffer">
+                    <thead>
+                        <tr class="slds-line-height_reset">
+                            <th scope="col"><div class="slds-truncate" title="Account">Account</div></th>
+                            <th scope="col"><div class="slds-truncate" title="Industry">Industry</div></th>
+                            <th scope="col"><div class="slds-truncate" title="Annual Revenue">Annual Revenue</div></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="slds-hint-parent">
+                            <th scope="row">
+                                <div class="slds-truncate"><a href="#0">Edge Communications</a></div>
+                            </th>
+                            <td><div class="slds-truncate">Electronics</div></td>
+                            <td><div class="slds-truncate">$139,000,000</div></td>
+                        </tr>
+                        <tr class="slds-hint-parent">
+                            <th scope="row">
+                                <div class="slds-truncate"><a href="#0">Burlington Textiles Corp</a></div>
+                            </th>
+                            <td><div class="slds-truncate">Apparel</div></td>
+                            <td><div class="slds-truncate">$350,000,000</div></td>
+                        </tr>
+                        <tr class="slds-hint-parent">
+                            <th scope="row">
+                                <div class="slds-truncate"><a href="#0">Pyramid Construction Inc.</a></div>
+                            </th>
+                            <td><div class="slds-truncate">Construction</div></td>
+                            <td><div class="slds-truncate">$950,000,000</div></td>
+                        </tr>
+                        <tr class="slds-hint-parent">
+                            <th scope="row">
+                                <div class="slds-truncate"><a href="#0">Dickenson plc</a></div>
+                            </th>
+                            <td><div class="slds-truncate">Consulting</div></td>
+                            <td><div class="slds-truncate">$50,000,000</div></td>
+                        </tr>
+                        <tr class="slds-hint-parent">
+                            <th scope="row">
+                                <div class="slds-truncate"><a href="#0">Grand Hotels &amp; Resorts Ltd</a></div>
+                            </th>
+                            <td><div class="slds-truncate">Hospitality</div></td>
+                            <td><div class="slds-truncate">$500,000,000</div></td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <nav class="fgrid-pg" aria-label="Pagination">
+                    <span class="fgrid-pg__summary">41–50 of 314</span>
+                    <ul class="fgrid-pg__list">
+                        <li>
+                            <button class="fgrid-pg__item">
+                                <svg class="fgrid-pg__icon" viewBox="0 0 52 52" aria-hidden="true">
+                                    <path
+                                        d="M34 8.6L16.6 26 34 43.4c.6.6.6 1.5 0 2.1l-2.8 2.8c-.6.6-1.5.6-2.1 0L8.6 27.1c-.6-.6-.6-1.5 0-2.1L29.1 4.5c.6-.6 1.5-.6 2.1 0l2.8 2.1c.6.6.6 1.4 0 2z"
+                                    /></svg
+                                ><span class="slds-assistive-text">Previous page</span>
+                            </button>
+                        </li>
+                        <li><button class="fgrid-pg__item">1</button></li>
+                        <li><span class="fgrid-pg__ellipsis" aria-hidden="true">…</span></li>
+                        <li><button class="fgrid-pg__item">4</button></li>
+                        <li><button class="fgrid-pg__item" aria-current="page">5</button></li>
+                        <li><button class="fgrid-pg__item">6</button></li>
+                        <li><button class="fgrid-pg__item">7</button></li>
+                        <li><span class="fgrid-pg__ellipsis" aria-hidden="true">…</span></li>
+                        <li><button class="fgrid-pg__item">32</button></li>
+                        <li>
+                            <button class="fgrid-pg__item">
+                                <svg class="fgrid-pg__icon" viewBox="0 0 52 52" aria-hidden="true">
+                                    <path
+                                        d="M18 43.4L35.4 26 18 8.6c-.6-.6-.6-1.5 0-2.1l2.8-2.8c.6-.6 1.5-.6 2.1 0l20.5 20.4c.6.6.6 1.5 0 2.1L22.9 47.5c-.6.6-1.5.6-2.1 0L18 45.4c-.6-.5-.6-1.4 0-2z"
+                                    /></svg
+                                ><span class="slds-assistive-text">Next page</span>
+                            </button>
+                        </li>
+                    </ul>
+                    <span class="fgrid-pg__perpage">
+                        <label for="pp">Rows per page</label>
+                        <select class="fgrid-pg__select" id="pp">
+                            <option>10</option>
+                            <option>25</option>
+                            <option>50</option>
+                        </select>
+                    </span>
+                </nav>
+            </div>
+
+            <!-- ======================= WINDOW OF FOUR ======================= -->
+            <h2>Window of four</h2>
+            <p class="note">
+                Four consecutive pages, clamped at each end. An even window cannot centre the current page, so this one
+                shows <strong>one before and two after</strong>
+                (page 5 → 4 5 6 7). Say if you would rather it leaned the other way (3 4 5 6).
+            </p>
+
+            <div class="card">
+                <div class="card__label">Page 1 of 32 — ellipsis right only</div>
+                <nav class="fgrid-pg" aria-label="Pagination">
+                    <span class="fgrid-pg__summary">1–10 of 314</span>
+                    <ul class="fgrid-pg__list">
+                        <li>
+                            <button class="fgrid-pg__item" disabled aria-disabled="true">
+                                <svg class="fgrid-pg__icon" viewBox="0 0 52 52" aria-hidden="true">
+                                    <path
+                                        d="M34 8.6L16.6 26 34 43.4c.6.6.6 1.5 0 2.1l-2.8 2.8c-.6.6-1.5.6-2.1 0L8.6 27.1c-.6-.6-.6-1.5 0-2.1L29.1 4.5c.6-.6 1.5-.6 2.1 0l2.8 2.1c.6.6.6 1.4 0 2z"
+                                    /></svg
+                                ><span class="slds-assistive-text">Previous page</span>
+                            </button>
+                        </li>
+                        <li><button class="fgrid-pg__item" aria-current="page">1</button></li>
+                        <li><button class="fgrid-pg__item">2</button></li>
+                        <li><button class="fgrid-pg__item">3</button></li>
+                        <li><button class="fgrid-pg__item">4</button></li>
+                        <li><span class="fgrid-pg__ellipsis" aria-hidden="true">…</span></li>
+                        <li><button class="fgrid-pg__item">32</button></li>
+                        <li>
+                            <button class="fgrid-pg__item">
+                                <svg class="fgrid-pg__icon" viewBox="0 0 52 52" aria-hidden="true">
+                                    <path
+                                        d="M18 43.4L35.4 26 18 8.6c-.6-.6-.6-1.5 0-2.1l2.8-2.8c.6-.6 1.5-.6 2.1 0l20.5 20.4c.6.6.6 1.5 0 2.1L22.9 47.5c-.6.6-1.5.6-2.1 0L18 45.4c-.6-.5-.6-1.4 0-2z"
+                                    /></svg
+                                ><span class="slds-assistive-text">Next page</span>
+                            </button>
+                        </li>
+                    </ul>
+                    <span class="fgrid-pg__perpage"
+                        ><label for="p2">Rows per page</label
+                        ><select class="fgrid-pg__select" id="p2">
+                            <option>10</option>
+                        </select></span
+                    >
+                </nav>
+            </div>
+
+            <div class="card">
+                <div class="card__label">Page 32 of 32 — ellipsis left only</div>
+                <nav class="fgrid-pg" aria-label="Pagination">
+                    <span class="fgrid-pg__summary">311–314 of 314</span>
+                    <ul class="fgrid-pg__list">
+                        <li>
+                            <button class="fgrid-pg__item">
+                                <svg class="fgrid-pg__icon" viewBox="0 0 52 52" aria-hidden="true">
+                                    <path
+                                        d="M34 8.6L16.6 26 34 43.4c.6.6.6 1.5 0 2.1l-2.8 2.8c-.6.6-1.5.6-2.1 0L8.6 27.1c-.6-.6-.6-1.5 0-2.1L29.1 4.5c.6-.6 1.5-.6 2.1 0l2.8 2.1c.6.6.6 1.4 0 2z"
+                                    /></svg
+                                ><span class="slds-assistive-text">Previous page</span>
+                            </button>
+                        </li>
+                        <li><button class="fgrid-pg__item">1</button></li>
+                        <li><span class="fgrid-pg__ellipsis" aria-hidden="true">…</span></li>
+                        <li><button class="fgrid-pg__item">29</button></li>
+                        <li><button class="fgrid-pg__item">30</button></li>
+                        <li><button class="fgrid-pg__item">31</button></li>
+                        <li><button class="fgrid-pg__item" aria-current="page">32</button></li>
+                        <li>
+                            <button class="fgrid-pg__item" disabled aria-disabled="true">
+                                <svg class="fgrid-pg__icon" viewBox="0 0 52 52" aria-hidden="true">
+                                    <path
+                                        d="M18 43.4L35.4 26 18 8.6c-.6-.6-.6-1.5 0-2.1l2.8-2.8c.6-.6 1.5-.6 2.1 0l20.5 20.4c.6.6.6 1.5 0 2.1L22.9 47.5c-.6.6-1.5.6-2.1 0L18 45.4c-.6-.5-.6-1.4 0-2z"
+                                    /></svg
+                                ><span class="slds-assistive-text">Next page</span>
+                            </button>
+                        </li>
+                    </ul>
+                    <span class="fgrid-pg__perpage"
+                        ><label for="p3">Rows per page</label
+                        ><select class="fgrid-pg__select" id="p3">
+                            <option>10</option>
+                        </select></span
+                    >
+                </nav>
+            </div>
+
+            <!-- ======================= NO TRUNCATION ======================= -->
+            <h2>Eight pages or fewer — no truncation</h2>
+            <p class="note">
+                The widest truncated form is eight slots: first, ellipsis, four window pages, ellipsis, last. So at
+                eight pages or fewer, showing every number is never wider — truncating would hide pages and save
+                nothing. Below the threshold it just renders the full run.
+            </p>
+            <div class="card">
+                <div class="card__label">Page 3 of 7 — every page shown</div>
+                <nav class="fgrid-pg" aria-label="Pagination">
+                    <span class="fgrid-pg__summary">21–30 of 68</span>
+                    <ul class="fgrid-pg__list">
+                        <li>
+                            <button class="fgrid-pg__item">
+                                <svg class="fgrid-pg__icon" viewBox="0 0 52 52" aria-hidden="true">
+                                    <path
+                                        d="M34 8.6L16.6 26 34 43.4c.6.6.6 1.5 0 2.1l-2.8 2.8c-.6.6-1.5.6-2.1 0L8.6 27.1c-.6-.6-.6-1.5 0-2.1L29.1 4.5c.6-.6 1.5-.6 2.1 0l2.8 2.1c.6.6.6 1.4 0 2z"
+                                    /></svg
+                                ><span class="slds-assistive-text">Previous page</span>
+                            </button>
+                        </li>
+                        <li><button class="fgrid-pg__item">1</button></li>
+                        <li><button class="fgrid-pg__item">2</button></li>
+                        <li><button class="fgrid-pg__item" aria-current="page">3</button></li>
+                        <li><button class="fgrid-pg__item">4</button></li>
+                        <li><button class="fgrid-pg__item">5</button></li>
+                        <li><button class="fgrid-pg__item">6</button></li>
+                        <li><button class="fgrid-pg__item">7</button></li>
+                        <li>
+                            <button class="fgrid-pg__item">
+                                <svg class="fgrid-pg__icon" viewBox="0 0 52 52" aria-hidden="true">
+                                    <path
+                                        d="M18 43.4L35.4 26 18 8.6c-.6-.6-.6-1.5 0-2.1l2.8-2.8c.6-.6 1.5-.6 2.1 0l20.5 20.4c.6.6.6 1.5 0 2.1L22.9 47.5c-.6.6-1.5.6-2.1 0L18 45.4c-.6-.5-.6-1.4 0-2z"
+                                    /></svg
+                                ><span class="slds-assistive-text">Next page</span>
+                            </button>
+                        </li>
+                    </ul>
+                    <span class="fgrid-pg__perpage"
+                        ><label for="p4">Rows per page</label
+                        ><select class="fgrid-pg__select" id="p4">
+                            <option>10</option>
+                        </select></span
+                    >
+                </nav>
+            </div>
+
+            <!-- ======================= NARROW ======================= -->
+            <h2>Narrow column</h2>
+            <p class="note">
+                Experience Cloud. The three tracks collapse; numbers drop and the summary becomes the wayfinding. Shown
+                at 22rem.
+            </p>
+            <div class="card narrow">
+                <nav class="fgrid-pg" aria-label="Pagination" style="grid-template-columns: auto 1fr auto">
+                    <button class="fgrid-pg__item">
+                        <svg class="fgrid-pg__icon" viewBox="0 0 52 52" aria-hidden="true">
+                            <path
+                                d="M34 8.6L16.6 26 34 43.4c.6.6.6 1.5 0 2.1l-2.8 2.8c-.6.6-1.5.6-2.1 0L8.6 27.1c-.6-.6-.6-1.5 0-2.1L29.1 4.5c.6-.6 1.5-.6 2.1 0l2.8 2.1c.6.6.6 1.4 0 2z"
+                            /></svg
+                        ><span class="slds-assistive-text">Previous page</span>
+                    </button>
+                    <span class="fgrid-pg__summary" style="text-align: center">Page 5 of 32</span>
+                    <button class="fgrid-pg__item">
+                        <svg class="fgrid-pg__icon" viewBox="0 0 52 52" aria-hidden="true">
+                            <path
+                                d="M18 43.4L35.4 26 18 8.6c-.6-.6-.6-1.5 0-2.1l2.8-2.8c.6-.6 1.5-.6 2.1 0l20.5 20.4c.6.6.6 1.5 0 2.1L22.9 47.5c-.6.6-1.5.6-2.1 0L18 45.4c-.6-.5-.6-1.4 0-2z"
+                            /></svg
+                        ><span class="slds-assistive-text">Next page</span>
+                    </button>
+                </nav>
+            </div>
+        </div>
+    </body>
+</html>

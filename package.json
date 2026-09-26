@@ -4,13 +4,13 @@
     "version": "0.1.0",
     "description": "crlabs Salesforce packages",
     "scripts": {
-        "lint": "eslint flowautonavigate/**/lwc/**/*.js",
+        "lint": "eslint flowautonavigate/**/lwc/**/*.js flowgrid/**/lwc/**/*.js",
         "test": "npm run test:unit",
         "test:unit": "sfdx-lwc-jest",
         "test:unit:watch": "sfdx-lwc-jest --watch",
         "test:unit:coverage": "sfdx-lwc-jest --coverage",
-        "prettier": "prettier --write \"flowautonavigate/**/*.{js,html,css,json,md}\"",
-        "prettier:verify": "prettier --check \"flowautonavigate/**/*.{js,html,css,json,md}\" \"flow-config-editor-kit/**/*.{js,html,css,json,cls}\"",
+        "prettier": "prettier --write \"{flowautonavigate,flowgrid}/**/*.{js,html,css,json,md,cls}\"",
+        "prettier:verify": "prettier --check \"{flowautonavigate,flowgrid}/**/*.{js,html,css,json,md,cls}\" \"flow-config-editor-kit/**/*.{js,html,css,json,cls}\"",
         "verify": "npm run prettier:verify && npm run lint && npm run test:unit"
     },
     "engines": {

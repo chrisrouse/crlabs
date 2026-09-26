@@ -1,0 +1,22 @@
+<!-- A textarea, because the datatable's own text editor is a single line. Editing a
+     32,000-character Long Text Area through one input flattens every newline and
+     saves it back that way — silent data loss on a field whose whole purpose is
+     multi-line content.
+
+     maxlength comes from the field's own describe rather than a guess, so the editor
+     cannot accept more than the field will store.
+
+     data-inputable="true" is how the inline-edit machinery reads the committed
+     value. Load-bearing; see fgrid_customDatatable. -->
+<template>
+    <div class="fgrid-longtext">
+        <lightning-textarea
+            label={columnLabel}
+            variant="label-hidden"
+            value={editedValue}
+            max-length={typeAttributes.maxLength}
+            required={required}
+            data-inputable="true"
+        ></lightning-textarea>
+    </div>
+</template>

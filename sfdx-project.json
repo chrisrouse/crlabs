@@ -19,6 +19,19 @@
                     "versionNumber": "0.1.0.LATEST"
                 }
             ]
+        },
+        {
+            "path": "flowgrid/force-app",
+            "default": false,
+            "package": "Flow Grid",
+            "versionName": "ver 0.1",
+            "versionNumber": "0.1.0.NEXT",
+            "dependencies": [
+                {
+                    "package": "Flow Config Editor Kit",
+                    "versionNumber": "0.1.0.LATEST"
+                }
+            ]
         }
     ],
     "namespace": "crlabs",
