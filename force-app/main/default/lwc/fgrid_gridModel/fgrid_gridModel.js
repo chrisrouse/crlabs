@@ -130,6 +130,9 @@ export const LINK_SUFFIX = "__fgridUrl";
 /** Row field holding the conditional-formatting class for one column. */
 export const FORMAT_SUFFIX = "__fgridFormat";
 
+/** Row fields a progress display reads: the 0-100 value, its label, its width. */
+export const PROGRESS_SUFFIX = "__fgridProgress";
+
 /** Row field holding a multi-picklist's value as an array, for the checkbox
  *  group, whose `value` is an array while the record stores a `;` string. */
 export const PICKLIST_SELECTED_SUFFIX = "__fgridSelected";
@@ -768,6 +771,37 @@ export function buildColumns(fields, config = {}, options = {}) {
         // by our own cell template, so unlike a `cellAttributes.class` it is
         // immune to the row-hover repaint -- hover recolors the cell, never a
         // nested span. See repro/datatable-cell-colour/.
+        // PROGRESS. The blueprint's classes are fixed per column, so they are
+        // resolved once here; only the value, its label and the fill width
+        // change per row, and those are carried as row fields below.
+        //
+        // The value is NOT converted to a fraction the way the datatable's
+        // `percent` type needs. A Salesforce Percent field stores 25 for 25%,
+        // which is already what a progress bar wants -- and the conversion in
+        // buildRows is keyed on `type === "percent"`, so this display skips it
+        // by construction. Worth knowing before renaming either type.
+        if (column.type === "fgridProgressBar") {
+            const thickness = attributes.progressThickness || "medium";
+            const rounded = attributes.progressShape === "circular" ? " slds-progress-bar_circular" : "";
+            typeAttributes.barClass = `slds-progress-bar slds-progress-bar_${thickness}${rounded}`;
+            typeAttributes.fillClass = attributes.progressTheme
+                ? `slds-progress-bar__value fgridProgressFill_${attributes.progressTheme}`
+                : "slds-progress-bar__value";
+            typeAttributes.showValue = attributes.showProgressValue !== false;
+
+            const progressKey = `${field}${PROGRESS_SUFFIX}`;
+            column.fgridProgressKey = progressKey;
+            // What counts as 100%. SLDS progress is hard-wired 0-100, so a
+            // field on any other scale is unusable without this.
+            column.fgridProgressTotal = firstNumber(attributes.progressTotal) ?? 100;
+            typeAttributes.progressValue = { fieldName: progressKey };
+            typeAttributes.progressLabel = { fieldName: `${progressKey}Label` };
+            typeAttributes.progressStyle = { fieldName: `${progressKey}Style` };
+            // A gauge is a reading, not an input, and the type has no edit
+            // template. Forcing it off here beats a pencil that does nothing.
+            column.editable = false;
+        }
+
         // CONDITIONAL FORMATTING, badge half. `slds-badge` is composed with the
         // resolved class in buildRows, so the badge keeps looking like a badge
         // when a rule matches.
@@ -837,6 +871,7 @@ export function buildRows(records, columns, keyField = "Id", picklistContext = n
     // Status with Status hidden -- and without carrying it the row has no
     // Status and the rule silently never matches.
     const formatColumns = (columns || []).filter((column) => column.fgridFormatRules?.length);
+    const progressColumns = (columns || []).filter((column) => column.fgridProgressKey);
     const formatPaths = [...new Set(formatColumns.flatMap((column) => column.fgridFormatFields || []))];
     // The multi-select always needs its stored `A;B` string split into the array the
     // checkbox group binds to.
@@ -939,6 +974,19 @@ export function buildRows(records, columns, keyField = "Id", picklistContext = n
             // shows an empty dropdown and leaves the user guessing; the cell is
             // disabled instead, which says the same thing without the guessing.
             row[column.fieldName + PICKLIST_LOCKED_SUFFIX] = resolvedOptions.length === 0;
+        });
+
+        progressColumns.forEach((column) => {
+            const raw = Number(row[column.fieldName]);
+            const total = column.fgridProgressTotal || 100;
+            // Clamped as well as rounded, matching what lightning-progress-bar
+            // documents for its own value, so an out-of-range number cannot
+            // draw a fill wider than the track.
+            const percent = Number.isFinite(raw) && total ? Math.max(0, Math.min(100, (raw / total) * 100)) : 0;
+            const rounded = Math.round(percent);
+            row[column.fgridProgressKey] = rounded;
+            row[`${column.fgridProgressKey}Label`] = `${rounded}%`;
+            row[`${column.fgridProgressKey}Style`] = `width: ${percent}%`;
         });
 
         // LAST, because a rule reads the row and everything above is still

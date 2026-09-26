@@ -185,33 +185,44 @@
                                                 <div class="drawer__section drawer__typed">
                                                     <p class="drawer__typed-why">Because of this column's type</p>
                                                     <div class="drawer__row">
-                                                        <lightning-input
-                                                            class="drawer__field"
-                                                            type="number"
-                                                            label="Minimum decimals"
-                                                            data-field={row.field}
-                                                            data-attribute="minDecimals"
-                                                            value={row.minDecimals}
-                                                            onchange={handleNumberChange}
-                                                        ></lightning-input>
-                                                        <lightning-input
-                                                            class="drawer__field"
-                                                            type="number"
-                                                            label="Maximum decimals"
-                                                            data-field={row.field}
-                                                            data-attribute="maxDecimals"
-                                                            value={row.maxDecimals}
-                                                            onchange={handleNumberChange}
-                                                        ></lightning-input>
-                                                        <lightning-input
-                                                            class="drawer__field"
-                                                            type="number"
-                                                            label="Minimum whole digits"
-                                                            data-field={row.field}
-                                                            data-attribute="minIntegerDigits"
-                                                            value={row.minIntegerDigits}
-                                                            onchange={handleNumberChange}
-                                                        ></lightning-input>
+                                                        <!-- Currency gets ONE value, written to both fraction
+                                                             bounds: $1,234.50, never $1,234.5. A plain number
+                                                             keeps the pair, where variable decimals are real. -->
+                                                        <template lwc:if={row.isCurrencyGroup}>
+                                                            <lightning-input
+                                                                class="drawer__field"
+                                                                type="number"
+                                                                min="0"
+                                                                max={row.fieldScale}
+                                                                label="Decimal places"
+                                                                field-level-help={row.decimalsHelp}
+                                                                data-field={row.field}
+                                                                value={row.decimals}
+                                                                onchange={handleDecimalsChange}
+                                                            ></lightning-input>
+                                                        </template>
+                                                        <template lwc:if={row.isPlainNumberGroup}>
+                                                            <lightning-input
+                                                                class="drawer__field"
+                                                                type="number"
+                                                                min="0"
+                                                                label="Minimum decimals"
+                                                                data-field={row.field}
+                                                                data-attribute="minDecimals"
+                                                                value={row.minDecimals}
+                                                                onchange={handleNumberChange}
+                                                            ></lightning-input>
+                                                            <lightning-input
+                                                                class="drawer__field"
+                                                                type="number"
+                                                                min="0"
+                                                                label="Maximum decimals"
+                                                                data-field={row.field}
+                                                                data-attribute="maxDecimals"
+                                                                value={row.maxDecimals}
+                                                                onchange={handleNumberChange}
+                                                            ></lightning-input>
+                                                        </template>
                                                         <lightning-input
                                                             class="drawer__field"
                                                             type="number"
@@ -250,6 +261,71 @@
                                                             ></lightning-combobox>
                                                         </div>
                                                     </template>
+                                                </div>
+                                            </template>
+
+                                            <!-- ---------- Progress ---------- -->
+                                            <template lwc:if={row.isProgressGroup}>
+                                                <div class="drawer__section drawer__typed">
+                                                    <p class="drawer__typed-why">Because this column is a gauge</p>
+                                                    <div class="drawer__row">
+                                                        <lightning-combobox
+                                                            class="drawer__field"
+                                                            label="Theme"
+                                                            field-level-help="Colors the filled portion, from the same palette as the formatting rules, so Success means the same green in both."
+                                                            data-field={row.field}
+                                                            data-attribute="progressTheme"
+                                                            value={row.progressTheme}
+                                                            options={progressThemeOptions}
+                                                            onchange={handleSelectChange}
+                                                        ></lightning-combobox>
+                                                        <lightning-combobox
+                                                            class="drawer__field"
+                                                            label="Thickness"
+                                                            field-level-help="The bar's height. Its width is always the column's."
+                                                            data-field={row.field}
+                                                            data-attribute="progressThickness"
+                                                            value={row.progressThickness}
+                                                            options={progressThicknessOptions}
+                                                            onchange={handleSelectChange}
+                                                        ></lightning-combobox>
+                                                        <lightning-combobox
+                                                            class="drawer__field"
+                                                            label="Ends"
+                                                            data-field={row.field}
+                                                            data-attribute="progressShape"
+                                                            value={row.progressShape}
+                                                            options={progressShapeOptions}
+                                                            onchange={handleSelectChange}
+                                                        ></lightning-combobox>
+                                                    </div>
+                                                    <div class="drawer__row">
+                                                        <lightning-input
+                                                            class="drawer__field"
+                                                            type="number"
+                                                            min="0"
+                                                            label="Value at 100%"
+                                                            field-level-help="What counts as full. Leave blank for 100, which is right for a Percent field. Set it to use a gauge for a field on any other scale."
+                                                            data-field={row.field}
+                                                            data-attribute="progressTotal"
+                                                            value={row.progressTotal}
+                                                            onchange={handleNumberChange}
+                                                        ></lightning-input>
+                                                        <lightning-input
+                                                            class="drawer__field"
+                                                            type="checkbox"
+                                                            label="Show the value"
+                                                            field-level-help="Displays the percentage above the right end of the bar."
+                                                            data-field={row.field}
+                                                            data-attribute="showProgressValue"
+                                                            checked={row.showProgressValue}
+                                                            onchange={handleDefaultOnFlagChange}
+                                                        ></lightning-input>
+                                                    </div>
+                                                    <p class="drawer__hint">
+                                                        A gauge cannot be edited, so this column is read-only whatever
+                                                        the Edit box says.
+                                                    </p>
                                                 </div>
                                             </template>
 

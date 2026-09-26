@@ -149,3 +149,53 @@ c-fgrid_custom-datatable .slds-table td.slds-has-focus.fgridFormat,
 c-fgrid_custom-datatable .slds-table th.slds-has-focus.fgridFormat {
     color: var(--slds-g-color-on-surface-2, #2e2e2e);
 }
+
+/**********************************************************************
+ * Progress displays.
+ *
+ * The SLDS Progress Bar blueprint is rendered in our own cell template
+ * rather than using lightning-progress-bar, which has no slots for a
+ * value and whose variant cannot carry a theme. Classes below are OURS;
+ * the slds-progress-bar-* ones come from the blueprint and are left
+ * alone.
+ *
+ * Theme reuses the conditional-formatting palette, so "Success" means
+ * the same green here as it does in a rule, and adapts to the running
+ * theme for the same reason.
+ **********************************************************************/
+
+c-fgrid_custom-datatable .fgridProgress {
+    width: 100%;
+}
+
+/* Above the right end, bold. The bar spans the cell, so there is no room
+   beside it; sitting above keeps the number readable at x-small. */
+c-fgrid_custom-datatable .fgridProgress__value {
+    text-align: right;
+    font-weight: 700;
+    font-size: 0.75rem;
+    line-height: 1.1;
+    margin-bottom: 0.125rem;
+}
+
+/* The filled portion. `background` rather than `background-color`,
+   because the blueprint paints the fill with a gradient in some themes
+   and a colour alone would leave it showing through. */
+c-fgrid_custom-datatable .fgridProgressFill_success {
+    background: var(--slds-g-color-success-container-2, #2e844a);
+}
+c-fgrid_custom-datatable .fgridProgressFill_warning {
+    background: var(--slds-g-color-warning-container-1, #dd7a01);
+}
+c-fgrid_custom-datatable .fgridProgressFill_error {
+    background: var(--slds-g-color-error-container-2, #ba0517);
+}
+c-fgrid_custom-datatable .fgridProgressFill_accent {
+    background: var(--slds-g-color-accent-container-1, #066afe);
+}
+c-fgrid_custom-datatable .fgridProgressFill_neutral {
+    background: var(--slds-g-color-surface-container-3, #747474);
+}
+c-fgrid_custom-datatable .fgridProgressFill_inverse {
+    background: var(--slds-g-color-surface-container-inverse-1, #032d60);
+}

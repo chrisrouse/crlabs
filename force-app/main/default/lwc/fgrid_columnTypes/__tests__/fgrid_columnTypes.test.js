@@ -22,20 +22,34 @@ describe("what a field may be displayed as", () => {
         expect(valuesFor("DATETIME")).not.toContain("boolean");
     });
 
+    it("offers a currency exactly one display", () => {
+        // Number drops the symbol, Percent is meaningless, Text loses locale
+        // formatting. There is no better way to show money than as money.
+        expect(valuesFor("CURRENCY")).toEqual(["currency"]);
+    });
+
     it("puts the natural display first", () => {
         expect(valuesFor("DATETIME")[0]).toBe("date");
         expect(valuesFor("DATE")[0]).toBe("date-local");
-        expect(valuesFor("CURRENCY")[0]).toBe("currency");
         expect(valuesFor("REFERENCE")[0]).toBe("fgridLookup");
     });
 
-    it("always allows text, because any value can be printed", () => {
-        ["CURRENCY", "DATETIME", "BOOLEAN", "PICKLIST", "REFERENCE", "PERCENT"].forEach((displayType) => {
+    it("allows text wherever text is a different rendering", () => {
+        ["DATETIME", "BOOLEAN", "REFERENCE", "PERCENT"].forEach((displayType) => {
             expect(valuesFor(displayType)).toContain("text");
         });
     });
 
-    it("lets numbers move between the three numeric displays", () => {
+    it("omits text for a picklist, where it would be the same rendering twice", () => {
+        // The picklist DISPLAY template is already a plain span -- read-only it
+        // is identical to a text cell -- so Text would offer nothing new while
+        // quietly costing the picklist editor.
+        expect(valuesFor("PICKLIST")).not.toContain("text");
+        expect(valuesFor("MULTIPICKLIST")).not.toContain("text");
+    });
+
+    it("lets a plain number move between the numeric displays", () => {
+        // Unlike Currency: a Number genuinely might be money or a rate.
         expect(valuesFor("DOUBLE")).toEqual(expect.arrayContaining(["number", "currency", "percent"]));
     });
 
@@ -65,7 +79,7 @@ describe("what a field may be displayed as", () => {
     it("reports when a field has no alternative display", () => {
         expect(canChangeType("ID")).toBe(false);
         expect(canChangeType("ENCRYPTEDSTRING")).toBe(false);
-        expect(canChangeType("CURRENCY")).toBe(true);
+        expect(canChangeType("DOUBLE")).toBe(true);
     });
 });
 
@@ -106,8 +120,9 @@ describe("currency display options", () => {
 describe("badge is a display, not a data type", () => {
     it("offers Badge to a picklist, right after the picklist itself", () => {
         // They read as alternatives, which is how an admin thinks about it.
-        const values = valuesFor("PICKLIST");
-        expect(values).toEqual(["fgridPicklist", BADGE_DISPLAY, "text"]);
+        // Picklist or Badge is the whole choice for a picklist field.
+        expect(valuesFor("PICKLIST")).toEqual(["fgridPicklist", BADGE_DISPLAY]);
+        expect(valuesFor("MULTIPICKLIST")).toEqual(["fgridMultiPicklist", BADGE_DISPLAY]);
     });
 
     it("offers Badge to a multi-select picklist too", () => {
@@ -117,7 +132,7 @@ describe("badge is a display, not a data type", () => {
     it("does not offer Badge where nothing of ours can draw one", () => {
         // Plain text uses the datatable's own type, which has no template of
         // ours to put a badge in.
-        ["CURRENCY", "DATETIME", "STRING", "BOOLEAN", "REFERENCE"].forEach((displayType) =>
+        ["DATETIME", "STRING", "BOOLEAN", "REFERENCE"].forEach((displayType) =>
             expect(valuesFor(displayType)).not.toContain(BADGE_DISPLAY)
         );
     });
@@ -142,5 +157,25 @@ describe("badge is a display, not a data type", () => {
         expect(supportsBadge("fgridPicklist")).toBe(true);
         expect(supportsBadge("fgridMultiPicklist")).toBe(true);
         expect(supportsBadge("text")).toBe(false);
+    });
+});
+
+describe("a badged picklist stays editable", () => {
+    it("never routes a multi-select field to the single-select type", () => {
+        // Single versus multi is the field's business. Choosing Badge must not
+        // silently downgrade a multi-select column to single.
+        expect(resolveDisplay(BADGE_DISPLAY, "MULTIPICKLIST").type).toBe("fgridMultiPicklist");
+        expect(resolveDisplay(BADGE_DISPLAY, "PICKLIST").type).toBe("fgridPicklist");
+    });
+
+    it("resolves Badge to a type that has an edit template", () => {
+        // The point of difference from Avonni, whose badge is read-only. Ours
+        // keeps editing because the badge is only a display and the type it
+        // resolves to is the ordinary picklist one.
+        ["PICKLIST", "MULTIPICKLIST"].forEach((displayType) => {
+            const { type, badge } = resolveDisplay(BADGE_DISPLAY, displayType);
+            expect(badge).toBe(true);
+            expect(supportsBadge(type)).toBe(true);
+        });
     });
 });

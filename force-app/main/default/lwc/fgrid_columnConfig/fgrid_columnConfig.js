@@ -39,7 +39,10 @@ import {
     displayValueFor,
     resolveDisplay,
     ATTRIBUTE_GROUP,
-    CURRENCY_DISPLAYS
+    CURRENCY_DISPLAYS,
+    PROGRESS_THEMES,
+    PROGRESS_THICKNESS,
+    PROGRESS_SHAPES
 } from "c/fgrid_columnTypes";
 import {
     FORMAT_STYLES,
@@ -118,6 +121,9 @@ export default class FgridColumnConfig extends LightningElement {
     emphasisOptions = EMPHASIS_OPTIONS;
     logicOptions = FORMAT_LOGIC_OPTIONS;
     currencyDisplayOptions = CURRENCY_DISPLAYS;
+    progressThemeOptions = PROGRESS_THEMES;
+    progressThicknessOptions = PROGRESS_THICKNESS;
+    progressShapeOptions = PROGRESS_SHAPES;
 
     /* ------------------------------------------------------------------ *
      * Derived model
@@ -183,12 +189,26 @@ export default class FgridColumnConfig extends LightningElement {
                 typeOptions: typeOptionsFor(describe?.displayType),
                 isNumberGroup: group === ATTRIBUTE_GROUP.NUMBER || group === ATTRIBUTE_GROUP.CURRENCY,
                 isCurrencyGroup: group === ATTRIBUTE_GROUP.CURRENCY,
+                // A plain number can want a variable number of decimals -- a
+                // rate reading 1.5 or 1.25. Money cannot: $1,234.5 is wrong.
+                // So currency gets ONE control and the pair stays for numbers.
+                isPlainNumberGroup: group === ATTRIBUTE_GROUP.NUMBER,
+                isProgressGroup: group === ATTRIBUTE_GROUP.PROGRESS,
                 isTextGroup: group === ATTRIBUTE_GROUP.TEXT,
                 isPicklistGroup: group === ATTRIBUTE_GROUP.PICKLIST,
                 isLookupGroup: group === ATTRIBUTE_GROUP.LOOKUP,
                 showCurrencyCode: group === ATTRIBUTE_GROUP.CURRENCY && this.multiCurrency,
                 currencyOptions: this.currencyOptions,
 
+                // One value for currency, written to both bounds. Reads the
+                // legacy `scale` too, so nothing saved before needs migrating.
+                decimals: attributes.minDecimals ?? attributes.maxDecimals ?? attributes.scale ?? null,
+                // The FIELD's own decimal places, straight off the describe, as
+                // the ceiling. Showing more than the field stores invents
+                // precision -- a 2-place field rendered to 5 reads $1.20000,
+                // which claims an accuracy the data does not have.
+                fieldScale: describe?.scale ?? null,
+                decimalsHelp: decimalsHelpFor(describe?.scale),
                 minDecimals: attributes.minDecimals ?? attributes.scale ?? null,
                 maxDecimals: attributes.maxDecimals ?? attributes.scale ?? null,
                 minIntegerDigits: attributes.minIntegerDigits ?? null,
@@ -199,6 +219,11 @@ export default class FgridColumnConfig extends LightningElement {
                 showName: attributes.showName !== false,
                 link: attributes.link !== false,
                 isPolymorphic: Boolean(describe?.isPolymorphic),
+                progressTheme: attributes.progressTheme ?? "",
+                progressThickness: attributes.progressThickness ?? "medium",
+                progressShape: attributes.progressShape ?? "",
+                progressTotal: attributes.progressTotal ?? null,
+                showProgressValue: attributes.showProgressValue !== false,
                 icon: attributes.icon ?? "",
                 headerIcon: attributes.headerIcon ?? "",
                 hasHeaderIcon: Boolean(attributes.headerIcon),
@@ -297,6 +322,41 @@ export default class FgridColumnConfig extends LightningElement {
     handleTextChange(event) {
         const { field, attribute } = event.currentTarget.dataset;
         this.apply(field, attribute, event.target.value || null);
+    }
+
+    /**
+     * Currency's single Decimal places, written to BOTH fraction bounds.
+     *
+     * Equal bounds is what "always show N decimals" means: $1,234.50 rather
+     * than $1,234.5. Rounding is the platform's -- Intl rounds rather than
+     * truncates, so a value stored to five places shows as two correctly
+     * without anything from us.
+     */
+    handleDecimalsChange(event) {
+        const { field } = event.currentTarget.dataset;
+        const raw = event.target.value;
+        const attributes = { ...(this.config[field] || {}) };
+
+        if (raw === "" || raw === null || raw === undefined) {
+            delete attributes.minDecimals;
+            delete attributes.maxDecimals;
+        } else {
+            const parsed = Number(raw);
+            if (!Number.isFinite(parsed)) {
+                return;
+            }
+            // `min` and `max` on the input are advisory -- a typed or pasted
+            // value still arrives -- so the clamp is applied here too. Never
+            // below zero, and never more places than the field actually
+            // stores, which would invent precision the data does not have.
+            const ceiling = this.describeByPath?.[field]?.scale;
+            const clamped = Math.max(0, Number.isFinite(ceiling) ? Math.min(parsed, ceiling) : parsed);
+            attributes.minDecimals = clamped;
+            attributes.maxDecimals = clamped;
+        }
+        // The legacy single value would otherwise win back on the next read.
+        delete attributes.scale;
+        this.replace(field, attributes);
     }
 
     handleNumberChange(event) {
@@ -554,4 +614,13 @@ export default class FgridColumnConfig extends LightningElement {
         const value = Object.keys(pruned).length ? JSON.stringify(pruned) : null;
         this.dispatchEvent(new CustomEvent("columnconfigchange", { detail: { value } }));
     }
+}
+
+/** Help text naming the field's own precision, so the ceiling is not a mystery. */
+function decimalsHelpFor(scale) {
+    const rounds = "A value stored to more places is rounded, not cut off: 123.4567 shown to 2 places reads 123.46.";
+    if (scale === null || scale === undefined) {
+        return rounds;
+    }
+    return `This field stores ${scale} decimal place${scale === 1 ? "" : "s"}, so that is the most it can show. ${rounds}`;
 }

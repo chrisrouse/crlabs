@@ -29,6 +29,66 @@ import {
     parseFieldList
 } from "c/fgrid_gridModel";
 
+describe("the progress bar display", () => {
+    const bar = (attrs = {}) => buildColumns(["Complete"], { Complete: { type: "fgridProgressBar", ...attrs } })[0];
+    const rowsFor = (records, attrs = {}) => buildRows(records, [bar(attrs)]);
+
+    it("renders the blueprint's classes, with thickness as the size modifier", () => {
+        expect(bar().typeAttributes.barClass).toBe("slds-progress-bar slds-progress-bar_medium");
+        expect(bar({ progressThickness: "x-small" }).typeAttributes.barClass).toContain("slds-progress-bar_x-small");
+        expect(bar({ progressShape: "circular" }).typeAttributes.barClass).toContain("slds-progress-bar_circular");
+    });
+
+    it("colors the fill from the same palette as the rules", () => {
+        expect(bar().typeAttributes.fillClass).toBe("slds-progress-bar__value");
+        expect(bar({ progressTheme: "success" }).typeAttributes.fillClass).toBe(
+            "slds-progress-bar__value fgridProgressFill_success"
+        );
+    });
+
+    it("takes a stored percent as-is, NOT as a fraction", () => {
+        // A Salesforce Percent field stores 25 for 25%, which is already what
+        // a gauge wants. The datatable's own `percent` type needs 0.25 and we
+        // convert for it -- keyed on the type, so this display skips it. Get
+        // this wrong and a 25% field draws an empty bar.
+        const [row] = rowsFor([{ Id: "1", Complete: 25 }]);
+        expect(row.Complete__fgridProgress).toBe(25);
+        expect(row.Complete__fgridProgressStyle).toBe("width: 25%");
+        expect(row.Complete__fgridProgressLabel).toBe("25%");
+    });
+
+    it("scales against a total, so a gauge works off a percent field", () => {
+        // SLDS progress is hard-wired 0-100; without this a field on any other
+        // scale cannot drive one.
+        const [row] = rowsFor([{ Id: "1", Complete: 250 }], { progressTotal: 1000 });
+        expect(row.Complete__fgridProgress).toBe(25);
+    });
+
+    it("clamps out-of-range values rather than overflowing the track", () => {
+        const [over] = rowsFor([{ Id: "1", Complete: 140 }]);
+        expect(over.Complete__fgridProgress).toBe(100);
+        const [under] = rowsFor([{ Id: "1", Complete: -20 }]);
+        expect(under.Complete__fgridProgress).toBe(0);
+    });
+
+    it("reads a blank or non-numeric value as zero", () => {
+        [null, undefined, "", "abc"].forEach((value) => {
+            const [row] = rowsFor([{ Id: "1", Complete: value }]);
+            expect(row.Complete__fgridProgress).toBe(0);
+        });
+    });
+
+    it("forces the column read-only, because a gauge has no editor", () => {
+        // The type ships no editTemplate, so an edit pencil would do nothing.
+        expect(bar({ edit: true }).editable).toBe(false);
+    });
+
+    it("shows the value unless it is turned off", () => {
+        expect(bar().typeAttributes.showValue).toBe(true);
+        expect(bar({ showProgressValue: false }).typeAttributes.showValue).toBe(false);
+    });
+});
+
 describe("conditional formatting reaches the rendered cell", () => {
     // The gap that made rules look broken: they were saved and read by the
     // editor, and nothing in the rendering path ever evaluated them.

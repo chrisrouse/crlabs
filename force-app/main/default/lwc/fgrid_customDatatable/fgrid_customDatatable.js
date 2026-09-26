@@ -31,6 +31,7 @@
  */
 import LightningDatatable from "lightning/datatable";
 import picklistDisplay from "./picklistDisplay.html";
+import progressBarDisplay from "./progressBarDisplay.html";
 import picklistEdit from "./picklistEdit.html";
 import multiPicklistDisplay from "./multiPicklistDisplay.html";
 import multiPicklistEdit from "./multiPicklistEdit.html";
@@ -66,6 +67,13 @@ export default class FgridCustomDatatable extends LightningDatatable {
             editTemplate: longTextEdit,
             standardCellLayout: true,
             typeAttributes: ["maxLength"]
+        },
+        // No editTemplate: a gauge is a reading, not an input. The column
+        // forces Editable off rather than showing a pencil that does nothing.
+        fgridProgressBar: {
+            template: progressBarDisplay,
+            standardCellLayout: true,
+            typeAttributes: ["progressValue", "progressLabel", "progressStyle", "barClass", "fillClass", "showValue"]
         },
         fgridTime: {
             template: timeDisplay,

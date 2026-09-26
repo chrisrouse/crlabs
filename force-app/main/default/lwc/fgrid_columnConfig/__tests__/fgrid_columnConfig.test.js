@@ -32,6 +32,13 @@ function role(element, field, name) {
 
 const cellIn = (element, field) => role(element, field, "type");
 
+/** Currency's single Decimal places input, which carries no data-attribute. */
+function decimalsInput(element, field) {
+    return [...element.shadowRoot.querySelectorAll(`lightning-input[data-field="${field}"]`)].find(
+        (input) => input.label === "Decimal places"
+    );
+}
+
 /** Clicks the drawer button with a given label for a column. */
 function clickButton(element, field, label) {
     const button = [...element.shadowRoot.querySelectorAll(`lightning-button[data-field="${field}"]`)].find(
@@ -239,16 +246,14 @@ describe("the drawer is type-aware", () => {
         return element;
     }
 
-    it("offers a currency field only the displays it can use", async () => {
+    it("offers a currency field only the display it can use", async () => {
+        // Money shows as money. The alternatives all make the column worse.
         const element = buildTyped();
         await Promise.resolve();
         openDrawer(element, "Amount");
         await Promise.resolve();
 
-        const values = cellIn(element, "Amount").options.map((option) => option.value);
-        expect(values).toEqual(expect.arrayContaining(["currency", "number", "percent", "text"]));
-        expect(values).not.toContain("boolean");
-        expect(values).not.toContain("date");
+        expect(cellIn(element, "Amount").options.map((option) => option.value)).toEqual(["currency"]);
     });
 
     it("shows decimals for a currency and hides them for text", async () => {
@@ -257,14 +262,68 @@ describe("the drawer is type-aware", () => {
 
         openDrawer(element, "Amount");
         await Promise.resolve();
-        expect(cell(element, "Amount", "minDecimals")).not.toBeNull();
+        expect(decimalsInput(element, "Amount")).not.toBeNull();
 
         openDrawer(element, "Amount");
         await Promise.resolve();
         openDrawer(element, "Name");
         await Promise.resolve();
-        expect(cell(element, "Name", "minDecimals")).toBeNull();
+        expect(decimalsInput(element, "Name")).toBeUndefined();
         expect(cell(element, "Name", "linkify")).not.toBeNull();
+    });
+
+    it("caps decimal places at what the field itself stores", async () => {
+        // Showing more places than the field holds invents precision: a
+        // 2-place field rendered to 5 reads $1.20000.
+        const element = buildTyped();
+        element.describeByPath = {
+            Amount: { dataType: "currency", displayType: "CURRENCY", scale: 2 },
+            Name: { dataType: "text", displayType: "STRING" }
+        };
+        await Promise.resolve();
+        openDrawer(element, "Amount");
+        await Promise.resolve();
+
+        const input = decimalsInput(element, "Amount");
+        expect(input.max).toBe(2);
+        expect(input.min).toBe("0");
+    });
+
+    it("clamps a typed value that ignores the cap", async () => {
+        // min and max on the input are advisory; a pasted value still lands.
+        const element = buildTyped();
+        element.describeByPath = { Amount: { dataType: "currency", displayType: "CURRENCY", scale: 2 } };
+        await Promise.resolve();
+        openDrawer(element, "Amount");
+        await Promise.resolve();
+        const emitted = onChange(element);
+
+        const input = decimalsInput(element, "Amount");
+        input.value = "9";
+        input.dispatchEvent(new CustomEvent("change"));
+        expect(JSON.parse(emitted[0]).Amount.maxDecimals).toBe(2);
+
+        input.value = "-3";
+        input.dispatchEvent(new CustomEvent("change"));
+        expect(JSON.parse(emitted[1]).Amount.maxDecimals).toBe(0);
+    });
+
+    it("writes one value to both fraction bounds", async () => {
+        // Equal bounds is what "always show N decimals" means: $1,234.50, not
+        // $1,234.5.
+        const element = buildTyped();
+        await Promise.resolve();
+        openDrawer(element, "Amount");
+        await Promise.resolve();
+        const emitted = onChange(element);
+
+        const input = decimalsInput(element, "Amount");
+        input.value = "4";
+        input.dispatchEvent(new CustomEvent("change"));
+
+        const saved = JSON.parse(emitted[0]).Amount;
+        expect(saved.minDecimals).toBe(4);
+        expect(saved.maxDecimals).toBe(4);
     });
 
     it("withholds the currency code until the org is multi-currency", async () => {

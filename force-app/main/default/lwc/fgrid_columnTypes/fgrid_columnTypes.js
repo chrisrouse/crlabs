@@ -29,6 +29,7 @@ export const COLUMN_TYPES = [
     { label: "Number", value: "number" },
     { label: "Currency", value: "currency" },
     { label: "Percent", value: "percent" },
+    { label: "Progress Bar", value: "fgridProgressBar" },
     { label: "Date", value: "date-local" },
     { label: "Date/Time", value: "date" },
     { label: "Time", value: "fgridTime" },
@@ -48,11 +49,18 @@ export const COLUMN_TYPES = [
  * is the natural one and is what the describe would have chosen anyway.
  */
 const TYPES_FOR_DISPLAY_TYPE = {
-    CURRENCY: ["currency", "number", "percent", "text"],
+    // Currency shows as currency. Re-displaying it as a Number drops the
+    // symbol, as a Percent is meaningless, and as Text loses locale formatting
+    // -- three ways to make the column worse and none to make it better.
+    CURRENCY: ["currency"],
     DOUBLE: ["number", "currency", "percent", "text"],
     INTEGER: ["number", "currency", "percent", "text"],
     LONG: ["number", "currency", "percent", "text"],
-    PERCENT: ["percent", "number", "text"],
+    // A percent is the one field that can genuinely be a gauge. Progress Bar
+    // renders the SLDS blueprint in our own markup rather than wrapping
+    // lightning-progress-bar, which has no slots -- there is nowhere in it to
+    // put a value, and its `variant` cannot carry a theme.
+    PERCENT: ["percent", "fgridProgressBar", "number", "text"],
 
     DATE: ["date-local", "date", "text"],
     DATETIME: ["date", "date-local", "text"],
@@ -63,8 +71,15 @@ const TYPES_FOR_DISPLAY_TYPE = {
     PHONE: ["phone", "text"],
     URL: ["url", "text"],
 
-    PICKLIST: ["fgridPicklist", "text"],
-    MULTIPICKLIST: ["fgridMultiPicklist", "text"],
+    // No Text here, unlike every other family. Our picklist DISPLAY template is
+    // already a plain span -- read-only it is identical to a text cell -- so a
+    // Text option would offer the same rendering twice while quietly costing
+    // the picklist editor. Picklist or Badge is the whole choice.
+    //
+    // Single versus multi is the FIELD's business, not the admin's: a
+    // multi-select field gets the multi type and never offers the single one.
+    PICKLIST: ["fgridPicklist"],
+    MULTIPICKLIST: ["fgridMultiPicklist"],
     REFERENCE: ["fgridLookup", "text"],
 
     TEXTAREA: ["fgridLongText", "text"],
@@ -96,8 +111,22 @@ const TYPES_FOR_DISPLAY_TYPE = {
  */
 export const BADGE_DISPLAY = "badge";
 
+/**
+ * Badge does NOT make the column read-only.
+ *
+ * Avonni's badge type is read-only; ours is not, because the badge is only a
+ * display and `fgridPicklist` keeps its `picklistEdit` template either way. A
+ * badged picklist marked editable still edits as a picklist, which is the
+ * better behavior and costs nothing to keep.
+ */
+
 /** Only our own picklist templates can draw a badge today. Plain text uses the
  *  datatable's built-in type, which has no template of ours to put one in. */
+/** Displays that render a gauge, and so cannot be edited. */
+export function isProgress(type) {
+    return type === "fgridProgressBar";
+}
+
 export function supportsBadge(type) {
     return type === "fgridPicklist" || type === "fgridMultiPicklist";
 }
@@ -157,6 +186,7 @@ export const ATTRIBUTE_GROUP = {
     DATE: "date",
     PICKLIST: "picklist",
     LOOKUP: "lookup",
+    PROGRESS: "progress",
     NONE: "none"
 };
 
@@ -185,6 +215,8 @@ export function attributeGroupFor(type) {
             return ATTRIBUTE_GROUP.PICKLIST;
         case "fgridLookup":
             return ATTRIBUTE_GROUP.LOOKUP;
+        case "fgridProgressBar":
+            return ATTRIBUTE_GROUP.PROGRESS;
         default:
             return ATTRIBUTE_GROUP.NONE;
     }
@@ -206,4 +238,34 @@ export const CURRENCY_DISPLAYS = [
     { label: "Symbol — $1,234.00", value: "symbol" },
     { label: "Code — USD 1,234.00", value: "code" },
     { label: "Name — 1,234.00 US dollars", value: "name" }
+];
+
+/** How the filled portion is colored, from the same palette as the rules. */
+export const PROGRESS_THEMES = [
+    { label: "Default", value: "" },
+    { label: "Success", value: "success" },
+    { label: "Warning", value: "warning" },
+    { label: "Error", value: "error" },
+    { label: "Accent", value: "accent" },
+    { label: "Neutral", value: "neutral" },
+    { label: "Inverse", value: "inverse" }
+];
+
+/**
+ * Bar thickness, which is the SLDS blueprint's own size scale.
+ *
+ * For a BAR, size and thickness are the same thing: the width is the cell's,
+ * so the only dimension left is height. Ring and circle will need them apart.
+ */
+export const PROGRESS_THICKNESS = [
+    { label: "X-Small", value: "x-small" },
+    { label: "Small", value: "small" },
+    { label: "Medium", value: "medium" },
+    { label: "Large", value: "large" }
+];
+
+/** Square ends or rounded, matching the blueprint's `_circular` modifier. */
+export const PROGRESS_SHAPES = [
+    { label: "Square", value: "" },
+    { label: "Rounded", value: "circular" }
 ];

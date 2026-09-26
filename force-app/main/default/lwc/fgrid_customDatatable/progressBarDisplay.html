@@ -1,0 +1,34 @@
+<!-- SLDS Progress Bar blueprint, rendered in OUR markup.
+     https://v1.lightningdesignsystem.com/components/progress-bar/
+
+     NOT lightning-progress-bar. That component has no slots, so there is
+     nowhere in it to put the value, and its `variant` is only base or
+     circular, so a theme has nothing to bind to. Owning the markup also
+     separates thickness from the fill color and keeps both consistent with the
+     conditional-formatting palette.
+
+     What we take on by owning it is the ARIA, which the blueprint states
+     outright: role, the three aria-value attributes, and an assistive-text
+     span. All of it is below -- if this markup is edited, keep them. -->
+<template>
+    <div class="fgridProgress">
+        <!-- Above the right end and bold, per the design. The bar is the
+             whole cell width, so the value cannot sit beside it. -->
+        <template lwc:if={typeAttributes.showValue}>
+            <div class="fgridProgress__value">{typeAttributes.progressLabel}</div>
+        </template>
+
+        <div
+            class={typeAttributes.barClass}
+            role="progressbar"
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow={typeAttributes.progressValue}
+            aria-label={typeAttributes.progressLabel}
+        >
+            <span class={typeAttributes.fillClass} style={typeAttributes.progressStyle}>
+                <span class="slds-assistive-text">{typeAttributes.progressLabel}</span>
+            </span>
+        </div>
+    </div>
+</template>
