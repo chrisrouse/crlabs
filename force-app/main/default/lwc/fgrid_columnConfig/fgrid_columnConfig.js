@@ -33,7 +33,14 @@
  */
 import { LightningElement, api, track } from "lwc";
 import { parseFieldList, parseColumnConfig, filterKindFor, operatorsFor, defaultOperatorFor } from "c/fgrid_gridModel";
-import { typeOptionsFor, attributeGroupFor, ATTRIBUTE_GROUP, CURRENCY_DISPLAYS } from "c/fgrid_columnTypes";
+import {
+    typeOptionsFor,
+    attributeGroupFor,
+    displayValueFor,
+    resolveDisplay,
+    ATTRIBUTE_GROUP,
+    CURRENCY_DISPLAYS
+} from "c/fgrid_columnTypes";
 import {
     FORMAT_STYLES,
     TEXT_ONLY_STYLES,
@@ -172,6 +179,7 @@ export default class FgridColumnConfig extends LightningElement {
 
                 // ----- drawer -----
                 type,
+                display: displayValueFor(type, attributes.badge),
                 typeOptions: typeOptionsFor(describe?.displayType),
                 isNumberGroup: group === ATTRIBUTE_GROUP.NUMBER || group === ATTRIBUTE_GROUP.CURRENCY,
                 isCurrencyGroup: group === ATTRIBUTE_GROUP.CURRENCY,
@@ -195,7 +203,6 @@ export default class FgridColumnConfig extends LightningElement {
                 headerIcon: attributes.headerIcon ?? "",
                 hasHeaderIcon: Boolean(attributes.headerIcon),
                 hideLabel: Boolean(attributes.hideLabel),
-                badge: Boolean(attributes.badge),
 
                 colorMode,
                 isPerColumnColor: colorMode === "column",
@@ -341,12 +348,14 @@ export default class FgridColumnConfig extends LightningElement {
      */
     handleTypeChange(event) {
         const { field } = event.currentTarget.dataset;
-        const next = event.detail.value || null;
         const attributes = { ...(this.config[field] || {}) };
-        const wasNumeric = attributeGroupFor(attributes.type || "text");
-        const isNumeric = attributeGroupFor(next || "text");
+        // Badge is a display in the same list, so the chosen value splits into
+        // a real type and a flag rather than being stored as written.
+        const { type: next, badge } = resolveDisplay(event.detail.value, this.describeByPath?.[field]?.displayType);
+        const wasGroup = attributeGroupFor(attributes.type || "text");
+        const isGroup = attributeGroupFor(next || "text");
 
-        if (wasNumeric !== isNumeric) {
+        if (wasGroup !== isGroup) {
             ["minDecimals", "maxDecimals", "minIntegerDigits", "currencyCode", "currencyDisplayAs", "step"].forEach(
                 (key) => delete attributes[key]
             );
@@ -355,6 +364,11 @@ export default class FgridColumnConfig extends LightningElement {
             attributes.type = next;
         } else {
             delete attributes.type;
+        }
+        if (badge) {
+            attributes.badge = true;
+        } else {
+            delete attributes.badge;
         }
         this.replace(field, attributes);
     }

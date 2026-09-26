@@ -300,6 +300,61 @@ describe("the drawer is type-aware", () => {
     });
 });
 
+describe("badge is chosen from the type list", () => {
+    function buildPicklist(config = null) {
+        const element = build({ columnFields: '["Stage"]', columnConfig: config });
+        element.describeByPath = { Stage: { dataType: "fgridPicklist", displayType: "PICKLIST" } };
+        return element;
+    }
+
+    it("offers Badge beside Picklist rather than as a separate checkbox", async () => {
+        const element = buildPicklist();
+        await Promise.resolve();
+        openDrawer(element, "Stage");
+        await Promise.resolve();
+
+        expect(cellIn(element, "Stage").options.map((option) => option.value)).toContain("badge");
+        expect(cell(element, "Stage", "badge")).toBeNull();
+    });
+
+    it("stores Badge as the real type plus a flag", async () => {
+        const element = buildPicklist();
+        await Promise.resolve();
+        openDrawer(element, "Stage");
+        await Promise.resolve();
+        const emitted = onChange(element);
+
+        cellIn(element, "Stage").dispatchEvent(new CustomEvent("change", { detail: { value: "badge" } }));
+
+        const saved = JSON.parse(emitted[0]).Stage;
+        expect(saved.type).toBe("fgridPicklist");
+        expect(saved.badge).toBe(true);
+    });
+
+    it("shows Badge as the selected display when the flag is stored", async () => {
+        const element = buildPicklist('{"Stage":{"type":"fgridPicklist","badge":true}}');
+        await Promise.resolve();
+        openDrawer(element, "Stage");
+        await Promise.resolve();
+
+        expect(cellIn(element, "Stage").value).toBe("badge");
+    });
+
+    it("clears the flag when another display is chosen", async () => {
+        const element = buildPicklist('{"Stage":{"type":"fgridPicklist","badge":true}}');
+        await Promise.resolve();
+        openDrawer(element, "Stage");
+        await Promise.resolve();
+        const emitted = onChange(element);
+
+        cellIn(element, "Stage").dispatchEvent(new CustomEvent("change", { detail: { value: "text" } }));
+
+        const saved = JSON.parse(emitted[0]).Stage;
+        expect(saved.type).toBe("text");
+        expect(saved.badge).toBeUndefined();
+    });
+});
+
 describe("color mode and rules", () => {
     function buildRules(config = null) {
         const element = build({ columnFields: '["Amount","Status"]', columnConfig: config });

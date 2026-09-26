@@ -83,13 +83,65 @@ const TYPES_FOR_DISPLAY_TYPE = {
  * An unknown or absent DisplayType returns everything, which is the
  * user-defined-object case.
  */
+/**
+ * Badge is a DISPLAY, not a data type.
+ *
+ * It appears in the same list as the real types because that is how an admin
+ * thinks about it — "show this as a badge" sits beside "show this as text" —
+ * and because a badged picklist is still an editable picklist: the custom type
+ * keeps its `picklistEdit` template whatever the badge flag says. Modelling it
+ * as a separate checkbox leaked the implementation into the UI.
+ *
+ * It composes down to a real type plus a flag; see `resolveDisplay`.
+ */
+export const BADGE_DISPLAY = "badge";
+
+/** Only our own picklist templates can draw a badge today. Plain text uses the
+ *  datatable's built-in type, which has no template of ours to put one in. */
+export function supportsBadge(type) {
+    return type === "fgridPicklist" || type === "fgridMultiPicklist";
+}
+
+/**
+ * The display types this field may be shown as, ready for a picklist.
+ *
+ * An unknown or absent DisplayType returns everything, which is the
+ * user-defined-object case.
+ */
 export function typeOptionsFor(displayType) {
     const allowed = TYPES_FOR_DISPLAY_TYPE[String(displayType || "").toUpperCase()];
-    if (!allowed) {
-        return [...COLUMN_TYPES];
+    const options = allowed
+        ? // Ordered by the map, not by COLUMN_TYPES, so the natural display is first.
+          allowed.map((value) => COLUMN_TYPES.find((type) => type.value === value)).filter(Boolean)
+        : [...COLUMN_TYPES];
+
+    // Badge sits directly after the display it decorates, so the two read as
+    // alternatives rather than as unrelated entries.
+    const natural = options.findIndex((option) => supportsBadge(option.value));
+    if (natural >= 0) {
+        options.splice(natural + 1, 0, { label: "Badge", value: BADGE_DISPLAY });
     }
-    // Ordered by the map, not by COLUMN_TYPES, so the natural display is first.
-    return allowed.map((value) => COLUMN_TYPES.find((type) => type.value === value)).filter(Boolean);
+    return options;
+}
+
+/** The list value for a stored type and badge flag. */
+export function displayValueFor(type, badge) {
+    return badge && supportsBadge(type) ? BADGE_DISPLAY : type;
+}
+
+/**
+ * Splits a chosen display back into the type and flag that get stored.
+ *
+ * Badge needs the field's natural type to land on — single or multi-select —
+ * which is why the describe comes in rather than being inferred from the
+ * previous value.
+ */
+export function resolveDisplay(value, displayType) {
+    if (value !== BADGE_DISPLAY) {
+        return { type: value || null, badge: false };
+    }
+    const natural = typeOptionsFor(displayType).find((option) => supportsBadge(option.value));
+    return { type: natural?.value || "fgridPicklist", badge: true };
 }
 
 /** True when the field is free to be re-displayed as something else. */

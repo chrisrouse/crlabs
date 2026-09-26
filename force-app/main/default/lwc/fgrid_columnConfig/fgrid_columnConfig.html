@@ -173,7 +173,7 @@
                                                         field-level-help="What this value is displayed as. Only the types this field can sensibly use are offered."
                                                         data-field={row.field}
                                                         data-role="type"
-                                                        value={row.type}
+                                                        value={row.display}
                                                         options={row.typeOptions}
                                                         onchange={handleTypeChange}
                                                     ></lightning-combobox>
@@ -264,22 +264,6 @@
                                                         data-field={row.field}
                                                         data-attribute="linkify"
                                                         checked={row.linkify}
-                                                        onchange={handleCheckboxChange}
-                                                    ></lightning-input>
-                                                </div>
-                                            </template>
-
-                                            <!-- ---------- Picklist ---------- -->
-                                            <template lwc:if={row.isPicklistGroup}>
-                                                <div class="drawer__section drawer__typed">
-                                                    <p class="drawer__typed-why">Because this column is a picklist</p>
-                                                    <lightning-input
-                                                        type="checkbox"
-                                                        label="Show values as badges"
-                                                        field-level-help="Draws each value as an SLDS badge instead of plain text. Drawn inside the cell, so it keeps its shape when a row is hovered."
-                                                        data-field={row.field}
-                                                        data-attribute="badge"
-                                                        checked={row.badge}
                                                         onchange={handleCheckboxChange}
                                                     ></lightning-input>
                                                 </div>

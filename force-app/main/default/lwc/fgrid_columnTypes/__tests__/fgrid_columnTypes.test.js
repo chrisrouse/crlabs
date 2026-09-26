@@ -5,7 +5,11 @@ import {
     attributeGroupFor,
     isNumeric,
     ATTRIBUTE_GROUP,
-    CURRENCY_DISPLAYS
+    CURRENCY_DISPLAYS,
+    BADGE_DISPLAY,
+    supportsBadge,
+    displayValueFor,
+    resolveDisplay
 } from "c/fgrid_columnTypes";
 
 const valuesFor = (displayType) => typeOptionsFor(displayType).map((option) => option.value);
@@ -48,7 +52,9 @@ describe("what a field may be displayed as", () => {
         // The user-defined-object case: nothing can be ruled out, and refusing
         // to guess beats guessing wrong.
         [undefined, null, "", "SOMETHING_NEW"].forEach((displayType) => {
-            expect(typeOptionsFor(displayType)).toHaveLength(COLUMN_TYPES.length);
+            // Every real type, plus Badge, which is a display rather than one
+            // of them and is added alongside the picklist it decorates.
+            expect(typeOptionsFor(displayType)).toHaveLength(COLUMN_TYPES.length + 1);
         });
     });
 
@@ -94,5 +100,47 @@ describe("which settings a display implies", () => {
 describe("currency display options", () => {
     it("uses lightning-formatted-number's own values", () => {
         expect(CURRENCY_DISPLAYS.map((option) => option.value)).toEqual(["symbol", "code", "name"]);
+    });
+});
+
+describe("badge is a display, not a data type", () => {
+    it("offers Badge to a picklist, right after the picklist itself", () => {
+        // They read as alternatives, which is how an admin thinks about it.
+        const values = valuesFor("PICKLIST");
+        expect(values).toEqual(["fgridPicklist", BADGE_DISPLAY, "text"]);
+    });
+
+    it("offers Badge to a multi-select picklist too", () => {
+        expect(valuesFor("MULTIPICKLIST")).toContain(BADGE_DISPLAY);
+    });
+
+    it("does not offer Badge where nothing of ours can draw one", () => {
+        // Plain text uses the datatable's own type, which has no template of
+        // ours to put a badge in.
+        ["CURRENCY", "DATETIME", "STRING", "BOOLEAN", "REFERENCE"].forEach((displayType) =>
+            expect(valuesFor(displayType)).not.toContain(BADGE_DISPLAY)
+        );
+    });
+
+    it("splits Badge back into a real type and a flag", () => {
+        expect(resolveDisplay(BADGE_DISPLAY, "PICKLIST")).toEqual({ type: "fgridPicklist", badge: true });
+        expect(resolveDisplay(BADGE_DISPLAY, "MULTIPICKLIST")).toEqual({ type: "fgridMultiPicklist", badge: true });
+    });
+
+    it("leaves a real type alone, and clears the flag", () => {
+        expect(resolveDisplay("text", "PICKLIST")).toEqual({ type: "text", badge: false });
+    });
+
+    it("round-trips a stored type and flag back to the list value", () => {
+        expect(displayValueFor("fgridPicklist", true)).toBe(BADGE_DISPLAY);
+        expect(displayValueFor("fgridPicklist", false)).toBe("fgridPicklist");
+        // A stray flag on a type that cannot draw one must not hide the type.
+        expect(displayValueFor("text", true)).toBe("text");
+    });
+
+    it("knows which types can draw a badge", () => {
+        expect(supportsBadge("fgridPicklist")).toBe(true);
+        expect(supportsBadge("fgridMultiPicklist")).toBe(true);
+        expect(supportsBadge("text")).toBe(false);
     });
 });
