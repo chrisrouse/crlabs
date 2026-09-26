@@ -1015,13 +1015,17 @@ what native does, confirmed from its editor.
 
 1–3 are the engine and are Jest-testable. 4 needs a deploy to judge.
 
-#### Reverses the `loadStyle` rejection, deliberately
+#### Reverses the `loadStyle` rejection — approved by Chris 2026-09-26
 
 §1.4's toast work records `loadStyle` as rejected: "a distributed package should
 not restyle a customer's whole site." That was about an `!important` rule
 fighting platform chrome. Here every selector is scoped under our own tag, so
 nothing outside the component can be affected. The objection stands for the
 toast case and does not apply to this one.
+
+Raised with Chris as a flagged reversal rather than assumed, and approved. The
+earlier entry stands for what it covers; shipping a static resource for scoped
+cell styling is now a sanctioned exception, not an inference drawn here.
 
 ### 2.3e Native Conditional Field Formatting — INVESTIGATED AND DECLINED 2026-09-19
 
