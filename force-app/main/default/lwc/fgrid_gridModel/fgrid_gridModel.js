@@ -1261,7 +1261,15 @@ function isPresent(value) {
     return value !== null && value !== undefined && String(value).trim() !== "";
 }
 
-function matchesFilter(raw, filter, caseSensitive) {
+/**
+ * Does one value satisfy one filter spec?
+ *
+ * Exported because conditional formatting asks exactly the same question of a
+ * row that the filter row asks: same operators, same per-kind semantics, same
+ * treatment of blanks. `c/fgrid_formatRules` reuses it rather than growing a
+ * second, drifting copy.
+ */
+export function matchesFilter(raw, filter, caseSensitive) {
     const spec = normalizeFilter(filter);
     if (!spec) {
         return true;
