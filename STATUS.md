@@ -885,6 +885,13 @@ reporting afterwards. Two questions, two outputs, neither replacing the other.
 
 ### 2.3c Row actions on a user-defined object — 2026-09-19
 
+Background reading for the whole user-defined mode, added 2026-09-26: the
+baseline author's [article](https://ericsplayground.wordpress.com/how-to-use-an-apex-defined-object-with-my-datatable-flow-component/)
+and [sample repo](https://github.com/ericrsmith35/Apex-Defined-Example). It is
+the clearest statement of what the mode is for, and see 2.5 for why it closes
+the Apex-defined work item rather than opening it.
+
+
 Row actions work in this mode. Two things behave differently, both correctly, and
 both worth knowing before someone reports them as bugs.
 
@@ -1192,33 +1199,56 @@ Nothing here is scheduled. Deferred by decision, not oversight.
 
 ### Open questions
 
-- **Apex-defined types — REASSESSED 2026-09-19, the gap is much smaller than
-  recorded.** The entry below used to say the baseline treats Apex-defined as a
-  first-class typed mode while Flow Grid only takes serialized JSON. That is
-  wrong, and it was overstating the work.
+- **Apex-defined types — CLOSED 2026-09-26. There is nothing to build.** Twice
+  reassessed; this entry supersedes both. The author's own article and sample
+  repo describe the whole intended workflow, and it needs no component change.
 
-  **The baseline takes a String too.** Its inputs are `tableDataString` and
-  `preSelectedRowsString`, both `type="String"`, with a matching set of `*String`
-  outputs. There is no Apex-typed property anywhere in its metadata. Its CPE
-  labels the flag "Input data is Apex-Defined" while the property is named
-  `isUserDefinedObject` — one feature, two names. "Apex-Defined" describes where
-  the JSON usually comes FROM (an invocable action returning a serialized class),
-  not the parameter type.
+  Sources: [How to Use an Apex-Defined Object with the Datatable Flow
+  Component](https://ericsplayground.wordpress.com/how-to-use-an-apex-defined-object-with-my-datatable-flow-component/)
+  and [ericrsmith35/Apex-Defined-Example](https://github.com/ericrsmith35/Apex-Defined-Example).
 
-  So Flow Grid is at parity on the input, and ahead on the output: it already
-  ships JSON mirrors for selected, edited, removed, remaining and actioned.
+  **The baseline takes a String, confirmed by its author.** "The Datatable
+  component expects a serialized string of the object's records and fields." Its
+  inputs are `tableDataString` and `preSelectedRowsString`, both `type="String"`,
+  with matching `*String` outputs and no Apex-typed property anywhere in its
+  metadata. Its CPE labels the flag "Input data is Apex-Defined" while the
+  property is named `isUserDefinedObject` — one feature, two names.
 
-  A genuine Apex-defined input would mean `type="apex://SomeClass[]"`, which is a
-  real Flow capability — several components in this repo use it. It is not
-  available to a datatable, because it names ONE class at design time and there
-  is no generic Apex-defined type the way `{T[]}` is generic over SObjects. Any
-  real support therefore means a wrapper class consumers extend, which is a
-  design question, not a missing feature. Still sequenced after inline editing,
-  but no longer blocking parity.
+  **The bridge is a translator action, and it CANNOT be generic.**
+  `TranslateApexDefinedRecords` is an `@InvocableMethod` converting an
+  Apex-Defined collection to a serialized string and back, in one call. But its
+  invocable variables are typed `List<SampleClassDescriptor>` — they must name a
+  concrete class, so no universal version is possible. That is exactly why the
+  article ships it as "a template for your own Apex actions" rather than as a
+  packaged action.
 
-  Original text, kept because the sequencing decision stands: "DECIDED
-  2026-08-25: genuine support is needed... it needs a real design pass, not an
-  incremental patch, and it interacts with inline editing."
+  **So the work item was never a component feature.** There is no
+  `apex://SomeClass[]` property to add — that names one class at design time, and
+  there is no generic Apex-defined type the way `{T[]}` is generic over SObjects.
+  What a consumer needs is a descriptor class and a ten-line translator, both of
+  which are theirs to write because both name their type. Flow Grid's obligation
+  is documentation, not code. Removed from the build queue; it is no longer
+  sequenced after inline editing because it is not sequenced at all.
+
+  **Correction to a claim made here on 2026-09-19:** that Flow cannot serialize
+  to JSON, so every user-defined use case has an Apex action behind it. Wrong.
+  The article notes "even without an Apex-Defined Class, you can build a String
+  in your Flow formatted as above", and the sample flow does exactly that — a
+  plain Assignment putting a JSON literal into a Text variable, feeding a second
+  datatable with no Apex involved. The Apex action is needed only to convert a
+  *live* Apex-Defined collection; hand-built or static JSON needs nothing.
+
+  **The article's configuration steps match what 2.3c unhooked**, which is
+  independent confirmation those were the right gaps: "there is no Column Wizard
+  so you will have to list your Column Field names manually", "for a User Defined
+  object, you need to specify the Column Type of data for each field... can be
+  left blank if all of the columns are text fields", and "you are required to
+  provide the name of the datatable's Key Field". Flow Grid now offers all three
+  in the panel. Column Scales for currency, number and percent is already
+  `scale` in `columnConfig`.
+
+  Flow Grid is at parity on the input and ahead on the output, already shipping
+  JSON mirrors for selected, edited, removed, remaining and actioned.
 - **Filters: header actions or a filter row?** The baseline puts Set Filter and
   Clear Filter in each column's header menu. Flow Grid uses a filter row above the
   table — simpler and more discoverable, but a different mental model for anyone
