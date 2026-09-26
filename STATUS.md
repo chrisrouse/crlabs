@@ -1214,13 +1214,41 @@ Nothing here is scheduled. Deferred by decision, not oversight.
   metadata. Its CPE labels the flag "Input data is Apex-Defined" while the
   property is named `isUserDefinedObject` — one feature, two names.
 
-  **The bridge is a translator action, and it CANNOT be generic.**
-  `TranslateApexDefinedRecords` is an `@InvocableMethod` converting an
-  Apex-Defined collection to a serialized string and back, in one call. But its
-  invocable variables are typed `List<SampleClassDescriptor>` — they must name a
-  concrete class, so no universal version is possible. That is exactly why the
-  article ships it as "a template for your own Apex actions" rather than as a
-  packaged action.
+  **The bridge is a translator action.** `TranslateApexDefinedRecords` is an
+  `@InvocableMethod` converting an Apex-Defined collection to a serialized
+  string and back, in one call. Its invocable variables are typed
+  `List<SampleClassDescriptor>`, and the article ships it as "a template for
+  your own Apex actions" rather than as a packaged one.
+
+  **Could we ship a generic one instead? Partly measured 2026-09-26, then
+  parked.** A fully generic version is impossible — the compiler rejects both
+  candidates outright:
+
+  ```
+  @InvocableVariable public Object x;        -> "InvocableVariable fields do not
+                                                 support type of Object"
+  @InvocableVariable public List<Object> x;  -> same, for List<Object>
+  ```
+
+  But `List<FgridRowBase>`, where `FgridRowBase` is a virtual Apex class we
+  ship, **does compile**. So an inheritance-based translator is not ruled out at
+  the Apex level, which an earlier version of this entry wrongly implied.
+
+  Two unknowns stopped it, both needing a real deploy and a hand-wired Flow:
+
+  1. Whether **Flow** offers a `List<YourDescriptor>` variable for a parameter
+     declared `List<FgridRowBase>`. Flow matches Apex-defined variables by class
+     name and may not honour Apex inheritance.
+  2. Whether the child's own fields survive Flow's marshalling. If it
+     materialises them as base instances, every added field is dropped and the
+     output string contains only `fgridKey` — failing silently, which is the
+     worst shape.
+
+  Parked rather than resolved, on the judgement that even a working version asks
+  the consumer to **extend our class**, coupling their data model to this
+  package and burning their single inheritance slot, against a ten-line template
+  that depends on nothing. Revisit only if the documentation route proves
+  insufficient in practice.
 
   **So the work item was never a component feature.** There is no
   `apex://SomeClass[]` property to add — that names one class at design time, and
