@@ -1,0 +1,376 @@
+<template>
+    <div class="editor">
+        <template lwc:if={hasValidationErrors}>
+            <div
+                class="slds-box slds-box_x-small slds-theme_error slds-m-bottom_x-small"
+                role="alert"
+                aria-live="assertive"
+            >
+                <p class="slds-text-title_bold slds-m-bottom_xx-small">Fix the following:</p>
+                <ul class="slds-list_dotted">
+                    <template for:each={validationErrors} for:item="error">
+                        <li key={error.key}>{error.errorString}</li>
+                    </template>
+                </ul>
+            </div>
+        </template>
+
+        <!-- Grouped by the question an admin is answering: when does this
+             complete, what happens then, what is on screen meanwhile, and how
+             is the end signposted. Only the first is needed for a working
+             configuration, so it is the one left open. -->
+        <lightning-accordion allow-multiple-sections-open active-section-name={initialSections}>
+            <lightning-accordion-section name="when" label="When to Advance">
+                <!-- Four boxes on one row, so there is no format to get wrong.
+                     Plain number inputs rather than the kit's value input --
+                     only a literal makes sense here, and a bound Flow formula
+                     could not be summed for the live total below. -->
+                <div class="slds-grid slds-gutters_xx-small">
+                    <div class="slds-col">
+                        <lightning-input
+                            type="number"
+                            data-validatable
+                            data-property="timeoutDays"
+                            label="Days"
+                            value={timeoutDays}
+                            min="0"
+                            step="1"
+                            onchange={handleDuration}
+                        ></lightning-input>
+                    </div>
+                    <div class="slds-col">
+                        <lightning-input
+                            type="number"
+                            data-validatable
+                            data-property="timeoutHours"
+                            label="Hours"
+                            value={timeoutHours}
+                            min="0"
+                            step="1"
+                            onchange={handleDuration}
+                        ></lightning-input>
+                    </div>
+                    <div class="slds-col">
+                        <lightning-input
+                            type="number"
+                            data-validatable
+                            data-property="timeoutMinutes"
+                            label="Minutes"
+                            value={timeoutMinutes}
+                            min="0"
+                            step="1"
+                            onchange={handleDuration}
+                        ></lightning-input>
+                    </div>
+                    <div class="slds-col">
+                        <lightning-input
+                            type="number"
+                            data-validatable
+                            data-property="timeoutSeconds"
+                            label="Seconds"
+                            value={timeoutSeconds}
+                            min="0"
+                            step="1"
+                            onchange={handleDuration}
+                        ></lightning-input>
+                    </div>
+                </div>
+
+                <p class={durationSummaryClass} aria-live="polite">{durationSummary}</p>
+
+                <!-- Directly under the boxes it can replace, so "leave the
+                     duration blank" is discoverable rather than buried in help
+                     text. Resource-only: a literal true would fire on load. -->
+                <div class="editor__section slds-m-top_x-small">
+                    <c-flow-config-resource-picker
+                        data-validatable
+                        data-property="advanceWhen"
+                        label="Advance When This Is True"
+                        property-name="advanceWhen"
+                        value={advanceWhen}
+                        accepted-types="Boolean"
+                        collection="exclude"
+                        allow-literal="false"
+                        field-level-help="Optional. Runs the On Timeout action as soon as this becomes true, without waiting for the timer -- for example when an upload's file is available. Bind a Boolean that changes on this screen. Leave the duration blank to use this alone, or set one as a backstop; whichever happens first wins."
+                        builder-context={builderContext}
+                        automatic-output-variables={automaticOutputVariables}
+                        api-version={apiVersion}
+                        onresourcechange={handleResourceChange}
+                    ></c-flow-config-resource-picker>
+
+                    <!-- Resource-only. A literal true would pause the timer
+                         forever; the point is to follow a value that changes. -->
+                    <c-flow-config-resource-picker
+                        data-validatable
+                        data-property="paused"
+                        label="Pause Timer"
+                        property-name="paused"
+                        value={paused}
+                        accepted-types="Boolean"
+                        collection="exclude"
+                        allow-literal="false"
+                        field-level-help="Optional. Bind a Boolean that changes on this screen -- a checkbox or a formula -- and the timer holds while it is true, keeping the time already served."
+                        builder-context={builderContext}
+                        automatic-output-variables={automaticOutputVariables}
+                        api-version={apiVersion}
+                        onresourcechange={handleResourceChange}
+                    ></c-flow-config-resource-picker>
+                </div>
+            </lightning-accordion-section>
+
+            <lightning-accordion-section name="then" label="What Happens Then">
+                <div class="editor__section">
+                    <lightning-combobox
+                        data-validatable
+                        data-property="timeoutAction"
+                        label="On Timeout"
+                        value={timeoutAction}
+                        options={actionOptions}
+                        field-level-help="What the flow does when the time runs out. Next falls back to finishing the flow on a last screen, so it covers that case too. Previous does nothing if the flow does not offer it."
+                        onchange={handleSelect}
+                    ></lightning-combobox>
+
+                    <lightning-input
+                        type="checkbox"
+                        data-validatable
+                        data-property="refreshOnTimeout"
+                        label="Refresh the Page"
+                        field-level-help="Refreshes the surrounding page when the time runs out, using the standard Refresh API. Works in console tabs, ordinary record pages and Experience Cloud. It refreshes components in place rather than reloading, so a flow on the refreshed page keeps its state."
+                        checked={refreshOnTimeout}
+                        onchange={handleCheckbox}
+                    ></lightning-input>
+
+                    <!-- Needed in Experience Cloud, where a standard Record
+                         Detail on an LWR page does not participate in the
+                         refresh tree and so ignores RefreshEvent. Notifying
+                         LDS reaches its wire directly. -->
+                    <c-flow-config-value-input
+                        data-validatable
+                        data-property="refreshRecordId"
+                        label="Record to Refresh"
+                        property-name="refreshRecordId"
+                        value={refreshRecordId}
+                        value-data-type={refreshRecordIdDataType}
+                        value-type="String"
+                        field-level-help='Use an input variable named "recordId" if using this component in Experience Cloud. Leave blank for Lightning Pages.'
+                        builder-context={builderContext}
+                        automatic-output-variables={automaticOutputVariables}
+                        api-version={apiVersion}
+                        onvaluechange={handleValueChange}
+                    ></c-flow-config-value-input>
+
+                    <lightning-input
+                        type="checkbox"
+                        data-validatable
+                        data-property="hideOnExpiry"
+                        label="Hide When Time Runs Out"
+                        field-level-help="Hides the timer once it expires but keeps its space, so nothing below it moves up. To remove it and let the screen close the gap, leave this off and put a Flow visibility condition on the Timer Expired output instead."
+                        checked={hideOnExpiry}
+                        onchange={handleCheckbox}
+                    ></lightning-input>
+                </div>
+            </lightning-accordion-section>
+
+            <lightning-accordion-section name="waiting" label="While Waiting">
+                <div class="editor__section">
+                    <lightning-input
+                        type="checkbox"
+                        data-validatable
+                        data-property="showTimer"
+                        label="Show Timer"
+                        field-level-help="Display the running time on the screen. Leave off to advance silently."
+                        checked={showTimer}
+                        onchange={handleCheckbox}
+                    ></lightning-input>
+
+                    <!-- Everything from here to Message Position needs a
+                         visible timer, so it all greys out together. -->
+                    <lightning-combobox
+                        data-validatable
+                        data-property="timerDirection"
+                        label="Timer Direction"
+                        value={timerDirection}
+                        options={directionOptions}
+                        disabled={timerOptionsDisabled}
+                        onchange={handleSelect}
+                    ></lightning-combobox>
+
+                    <lightning-combobox
+                        data-validatable
+                        data-property="timeFormat"
+                        label="Time Format"
+                        value={timeFormat}
+                        options={timeFormatOptions}
+                        disabled={timerOptionsDisabled}
+                        field-level-help="How much of the clock to show. Always Two Digits never changes width, which stops the line shifting as the numbers shrink. A duration of a day or more always shows as 2d 05:00:00."
+                        onchange={handleSelect}
+                    ></lightning-combobox>
+
+                    <lightning-input
+                        type="checkbox"
+                        data-validatable
+                        data-property="showReset"
+                        label="Show Timer Reset"
+                        field-level-help="Lets the user restart the timer. Recommended: an auto-advancing screen should offer a way to extend the limit (WCAG 2.2.1)."
+                        checked={showReset}
+                        disabled={timerOptionsDisabled}
+                        onchange={handleCheckbox}
+                    ></lightning-input>
+
+                    <c-flow-config-value-input
+                        data-validatable
+                        data-property="timerLabel"
+                        label="Message to Users"
+                        property-name="timerLabel"
+                        value={timerLabel}
+                        value-data-type={timerLabelDataType}
+                        value-type="String"
+                        field-level-help="Shown with the timer. Accepts rich text or a Flow resource."
+                        builder-context={builderContext}
+                        automatic-output-variables={automaticOutputVariables}
+                        api-version={apiVersion}
+                        onvaluechange={handleValueChange}
+                    ></c-flow-config-value-input>
+
+                    <lightning-combobox
+                        data-validatable
+                        data-property="messagePosition"
+                        label="Message Position"
+                        value={messagePosition}
+                        options={messagePositionOptions}
+                        disabled={timerOptionsDisabled}
+                        field-level-help="Applies to the Warning Message too, which occupies the same place."
+                        onchange={handleSelect}
+                    ></lightning-combobox>
+
+                    <lightning-input
+                        type="checkbox"
+                        data-validatable
+                        data-property="showProgressBar"
+                        label="Show Progress Bar"
+                        field-level-help="A bar that tracks the time left. It depletes when counting down and fills when counting up. Works without a visible timer."
+                        checked={showProgressBar}
+                        onchange={handleCheckbox}
+                    ></lightning-input>
+
+                    <lightning-input
+                        type="checkbox"
+                        data-validatable
+                        data-property="showLoader"
+                        label="Show Loader"
+                        field-level-help="Display a spinner while the screen waits. A spinner suggests something is loading; consider the progress bar instead."
+                        checked={showLoader}
+                        onchange={handleCheckbox}
+                    ></lightning-input>
+                </div>
+            </lightning-accordion-section>
+
+            <lightning-accordion-section name="warning" label="Time Running Out">
+                <!-- Same four-box shape as Advance After. Duplicated rather
+                     than extracted: the kit's inherited validate() only sweeps
+                     [data-validatable] in THIS template, so moving these into
+                     a child component would cost the inline error mirroring. -->
+                <div class="slds-grid slds-gutters_xx-small">
+                    <div class="slds-col">
+                        <lightning-input
+                            type="number"
+                            data-validatable
+                            data-property="warningDays"
+                            label="Days"
+                            value={warningDays}
+                            min="0"
+                            step="1"
+                            onchange={handleDuration}
+                        ></lightning-input>
+                    </div>
+                    <div class="slds-col">
+                        <lightning-input
+                            type="number"
+                            data-validatable
+                            data-property="warningHours"
+                            label="Hours"
+                            value={warningHours}
+                            min="0"
+                            step="1"
+                            onchange={handleDuration}
+                        ></lightning-input>
+                    </div>
+                    <div class="slds-col">
+                        <lightning-input
+                            type="number"
+                            data-validatable
+                            data-property="warningMinutes"
+                            label="Minutes"
+                            value={warningMinutes}
+                            min="0"
+                            step="1"
+                            onchange={handleDuration}
+                        ></lightning-input>
+                    </div>
+                    <div class="slds-col">
+                        <lightning-input
+                            type="number"
+                            data-validatable
+                            data-property="warningSeconds"
+                            label="Seconds"
+                            value={warningSeconds}
+                            min="0"
+                            step="1"
+                            onchange={handleDuration}
+                        ></lightning-input>
+                    </div>
+                </div>
+
+                <p class={warningSummaryClass} aria-live="polite">{warningSummary}</p>
+
+                <div class="editor__section slds-m-top_x-small">
+                    <lightning-combobox
+                        data-validatable
+                        data-property="warningStyle"
+                        label="Warning Style"
+                        value={warningStyle}
+                        options={warningStyleOptions}
+                        field-level-help="How the timer itself changes. Color on its own carries the change by color alone, which fails WCAG 1.4.1 unless you also set a warning message or the icon."
+                        onchange={handleSelect}
+                    ></lightning-combobox>
+
+                    <c-flow-config-value-input
+                        data-validatable
+                        data-property="warningLabel"
+                        label="Warning Message"
+                        property-name="warningLabel"
+                        value={warningLabel}
+                        value-data-type={warningLabelDataType}
+                        value-type="String"
+                        field-level-help="Replaces Message to Users once the warning starts, for example 'Advancing soon'. A wording change is the cue that survives without color."
+                        builder-context={builderContext}
+                        automatic-output-variables={automaticOutputVariables}
+                        api-version={apiVersion}
+                        onvaluechange={handleValueChange}
+                    ></c-flow-config-value-input>
+
+                    <lightning-input
+                        type="checkbox"
+                        data-validatable
+                        data-property="warningShowIcon"
+                        label="Show Warning Icon"
+                        field-level-help="Adds a warning icon beside the timer during the warning phase."
+                        checked={warningShowIcon}
+                        onchange={handleCheckbox}
+                    ></lightning-input>
+
+                    <!-- Needs both a threshold and a bar to tint. -->
+                    <lightning-input
+                        type="checkbox"
+                        data-validatable
+                        data-property="warningTintProgressBar"
+                        label="Tint Progress Bar When Warning"
+                        field-level-help="Turns the progress bar red during the warning phase. Needs Show Progress Bar."
+                        checked={warningTintProgressBar}
+                        onchange={handleCheckbox}
+                    ></lightning-input>
+                </div>
+            </lightning-accordion-section>
+        </lightning-accordion>
+    </div>
+</template>

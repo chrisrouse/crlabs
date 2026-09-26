@@ -6,6 +6,19 @@
             "package": "Flow Config Editor Kit",
             "versionName": "ver 0.1",
             "versionNumber": "0.1.0.NEXT"
+        },
+        {
+            "path": "flowautonavigate/force-app",
+            "default": false,
+            "package": "Flow Auto Navigate",
+            "versionName": "ver 1.0",
+            "versionNumber": "1.0.0.NEXT",
+            "dependencies": [
+                {
+                    "package": "Flow Config Editor Kit",
+                    "versionNumber": "0.1.0.LATEST"
+                }
+            ]
         }
     ],
     "namespace": "crlabs",

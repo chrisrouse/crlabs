@@ -7,9 +7,10 @@ package must be installed before any component package that depends on it.
 
 ## Packages
 
-| Package | Directory | Purpose |
-| --- | --- | --- |
-| Flow Config Editor Kit | `flow-config-editor-kit/` | Base package. Reusable building blocks for Flow Builder custom property editors. Install this first. |
+| Package                | Directory                 | Purpose                                                                                                                                            |
+| ---------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Flow Config Editor Kit | `flow-config-editor-kit/` | **Base package.** Reusable building blocks for Flow Builder custom property editors. Install this first.                                           |
+| Flow Auto Navigate     | `flowautonavigate/`       | Flow screen component that advances a screen on a timer or an external trigger, and can refresh the surrounding page. Depends on the base package. |
 
 More component packages will land here and depend on the base package.
 
@@ -41,19 +42,32 @@ applied at package build, not by editing files.
 
 ## Installing
 
-Install URLs are published on each release. After installing, assign the
-permission set that grants the Apex controller and Visualforce bridge:
+Install URLs are published on each release. **Install the base package first**
+— component packages declare it as a dependency and will not install without
+it. After installing the base package, assign the permission set that grants
+its Apex controller and Visualforce bridge:
 
 ```bash
 sf org assign permset --name Flow_Config_Editor_Access --target-org my-org
 ```
 
+Component packages need no permission set of their own; a Flow screen
+component is available to anyone who can run the flow.
+
 ## Developing
 
 ```bash
 npm install
-npm run verify      # prettier check, then the kit's Jest suites
+npm run verify      # prettier check, lint, then the Jest suites
 ```
+
+**Two Prettier configs, deliberately.** The root `.prettierrc` is this
+project's style. `flow-config-editor-kit/.prettierrc` is upstream's, verbatim,
+because that is what the vendored tree is formatted to — applying our style
+would rewrite every file and destroy the diff against upstream. Prettier uses
+the nearest config to each file, so both are checked correctly in one pass.
+
+ESLint covers `flowautonavigate/` only; the kit is linted upstream.
 
 Fixes to the kit belong **upstream**, not here. Open a PR against
 [the upstream repo](https://github.com/RebbePod/flow-config-editor-kit); once it

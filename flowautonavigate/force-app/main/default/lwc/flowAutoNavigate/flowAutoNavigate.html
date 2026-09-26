@@ -1,0 +1,94 @@
+<template>
+    <!-- Always present, and not conditional on Show Timer: a screen that
+         advances silently still moves under a screen reader user, so the
+         warning matters more there, not less. Only milestone crossings land
+         here, never the per-second value. -->
+    <div class="slds-assistive-text" role="status" aria-live="polite">{announcement}</div>
+
+    <!-- Matches the gap Flow gives its own screen fields. The runtime wraps
+         each field in `<div class="container slds-m-bottom_x-small">`, but that
+         div belongs to flowruntime-lwc-field, so the margin is reproduced here
+         rather than copying a class we do not own -- `container` in particular
+         is scoped to the runtime's own stylesheet and means nothing to us.
+
+         Conditional so a component configured to advance silently contributes
+         no phantom gap: with every display option off there is nothing here
+         but the assistive text, which takes no space. -->
+    <template lwc:if={hasVisibleContent}>
+        <div class={contentClass}>
+            <template lwc:if={showTimer}>
+                <template lwc:if={messageAbove}>
+                    <lightning-formatted-rich-text
+                        class="slds-align_absolute-center"
+                        value={displayLabel}
+                    ></lightning-formatted-rich-text>
+                </template>
+
+                <!-- role="timer" carries an implicit aria-live="off", which is
+                     what we want: a value that changes every second announced
+                     politely would talk over everything else a screen reader is
+                     saying. The assistive text above supplies the warnings. -->
+                <div class={timerClass} role="timer" aria-live="off">
+                    <!-- Decorative: the milestone announcements carry the warning
+                         for assistive tech, so a spoken label here would duplicate. -->
+                    <template lwc:if={showWarningIcon}>
+                        <lightning-icon
+                            class="auto-navigate__icon"
+                            icon-name="utility:warning"
+                            size="x-small"
+                            aria-hidden="true"
+                        ></lightning-icon>
+                    </template>
+                    <span>{timeDisplay}</span>
+                </div>
+
+                <template lwc:if={messageBelow}>
+                    <lightning-formatted-rich-text
+                        class="slds-align_absolute-center"
+                        value={displayLabel}
+                    ></lightning-formatted-rich-text>
+                </template>
+            </template>
+
+            <template lwc:if={showProgressBar}>
+                <!-- The SLDS blueprint rather than lightning-progress-bar. The
+                     base component keeps its fill inside its own shadow root,
+                     where a transition cannot be reached from here, so the bar
+                     could only step once a second. Owning the markup lets CSS
+                     interpolate between the updates, and makes the warning tint
+                     a plain class instead of a styling hook.
+
+                     aria-hidden because the bar restates what the timer region
+                     and the milestone announcements already carry; a second
+                     progressbar role updating every second is noise. -->
+                <div class={progressClass} aria-hidden="true">
+                    <div class="slds-progress-bar auto-navigate__bar" role="presentation">
+                        <span class={barFillClass} style={barStyle}></span>
+                    </div>
+                </div>
+            </template>
+
+            <template lwc:if={showTimer}>
+                <template lwc:if={showReset}>
+                    <div class="slds-align_absolute-center slds-m-top_x-small">
+                        <lightning-button
+                            label="Reset"
+                            title="Restart the timer"
+                            onclick={handleReset}
+                        ></lightning-button>
+                    </div>
+                </template>
+            </template>
+
+            <template lwc:if={showLoader}>
+                <!-- lightning-spinner is absolutely positioned against its
+                     nearest positioned ancestor. Without slds-is-relative and a
+                     height here it escapes the component and covers the whole
+                     flow screen. -->
+                <div class="auto-navigate__loader slds-is-relative">
+                    <lightning-spinner alternative-text={loaderAlternativeText} size="large"></lightning-spinner>
+                </div>
+            </template>
+        </div>
+    </template>
+</template>

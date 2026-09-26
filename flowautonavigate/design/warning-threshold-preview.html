@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Flow Auto Navigate — warning threshold treatments</title>
+        <style>
+            /* Standalone on purpose: no SLDS dependency, so this opens from
+               the filesystem. Colors are the SLDS values the real component
+               would reach for via styling hooks. */
+            :root {
+                --text: #181818;
+                --text-weak: #5c5c5c;
+                --border: #c9c9c9;
+                --surface: #ffffff;
+                --page: #f3f3f3;
+                --brand: #0176d3;
+                --track: #ecebea;
+                --error: #ba0517;
+                --error-bg: #fef1f1;
+                --warning-text: #8c4b02;
+                --warning-bg: #fef5ea;
+                --warning-border: #fe9339;
+            }
+
+            * {
+                box-sizing: border-box;
+            }
+
+            body {
+                margin: 0;
+                padding: 2rem;
+                background: var(--page);
+                color: var(--text);
+                font-family:
+                    "Salesforce Sans",
+                    -apple-system,
+                    BlinkMacSystemFont,
+                    "Segoe UI",
+                    Roboto,
+                    sans-serif;
+            }
+
+            h1 {
+                font-size: 1.25rem;
+                margin: 0 0 0.25rem;
+            }
+
+            .sub {
+                color: var(--text-weak);
+                font-size: 0.875rem;
+                margin: 0 0 1.5rem;
+                max-width: 60ch;
+                line-height: 1.5;
+            }
+
+            .controls {
+                display: flex;
+                gap: 1rem;
+                align-items: flex-end;
+                flex-wrap: wrap;
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 0.25rem;
+                padding: 1rem;
+                margin-bottom: 1.5rem;
+            }
+
+            .controls label {
+                display: block;
+                font-size: 0.75rem;
+                color: var(--text-weak);
+                margin-bottom: 0.25rem;
+            }
+
+            .controls input {
+                width: 6rem;
+                padding: 0.4rem 0.5rem;
+                border: 1px solid var(--border);
+                border-radius: 0.25rem;
+                font: inherit;
+            }
+
+            button {
+                padding: 0.45rem 1rem;
+                border: 1px solid var(--brand);
+                background: var(--brand);
+                color: #fff;
+                border-radius: 0.25rem;
+                font: inherit;
+                cursor: pointer;
+            }
+
+            button.secondary {
+                background: #fff;
+                color: var(--brand);
+            }
+
+            .grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fill, minmax(19rem, 1fr));
+                gap: 1.25rem;
+            }
+
+            .card {
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 0.25rem;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+            }
+
+            .card__title {
+                font-size: 0.8125rem;
+                font-weight: 700;
+                padding: 0.6rem 0.85rem;
+                border-bottom: 1px solid var(--border);
+                background: #fafaf9;
+            }
+
+            .card__note {
+                font-size: 0.75rem;
+                color: var(--text-weak);
+                line-height: 1.45;
+                padding: 0.75rem 0.85rem;
+                border-top: 1px solid var(--border);
+                background: #fafaf9;
+                margin-top: auto;
+            }
+
+            .card__note b {
+                color: var(--text);
+            }
+
+            /* ---- the component surface, matching the deployed look ---- */
+            .stage {
+                padding: 1.75rem 1rem 1.5rem;
+                text-align: center;
+            }
+
+            .timer {
+                font-size: 2rem;
+                font-weight: 600;
+                font-variant-numeric: tabular-nums;
+                line-height: 1.1;
+                color: var(--text);
+                display: inline-flex;
+                align-items: center;
+                gap: 0.4rem;
+                padding: 0.1rem 0.5rem;
+                border-radius: 0.25rem;
+                transition:
+                    color 0.2s ease,
+                    background-color 0.2s ease;
+            }
+
+            .label {
+                font-size: 1rem;
+                color: var(--text);
+                margin-top: 0.15rem;
+            }
+
+            .bar {
+                margin: 0.9rem auto 0;
+                width: 82%;
+                height: 0.5rem;
+                background: var(--track);
+                border-radius: 0.25rem;
+                overflow: hidden;
+            }
+
+            .bar__fill {
+                height: 100%;
+                width: 100%;
+                background: var(--brand);
+                border-radius: 0.25rem;
+                transition:
+                    width 0.95s linear,
+                    background-color 0.2s ease;
+            }
+
+            .icon {
+                width: 1.05em;
+                height: 1.05em;
+                flex: none;
+                display: none;
+            }
+
+            /* ============ A — color only ============ */
+            .t-color.is-warning .timer {
+                color: var(--error);
+            }
+
+            /* ============ B — color + weight ============ */
+            .t-weight.is-warning .timer {
+                color: var(--error);
+                font-weight: 800;
+            }
+
+            /* ============ C — color + icon + label change ============ */
+            .t-icon.is-warning .timer {
+                color: var(--error);
+                font-weight: 700;
+            }
+            .t-icon.is-warning .icon {
+                display: inline-block;
+            }
+
+            /* ============ D — pulse ============ */
+            .t-pulse.is-warning .timer {
+                color: var(--error);
+                font-weight: 700;
+                animation: pulse 1s ease-in-out infinite;
+            }
+            @keyframes pulse {
+                0%,
+                100% {
+                    transform: scale(1);
+                    opacity: 1;
+                }
+                50% {
+                    transform: scale(1.06);
+                    opacity: 0.75;
+                }
+            }
+            @media (prefers-reduced-motion: reduce) {
+                .t-pulse.is-warning .timer {
+                    animation: none;
+                }
+            }
+
+            /* ============ E — tinted pill ============ */
+            .t-pill.is-warning .timer {
+                color: var(--warning-text);
+                background: var(--warning-bg);
+                box-shadow: inset 0 0 0 1px var(--warning-border);
+                font-weight: 700;
+            }
+            .t-pill.is-warning .icon {
+                display: inline-block;
+            }
+
+            /* ============ F — progress bar only ============ */
+            .t-bar.is-warning .bar__fill {
+                background: var(--error);
+            }
+
+            .flag {
+                display: inline-block;
+                font-size: 0.6875rem;
+                font-weight: 700;
+                padding: 0.05rem 0.4rem;
+                border-radius: 0.75rem;
+                margin-right: 0.35rem;
+                vertical-align: 1px;
+            }
+            .flag--warn {
+                background: var(--error-bg);
+                color: var(--error);
+            }
+            .flag--ok {
+                background: #ebf7e6;
+                color: #2e844a;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Warning threshold — treatment options</h1>
+        <p class="sub">
+            Each card is the same component at the same moment. They all switch treatment when the remaining time drops
+            to the threshold, then loop.
+        </p>
+        <p class="sub">
+            <b>Shipped as:</b> these six became four <i>Warning Style</i> values (Color, Color and Weight, Pulse, Tinted
+            Pill) plus three independent toggles — <i>Warning Message</i>, <i>Show Warning Icon</i> and
+            <i>Tint Progress Bar When Warning</i>. So C is "Color and Weight" with a message and the icon; F is style
+            "No Change" with the bar tint. Every combination on this page is reachable, and so are ones that are not.
+        </p>
+
+        <div class="controls">
+            <div>
+                <label for="duration">Duration (s)</label>
+                <input id="duration" type="number" min="3" max="120" value="16" />
+            </div>
+            <div>
+                <label for="threshold">Warn at (s)</label>
+                <input id="threshold" type="number" min="1" max="120" value="8" />
+            </div>
+            <button id="restart">Restart</button>
+            <button id="toggle" class="secondary">Pause</button>
+        </div>
+
+        <div class="grid" id="grid"></div>
+
+        <script>
+            const TREATMENTS = [
+                {
+                    key: "t-color",
+                    title: "A — Color only",
+                    warnLabel: null,
+                    note: '<span class="flag flag--warn">WCAG</span> Fails <b>1.4.1 Use of Color</b> on its own: color is the only thing carrying the change. Cheapest, but not shippable alone.'
+                },
+                {
+                    key: "t-weight",
+                    title: "B — Color + weight",
+                    warnLabel: null,
+                    note: '<span class="flag flag--ok">WCAG</span> Weight is a second, non-color cue. Subtle though — easy to miss if you are not looking straight at it.'
+                },
+                {
+                    key: "t-icon",
+                    title: "C — Color + icon + label",
+                    warnLabel: "Advancing soon",
+                    note: '<span class="flag flag--ok">WCAG</span> Icon and changed wording both survive without color. The label change is what a user actually reads. <b>My recommendation.</b>'
+                },
+                {
+                    key: "t-pulse",
+                    title: "D — Pulse",
+                    warnLabel: null,
+                    note: '<span class="flag flag--warn">Motion</span> Hardest to miss, most irritating. Honors <b>prefers-reduced-motion</b> here, which you must keep. Risky on a screen people are reading.'
+                },
+                {
+                    key: "t-pill",
+                    title: "E — Tinted pill",
+                    warnLabel: "Advancing soon",
+                    note: '<span class="flag flag--ok">WCAG</span> Amber rather than red — reads as "heads up" not "error". Background shift is a strong non-color-only cue. Contrast is controlled.'
+                },
+                {
+                    key: "t-bar",
+                    title: "F — Progress bar only",
+                    warnLabel: null,
+                    note: '<span class="flag flag--warn">WCAG</span> Color-only again, and the bar is <code>aria-hidden</code>, so assistive tech gets nothing extra. Fine <i>combined</i> with B, C or E.'
+                }
+            ];
+
+            const WARN_ICON =
+                '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">' +
+                '<path d="M12 2 1 21h22L12 2zm1 14h-2v2h2v-2zm0-8h-2v6h2V8z"/></svg>';
+
+            const grid = document.getElementById("grid");
+            const durationInput = document.getElementById("duration");
+            const thresholdInput = document.getElementById("threshold");
+
+            grid.innerHTML = TREATMENTS.map(
+                (t) => `
+                <div class="card">
+                    <div class="card__title">${t.title}</div>
+                    <div class="stage ${t.key}" data-key="${t.key}">
+                        <div class="timer">${WARN_ICON}<span class="value">0:16</span></div>
+                        <div class="label">please wait</div>
+                        <div class="bar"><div class="bar__fill"></div></div>
+                    </div>
+                    <div class="card__note">${t.note}</div>
+                </div>`
+            ).join("");
+
+            const stages = TREATMENTS.map((t) => ({
+                treatment: t,
+                root: grid.querySelector(`[data-key="${t.key}"]`),
+                value: grid.querySelector(`[data-key="${t.key}"] .value`),
+                label: grid.querySelector(`[data-key="${t.key}"] .label`),
+                fill: grid.querySelector(`[data-key="${t.key}"] .bar__fill`)
+            }));
+
+            let durationMs = 16000;
+            let thresholdMs = 8000;
+            let deadline = Date.now() + durationMs;
+            let paused = false;
+            let heldRemaining = 0;
+
+            function format(ms) {
+                const total = Math.ceil(ms / 1000);
+                const m = Math.floor(total / 60);
+                const s = total % 60;
+                return `${m}:${String(s).padStart(2, "0")}`;
+            }
+
+            function render() {
+                const remaining = paused ? heldRemaining : Math.max(0, deadline - Date.now());
+                const warning = remaining <= thresholdMs;
+                const text = format(remaining);
+                const pct = Math.round((remaining / durationMs) * 100);
+
+                stages.forEach(({ treatment, root, value, label, fill }) => {
+                    value.textContent = text;
+                    fill.style.width = pct + "%";
+                    root.classList.toggle("is-warning", warning);
+                    label.textContent = warning && treatment.warnLabel ? treatment.warnLabel : "please wait";
+                });
+
+                if (!paused && remaining <= 0) {
+                    deadline = Date.now() + durationMs + 700;
+                }
+            }
+
+            function restart() {
+                durationMs = Math.max(3, Number(durationInput.value) || 16) * 1000;
+                thresholdMs = Math.max(1, Number(thresholdInput.value) || 8) * 1000;
+                deadline = Date.now() + durationMs;
+                render();
+            }
+
+            document.getElementById("restart").addEventListener("click", restart);
+            durationInput.addEventListener("change", restart);
+            thresholdInput.addEventListener("change", restart);
+
+            document.getElementById("toggle").addEventListener("click", (event) => {
+                paused = !paused;
+                if (paused) {
+                    heldRemaining = Math.max(0, deadline - Date.now());
+                } else {
+                    deadline = Date.now() + heldRemaining;
+                }
+                event.target.textContent = paused ? "Resume" : "Pause";
+            });
+
+            setInterval(render, 100);
+            restart();
+        </script>
+    </body>
+</html>

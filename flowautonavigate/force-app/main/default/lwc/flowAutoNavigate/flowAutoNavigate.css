@@ -1,0 +1,136 @@
+/* ------------------------------------------------------------------ *
+ * Base
+ * ------------------------------------------------------------------ */
+
+.auto-navigate__timer {
+    font-size: var(--auto-navigate-timer-font-size, 1.25rem);
+    color: var(--auto-navigate-timer-color, inherit);
+    text-align: center;
+    /* Digits share one advance width, so the countdown does not jitter
+       horizontally as the numerals change. */
+    font-variant-numeric: tabular-nums;
+    /* inline-flex so the warning icon sits on the baseline with the digits
+       and the whole thing still centers. */
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.35rem;
+    padding: 0.1rem 0.4rem;
+    border-radius: var(--auto-navigate-timer-radius, 0.25rem);
+    transition:
+        color 0.2s ease,
+        background-color 0.2s ease;
+}
+
+/* The timer is inline-flex, so it needs a block parent to center against. */
+:host {
+    display: block;
+    text-align: center;
+}
+
+.auto-navigate__icon {
+    --slds-c-icon-color-foreground-default: currentColor;
+}
+
+.auto-navigate__content_hidden {
+    /* visibility, not display: the block keeps its footprint so nothing below
+       it jumps up at the moment the timer expires. It also drops out of the
+       accessibility tree, which is what we want once it has nothing to say. */
+    visibility: hidden;
+}
+
+.auto-navigate__loader {
+    /* The spinner is absolutely positioned; without a height its container
+       collapses and the spinner overlaps whatever follows it. */
+    min-height: 4rem;
+}
+
+/* ------------------------------------------------------------------ *
+ * Warning treatments
+ *
+ * One class per Warning Style. Label text, icon and bar tint are separate
+ * properties, so each composes with any of these.
+ * ------------------------------------------------------------------ */
+
+.auto-navigate__timer_color {
+    color: var(--auto-navigate-warning-color, #ba0517);
+}
+
+.auto-navigate__timer_weight {
+    color: var(--auto-navigate-warning-color, #ba0517);
+    font-weight: 700;
+}
+
+.auto-navigate__timer_pulse {
+    color: var(--auto-navigate-warning-color, #ba0517);
+    font-weight: 700;
+    animation: auto-navigate-pulse 1s ease-in-out infinite;
+}
+
+/* Amber rather than red: a tinted pill reads as "heads up", not "error". */
+.auto-navigate__timer_pill {
+    color: var(--auto-navigate-warning-pill-color, #8c4b02);
+    background: var(--auto-navigate-warning-pill-background, #fef5ea);
+    box-shadow: inset 0 0 0 1px var(--auto-navigate-warning-pill-border, #fe9339);
+    font-weight: 700;
+}
+
+@keyframes auto-navigate-pulse {
+    0%,
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.06);
+        opacity: 0.75;
+    }
+}
+
+/* Motion that repeats indefinitely has to be defeatable. */
+@media (prefers-reduced-motion: reduce) {
+    .auto-navigate__timer_pulse {
+        animation: none;
+    }
+}
+
+/* ------------------------------------------------------------------ *
+ * Progress bar
+ *
+ * SLDS blueprint markup we own, not lightning-progress-bar. The base
+ * component keeps its fill in its own shadow root, which put both the
+ * transition and the warning color out of reach -- the bar stepped once a
+ * second and the tint never applied. Owning the element fixes both with
+ * ordinary CSS.
+ * ------------------------------------------------------------------ */
+
+.auto-navigate__bar {
+    height: var(--auto-navigate-bar-height, 0.75rem);
+}
+
+.auto-navigate__bar-fill {
+    background: var(--auto-navigate-bar-fill, #0176d3);
+    /* MUST match TICK_MS in flowAutoNavigate.js. The component aims the bar one
+       tick ahead and this interpolates across exactly that gap, so the fill
+       tracks the real remaining time instead of trailing it. A longer duration
+       here is what left a second of travel on the bar at 0:00. */
+    transition:
+        width 250ms linear,
+        background-color 0.2s ease;
+}
+
+/* A reset jumps the width the whole way back; transitioning that would play a
+   one-second rewind. */
+.auto-navigate__bar-fill_instant {
+    transition: none;
+}
+
+.auto-navigate__progress_warning .auto-navigate__bar-fill {
+    background: var(--auto-navigate-warning-color, #ba0517);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .auto-navigate__bar-fill {
+        transition: none;
+    }
+}

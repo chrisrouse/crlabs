@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>67.0</apiVersion>
+    <isExposed>true</isExposed>
+    <masterLabel>Flow Auto Navigate</masterLabel>
+    <targets>
+        <target>lightning__FlowScreen</target>
+    </targets>
+    <targetConfigs>
+        <!-- Every input below is written by the editor. Note that none of them
+             declares `default=`: Flow Builder re-asserts a declared default over
+             whatever a custom property editor writes, which no editor-side code
+             can survive. Defaults live in the component and the editor instead. -->
+        <targetConfig targets="lightning__FlowScreen" configurationEditor="c-flow-auto-navigate-editor">
+            <property name="timeoutDays" type="Integer" label="Days" role="inputOnly" />
+            <property name="timeoutHours" type="Integer" label="Hours" role="inputOnly" />
+            <property name="timeoutMinutes" type="Integer" label="Minutes" role="inputOnly" />
+            <property name="timeoutSeconds" type="Integer" label="Seconds" role="inputOnly" />
+            <property name="timeoutAction" type="String" label="On Timeout" role="inputOnly" />
+
+            <!-- Reactive: bind to Flow resources that change on this screen.
+                 advanceWhen completes immediately; paused holds and resumes. -->
+            <property name="advanceWhen" type="Boolean" label="Advance When This Is True" role="inputOnly" />
+            <property name="paused" type="Boolean" label="Pause Timer" role="inputOnly" />
+
+            <property name="showTimer" type="Boolean" label="Show Timer" role="inputOnly" />
+            <property name="timerDirection" type="String" label="Timer Direction" role="inputOnly" />
+            <property name="timeFormat" type="String" label="Time Format" role="inputOnly" />
+            <property name="messagePosition" type="String" label="Message Position" role="inputOnly" />
+            <property name="showReset" type="Boolean" label="Show Timer Reset" role="inputOnly" />
+            <property name="timerLabel" type="String" label="Message to Users" role="inputOnly" />
+            <property name="showProgressBar" type="Boolean" label="Show Progress Bar" role="inputOnly" />
+            <property name="showLoader" type="Boolean" label="Show Loader" role="inputOnly" />
+            <property name="hideOnExpiry" type="Boolean" label="Hide When Time Runs Out" role="inputOnly" />
+            <property name="refreshOnTimeout" type="Boolean" label="Refresh the Page" role="inputOnly" />
+            <property name="refreshRecordId" type="String" label="Record to Refresh" role="inputOnly" />
+
+            <!-- Time running out. Summed the same way as the duration above,
+                 so a warning can be minutes rather than seconds long. -->
+            <property name="warningDays" type="Integer" label="Warning Days" role="inputOnly" />
+            <property name="warningHours" type="Integer" label="Warning Hours" role="inputOnly" />
+            <property name="warningMinutes" type="Integer" label="Warning Minutes" role="inputOnly" />
+            <property name="warningSeconds" type="Integer" label="Warning Seconds" role="inputOnly" />
+            <property name="warningStyle" type="String" label="Warning Style" role="inputOnly" />
+            <property name="warningLabel" type="String" label="Warning Message" role="inputOnly" />
+            <property name="warningShowIcon" type="Boolean" label="Show Warning Icon" role="inputOnly" />
+            <property
+                name="warningTintProgressBar"
+                type="Boolean"
+                label="Tint Progress Bar When Warning"
+                role="inputOnly"
+            />
+
+            <!-- True once this component advanced the screen itself, so a later
+                 element can tell a timeout from a user clicking Next. -->
+            <property name="triggered" type="Boolean" label="Triggered" role="outputOnly" />
+
+            <!-- True once the timer hit zero, whether or not the screen moved.
+                 With On Timeout set to Stay these diverge, which is what makes
+                 this one usable to drive something on the same screen. -->
+            <property name="timerExpired" type="Boolean" label="Timer Expired" role="outputOnly" />
+        </targetConfig>
+    </targetConfigs>
+</LightningComponentBundle>

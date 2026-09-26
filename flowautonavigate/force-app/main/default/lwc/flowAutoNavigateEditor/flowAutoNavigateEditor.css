@@ -1,0 +1,17 @@
+.duration {
+    /* A fieldset carries a default border and margin in the property panel. */
+    border: 0;
+    margin: 0;
+    padding: 0;
+}
+
+.duration__summary {
+    /* Reserves the line so the panel does not reflow as the summary appears
+       and disappears while the admin types. */
+    min-height: 1.25rem;
+}
+
+.editor__section > * {
+    display: block;
+    margin-top: var(--lwc-spacingXSmall, 0.5rem);
+}
