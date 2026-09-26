@@ -4,7 +4,7 @@
    SLDS ships no pagination blueprint and its button-group blueprint excludes
    navigation, so this is the hierarchy's "custom with hooks" tier. */
 
-/* Three tracks so the numbers are centred in the GRID's full width, not merely in
+/* Three tracks so the numbers are centered in the GRID's full width, not merely in
    whatever space the summary leaves over. With flexbox the numbers drifted as the
    summary text changed length — "1–10 of 314" versus "311–314 of 314". */
 .fgrid-pg {
@@ -55,7 +55,7 @@
     outline-offset: 2px;
 }
 
-/* Weight and border as well as colour: the current page must be identifiable
+/* Weight and border as well as color: the current page must be identifiable
    without relying on hue. */
 .fgrid-pg__item_current {
     background: var(--slds-g-color-surface-2, #f3f3f3);

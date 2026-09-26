@@ -153,7 +153,7 @@ describe("row loading", () => {
     it("renders a window rather than every row, by default", () => {
         const element = build({ records: records(300) });
 
-        // Scroll is the default. Rendering all 300 was the old behaviour and the
+        // Scroll is the default. Rendering all 300 was the old behavior and the
         // reason a large grid took seconds to become responsive.
         expect(datatable(element).data).toHaveLength(50);
         expect(datatable(element).enableInfiniteLoading).toBe(true);
@@ -207,7 +207,7 @@ describe("row loading", () => {
         expect(element.shadowRoot.querySelector("[class*='grid__wrapper']").style.height).toBe("30rem");
     });
 
-    it("honours an explicit height", () => {
+    it("honors an explicit height", () => {
         const tall = build({ records: records(10), tableHeight: "50vh" });
         expect(tall.shadowRoot.querySelector("[class*='grid__wrapper']").style.height).toBe("50vh");
     });
@@ -307,7 +307,7 @@ describe("navigateNextOnSave respects the screen's available actions", () => {
 
     it("still navigates when Flow supplied no action list", async () => {
         // Permissive on an empty list. A grid outside a flow screen has no list at
-        // all, and silently disabling a configured behaviour is worse than trying.
+        // all, and silently disabling a configured behavior is worse than trying.
         expect(await saveWith({})).toHaveLength(1);
         expect(await saveWith({ availableActions: [] })).toHaveLength(1);
     });
@@ -396,7 +396,7 @@ describe("actioned record reports the click", () => {
         clickRowAction(element, first);
         await Promise.resolve();
 
-        // Published on click, so a cancelled flow still leaves it reported.
+        // Published on click, so a canceled flow still leaves it reported.
         expect(element.outputActionedRecord.Id).toBe(first.Id);
     });
 });
@@ -449,7 +449,7 @@ describe("row-action outcomes are toasts, not banners", () => {
         //
         // WHAT THIS TEST CANNOT TELL YOU: the mock's `{ style: {} }` is a shape
         // invented here, so a pass proves only that the component asks -- never
-        // that the platform honoured it. Read `elevates again after showing` below
+        // that the platform honored it. Read `elevates again after showing` below
         // for the case a green version of this test hid for a whole day.
         const container = { style: {} };
         ToastContainer.instance = jest.fn(() => container);
@@ -996,7 +996,7 @@ describe("a row-action flow that saves its own changes", () => {
     });
 
     it("leaves the change pending when the property is off", async () => {
-        // Default behaviour is unchanged: everything a flow returns is pending, even
+        // Default behavior is unchanged: everything a flow returns is pending, even
         // if the database already agrees.
         getRecordsByIds.mockResolvedValue([{ ...target, Industry: "Banking" }]);
         const element = build_({});
@@ -1183,7 +1183,7 @@ describe("auto-saving edits", () => {
 describe("sort state is keyed by columnKey", () => {
     // The datatable identifies a column by columnKey once one exists, and echoes it
     // back on the sort event. Feeding `sorted-by` the fieldName instead meant it never
-    // recognised the column as sorted, refused to flip, and emitted nothing at all on
+    // recognized the column as sorted, refused to flip, and emitted nothing at all on
     // the second click — a grid that could only sort ascending.
     function sort(element, detail) {
         element.shadowRoot.querySelector("c-fgrid_custom-datatable").dispatchEvent(new CustomEvent("sort", { detail }));
@@ -1287,7 +1287,7 @@ describe("grid height defaults only where a scroll boundary is needed", () => {
         expect(style(element)).not.toContain("height");
     });
 
-    it("honours an explicit height in either mode", async () => {
+    it("honors an explicit height in either mode", async () => {
         const scrolling = build({ records: records(50), tableHeight: "20rem" });
         await Promise.resolve();
         expect(style(scrolling)).toContain("height: 20rem");
@@ -1306,7 +1306,7 @@ describe("grid height defaults only where a scroll boundary is needed", () => {
 describe("row numbers continue across pages", () => {
     // The datatable numbers the rows it is HANDED, and in Paginate mode that is one
     // page at a time -- so without an offset, page two of ten-per-page showed rows
-    // 11-20 numbered 1-10. Two different records both labelled "1" is worse than no
+    // 11-20 numbered 1-10. Two different records both labeled "1" is worse than no
     // numbers at all.
     //
     // This matters more than it looks, because on an editable grid the platform
@@ -1350,7 +1350,7 @@ describe("row numbers continue across pages", () => {
         expect(datatable(element).rowNumberOffset).toBe(0);
     });
 
-    it("passes the setting through, for the read-only grids where it is honoured", async () => {
+    it("passes the setting through, for the read-only grids where it is honored", async () => {
         // Passed faithfully, but the PLATFORM overrides it upward: an editable
         // column forces `show-row-number-column` true and the docs say that cannot
         // be overridden. So this asserts what we send, not what renders -- the jest
@@ -1518,7 +1518,7 @@ describe("maximum selection across pages", () => {
     });
 
     it("disables every unselected row once the maximum is reached, on any page", async () => {
-        // The datatable greys the remaining checkboxes on the page it can see and
+        // The datatable grays the remaining checkboxes on the page it can see and
         // leaves them live everywhere else, so the ceiling has to be applied through
         // disabled-rows.
         const all = records(6);
@@ -1603,7 +1603,7 @@ describe("wrapped line limit", () => {
     // SLDS 2 hardcodes the clamp: `.slds-line-clamp { -webkit-line-clamp: 3 }` in
     // slds-plus.css, with no var() to override. Confirmed in the inspector — the cell
     // carried `--lwc-lineClamp: 6` and nothing read it. So the count cannot be
-    // honoured and the setting is a switch: three lines, or all of them.
+    // honored and the setting is a switch: three lines, or all of them.
     function linesFor(props) {
         const element = build({ records: records(1), ...props });
         return element.shadowRoot.querySelector("c-fgrid_custom-datatable").wrapTextMaxLines;
@@ -1794,7 +1794,7 @@ describe("change detection is scoped to the columns in use", () => {
 describe("the conditional formatting stylesheet", () => {
     // It has to be a GLOBAL stylesheet -- component CSS cannot reach inside
     // lightning-datatable, measured both ways on a record page and in LWR.
-    // See repro/datatable-cell-colour/ and STATUS 2.3d.
+    // See repro/datatable-cell-color/ and STATUS 2.3d.
 
     it("loads once, however many times the grid re-renders", async () => {
         loadStyle.mockClear();
@@ -1811,7 +1811,7 @@ describe("the conditional formatting stylesheet", () => {
     });
 
     it("keeps rendering the grid when the stylesheet fails", async () => {
-        // Colour is the only thing lost. An error banner about a stylesheet
+        // Color is the only thing lost. An error banner about a stylesheet
         // tells a site visitor nothing they can act on.
         loadStyle.mockClear();
         loadStyle.mockRejectedValueOnce(new Error("network"));

@@ -29,7 +29,7 @@ private class FlowGridPreviewServiceTest {
         );
         Test.stopTest();
 
-        Assert.areEqual(6, sample.size(), 'The requested row count should be honoured');
+        Assert.areEqual(6, sample.size(), 'The requested row count should be honored');
         Assert.isNotNull(sample[0].get('Name'), 'The requested field should be selected');
         Assert.isNotNull(sample[0].get('Id'), 'Id is always selected, whether asked for or not');
     }

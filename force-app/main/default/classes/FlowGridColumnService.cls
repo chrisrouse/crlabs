@@ -57,7 +57,7 @@ public with sharing class FlowGridColumnService {
         //
         // Audit fields need no entry here: CreatedDate, LastModifiedDate and
         // SystemModstamp all report isUpdateable() false, which isEditable already
-        // honours. Verified by describe in the org rather than assumed.
+        // honors. Verified by describe in the org rather than assumed.
         //
         // CAUTION: editing a Date is functional but not yet SAFE. Flow Grid does not
         // apply the running user's timezone offset (§2.5 gap 1), which is exactly

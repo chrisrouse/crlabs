@@ -15,7 +15,7 @@
  *
  * Resolves with `{ status, outputVariables }` on completion or `{ status: "ERROR" }`
  * on failure. Dismissing with the close button or Escape resolves `undefined`,
- * which the grid reads as cancelled.
+ * which the grid reads as canceled.
  */
 import { api } from "lwc";
 import LightningModal from "lightning/modal";
@@ -47,7 +47,7 @@ export default class FgridFlowActionModal extends LightningModal {
      * boundary: `document.querySelectorAll(".slds-modal__close").length` is 0 with
      * a modal open, so no stylesheet of ours or the site's can select it, and
      * there is no styling hook for visibility. Custom properties do cross that
-     * boundary -- which is how site branding recolours it -- but cannot express
+     * boundary -- which is how site branding recolors it -- but cannot express
      * `display`.
      */
 
@@ -108,7 +108,7 @@ export default class FgridFlowActionModal extends LightningModal {
      * Releases the lock, then closes.
      *
      * `disableClose` blocks `close()` as well as the close button and Escape --
-     * documented behaviour, confirmed in the site, and the whole reason this method
+     * documented behavior, confirmed in the site, and the whole reason this method
      * exists. Locking the modal and then calling `close()` directly would trap the
      * user in a modal with no way out at all, including the flow finishing
      * successfully.

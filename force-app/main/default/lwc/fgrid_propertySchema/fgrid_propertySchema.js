@@ -10,10 +10,10 @@
  * second is a mirror the editor maintains, never something an admin edits.
  *
  * LABEL CASE — every `label`, including section labels and option labels, is Title
- * Case. Capitalise each word EXCEPT articles (a, an, the), coordinating conjunctions
+ * Case. Capitalize each word EXCEPT articles (a, an, the), coordinating conjunctions
  * (and, or, nor, but) and prepositions of three letters or fewer (in, at, on, to, of,
- * by, up, per, via, for, off, as). Longer prepositions are capitalised: "Above",
- * "Without", "Instead". The first word is always capitalised whatever it is.
+ * by, up, per, via, for, off, as). Longer prepositions are capitalized: "Above",
+ * "Without", "Instead". The first word is always capitalized whatever it is.
  *
  *   Show a Header Above the Grid        Records per Page
  *   Load as You Scroll                  Use a User-Defined Object Instead of ...
@@ -34,7 +34,7 @@ export const CONTROL = {
     RADIO: "radio",
     /** A plain whole number. Unlike NUMBER it does NOT go through the kit's value
      *  input, so it cannot take a Flow resource — use it where only a literal makes
-     *  sense and a bound formula would be meaningless. Honours `min` and `minFrom`. */
+     *  sense and a bound formula would be meaningless. Honors `min` and `minFrom`. */
     INTEGER: "integer",
     TEXT: "text",
     NUMBER: "number",
@@ -206,7 +206,7 @@ export const DEFAULTS_FROM = {
     // Red belongs to deleting, not to row actions in general. The runtime already
     // works this way: `rowActionIconClass` tints an unset Remove action red and
     // leaves everything else neutral. A flat "Red" here showed a Flow action a
-    // colour the grid would not actually use.
+    // color the grid would not actually use.
     rowActionColor: (get) => (get("rowActionType") === "Remove" ? "Red" : "Black")
 };
 
@@ -225,7 +225,7 @@ export const DEFAULTS = {
     rowActionButtonVariant: "neutral",
     rowActionFlowModalHeader: "Edit Record",
     rowActionFlowModalSize: "Medium",
-    // Must be listed here as well as in the `@api` initialisers and js-meta.xml.
+    // Must be listed here as well as in the `@api` initializers and js-meta.xml.
     // A default in the component only affects the RUNTIME; this map is what seeds
     // the editor's fields, so omitting these three showed the admin three empty
     // boxes whose help text says a blank hides the message -- exactly backwards
@@ -269,7 +269,7 @@ export const VISIBILITY = {
         v.rowActionType === "Flow" && Boolean(v.rowActionFlowApiName) && v.rowActionFlowLaunchMode !== "Headless"
 };
 
-/** Named predicates that grey a control out instead of hiding it. */
+/** Named predicates that gray a control out instead of hiding it. */
 export const DISABLED = {
     headerActionsHidden: (v) => Boolean(v.hideHeaderActions),
     editsAutoSave: (v) => Boolean(v.autoSaveEdits),
@@ -322,7 +322,7 @@ export const SECTIONS = [
                 acceptedTypes: "SObject",
                 collection: "only",
                 when: ["sobjectSource"],
-                help: "Records the user cannot select or edit. They still appear, greyed, so it is clear why a row is unavailable rather than it simply being missing. Build the collection in the Flow — for example every record whose Status is Pending. Matched to rows by the key field."
+                help: "Records the user cannot select or edit. They still appear, grayed, so it is clear why a row is unavailable rather than it simply being missing. Build the collection in the Flow — for example every record whose Status is Pending. Matched to rows by the key field."
             },
             {
                 property: "recordsJson",

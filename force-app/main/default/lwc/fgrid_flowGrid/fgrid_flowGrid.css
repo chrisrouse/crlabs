@@ -114,7 +114,7 @@
    styling from SLDS hooks. The three rules that lived here dressed the old
    First/Previous/Next/Last button row. */
 
-/* Row-action icon colours moved to fgrid_customDatatable.css. They were dead here:
+/* Row-action icon colors moved to fgrid_customDatatable.css. They were dead here:
    the class lands on a button-icon inside the datatable's shadow root, which this
    stylesheet cannot select into. See the note in that file. */
 

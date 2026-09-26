@@ -1,6 +1,6 @@
-/* NO ROW-ACTION COLOUR RULES HERE, AND NONE ANYWHERE ELSE OF OURS.
+/* NO ROW-ACTION COLOR RULES HERE, AND NONE ANYWHERE ELSE OF OURS.
  *
- * The colour is now an SLDS utility class -- `slds-icon-text-error` and friends --
+ * The color is now an SLDS utility class -- `slds-icon-text-error` and friends --
  * passed through the column's `typeAttributes.iconClass`. See `colorClass` in
  * c/fgrid_gridModel for why.
  *

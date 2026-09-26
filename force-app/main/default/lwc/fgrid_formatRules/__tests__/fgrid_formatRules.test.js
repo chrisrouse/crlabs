@@ -91,7 +91,7 @@ describe("matching a row", () => {
         expect(matchFormatRule([rule({ conditions: [] })], {})).not.toBeNull();
     });
 
-    it("honours Always regardless of the conditions", () => {
+    it("honors Always regardless of the conditions", () => {
         const always = rule({ logic: FORMAT_LOGIC.ALWAYS });
         expect(matchFormatRule([always], { Status: "Paid" })).not.toBeNull();
     });
@@ -133,7 +133,7 @@ describe("custom logic", () => {
         expect(evaluateCustomLogic("2 OR 3", T)).toBe(true);
     });
 
-    it("honours brackets over the default precedence", () => {
+    it("honors brackets over the default precedence", () => {
         // Without brackets OR binds loosest, so these must differ.
         expect(evaluateCustomLogic("1 AND 2 OR 3", T)).toBe(true);
         expect(evaluateCustomLogic("1 AND (2 OR 3)", T)).toBe(true);
@@ -157,8 +157,8 @@ describe("custom logic", () => {
     });
 
     it("falls back to All when the expression is unusable", () => {
-        // Colouring every row is a louder, more confusing failure than
-        // colouring none, so a broken expression must not become Always.
+        // Coloring every row is a louder, more confusing failure than
+        // coloring none, so a broken expression must not become Always.
         const broken = rule({
             logic: FORMAT_LOGIC.CUSTOM,
             customLogic: "1 AND (2",
@@ -191,7 +191,7 @@ describe("the class a matched rule paints with", () => {
     });
 
     it("gives a text-only rule no marker", () => {
-        // Text colour on the hover background is perfectly legible, so there
+        // Text color on the hover background is perfectly legible, so there
         // is nothing to revert and reverting would discard the signal.
         expect(formatClassFor({ style: FORMAT_STYLE.SUCCESS, textOnly: true })).toBe("fgridFormatText_success");
     });

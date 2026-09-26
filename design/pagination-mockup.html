@@ -10,7 +10,7 @@
         />
         <style>
             /* ------------------------------------------------------------------------
-     STATIC MOCKUP — no behaviour. Nothing here is wired to state; each row
+     STATIC MOCKUP — no behavior. Nothing here is wired to state; each row
      below is hand-authored to show one configuration.
 
      SLDS has no pagination blueprint (verified against the blueprint set), and
@@ -116,7 +116,7 @@
                 outline: 2px solid var(--slds-g-color-accent-1, #0176d3);
                 outline-offset: 2px;
             }
-            /* Current page: not colour alone — it also carries aria-current and weight. */
+            /* Current page: not color alone — it also carries aria-current and weight. */
             .fgrid-pg__item[aria-current="page"] {
                 background: var(--slds-g-color-surface-2, #f3f3f3);
                 border-color: var(--slds-g-color-border-2, #c9c9c9);
@@ -185,11 +185,11 @@
         <div class="demo">
             <h1>Flow Grid — pagination controls</h1>
             <p class="note">
-                Static mockups for review. No behaviour is wired; each row is hand-authored to show one state. SLDS
-                ships no pagination blueprint, and its button-group blueprint excludes navigation, so these are custom
+                Static mockups for review. No behavior is wired; each row is hand-authored to show one state. SLDS ships
+                no pagination blueprint, and its button-group blueprint excludes navigation, so these are custom
                 <code>fgrid-pg-*</code> classes over verified global styling hooks inside a <code>&lt;nav&gt;</code>
-                landmark. Colours, spacing, radii and type all read from hooks, so an org's branding carries through —
-                that is why the numbers are brand-coloured here.
+                landmark. Colors, spacing, radii and type all read from hooks, so an org's branding carries through —
+                that is why the numbers are brand-colored here.
             </p>
 
             <!-- ============================ TRUNCATION ============================ -->
@@ -508,9 +508,9 @@
             <h2>Accessibility built in</h2>
             <p class="note">
                 <code>&lt;nav aria-label="Pagination"&gt;</code> landmark; page numbers in a real list;
-                <code>aria-current="page"</code> on the current one, which is also bolded and bordered so colour is
-                never the only signal; <code>disabled</code> plus <code>aria-disabled</code> at the ends; every
-                icon-only button carries <code>slds-assistive-text</code>; the ellipsis is <code>aria-hidden</code> and
+                <code>aria-current="page"</code> on the current one, which is also bolded and bordered so color is never
+                the only signal; <code>disabled</code> plus <code>aria-disabled</code> at the ends; every icon-only
+                button carries <code>slds-assistive-text</code>; the ellipsis is <code>aria-hidden</code> and
                 unfocusable; visible <code>:focus-visible</code> outline on every control.
             </p>
         </div>

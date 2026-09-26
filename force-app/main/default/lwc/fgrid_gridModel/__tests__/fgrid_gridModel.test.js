@@ -56,12 +56,12 @@ describe("parseFieldList reads every shape columnFields arrives in", () => {
     });
 });
 
-describe("the row-action icon colour uses SLDS classes", () => {
+describe("the row-action icon color uses SLDS classes", () => {
     // Ours never worked. `typeAttributes.class` lands the class on an element
     // `lightning-primitive-cell-factory` renders -- a grandchild of the datatable --
     // so no stylesheet of ours can select it. Declaring `.fgrid-action_red` in the
     // grid's CSS failed, and moving it to the datatable subclass's CSS failed too;
-    // both were measured in a running org and the colour never applied.
+    // both were measured in a running org and the color never applied.
     //
     // SLDS's own icon utilities are in the global stylesheet, so their selectors
     // match wherever the element lives, and they set the same custom property to
@@ -97,7 +97,7 @@ describe("the row-action icon colour uses SLDS classes", () => {
     });
 
     it("leaves every other action neutral, matching what the panel offers", () => {
-        // The panel resolves an unset colour through DEFAULTS_FROM, which answers
+        // The panel resolves an unset color through DEFAULTS_FROM, which answers
         // Black here. Red is for deleting, so an unset Flow action must not borrow it.
         const columns = withRowActionColumn([], { actionType: "Flow", display: "Icon" });
         const action = columns.find((c) => c.fieldName === ROW_ACTION_NAME);
@@ -113,7 +113,7 @@ describe("the row-action column header stays blank", () => {
     // stayed and truncated to "Ru..." inside the 60px column.
     //
     // This pins the empty label so that is not retried without also setting
-    // `iconName`. The action itself is labelled on every cell through
+    // `iconName`. The action itself is labeled on every cell through
     // `typeAttributes.title` and `alternativeText`.
     it("leaves the icon variant's header label empty and sets no hideLabel", () => {
         const columns = withRowActionColumn([], { actionType: "Flow", display: "Icon" });
@@ -749,7 +749,7 @@ describe("editability", () => {
 
     it("allows an updateable Date, which the datatable can edit after all", () => {
         // A line in the component reference claims dates cannot be inline-edited.
-        // Observed behaviour says otherwise: the picker opens and the edit commits.
+        // Observed behavior says otherwise: the picker opens and the edit commits.
         const [column] = buildColumns(
             ["Due"],
             { Due: { edit: true } },
@@ -1082,7 +1082,7 @@ describe("an editable Name column is not linked", () => {
 
 describe("sorting ignores case", () => {
     // Not a setting. Comparing raw strings compares character codes, which puts every
-    // capitalised value ahead of every lowercase one, and no end-user reason to want
+    // capitalized value ahead of every lowercase one, and no end-user reason to want
     // that was found.
     const rows = [{ Name: "Zebra" }, { Name: "acme corp" }, { Name: "Bahringer" }];
 
@@ -1138,7 +1138,7 @@ describe("show blanks first", () => {
 describe("picklist options are the active values only", () => {
     // Matching a record page: a stored value that has since been deactivated is not
     // offered, and changing away from it is one-way unless the user cancels. The old
-    // behaviour injected it into that row's own list, which is why options used to be
+    // behavior injected it into that row's own list, which is why options used to be
     // addressed per row at all.
     const describeFor = {
         Rating: {

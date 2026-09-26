@@ -1047,7 +1047,7 @@ export default class FgridFlowGrid extends LightningElement {
      * a declared default is re-asserted by Flow Builder and cannot be changed later.
      *
      * There is no third "render everything" mode. The standard datatable has no such
-     * behaviour, and it was the previous default — which is what made a 300-record
+     * behavior, and it was the previous default — which is what made a 300-record
      * grid render 300 rows of DOM before anyone could touch it.
      */
     get rowLoadingMode() {
@@ -1121,7 +1121,7 @@ export default class FgridFlowGrid extends LightningElement {
      * Without it the numbers RESTART AT 1 on every page: the datatable numbers the
      * rows it was handed, and in Paginate mode it is handed one page at a time. So
      * page two of ten-per-page showed rows 11-20 numbered 1-10, which is worse than
-     * no numbers at all -- two different records both labelled "1".
+     * no numbers at all -- two different records both labeled "1".
      *
      * `firstRow` is the 1-based position of the page's first row, and the offset is
      * what precedes it. Scroll mode reports `firstRow: 1`, so this is 0 there and
@@ -1256,7 +1256,7 @@ export default class FgridFlowGrid extends LightningElement {
      * Keys of rows the user can neither select nor edit.
      *
      * The Flow decides what "unavailable" means — typically a filtered collection
-     * such as Status = Pending — and the datatable greys them. Showing them greyed
+     * such as Status = Pending — and the datatable grays them. Showing them grayed
      * rather than omitting them is the whole point: the user can see why a row is
      * not offered instead of wondering where it went.
      *
@@ -1276,7 +1276,7 @@ export default class FgridFlowGrid extends LightningElement {
 
         // At the maximum, every row that is NOT already selected is disabled — on
         // every page, which is the part the datatable cannot do for itself. Its own
-        // `max-row-selection` only sees the current page, so it greyed the remaining
+        // `max-row-selection` only sees the current page, so it grayed the remaining
         // checkboxes there and left them live everywhere else. Deselecting a row frees
         // a slot and these re-enable, because this is derived rather than stored.
         const selected = new Set(this._selectedKeys.map((key) => String(key)));
@@ -1595,7 +1595,7 @@ export default class FgridFlowGrid extends LightningElement {
         //
         // `mode` is left unset ON PURPOSE. The platform's default depends on the
         // variant: a `success` toast with no links auto-dismisses after 4.8s, while
-        // `error` stays until dismissed. That is the behaviour we want in both
+        // `error` stays until dismissed. That is the behavior we want in both
         // cases -- a confirmation should get out of the way, a failure should not.
         Toast.show({ label: message, variant }, this);
     }
@@ -1788,7 +1788,7 @@ export default class FgridFlowGrid extends LightningElement {
      * Names the table for assistive technology.
      *
      * The datatable has no accessible name of its own, so without this a screen
-     * reader announces an unlabelled grid. Falls back to the object's plural label
+     * reader announces an unlabeled grid. Falls back to the object's plural label
      * when the admin has not set a table label.
      */
     get tableAriaLabel() {
@@ -1884,8 +1884,8 @@ export default class FgridFlowGrid extends LightningElement {
      * it is scoped under `c-fgrid_custom-datatable`, so nothing outside Flow
      * Grid is affected.
      *
-     * A failure is swallowed on purpose. The stylesheet only adds colour; a
-     * grid with uncoloured cells is still a working grid, and an error banner
+     * A failure is swallowed on purpose. The stylesheet only adds color; a
+     * grid with uncolored cells is still a working grid, and an error banner
      * about a stylesheet would tell a site visitor nothing they can act on.
      */
     loadFormatStyles() {
@@ -2117,7 +2117,7 @@ export default class FgridFlowGrid extends LightningElement {
 
         // Actioned means CLICKED, and nothing more. Published here, before either
         // branch, so it reports the row the user acted on regardless of what the
-        // action then did — a cancelled flow, a flow that changed nothing, or a
+        // action then did — a canceled flow, a flow that changed nothing, or a
         // removal refused by the cap all still count. It used to wait for an outcome,
         // which made it a second, weaker "edited" rather than a record of intent.
         this.publishActioned(record);
@@ -2589,7 +2589,7 @@ export default class FgridFlowGrid extends LightningElement {
      * Permissive when the list is empty. Flow populates it, but a grid rendered
      * outside a flow screen -- an App Builder page, a unit test -- has no list at
      * all, and refusing to navigate is the worse default: it would silently disable
-     * a configured behaviour rather than attempt it.
+     * a configured behavior rather than attempt it.
      */
     get canNavigateNext() {
         const actions = this.availableActions;
@@ -2738,7 +2738,7 @@ export default class FgridFlowGrid extends LightningElement {
         this._sortDirection = sortDirection;
         this._tableSortedBy = columnKey || fieldName;
 
-        // The flow gets the field an admin would recognise, never the generated URL
+        // The flow gets the field an admin would recognize, never the generated URL
         // field a linked column sorts through.
         this.publish("sortedBy", this._sortField);
         this.publish("sortDirection", sortDirection);
@@ -2811,7 +2811,7 @@ export default class FgridFlowGrid extends LightningElement {
      * Only the unsaved overlay goes. Removals and additions are the grid's own
      * committed state, not pending user input, so they survive.
      *
-     * Silent by design: the behaviour is documented in the Records property's
+     * Silent by design: the behavior is documented in the Records property's
      * help text rather than announced with a banner the user cannot act on.
      */
     discardUnsavedEdits() {

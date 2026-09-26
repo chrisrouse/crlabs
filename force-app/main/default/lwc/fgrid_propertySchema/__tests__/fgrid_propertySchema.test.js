@@ -265,7 +265,7 @@ describe("row action visibility", () => {
 });
 
 describe("disabled state", () => {
-    it("greys same-tab links when the name field is not linked", () => {
+    it("grays same-tab links when the name field is not linked", () => {
         // Stored negatively: hideNameFieldLink true IS "not linked".
         const [, sameTab] = resolveSection(section("formatting"), { hideNameFieldLink: true });
         expect(sameTab.property).toBe("openLinkInSameTab");
@@ -396,7 +396,7 @@ describe("integer values are typed for Flow", () => {
 });
 
 describe("the wrapped line limit is a switch", () => {
-    it("offers a checkbox, because a count cannot be honoured", () => {
+    it("offers a checkbox, because a count cannot be honored", () => {
         const controls = resolveSection(section("display"), {});
         expect(controls.find((c) => c.property === "limitWrappedLines").isCheckbox).toBe(true);
         // The deprecated property is unread and must not reappear in the editor.

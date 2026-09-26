@@ -3,7 +3,7 @@
  *
  * The controller is a thin delegate, so these cover only its own contract:
  * input validation, the shape of the returned bundle, and error translation.
- * Describe behaviour is covered by FlowGridColumnServiceTest.
+ * Describe behavior is covered by FlowGridColumnServiceTest.
  */
 @IsTest
 private class FlowGridControllerTest {

@@ -295,7 +295,7 @@ export default class FgridFlowGridStudio extends LightningModal {
     _isLoadingSample = false;
     _hasLoadedSampleOnce = false;
     /** Filters applied to the preview. Real, not decorative: the preview holds real
-     *  sample records, so filtering them demonstrates the actual behaviour rather
+     *  sample records, so filtering them demonstrates the actual behavior rather
      *  than showing a control that does nothing. */
     _previewFilters = {};
     _previewFilterEditorPath = null;
@@ -369,7 +369,7 @@ export default class FgridFlowGridStudio extends LightningModal {
             // navigates away from the editor.
             linkNameField: false
         });
-        // Built the same way the runtime builds it, so the icon, colour, side and
+        // Built the same way the runtime builds it, so the icon, color, side and
         // button variant on screen are the ones that will ship. No `onrowaction`
         // handler is wired, which leaves the control inert like the preview's
         // disabled search box and pagination buttons — clicking it here must not

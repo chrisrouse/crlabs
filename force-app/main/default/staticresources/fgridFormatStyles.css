@@ -4,7 +4,7 @@
  * A GLOBAL stylesheet, loaded with loadStyle, because component CSS is
  * scoped and never reaches inside lightning-datatable. Measured both
  * ways on a Lightning record page and in an LWR site: component CSS
- * unstyled, this rendered. See repro/datatable-cell-colour/ and
+ * unstyled, this rendered. See repro/datatable-cell-color/ and
  * STATUS 2.3d — nearly every assumption behind this file was wrong
  * before it was measured.
  *
@@ -12,7 +12,7 @@
  * nothing outside Flow Grid can be affected, and both the runtime grid
  * and the Grid Studio preview are covered by the same rules.
  *
- * COLOURS come from SLDS 2 global styling hooks in their documented
+ * COLORS come from SLDS 2 global styling hooks in their documented
  * pairs: a `-container-` background with the `-on-` foreground the index
  * describes as "text and icons color displayed on <x>-container-1".
  * Salesforce guarantees that pairing and gives each token its own light
@@ -20,7 +20,7 @@
  *
  * Do NOT reach for `slds-theme_*` here. It is an SLDS 1 construct that
  * rendered five different ways across the surfaces we tested, and it
- * welds a text colour to the background so the two cannot be chosen
+ * welds a text color to the background so the two cannot be chosen
  * separately.
  *
  * The fallbacks are the SLDS 1 light-mode hex, so an org without the
@@ -57,7 +57,7 @@ c-fgrid_custom-datatable .fgridFormat_accent {
    neutral built on it would be indistinguishable from an ordinary
    hovered row. Container-3 is a step stronger and stays distinct.
    The disabled-* pair was tried first and rejected: it is near-illegible
-   grey-on-grey in LWR, correctly, because those tokens are for disabled
+   gray-on-gray in LWR, correctly, because those tokens are for disabled
    UI that is meant to recede. */
 c-fgrid_custom-datatable .fgridFormat_neutral {
     background-color: var(--slds-g-color-surface-container-3, #e5e5e5);
@@ -70,7 +70,7 @@ c-fgrid_custom-datatable .fgridFormat_neutral {
    so the pair stays legible while the cell always contrasts hard against
    whatever the page currently is.
 
-   That is also why it must not be labelled "Dark" in the editor -- in
+   That is also why it must not be labeled "Dark" in the editor -- in
    dark mode it is the light one. */
 c-fgrid_custom-datatable .fgridFormat_inverse {
     background-color: var(--slds-g-color-surface-container-inverse-1, #032d60);
@@ -78,7 +78,7 @@ c-fgrid_custom-datatable .fgridFormat_inverse {
 }
 
 /* ---------------------------------------------------------------- *
- * Text only — colour the value, leave the cell background alone.
+ * Text only — color the value, leave the cell background alone.
  * ---------------------------------------------------------------- */
 
 c-fgrid_custom-datatable .fgridFormatText_success {
@@ -107,23 +107,23 @@ c-fgrid_custom-datatable .fgridFormatText_neutral {
  * `cellAttributes.class` lands on the `td`, and the row-hover rule
  * `tr:hover > td` outranks a single class, so the platform repaints the
  * background to $color-background-row-hover (#f3f3f3) while the class's
- * text colour survives on top of it. White on #f3f3f3, value gone.
+ * text color survives on top of it. White on #f3f3f3, value gone.
  * Reproduced in a competitor's datatable too, so this is a platform
  * gotcha rather than anything of ours.
  *
  * DECIDED: let the hover background win and revert only the text. A
  * hovered formatted cell then reads as an ordinary hovered cell, which
- * makes the active row clearer, and no coloured text can ever land on
+ * makes the active row clearer, and no colored text can ever land on
  * the hover background. The alternative — re-asserting background and
- * text at higher specificity — keeps the cell's colour under the cursor
+ * text at higher specificity — keeps the cell's color under the cursor
  * but needs a rule per variant.
  *
  * Only the FILLED variants carry `fgridFormat` and so only they revert.
- * Text-only variants are left alone deliberately: their colour sits on
+ * Text-only variants are left alone deliberately: their color sits on
  * the hover background perfectly legibly, so there is no problem to fix
  * and reverting would throw away the signal for nothing.
  *
- * The colour must come from the hook, not a literal: in dark mode the
+ * The color must come from the hook, not a literal: in dark mode the
  * hover background is dark, and a hardcoded #2e2e2e would be the new bug.
  *
  * BOTH PLACEMENTS are selected, `td .fgridFormat` and `td.fgridFormat`,
@@ -139,7 +139,7 @@ c-fgrid_custom-datatable .slds-table tbody tr:hover > th .fgridFormat,
 c-fgrid_custom-datatable .slds-table tbody tr:hover > td.fgridFormat,
 c-fgrid_custom-datatable .slds-table tbody tr:hover > th.fgridFormat,
 /* FOCUS, not hover. Clicking or tabbing into a cell gives it
-   `.slds-has-focus`, which paints it WHITE -- not the hover grey -- and
+   `.slds-has-focus`, which paints it WHITE -- not the hover gray -- and
    draws a blue ring. Same failure, different trigger: the cell loses its
    background and the light text stays. Caught on fgridFormat_inverse,
    where a white cell with white text shows nothing at all. */

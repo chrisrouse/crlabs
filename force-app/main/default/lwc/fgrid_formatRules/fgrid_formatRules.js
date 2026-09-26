@@ -25,7 +25,7 @@
  *   [
  *     {
  *       style: "error",                  // a FORMAT_STYLE key
- *       textOnly: false,                 // colour the text, not the cell
+ *       textOnly: false,                 // color the text, not the cell
  *       icon: "utility:warning",         // optional
  *       iconPosition: "left",
  *       logic: "all",                    // all | any | always | custom
@@ -40,12 +40,12 @@
 import { matchesFilter } from "c/fgrid_gridModel";
 
 /**
- * The palette, named by MEANING rather than by colour.
+ * The palette, named by MEANING rather than by color.
  *
  * Measured across five surfaces: the same semantic renders green, teal or pale
- * mint depending on the theme, so a control labelled "Green" would be lying
+ * mint depending on the theme, so a control labeled "Green" would be lying
  * four times out of five. `inverse` is the high-contrast option and inverts in
- * dark mode, so it is not "Dark" either. See repro/datatable-cell-colour/.
+ * dark mode, so it is not "Dark" either. See repro/datatable-cell-color/.
  */
 export const FORMAT_STYLE = {
     SUCCESS: "success",
@@ -69,7 +69,7 @@ export const FORMAT_STYLES = [
 /**
  * Styles with a text-only variant.
  *
- * `inverse` is absent on purpose. Its text colour is white, and without the
+ * `inverse` is absent on purpose. Its text color is white, and without the
  * dark background it is meaningless — measured rendering white-on-white, the
  * value simply gone, on three of four surfaces.
  */
@@ -108,7 +108,7 @@ export function parseFormatRules(raw) {
 /**
  * Every field path the rules read, so `buildRows` can carry them.
  *
- * A rule may test a column that is not displayed — colouring Amount by Status
+ * A rule may test a column that is not displayed — coloring Amount by Status
  * when Status is not shown. Without this the row would not hold Status and the
  * rule would silently never match.
  */
@@ -186,8 +186,8 @@ function ruleMatches(rule, row, caseSensitive) {
     }
     if (logic === FORMAT_LOGIC.CUSTOM) {
         // An unparseable expression falls back to ALL rather than matching
-        // everything: colouring every row is a louder, more confusing failure
-        // than colouring none.
+        // everything: coloring every row is a louder, more confusing failure
+        // than coloring none.
         const evaluated = evaluateCustomLogic(rule.customLogic, results);
         return evaluated === null ? results.every(Boolean) : evaluated;
     }

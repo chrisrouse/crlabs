@@ -244,7 +244,7 @@ function resolveEditable(attributes, describe, defaultEditable) {
  *
  * The trade is real: raising the floor makes a wide grid scroll horizontally in
  * cases that previously squeezed to fit. That is the intended outcome -- a
- * scrollbar is legible and a 50px column is not -- but it IS a behaviour change,
+ * scrollbar is legible and a 50px column is not -- but it IS a behavior change,
  * so keep this as one number rather than spreading it across the templates.
  */
 export const MIN_COLUMN_WIDTH = 100;
@@ -270,7 +270,7 @@ export const ROWS_PER_PAGE_STEPS = [10, 25, 50, 100];
  * Page 1 and the last page are always present, so the total is always readable and
  * either end is one click away.
  *
- * The window is EVEN, so it cannot centre the current page. It leans one before and
+ * The window is EVEN, so it cannot center the current page. It leans one before and
  * two after — page 5 of 32 gives 4 5 6 7 — biasing toward where the user is heading.
  *
  * @param {number} current 1-based current page
@@ -405,7 +405,7 @@ export function buildColumns(fields, config = {}, options = {}) {
             //
             // It used to override outright, which is how a record Id ended up with a
             // working text box over an 18-character key, and how a Date column got an
-            // edit pencil the datatable refuses to honour. Adding types to Apex's
+            // edit pencil the datatable refuses to honor. Adding types to Apex's
             // NON_EDITABLE_TYPES only moved the DEFAULT, so an explicit tick still
             // produced a broken cell.
             //
@@ -636,7 +636,7 @@ export function buildColumns(fields, config = {}, options = {}) {
         // `date` and `date-local` are both lightning-formatted-date-time, and the
         // difference is the whole reason a Date and a Datetime are typed apart:
         //   date-local  no timezone conversion, and it IGNORES typeAttributes
-        //   date        converts to the running user's zone, and honours them
+        //   date        converts to the running user's zone, and honors them
         //
         // A DATETIME needs the time shown. With no typeAttributes the component uses
         // a medium DATE format, so a Datetime rendered as just "Apr 18, 2024" and the
@@ -919,7 +919,7 @@ function normalizeForSort(value) {
         return value;
     }
     // ALWAYS case-insensitive. Comparing raw strings compares character codes, which
-    // puts every capitalised value ahead of every lowercase one — "Zebra" before
+    // puts every capitalized value ahead of every lowercase one — "Zebra" before
     // "acme". That was once a setting; no end-user reason to want it was found, so
     // the sort simply does the readable thing.
     return String(value).toLowerCase();
@@ -1544,7 +1544,7 @@ export function withRowActionColumn(columns, options = {}) {
                      it swaps the text for an icon -- so on its own the text stayed and
                      truncated to "Ru..." in a 60px column, which is worse than blank.
                      The action is described on every cell through `typeAttributes.title`
-                     and `alternativeText`; only the header is unlabelled. */
+                     and `alternativeText`; only the header is unlabeled. */
                   label: "",
                   hideDefaultActions: true,
                   typeAttributes: {
@@ -1564,7 +1564,7 @@ export function withRowActionColumn(columns, options = {}) {
                      it swaps the text for an icon -- so on its own the text stayed and
                      truncated to "Ru..." in a 60px column, which is worse than blank.
                      The action is described on every cell through `typeAttributes.title`
-                     and `alternativeText`; only the header is unlabelled. */
+                     and `alternativeText`; only the header is unlabeled. */
                   label: "",
                   fixedWidth: 60,
                   hideDefaultActions: true,
@@ -1601,20 +1601,20 @@ export function withRowActionColumn(columns, options = {}) {
 export function rowActionIconClass(actionType, color) {
     const isRemove = String(actionType || "") === "Remove";
     // Spelled "Black" rather than left null so this matches DEFAULTS_FROM in the
-    // schema exactly. Both sides then name the same colour for an unset action,
+    // schema exactly. Both sides then name the same color for an unset action,
     // and the panel cannot preview one thing while the grid renders another.
     return colorClass(color || (isRemove ? "Red" : "Black"));
 }
 
 /**
- * Maps the configured colour to an SLDS icon utility class.
+ * Maps the configured color to an SLDS icon utility class.
  *
  * SLDS'S CLASSES, NOT OURS, AND THAT IS THE WHOLE POINT. This used to return
  * `fgrid-action_red` and friends, declared in a stylesheet of ours. The class lands
  * on an element `lightning-primitive-cell-factory` renders -- a grandchild of the
  * datatable -- so no stylesheet of ours can select it. Declaring the rules in the
  * grid's CSS failed, and moving them into the datatable subclass's CSS failed too;
- * measured in a running org, the configured colour never applied in either place.
+ * measured in a running org, the configured color never applied in either place.
  *
  * These classes are defined in `salesforce-lightning-design-system.min.css`, which
  * is global, so the selector matches wherever the element lives. They set the same
@@ -1623,7 +1623,7 @@ export function rowActionIconClass(actionType, color) {
  *     .slds-icon-text-error   --slds-c-icon-color-foreground: #ea001e
  *     .slds-icon-text-success --slds-c-icon-color-foreground: #2e844a
  *
- * Black has no SLDS equivalent. `slds-icon-text-default` is the neutral grey the
+ * Black has no SLDS equivalent. `slds-icon-text-default` is the neutral gray the
  * datatable already uses, so choosing Black now renders as the default rather than
  * the #181818 it nominally promised. The option is kept because saved flows store
  * it; the alternative was renaming a stored value.

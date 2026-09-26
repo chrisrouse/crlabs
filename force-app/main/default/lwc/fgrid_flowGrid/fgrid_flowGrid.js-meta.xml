@@ -21,7 +21,7 @@
             <property name="records" type="{T[]}" label="Records" role="inputOnly" />
             <property name="objectApiName" type="String" label="Object API Name" role="inputOnly" />
             <property name="preSelectedRecords" type="{T[]}" label="Pre-Selected Records" role="inputOnly" />
-            <property name="disabledRecords" type="{T[]}" label="Disabled Records" role="inputOnly" description="Records the user cannot select or edit. They still render, greyed, so a user can see why a row is unavailable instead of wondering where it went." />
+            <property name="disabledRecords" type="{T[]}" label="Disabled Records" role="inputOnly" description="Records the user cannot select or edit. They still render, grayed, so a user can see why a row is unavailable instead of wondering where it went." />
             <property name="keyField" type="String" label="Key Field" default="Id" role="inputOnly" />
 
             <!-- User-defined (non-SObject) source. Records arrive as serialized JSON. -->
@@ -63,7 +63,7 @@
                  removed while a saved flow version still stores a value for it; see
                  the removal TODO in STATUS.md. -->
             <property name="wrapTextMaxLines" type="Integer" label="Wrapped Lines (Deprecated)" role="inputOnly" description="No longer used. Superseded by Limit Wrapped Text to Three Lines." />
-            <property name="limitWrappedLines" type="Boolean" label="Limit Wrapped Text to Three Lines" default="false" role="inputOnly" description="Limit the number of lines shown when text is wrapped to three lines. Three is the only clamp available: SLDS 2 hardcodes it in slds-plus.css, so an arbitrary count cannot be honoured." />
+            <property name="limitWrappedLines" type="Boolean" label="Limit Wrapped Text to Three Lines" default="false" role="inputOnly" description="Limit the number of lines shown when text is wrapped to three lines. Three is the only clamp available: SLDS 2 hardcodes it in slds-plus.css, so an arbitrary count cannot be honored." />
             <property name="showReadOnlyIcon" type="Boolean" label="Show a Lock on Read-Only Columns" default="false" role="inputOnly" />
 
             <!-- ============================= Selection =============================
