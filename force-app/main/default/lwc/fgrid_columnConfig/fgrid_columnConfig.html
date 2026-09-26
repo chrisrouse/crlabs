@@ -269,6 +269,22 @@
                                                 </div>
                                             </template>
 
+                                            <!-- ---------- Picklist ---------- -->
+                                            <template lwc:if={row.isPicklistGroup}>
+                                                <div class="drawer__section drawer__typed">
+                                                    <p class="drawer__typed-why">Because this column is a picklist</p>
+                                                    <lightning-input
+                                                        type="checkbox"
+                                                        label="Show values as badges"
+                                                        field-level-help="Draws each value as an SLDS badge instead of plain text. Drawn inside the cell, so it keeps its shape when a row is hovered."
+                                                        data-field={row.field}
+                                                        data-attribute="badge"
+                                                        checked={row.badge}
+                                                        onchange={handleCheckboxChange}
+                                                    ></lightning-input>
+                                                </div>
+                                            </template>
+
                                             <!-- ---------- Lookup ---------- -->
                                             <template lwc:if={row.isLookupGroup}>
                                                 <div class="drawer__section drawer__typed">
@@ -513,45 +529,40 @@
                                             <!-- ---------- Advanced ---------- -->
                                             <div class="drawer__section">
                                                 <p class="drawer__title">Advanced</p>
-                                                <c-fgrid_icon-picker
-                                                    label="Header icon"
-                                                    data-field={row.field}
-                                                    data-attribute="icon"
-                                                    value={row.icon}
-                                                    onchange={handleIconChange}
-                                                ></c-fgrid_icon-picker>
                                                 <div class="drawer__row">
-                                                    <lightning-textarea
+                                                    <c-fgrid_icon-picker
                                                         class="drawer__field"
-                                                        label="Cell attributes (JSON)"
+                                                        label="Cell icon"
+                                                        field-level-help="Drawn in every cell of this column, beside the value."
                                                         data-field={row.field}
-                                                        data-attribute="cellAttribs"
-                                                        placeholder={cellAttribsPlaceholder}
-                                                        value={row.cellAttribs}
-                                                        onchange={handleBlobChange}
-                                                    ></lightning-textarea>
-                                                    <lightning-textarea
+                                                        data-attribute="icon"
+                                                        value={row.icon}
+                                                        onchange={handleIconChange}
+                                                    ></c-fgrid_icon-picker>
+                                                    <c-fgrid_icon-picker
                                                         class="drawer__field"
-                                                        label="Type attributes (JSON)"
+                                                        label="Header icon"
+                                                        field-level-help="Drawn once, in the column header."
                                                         data-field={row.field}
-                                                        data-attribute="typeAttribs"
-                                                        placeholder={typeAttribsPlaceholder}
-                                                        value={row.typeAttribs}
-                                                        onchange={handleBlobChange}
-                                                    ></lightning-textarea>
-                                                    <lightning-textarea
-                                                        class="drawer__field"
-                                                        label="Other attributes (JSON)"
-                                                        data-field={row.field}
-                                                        data-attribute="otherAttribs"
-                                                        placeholder={otherAttribsPlaceholder}
-                                                        value={row.otherAttribs}
-                                                        onchange={handleBlobChange}
-                                                    ></lightning-textarea>
+                                                        data-attribute="headerIcon"
+                                                        value={row.headerIcon}
+                                                        onchange={handleIconChange}
+                                                    ></c-fgrid_icon-picker>
                                                 </div>
-                                                <p class="drawer__hint">
-                                                    Anything set here wins over the controls above.
-                                                </p>
+                                                <!-- Only offered with a header icon: hideLabel is documented
+                                                     as swapping the text FOR the icon, so on its own the
+                                                     label stays and truncates. -->
+                                                <template lwc:if={row.hasHeaderIcon}>
+                                                    <lightning-input
+                                                        type="checkbox"
+                                                        label="Show only the icon in the header"
+                                                        field-level-help="Replaces the header text with the icon. The label is still read by screen readers."
+                                                        data-field={row.field}
+                                                        data-attribute="hideLabel"
+                                                        checked={row.hideLabel}
+                                                        onchange={handleCheckboxChange}
+                                                    ></lightning-input>
+                                                </template>
                                                 <lightning-button
                                                     variant="base"
                                                     label="Reset this column"

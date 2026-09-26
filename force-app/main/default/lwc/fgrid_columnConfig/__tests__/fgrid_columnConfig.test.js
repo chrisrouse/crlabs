@@ -214,35 +214,17 @@ describe("advanced attributes", () => {
         expect(element.shadowRoot.querySelectorAll(".drawer")).toHaveLength(1);
     });
 
-    it("parses a valid JSON blob into an object", async () => {
+    it("no longer offers the raw JSON boxes", async () => {
+        // Removed 2026-09-26. Cell, type and other attributes were an API, not
+        // a configuration surface. Everything they were used for now has a
+        // control: formatting has the rule editor, icons have a picker, and
+        // hideLabel has a checkbox.
         const element = build();
         await Promise.resolve();
         openDrawer(element, "Name");
         await Promise.resolve();
-        const emitted = onChange(element);
 
-        const textarea = cell(element, "Name", "typeAttribs");
-        textarea.value = '{"currencyCode":"EUR"}';
-        textarea.dispatchEvent(new CustomEvent("change"));
-
-        expect(JSON.parse(emitted[0]).Name.typeAttribs).toEqual({ currencyCode: "EUR" });
-    });
-
-    it("reports invalid JSON without emitting a change", async () => {
-        const element = build();
-        await Promise.resolve();
-        openDrawer(element, "Name");
-        await Promise.resolve();
-        const emitted = onChange(element);
-
-        const textarea = cell(element, "Name", "typeAttribs");
-        textarea.setCustomValidity = jest.fn();
-        textarea.reportValidity = jest.fn();
-        textarea.value = "{broken";
-        textarea.dispatchEvent(new CustomEvent("change"));
-
-        expect(textarea.setCustomValidity).toHaveBeenCalledWith("Not valid JSON.");
-        expect(emitted).toHaveLength(0);
+        expect(element.shadowRoot.querySelector("lightning-textarea")).toBeNull();
     });
 });
 

@@ -112,13 +112,6 @@ export default class FgridColumnConfig extends LightningElement {
     logicOptions = FORMAT_LOGIC_OPTIONS;
     currencyDisplayOptions = CURRENCY_DISPLAYS;
 
-    /* Placeholders live here rather than in the template: LWC parses `{` inside
-       an attribute value as a template expression, so a literal JSON example
-       cannot be written inline. */
-    cellAttribsPlaceholder = '{"class": "fgridFormat fgridFormat_error"}';
-    typeAttribsPlaceholder = '{"minimumFractionDigits": 2}';
-    otherAttribsPlaceholder = '{"hideLabel": true}';
-
     /* ------------------------------------------------------------------ *
      * Derived model
      * ------------------------------------------------------------------ */
@@ -199,6 +192,10 @@ export default class FgridColumnConfig extends LightningElement {
                 link: attributes.link !== false,
                 isPolymorphic: Boolean(describe?.isPolymorphic),
                 icon: attributes.icon ?? "",
+                headerIcon: attributes.headerIcon ?? "",
+                hasHeaderIcon: Boolean(attributes.headerIcon),
+                hideLabel: Boolean(attributes.hideLabel),
+                badge: Boolean(attributes.badge),
 
                 colorMode,
                 isPerColumnColor: colorMode === "column",
@@ -208,11 +205,7 @@ export default class FgridColumnConfig extends LightningElement {
                 columnEmphasis: attributes.emphasis ?? "",
                 styleOptions: FORMAT_STYLES,
                 textOnlyStyleOptions: TEXT_ONLY_STYLES,
-                rules: this.describeRules(field, rules),
-
-                cellAttribs: stringifyBlob(attributes.cellAttribs),
-                typeAttribs: stringifyBlob(attributes.typeAttribs),
-                otherAttribs: stringifyBlob(attributes.otherAttribs)
+                rules: this.describeRules(field, rules)
             };
         });
     }
@@ -498,24 +491,6 @@ export default class FgridColumnConfig extends LightningElement {
      * Persistence
      * ------------------------------------------------------------------ */
 
-    /** Free-text JSON blobs. Invalid JSON is stored verbatim so the admin's
-     *  in-progress typing is never discarded; validity is reported separately. */
-    handleBlobChange(event) {
-        const { field, attribute } = event.currentTarget.dataset;
-        const raw = event.target.value;
-        if (!raw || !raw.trim()) {
-            this.apply(field, attribute, null);
-            return;
-        }
-        try {
-            this.apply(field, attribute, JSON.parse(raw));
-            event.target.setCustomValidity("");
-        } catch {
-            event.target.setCustomValidity("Not valid JSON.");
-        }
-        event.target.reportValidity();
-    }
-
     handleClearColumn(event) {
         const field = event.currentTarget.dataset.field;
         const next = { ...this.config };
@@ -565,11 +540,4 @@ export default class FgridColumnConfig extends LightningElement {
         const value = Object.keys(pruned).length ? JSON.stringify(pruned) : null;
         this.dispatchEvent(new CustomEvent("columnconfigchange", { detail: { value } }));
     }
-}
-
-function stringifyBlob(value) {
-    if (value === null || value === undefined) {
-        return "";
-    }
-    return typeof value === "string" ? value : JSON.stringify(value);
 }

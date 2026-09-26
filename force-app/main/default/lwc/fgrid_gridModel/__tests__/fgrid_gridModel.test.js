@@ -29,6 +29,44 @@ import {
     parseFieldList
 } from "c/fgrid_gridModel";
 
+describe("header icon, hidden label and the picklist badge", () => {
+    it("puts a cell icon on every cell and a header icon on the header", () => {
+        // Two different properties. The old panel offered only the first and
+        // called it a header icon, which it never was.
+        const [column] = buildColumns(["Name"], { Name: { icon: "utility:check", headerIcon: "utility:user" } });
+        expect(column.cellAttributes.iconName).toBe("utility:check");
+        expect(column.iconName).toBe("utility:user");
+    });
+
+    it("hides the header label only when there is an icon to replace it", () => {
+        // hideLabel swaps the text FOR the icon. Alone, the text stays and
+        // truncates, which is worse than either -- so it is ignored.
+        const [withIcon] = buildColumns(["Name"], { Name: { headerIcon: "utility:user", hideLabel: true } });
+        expect(withIcon.hideLabel).toBe(true);
+
+        const [without] = buildColumns(["Name"], { Name: { hideLabel: true } });
+        expect(without.hideLabel).toBeUndefined();
+    });
+
+    it("badges a picklist and refuses to badge anything else", () => {
+        const [picklist] = buildColumns(["Stage"], { Stage: { type: "fgridPicklist", badge: true } });
+        expect(picklist.typeAttributes.badge).toBe(true);
+
+        const [text] = buildColumns(["Name"], { Name: { type: "text", badge: true } });
+        expect(text.typeAttributes?.badge).toBeUndefined();
+    });
+
+    it("still reads the retired JSON escape hatches from a saved config", () => {
+        // The panel no longer writes them, but a flow saved before today can
+        // still carry them and must keep working.
+        const [column] = buildColumns(["Name"], {
+            Name: { otherAttribs: { hideDefaultActions: true }, cellAttribs: { alignment: "center" } }
+        });
+        expect(column.hideDefaultActions).toBe(true);
+        expect(column.cellAttributes.alignment).toBe("center");
+    });
+});
+
 describe("decimals and currency reach the datatable's own type attributes", () => {
     const attrs = (config) => buildColumns(["Amount"], config)[0].typeAttributes || {};
 

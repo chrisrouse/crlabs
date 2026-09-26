@@ -615,8 +615,20 @@ export function buildColumns(fields, config = {}, options = {}) {
         if (attributes.align) {
             cellAttributes.alignment = attributes.align;
         }
+        // A CELL icon: drawn in every row of the column, beside the value.
         if (attributes.icon) {
             cellAttributes.iconName = attributes.icon;
+        }
+        // A HEADER icon, which is a different thing and a different property.
+        // `hideLabel` swaps the header TEXT for that icon, and is documented as
+        // only working paired with one -- on its own the text stays and
+        // truncates, which is worse than either. So it is ignored without an
+        // icon rather than written and silently doing nothing.
+        if (attributes.headerIcon) {
+            column.iconName = attributes.headerIcon;
+            if (attributes.hideLabel) {
+                column.hideLabel = true;
+            }
         }
         if (Object.keys(cellAttributes).length) {
             column.cellAttributes = cellAttributes;
@@ -706,6 +718,13 @@ export function buildColumns(fields, config = {}, options = {}) {
         const step = firstNumber(attributes.step);
         if (step !== null) {
             typeAttributes.step = step;
+        }
+        // Picklist values drawn as SLDS badges rather than plain text. Handled
+        // by our own cell template, so unlike a `cellAttributes.class` it is
+        // immune to the row-hover repaint -- hover recolors the cell, never a
+        // nested span. See repro/datatable-cell-colour/.
+        if (attributes.badge && (column.type === "fgridPicklist" || column.type === "fgridMultiPicklist")) {
+            typeAttributes.badge = true;
         }
         // Auto-links URLs found inside a plain text cell.
         if (attributes.linkify) {
