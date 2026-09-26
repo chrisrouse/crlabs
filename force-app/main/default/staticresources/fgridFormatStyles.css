@@ -64,6 +64,19 @@ c-fgrid_custom-datatable .fgridFormat_neutral {
     color: var(--slds-g-color-on-surface-2, #2e2e2e);
 }
 
+/* The strong, high-contrast option, and the only one that is dark in a
+   light theme. It INVERTS: container-inverse-1 is #032D60 in light mode
+   and #AACBFF in dark, with on-surface-inverse-1 moving the opposite way,
+   so the pair stays legible while the cell always contrasts hard against
+   whatever the page currently is.
+
+   That is also why it must not be labelled "Dark" in the editor -- in
+   dark mode it is the light one. */
+c-fgrid_custom-datatable .fgridFormat_inverse {
+    background-color: var(--slds-g-color-surface-container-inverse-1, #032d60);
+    color: var(--slds-g-color-on-surface-inverse-1, #ffffff);
+}
+
 /* ---------------------------------------------------------------- *
  * Text only — colour the value, leave the cell background alone.
  * ---------------------------------------------------------------- */
