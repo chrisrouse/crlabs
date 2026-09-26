@@ -1,0 +1,23 @@
+{
+    "name": "crlabs",
+    "private": true,
+    "version": "0.1.0",
+    "description": "crlabs Salesforce packages",
+    "scripts": {
+        "test": "npm run test:unit",
+        "test:unit": "sfdx-lwc-jest",
+        "test:unit:watch": "sfdx-lwc-jest --watch",
+        "test:unit:coverage": "sfdx-lwc-jest --coverage",
+        "prettier:verify": "prettier --check \"flow-config-editor-kit/**/*.{js,html,css,json,cls}\"",
+        "verify": "npm run prettier:verify && npm run test:unit"
+    },
+    "engines": {
+        "node": ">=22.12.0"
+    },
+    "devDependencies": {
+        "@prettier/plugin-xml": "^3.4.2",
+        "@salesforce/sfdx-lwc-jest": "^7.9.0",
+        "prettier": "^3.9.6",
+        "prettier-plugin-apex": "^2.3.0"
+    }
+}

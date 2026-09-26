@@ -1,0 +1,17 @@
+# Not deployable metadata.
+**/jsconfig.json
+**/tsconfig.json
+**/.eslintrc.json
+**/*.ts
+
+# Jest tests and their helpers.
+**/__tests__/**
+**/__mocks__/**
+**/test-utils/**
+
+# Vendored provenance files live beside the source, not in the org.
+**/VENDOR.md
+**/LICENSE
+**/NOTICE
+
+package.xml
