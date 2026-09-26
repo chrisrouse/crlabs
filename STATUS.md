@@ -1089,6 +1089,114 @@ one through `percentToFraction`; the conversion is keyed on the type, so a gauge
 skips it. A Salesforce Percent field stores 25 for 25%, which is already what a
 gauge wants. There is a test saying so.
 
+### 2.3g NEXT SESSION — build Progress Ring and Progress Circle
+
+Progress Bar shipped and is deployed. Ring and Circle are not built. Everything
+needed is below; nothing here has to be re-researched.
+
+#### Already decided, do not relitigate
+
+- **Percent fields only** (2.3f). No "Value at 100%", no scaling. The value is
+  taken as-is and clamped to 0-100.
+- **Not editable.** No `editTemplate`, and `buildColumns` sets
+  `column.editable = false`, as the bar does.
+- **ONE renderer serves both.** The SLDS ring blueprint is already SVG, and
+  Avonni's Circle is that ring with a configurable diameter, stroke width and a
+  value in the middle. Write `progressRingDisplay.html` once and register
+  `fgridProgressRing` and `fgridProgressCircle` against it, differing only in
+  which type attributes apply.
+- **Theme reuses the conditional-formatting palette** — the same
+  `PROGRESS_THEMES` the bar uses, so Success means one green everywhere.
+- **Hide Icon is ours to offer.** `lightning-progress-ring` ties the icon to the
+  variant and gives no way to suppress it. Owning the markup means we choose,
+  which turns Avonni's option into something we can actually do.
+
+#### The blueprint, with the arc maths
+
+https://v1.lightningdesignsystem.com/components/progress-ring/
+
+`viewBox="-1 -1 2 2"` — a unit circle, -1 to 1 on both axes.
+
+At 100%, a plain circle:
+
+```html
+<circle class="slds-progress-ring__path" cx="0" cy="0" r="1"></circle>
+```
+
+Below 100%, an arc path. SLDS states the formulas:
+
+```
+d = "M 1 0 A 1 1 0 {isLong} 1 {arcX} {arcY} L 0 0"
+
+isLong = 1 when the fill is over 50%, else 0
+arcX   = Math.cos(2 * Math.PI * fillPercent)
+arcY   = Math.sin(2 * Math.PI * fillPercent)
+```
+
+Verified against the blueprint's own 88% example, which renders
+`d="M 1 0 A 1 1 0 1 1 0.73 -0.68 L 0 0"` — cos(2π × 0.88) = 0.729,
+sin(2π × 0.88) = -0.684.
+
+Classes: `slds-progress-ring`, `__progress` (carries the ARIA), `__path`,
+`__progress-head`, `__content`. Variant modifiers `_active-step`, `_warning`,
+`_expired`, `_complete`. Size `_large`.
+
+ARIA goes on `.slds-progress-ring__progress`, per the blueprint: `role`,
+`aria-valuemin="0"`, `aria-valuemax="100"`, `aria-valuenow={fill}`,
+`aria-label`.
+
+**Unresolved:** how fill versus drain is expressed. The 88% example is labelled
+"Partially Drained" and uses sweep flag `1`. Determine empirically rather than
+guessing — likely the angle's sign or the sweep flag.
+
+#### Vocabulary to offer
+
+`lightning-progress-ring`'s own values, for familiarity:
+
+- Ring variant: `base`, `active-step`, `warning`, `expired`, `base-autocomplete`
+- Ring size: `medium`, `large` — only two
+- Direction: `fill` (clockwise), `drain` (counterclockwise)
+
+Avonni's Circle adds, and these are worth copying: Label (short text after the
+value inside the circle), Variant of Standard or Value Hidden, Size and
+Thickness on five steps each (X-Small to X-Large), Direction.
+
+#### Where the code goes
+
+| File | Change |
+| --- | --- |
+| `fgrid_customDatatable/progressRingDisplay.html` | new; the SVG blueprint |
+| `fgrid_customDatatable/fgrid_customDatatable.js` | two `customTypes` keys, one template |
+| `fgrid_columnTypes.js` | two `COLUMN_TYPES` entries; add both to `PERCENT`; extend `isProgress`; size and thickness scales |
+| `fgrid_gridModel.js` | arc `d`, and the ring's own row fields, beside the bar's block |
+| `fgridFormatStyles.css` | ring fill colors from the same hooks as `fgridProgressFill_*` |
+| `fgrid_columnConfig` | a ring group in the drawer; reuse `isProgressGroup` or split it |
+| `flowgrid/design/` | extend `progress-bar-demo.html`, or a sibling |
+
+#### Four traps in this codebase, each of which has already bitten
+
+1. **`buildColumns` has TWO attribute bags initialised at different points, and
+   neither is attached when empty.** `cellAttributes` is attached early;
+   `typeAttributes` is declared later and attached at the end. Put ring writes
+   beside the bar's block, in the `typeAttributes` region. Getting this wrong
+   cost three separate fixes, once caught only by `no-use-before-define`.
+2. **Every `typeAttributes.x` a template binds MUST be declared** in the
+   `customTypes` entry. The datatable drops undeclared ones silently, so the
+   template renders `undefined` — which is how a badge lost both its styling and
+   its color. There is a structural test guarding this; it will fail if you
+   forget.
+3. **One root element per `for:each`.** Two, with one conditional, left both
+   drawers rendered at once with no error.
+4. **Hard-refresh after deploying the static resource.** `cacheControl: Public`,
+   so the browser serves the old CSS and the fix looks like it did not land.
+
+#### Do not use `lightning-progress-ring`
+
+Same reason as the bar: no slots, so nowhere to put a value or a label, and the
+variant cannot carry a theme. Rendering the blueprint is the established
+approach here — see also the memory note that guessed styling hooks fail
+silently and the blueprint should be rendered directly.
+
 ### 2.3e Native Conditional Field Formatting — INVESTIGATED AND DECLINED 2026-09-19
 
 Whether Flow Grid could read the rulesets an admin already defines in Setup
