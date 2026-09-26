@@ -11,7 +11,9 @@
             </div>
         </template>
 
-        <!-- ====================== Full: Grid Studio ======================== -->
+        <!-- ====================== Full: Grid Studio ========================
+             Treatment C. The grid holds what you would compare ACROSS columns;
+             the drawer holds what only makes sense for one. -->
         <template lwc:else>
             <div class="grid">
                 <div class="grid__toolbar">
@@ -38,14 +40,23 @@
                                 <div class="slds-truncate" title="Filterable">Filter</div>
                             </th>
                             <th class="grid__col-flag" scope="col">
+                                <div class="slds-truncate" title="Sortable">Sort</div>
+                            </th>
+                            <th class="grid__col-flag" scope="col">
                                 <div class="slds-truncate" title="Wrap this column's cells and its header">Wrap</div>
                             </th>
+                            <th class="grid__col-rules" scope="col"><div class="slds-truncate">Format</div></th>
                             <th class="grid__col-actions" scope="col"><div class="slds-truncate">&nbsp;</div></th>
                         </tr>
                     </thead>
-                    <tbody>
-                        <template for:each={rows} for:item="row">
-                            <tr key={row.key} class="slds-hint-parent">
+                    <!-- ONE <tbody> PER ROW, on purpose. Each for:each iteration must
+                         have a single root element; a row plus a conditional drawer
+                         row is two, and LWC then failed to remove the first drawer
+                         when a second opened. A table may contain many tbody
+                         elements, so this is valid and costs nothing. -->
+                    <template for:each={rows} for:item="row">
+                        <tbody key={row.key}>
+                            <tr class="slds-hint-parent">
                                 <td class="grid__cell-num">{row.position}</td>
                                 <td>
                                     <div class="slds-truncate grid__field" title={row.field}>{row.field}</div>
@@ -58,7 +69,6 @@
                                         data-field={row.field}
                                         data-attribute="label"
                                         placeholder="Default"
-                                        max-length="255"
                                         value={row.label}
                                         onchange={handleTextChange}
                                     ></lightning-input>
@@ -70,8 +80,7 @@
                                         label="Width"
                                         data-field={row.field}
                                         data-attribute="width"
-                                        placeholder="auto"
-                                        min="20"
+                                        placeholder="Auto"
                                         value={row.width}
                                         onchange={handleNumberChange}
                                     ></lightning-input>
@@ -79,7 +88,7 @@
                                 <td>
                                     <lightning-combobox
                                         variant="label-hidden"
-                                        label="Align"
+                                        label="Alignment"
                                         data-field={row.field}
                                         data-attribute="align"
                                         value={row.align}
@@ -113,156 +122,449 @@
                                     <lightning-input
                                         type="checkbox"
                                         variant="label-hidden"
-                                        label="Wrap text"
+                                        label="Sortable"
+                                        data-field={row.field}
+                                        data-attribute="sort"
+                                        checked={row.sort}
+                                        onchange={handleDefaultOnFlagChange}
+                                    ></lightning-input>
+                                </td>
+                                <td class="grid__cell-flag">
+                                    <lightning-input
+                                        type="checkbox"
+                                        variant="label-hidden"
+                                        label="Wrap"
                                         data-field={row.field}
                                         data-attribute="wrap"
                                         checked={row.wrap}
                                         onchange={handleDefaultOnFlagChange}
                                     ></lightning-input>
                                 </td>
-                                <td class="grid__cell-actions">
+                                <td>
+                                    <!-- Read-only on purpose. A count says a column is
+                                         formatted without pretending rules can be
+                                         edited inside a table cell. -->
+                                    <template lwc:if={row.hasRules}>
+                                        <span class="grid__rules">{row.ruleCountLabel}</span>
+                                    </template>
+                                </td>
+                                <td>
                                     <lightning-button
                                         variant="base"
-                                        label={row.expandLabel}
+                                        label={row.toggleLabel}
                                         data-field={row.field}
-                                        onclick={handleToggleAdvanced}
+                                        onclick={handleToggleDrawer}
                                     ></lightning-button>
                                 </td>
                             </tr>
 
-                            <template lwc:if={row.isExpanded}>
-                                <tr key={row.field} class="grid__advanced">
-                                    <td colspan="10">
-                                        <div class="advanced">
-                                            <!-- Lookup-only, and mirroring the
-                                                 standard datatable's Display
-                                                 Options. Both default on, so the
-                                                 stored attribute is only ever an
-                                                 explicit opt-out. -->
-                                            <template lwc:if={row.isLookup}>
-                                                <div class="advanced__col">
-                                                    <p class="slds-text-title_bold slds-m-bottom_xx-small">
-                                                        Display Options
-                                                    </p>
-                                                    <lightning-input
-                                                        type="checkbox"
-                                                        label="Show record name"
+                            <!-- ====================== the drawer ====================== -->
+                            <template lwc:if={row.isOpen}>
+                                <tr class="drawer">
+                                    <td colspan="11">
+                                        <div class="drawer__inner">
+                                            <!-- ---------- Display ---------- -->
+                                            <div class="drawer__section">
+                                                <p class="drawer__title">Display</p>
+                                                <div class="drawer__row">
+                                                    <lightning-combobox
+                                                        class="drawer__field"
+                                                        label="Type"
+                                                        field-level-help="What this value is displayed as. Only the types this field can sensibly use are offered."
                                                         data-field={row.field}
-                                                        data-attribute="showName"
-                                                        checked={row.showName}
-                                                        field-level-help="Show the related record's name instead of its Id. The name is read from the record, so the Flow's Get Records must have queried the relationship — otherwise the Id is shown."
-                                                        onchange={handleDefaultOnFlagChange}
-                                                    ></lightning-input>
-                                                    <lightning-input
-                                                        type="checkbox"
-                                                        label="Link to record"
-                                                        data-field={row.field}
-                                                        data-attribute="link"
-                                                        checked={row.link}
-                                                        field-level-help="Make the text a link to the related record. The link opens the record; the edit pencil still edits the cell."
-                                                        onchange={handleDefaultOnFlagChange}
-                                                    ></lightning-input>
-                                                    <template lwc:if={row.isPolymorphic}>
-                                                        <p
-                                                            class="slds-text-body_small slds-text-color_weak slds-m-top_xx-small"
-                                                        >
-                                                            This lookup points at more than one object, so it cannot be
-                                                            edited in the grid.
-                                                        </p>
+                                                        data-role="type"
+                                                        value={row.type}
+                                                        options={row.typeOptions}
+                                                        onchange={handleTypeChange}
+                                                    ></lightning-combobox>
+                                                </div>
+                                            </div>
+
+                                            <!-- ---------- Numbers and currency ---------- -->
+                                            <template lwc:if={row.isNumberGroup}>
+                                                <div class="drawer__section drawer__typed">
+                                                    <p class="drawer__typed-why">Because of this column's type</p>
+                                                    <div class="drawer__row">
+                                                        <lightning-input
+                                                            class="drawer__field"
+                                                            type="number"
+                                                            label="Minimum decimals"
+                                                            data-field={row.field}
+                                                            data-attribute="minDecimals"
+                                                            value={row.minDecimals}
+                                                            onchange={handleNumberChange}
+                                                        ></lightning-input>
+                                                        <lightning-input
+                                                            class="drawer__field"
+                                                            type="number"
+                                                            label="Maximum decimals"
+                                                            data-field={row.field}
+                                                            data-attribute="maxDecimals"
+                                                            value={row.maxDecimals}
+                                                            onchange={handleNumberChange}
+                                                        ></lightning-input>
+                                                        <lightning-input
+                                                            class="drawer__field"
+                                                            type="number"
+                                                            label="Minimum whole digits"
+                                                            data-field={row.field}
+                                                            data-attribute="minIntegerDigits"
+                                                            value={row.minIntegerDigits}
+                                                            onchange={handleNumberChange}
+                                                        ></lightning-input>
+                                                        <lightning-input
+                                                            class="drawer__field"
+                                                            type="number"
+                                                            label="Edit step"
+                                                            step="0.001"
+                                                            field-level-help="Smallest increment when editing. 0.01 permits two decimals; 1 whole numbers only. Defaults to 0.01, which silently rounds a value needing more precision."
+                                                            data-field={row.field}
+                                                            data-attribute="step"
+                                                            value={row.step}
+                                                            onchange={handleNumberChange}
+                                                        ></lightning-input>
+                                                    </div>
+                                                    <template lwc:if={row.isCurrencyGroup}>
+                                                        <div class="drawer__row">
+                                                            <!-- Only in a multi-currency org. A code picker
+                                                                 where there is one currency configures nothing. -->
+                                                            <template lwc:if={row.showCurrencyCode}>
+                                                                <lightning-combobox
+                                                                    class="drawer__field"
+                                                                    label="Currency code"
+                                                                    data-field={row.field}
+                                                                    data-attribute="currencyCode"
+                                                                    value={row.currencyCode}
+                                                                    options={row.currencyOptions}
+                                                                    onchange={handleSelectChange}
+                                                                ></lightning-combobox>
+                                                            </template>
+                                                            <lightning-combobox
+                                                                class="drawer__field"
+                                                                label="Show currency as"
+                                                                data-field={row.field}
+                                                                data-attribute="currencyDisplayAs"
+                                                                value={row.currencyDisplayAs}
+                                                                options={currencyDisplayOptions}
+                                                                onchange={handleSelectChange}
+                                                            ></lightning-combobox>
+                                                        </div>
                                                     </template>
                                                 </div>
                                             </template>
-                                            <div class="advanced__col">
+
+                                            <!-- ---------- Text ---------- -->
+                                            <template lwc:if={row.isTextGroup}>
+                                                <div class="drawer__section drawer__typed">
+                                                    <p class="drawer__typed-why">Because this column is text</p>
+                                                    <lightning-input
+                                                        type="checkbox"
+                                                        label="Turn URLs into links"
+                                                        field-level-help="Detects URLs inside a plain text cell and renders them as links."
+                                                        data-field={row.field}
+                                                        data-attribute="linkify"
+                                                        checked={row.linkify}
+                                                        onchange={handleCheckboxChange}
+                                                    ></lightning-input>
+                                                </div>
+                                            </template>
+
+                                            <!-- ---------- Lookup ---------- -->
+                                            <template lwc:if={row.isLookupGroup}>
+                                                <div class="drawer__section drawer__typed">
+                                                    <p class="drawer__typed-why">Because this column is a lookup</p>
+                                                    <lightning-input
+                                                        type="checkbox"
+                                                        label="Show the record name"
+                                                        data-field={row.field}
+                                                        data-attribute="showName"
+                                                        checked={row.showName}
+                                                        onchange={handleDefaultOnFlagChange}
+                                                    ></lightning-input>
+                                                    <lightning-input
+                                                        type="checkbox"
+                                                        label="Link to the record"
+                                                        data-field={row.field}
+                                                        data-attribute="link"
+                                                        checked={row.link}
+                                                        onchange={handleDefaultOnFlagChange}
+                                                    ></lightning-input>
+                                                </div>
+                                            </template>
+
+                                            <!-- ---------- Color ---------- -->
+                                            <div class="drawer__section">
+                                                <p class="drawer__title">Color</p>
+                                                <lightning-combobox
+                                                    class="drawer__field"
+                                                    label="How this column is colored"
+                                                    field-level-help="Per column and Conditional are exclusive. A column-wide color and a per-cell rule fighting over the same cell has no sensible answer."
+                                                    data-field={row.field}
+                                                    data-role="color-mode"
+                                                    value={row.colorMode}
+                                                    options={colorModeOptions}
+                                                    onchange={handleColorModeChange}
+                                                ></lightning-combobox>
+
+                                                <template lwc:if={row.isPerColumnColor}>
+                                                    <div class="drawer__row drawer__indent">
+                                                        <lightning-combobox
+                                                            class="drawer__field"
+                                                            label="Style"
+                                                            data-field={row.field}
+                                                            data-attribute="columnStyle"
+                                                            value={row.columnStyle}
+                                                            options={row.styleOptions}
+                                                            onchange={handleSelectChange}
+                                                        ></lightning-combobox>
+                                                        <lightning-combobox
+                                                            class="drawer__field"
+                                                            label="Emphasis"
+                                                            data-field={row.field}
+                                                            data-attribute="emphasis"
+                                                            value={row.columnEmphasis}
+                                                            options={emphasisOptions}
+                                                            onchange={handleSelectChange}
+                                                        ></lightning-combobox>
+                                                    </div>
+                                                </template>
+
+                                                <template lwc:if={row.isConditionalColor}>
+                                                    <div class="drawer__indent">
+                                                        <template for:each={row.rules} for:item="rule">
+                                                            <div key={rule.key} class="rule">
+                                                                <div class="rule__head">
+                                                                    <span class="rule__num">{rule.position}</span>
+                                                                    <span class="rule__summary">{rule.summary}</span>
+                                                                    <lightning-button-icon
+                                                                        icon-name="utility:up"
+                                                                        variant="bare"
+                                                                        alternative-text="Move up"
+                                                                        disabled={rule.isFirst}
+                                                                        data-field={row.field}
+                                                                        data-rule-index={rule.ruleIndex}
+                                                                        data-direction="up"
+                                                                        onclick={handleMoveRule}
+                                                                    ></lightning-button-icon>
+                                                                    <lightning-button-icon
+                                                                        icon-name="utility:down"
+                                                                        variant="bare"
+                                                                        alternative-text="Move down"
+                                                                        disabled={rule.isLast}
+                                                                        data-field={row.field}
+                                                                        data-rule-index={rule.ruleIndex}
+                                                                        data-direction="down"
+                                                                        onclick={handleMoveRule}
+                                                                    ></lightning-button-icon>
+                                                                    <lightning-button-icon
+                                                                        icon-name="utility:delete"
+                                                                        variant="bare"
+                                                                        alternative-text="Delete rule"
+                                                                        data-field={row.field}
+                                                                        data-rule-index={rule.ruleIndex}
+                                                                        onclick={handleDeleteRule}
+                                                                    ></lightning-button-icon>
+                                                                </div>
+
+                                                                <div class="rule__body">
+                                                                    <div class="drawer__row">
+                                                                        <lightning-combobox
+                                                                            class="drawer__field"
+                                                                            label="Apply when"
+                                                                            data-field={row.field}
+                                                                            data-rule-index={rule.ruleIndex}
+                                                                            data-attribute="logic"
+                                                                            value={rule.logic}
+                                                                            options={logicOptions}
+                                                                            onchange={handleRuleChange}
+                                                                        ></lightning-combobox>
+                                                                        <template lwc:if={rule.showCustomLogic}>
+                                                                            <lightning-input
+                                                                                class="drawer__field"
+                                                                                type="text"
+                                                                                label="Condition logic"
+                                                                                placeholder="1 AND (2 OR 3)"
+                                                                                field-level-help="Refer to conditions by their number. AND, OR and brackets only."
+                                                                                data-field={row.field}
+                                                                                data-rule-index={rule.ruleIndex}
+                                                                                data-attribute="customLogic"
+                                                                                value={rule.customLogic}
+                                                                                onchange={handleRuleChange}
+                                                                            ></lightning-input>
+                                                                        </template>
+                                                                    </div>
+
+                                                                    <template lwc:if={rule.showConditions}>
+                                                                        <template
+                                                                            for:each={rule.conditions}
+                                                                            for:item="condition"
+                                                                        >
+                                                                            <div key={condition.key} class="condition">
+                                                                                <span class="condition__num"
+                                                                                    >{condition.position}</span
+                                                                                >
+                                                                                <lightning-combobox
+                                                                                    class="condition__field"
+                                                                                    variant="label-hidden"
+                                                                                    label="Field"
+                                                                                    data-field={row.field}
+                                                                                    data-rule-index={rule.ruleIndex}
+                                                                                    data-condition-index={condition.conditionIndex}
+                                                                                    data-attribute="field"
+                                                                                    value={condition.field}
+                                                                                    options={fieldOptions}
+                                                                                    onchange={handleConditionChange}
+                                                                                ></lightning-combobox>
+                                                                                <lightning-combobox
+                                                                                    class="condition__field"
+                                                                                    variant="label-hidden"
+                                                                                    label="Operator"
+                                                                                    data-field={row.field}
+                                                                                    data-rule-index={rule.ruleIndex}
+                                                                                    data-condition-index={condition.conditionIndex}
+                                                                                    data-attribute="operator"
+                                                                                    value={condition.operator}
+                                                                                    options={condition.operatorOptions}
+                                                                                    onchange={handleConditionChange}
+                                                                                ></lightning-combobox>
+                                                                                <lightning-input
+                                                                                    class="condition__field"
+                                                                                    variant="label-hidden"
+                                                                                    type="text"
+                                                                                    label="Value"
+                                                                                    data-field={row.field}
+                                                                                    data-rule-index={rule.ruleIndex}
+                                                                                    data-condition-index={condition.conditionIndex}
+                                                                                    data-attribute="value"
+                                                                                    value={condition.value}
+                                                                                    onchange={handleConditionChange}
+                                                                                ></lightning-input>
+                                                                                <lightning-button-icon
+                                                                                    icon-name="utility:delete"
+                                                                                    variant="bare"
+                                                                                    alternative-text="Delete condition"
+                                                                                    data-field={row.field}
+                                                                                    data-rule-index={rule.ruleIndex}
+                                                                                    data-condition-index={condition.conditionIndex}
+                                                                                    onclick={handleDeleteCondition}
+                                                                                ></lightning-button-icon>
+                                                                            </div>
+                                                                        </template>
+                                                                        <lightning-button
+                                                                            variant="base"
+                                                                            label="Add condition"
+                                                                            data-field={row.field}
+                                                                            data-rule-index={rule.ruleIndex}
+                                                                            onclick={handleAddCondition}
+                                                                        ></lightning-button>
+                                                                    </template>
+
+                                                                    <div class="drawer__row">
+                                                                        <lightning-combobox
+                                                                            class="drawer__field"
+                                                                            label="Style"
+                                                                            data-field={row.field}
+                                                                            data-rule-index={rule.ruleIndex}
+                                                                            data-attribute="style"
+                                                                            value={rule.style}
+                                                                            options={rule.styleOptions}
+                                                                            onchange={handleRuleChange}
+                                                                        ></lightning-combobox>
+                                                                        <lightning-combobox
+                                                                            class="drawer__field"
+                                                                            label="Emphasis"
+                                                                            data-field={row.field}
+                                                                            data-rule-index={rule.ruleIndex}
+                                                                            data-attribute="emphasis"
+                                                                            value={rule.emphasis}
+                                                                            options={emphasisOptions}
+                                                                            onchange={handleRuleChange}
+                                                                        ></lightning-combobox>
+                                                                        <lightning-input
+                                                                            class="drawer__field"
+                                                                            type="checkbox"
+                                                                            label="Text only"
+                                                                            field-level-help="Color the value rather than the whole cell."
+                                                                            data-field={row.field}
+                                                                            data-rule-index={rule.ruleIndex}
+                                                                            data-attribute="textOnly"
+                                                                            checked={rule.textOnly}
+                                                                            onchange={handleRuleChange}
+                                                                        ></lightning-input>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </template>
+
+                                                        <lightning-button
+                                                            variant="neutral"
+                                                            label="Add rule"
+                                                            data-field={row.field}
+                                                            onclick={handleAddRule}
+                                                        ></lightning-button>
+                                                        <p class="drawer__hint">
+                                                            Rules are checked in order and the first match wins. A
+                                                            condition can test any column, not only this one.
+                                                        </p>
+                                                    </div>
+                                                </template>
+                                            </div>
+
+                                            <!-- ---------- Advanced ---------- -->
+                                            <div class="drawer__section">
+                                                <p class="drawer__title">Advanced</p>
                                                 <c-fgrid_icon-picker
-                                                    label="Column icon"
+                                                    label="Header icon"
                                                     data-field={row.field}
                                                     data-attribute="icon"
                                                     value={row.icon}
-                                                    oniconchange={handleIconChange}
+                                                    onchange={handleIconChange}
                                                 ></c-fgrid_icon-picker>
+                                                <div class="drawer__row">
+                                                    <lightning-textarea
+                                                        class="drawer__field"
+                                                        label="Cell attributes (JSON)"
+                                                        data-field={row.field}
+                                                        data-attribute="cellAttribs"
+                                                        placeholder={cellAttribsPlaceholder}
+                                                        value={row.cellAttribs}
+                                                        onchange={handleBlobChange}
+                                                    ></lightning-textarea>
+                                                    <lightning-textarea
+                                                        class="drawer__field"
+                                                        label="Type attributes (JSON)"
+                                                        data-field={row.field}
+                                                        data-attribute="typeAttribs"
+                                                        placeholder={typeAttribsPlaceholder}
+                                                        value={row.typeAttribs}
+                                                        onchange={handleBlobChange}
+                                                    ></lightning-textarea>
+                                                    <lightning-textarea
+                                                        class="drawer__field"
+                                                        label="Other attributes (JSON)"
+                                                        data-field={row.field}
+                                                        data-attribute="otherAttribs"
+                                                        placeholder={otherAttribsPlaceholder}
+                                                        value={row.otherAttribs}
+                                                        onchange={handleBlobChange}
+                                                    ></lightning-textarea>
+                                                </div>
+                                                <p class="drawer__hint">
+                                                    Anything set here wins over the controls above.
+                                                </p>
+                                                <lightning-button
+                                                    variant="base"
+                                                    label="Reset this column"
+                                                    data-field={row.field}
+                                                    onclick={handleClearColumn}
+                                                ></lightning-button>
                                             </div>
-                                            <div class="advanced__col">
-                                                <lightning-input
-                                                    type="number"
-                                                    label="Decimal places"
-                                                    data-field={row.field}
-                                                    data-attribute="scale"
-                                                    min="0"
-                                                    max="10"
-                                                    value={row.scale}
-                                                    field-level-help="Digits shown after the decimal point for currency, number, and percent columns."
-                                                    onchange={handleNumberChange}
-                                                ></lightning-input>
-                                                <lightning-input
-                                                    type="number"
-                                                    label="Edit step"
-                                                    data-field={row.field}
-                                                    data-attribute="step"
-                                                    step="0.001"
-                                                    value={row.step}
-                                                    field-level-help="Smallest increment when editing a currency, number, or percent cell. Defaults to 0.01, which silently rounds a value needing more precision."
-                                                    onchange={handleNumberChange}
-                                                ></lightning-input>
-                                                <lightning-input
-                                                    type="checkbox"
-                                                    label="Turn URLs into links"
-                                                    data-field={row.field}
-                                                    data-attribute="linkify"
-                                                    checked={row.linkify}
-                                                    field-level-help="Detects URLs inside a plain text cell and renders them as links."
-                                                    onchange={handleCheckboxChange}
-                                                ></lightning-input>
-                                                <lightning-input
-                                                    type="text"
-                                                    label="Field type override"
-                                                    data-field={row.field}
-                                                    data-attribute="type"
-                                                    value={row.type}
-                                                    placeholder="text"
-                                                    field-level-help="Only needed for a user-defined object, where Flow Grid cannot describe the field."
-                                                    onchange={handleTextChange}
-                                                ></lightning-input>
-                                            </div>
-                                            <div class="advanced__col advanced__col_wide">
-                                                <lightning-textarea
-                                                    label="Cell attributes (JSON)"
-                                                    data-field={row.field}
-                                                    data-attribute="cellAttribs"
-                                                    value={row.cellAttribs}
-                                                    placeholder={cellAttribsPlaceholder}
-                                                    onchange={handleBlobChange}
-                                                ></lightning-textarea>
-                                                <lightning-textarea
-                                                    label="Type attributes (JSON)"
-                                                    data-field={row.field}
-                                                    data-attribute="typeAttribs"
-                                                    value={row.typeAttribs}
-                                                    placeholder={typeAttribsPlaceholder}
-                                                    onchange={handleBlobChange}
-                                                ></lightning-textarea>
-                                                <lightning-textarea
-                                                    label="Other attributes (JSON)"
-                                                    data-field={row.field}
-                                                    data-attribute="otherAttribs"
-                                                    value={row.otherAttribs}
-                                                    placeholder={otherAttribsPlaceholder}
-                                                    onchange={handleBlobChange}
-                                                ></lightning-textarea>
-                                            </div>
-                                        </div>
-                                        <div class="advanced__footer">
-                                            <lightning-button
-                                                variant="destructive-text"
-                                                label="Reset this column"
-                                                data-field={row.field}
-                                                onclick={handleClearColumn}
-                                            ></lightning-button>
                                         </div>
                                     </td>
                                 </tr>
                             </template>
-                        </template>
-                    </tbody>
+                        </tbody>
+                    </template>
                 </table>
             </div>
         </template>

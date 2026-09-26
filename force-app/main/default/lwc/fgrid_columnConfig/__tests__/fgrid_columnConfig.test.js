@@ -17,6 +17,29 @@ function onChange(element) {
     return emitted;
 }
 
+/** Clicks a row's Settings button, which toggles its inline drawer. */
+function openDrawer(element, field) {
+    const buttons = [...element.shadowRoot.querySelectorAll(`lightning-button[data-field="${field}"]`)];
+    // The drawer toggle is the row's own button; Reset this column lives
+    // INSIDE the drawer and carries the same data-field.
+    buttons[0].click();
+}
+
+/** A drawer control identified by its role rather than its position. */
+function role(element, field, name) {
+    return element.shadowRoot.querySelector(`[data-field="${field}"][data-role="${name}"]`);
+}
+
+const cellIn = (element, field) => role(element, field, "type");
+
+/** Clicks the drawer button with a given label for a column. */
+function clickButton(element, field, label) {
+    const button = [...element.shadowRoot.querySelectorAll(`lightning-button[data-field="${field}"]`)].find(
+        (candidate) => candidate.label === label
+    );
+    button.click();
+}
+
 function cell(element, field, attribute) {
     return element.shadowRoot.querySelector(`[data-field="${field}"][data-attribute="${attribute}"]`);
 }
@@ -162,22 +185,39 @@ describe("writing attributes", () => {
 });
 
 describe("advanced attributes", () => {
-    it("expands and collapses the advanced block for one column", async () => {
+    it("opens and closes one column's drawer", async () => {
         const element = build();
         await Promise.resolve();
 
-        expect(element.shadowRoot.querySelector(".grid__advanced")).toBeNull();
+        expect(element.shadowRoot.querySelector(".drawer")).toBeNull();
 
-        element.shadowRoot.querySelector('.grid__cell-actions lightning-button[data-field="Name"]').click();
+        openDrawer(element, "Name");
+        await Promise.resolve();
+        expect(element.shadowRoot.querySelector(".drawer")).not.toBeNull();
+
+        openDrawer(element, "Name");
+        await Promise.resolve();
+        expect(element.shadowRoot.querySelector(".drawer")).toBeNull();
+    });
+
+    it("keeps only one drawer open at a time", async () => {
+        // Single panel by decision: two open drawers in a modal is more
+        // scrolling than context.
+        const element = build();
         await Promise.resolve();
 
-        expect(element.shadowRoot.querySelector(".grid__advanced")).not.toBeNull();
+        openDrawer(element, "Name");
+        await Promise.resolve();
+        openDrawer(element, "AnnualRevenue");
+        await Promise.resolve();
+
+        expect(element.shadowRoot.querySelectorAll(".drawer")).toHaveLength(1);
     });
 
     it("parses a valid JSON blob into an object", async () => {
         const element = build();
         await Promise.resolve();
-        element.shadowRoot.querySelector('.grid__cell-actions lightning-button[data-field="Name"]').click();
+        openDrawer(element, "Name");
         await Promise.resolve();
         const emitted = onChange(element);
 
@@ -191,7 +231,7 @@ describe("advanced attributes", () => {
     it("reports invalid JSON without emitting a change", async () => {
         const element = build();
         await Promise.resolve();
-        element.shadowRoot.querySelector('.grid__cell-actions lightning-button[data-field="Name"]').click();
+        openDrawer(element, "Name");
         await Promise.resolve();
         const emitted = onChange(element);
 
@@ -203,5 +243,141 @@ describe("advanced attributes", () => {
 
         expect(textarea.setCustomValidity).toHaveBeenCalledWith("Not valid JSON.");
         expect(emitted).toHaveLength(0);
+    });
+});
+
+describe("the drawer is type-aware", () => {
+    /** A grid whose Amount column the describe reports as a currency. */
+    function buildTyped(config = null) {
+        const element = build({ columnFields: '["Amount","Name"]', columnConfig: config });
+        element.describeByPath = {
+            Amount: { dataType: "currency", displayType: "CURRENCY", label: "Amount" },
+            Name: { dataType: "text", displayType: "STRING", label: "Name" }
+        };
+        return element;
+    }
+
+    it("offers a currency field only the displays it can use", async () => {
+        const element = buildTyped();
+        await Promise.resolve();
+        openDrawer(element, "Amount");
+        await Promise.resolve();
+
+        const values = cellIn(element, "Amount").options.map((option) => option.value);
+        expect(values).toEqual(expect.arrayContaining(["currency", "number", "percent", "text"]));
+        expect(values).not.toContain("boolean");
+        expect(values).not.toContain("date");
+    });
+
+    it("shows decimals for a currency and hides them for text", async () => {
+        const element = buildTyped();
+        await Promise.resolve();
+
+        openDrawer(element, "Amount");
+        await Promise.resolve();
+        expect(cell(element, "Amount", "minDecimals")).not.toBeNull();
+
+        openDrawer(element, "Amount");
+        await Promise.resolve();
+        openDrawer(element, "Name");
+        await Promise.resolve();
+        expect(cell(element, "Name", "minDecimals")).toBeNull();
+        expect(cell(element, "Name", "linkify")).not.toBeNull();
+    });
+
+    it("withholds the currency code until the org is multi-currency", async () => {
+        // A code picker where there is only one currency configures nothing.
+        const element = buildTyped();
+        await Promise.resolve();
+        openDrawer(element, "Amount");
+        await Promise.resolve();
+        expect(cell(element, "Amount", "currencyCode")).toBeNull();
+
+        element.multiCurrency = true;
+        element.currencyCodes = ["USD", "EUR"];
+        await Promise.resolve();
+        expect(cell(element, "Amount", "currencyCode")).not.toBeNull();
+    });
+
+    it("clears the number settings when the type stops being numeric", async () => {
+        // A currency code left on a column now shown as text is inert, but it
+        // reappears if the admin switches back and looks like a setting they
+        // never made.
+        const element = buildTyped('{"Amount":{"type":"currency","minDecimals":2,"currencyCode":"EUR"}}');
+        await Promise.resolve();
+        openDrawer(element, "Amount");
+        await Promise.resolve();
+        const emitted = onChange(element);
+
+        cellIn(element, "Amount").dispatchEvent(new CustomEvent("change", { detail: { value: "text" } }));
+
+        const saved = JSON.parse(emitted[0]).Amount;
+        expect(saved.type).toBe("text");
+        expect(saved.minDecimals).toBeUndefined();
+        expect(saved.currencyCode).toBeUndefined();
+    });
+});
+
+describe("color mode and rules", () => {
+    function buildRules(config = null) {
+        const element = build({ columnFields: '["Amount","Status"]', columnConfig: config });
+        element.describeByPath = { Amount: { dataType: "currency", displayType: "CURRENCY" } };
+        return element;
+    }
+
+    const ruleConfig = JSON.stringify({
+        Amount: { colorMode: "conditional", format: [{ style: "error", conditions: [{ field: "Amount" }] }] }
+    });
+
+    it("counts the rules in the grid without letting them be edited there", async () => {
+        const element = buildRules(ruleConfig);
+        await Promise.resolve();
+        expect(element.shadowRoot.textContent).toContain("1 rule");
+    });
+
+    it("adds a rule, seeded with a condition on its own column", async () => {
+        const element = buildRules('{"Amount":{"colorMode":"conditional"}}');
+        await Promise.resolve();
+        openDrawer(element, "Amount");
+        await Promise.resolve();
+        const emitted = onChange(element);
+
+        clickButton(element, "Amount", "Add rule");
+
+        const saved = JSON.parse(emitted[0]).Amount;
+        expect(saved.format).toHaveLength(1);
+        // Seeded against the column being formatted, which is the common case;
+        // the field picker can still point it anywhere.
+        expect(saved.format[0].conditions[0].field).toBe("Amount");
+    });
+
+    it("drops the rules when the mode leaves Conditional", async () => {
+        // The two modes are exclusive, so leaving both stored would invite
+        // "which one won".
+        const element = buildRules(ruleConfig);
+        await Promise.resolve();
+        openDrawer(element, "Amount");
+        await Promise.resolve();
+        const emitted = onChange(element);
+
+        role(element, "Amount", "color-mode").dispatchEvent(new CustomEvent("change", { detail: { value: "column" } }));
+
+        const saved = JSON.parse(emitted[0]).Amount;
+        expect(saved.format).toBeUndefined();
+        expect(saved.colorMode).toBe("column");
+    });
+
+    it("drops the column style when the mode leaves Per column", async () => {
+        const element = buildRules('{"Amount":{"colorMode":"column","columnStyle":"success"}}');
+        await Promise.resolve();
+        openDrawer(element, "Amount");
+        await Promise.resolve();
+        const emitted = onChange(element);
+
+        role(element, "Amount", "color-mode").dispatchEvent(
+            new CustomEvent("change", { detail: { value: "conditional" } })
+        );
+
+        expect(JSON.parse(emitted[0]).Amount.columnStyle).toBeUndefined();
     });
 });

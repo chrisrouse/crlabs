@@ -92,3 +92,142 @@
     justify-content: flex-end;
     padding-bottom: 0.5rem;
 }
+
+/* ===================== Treatment C: the inline drawer =====================
+   The grid stays scannable; everything type-specific opens beneath the row it
+   belongs to. Single panel -- one drawer open at a time -- so the modal does
+   not become a scrolling exercise. */
+
+.grid__col-rules {
+    width: 5rem;
+}
+
+.grid__rules {
+    display: inline-block;
+    font-size: 0.7rem;
+    padding: 0 0.375rem;
+    border-radius: 0.75rem;
+    background: var(--slds-g-color-accent-container-2, #d6e6ff);
+    color: var(--slds-g-color-accent-2, #0250d9);
+    white-space: nowrap;
+}
+
+.drawer > td {
+    /* The drawer is one cell spanning the table; its own padding is inside. */
+    padding: 0 !important;
+    background: var(--slds-g-color-surface-container-1, #fff);
+}
+
+.drawer__inner {
+    border-left: 3px solid var(--slds-g-color-accent-1, #066afe);
+    padding: 0.75rem 1rem 1rem;
+}
+
+.drawer__section {
+    margin-bottom: 0.75rem;
+}
+
+.drawer__section:last-child {
+    margin-bottom: 0;
+}
+
+.drawer__title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--slds-g-color-on-surface-1, #5c5c5c);
+    margin-bottom: 0.25rem;
+}
+
+.drawer__row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.drawer__field {
+    flex: 1 1 9rem;
+    min-width: 0;
+}
+
+.drawer__indent {
+    padding-left: 0.75rem;
+    border-left: 1px solid var(--slds-g-color-border-1, #e5e5e5);
+    margin-top: 0.5rem;
+}
+
+/* Marks the settings that are only here BECAUSE of the column's type. Without
+   the cue, an admin cannot tell why a currency column has four extra boxes and
+   a text column has none. */
+.drawer__typed {
+    background: var(--slds-g-color-surface-container-2, #f3f3f3);
+    border-radius: 0.25rem;
+    padding: 0.5rem 0.75rem 0.75rem;
+}
+
+.drawer__typed-why {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--slds-g-color-accent-2, #0250d9);
+    margin-bottom: 0.25rem;
+}
+
+.drawer__hint {
+    font-size: 0.75rem;
+    color: var(--slds-g-color-on-surface-1, #5c5c5c);
+    margin-top: 0.25rem;
+}
+
+/* ----------------------------- rules ----------------------------- */
+
+.rule {
+    border: 1px solid var(--slds-g-color-border-1, #e5e5e5);
+    border-radius: 0.25rem;
+    margin-bottom: 0.5rem;
+    background: var(--slds-g-color-surface-container-1, #fff);
+}
+
+.rule__head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    border-bottom: 1px solid var(--slds-g-color-border-1, #e5e5e5);
+}
+
+.rule__num {
+    font-size: 0.7rem;
+    color: var(--slds-g-color-on-surface-1, #5c5c5c);
+}
+
+.rule__summary {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rule__body {
+    padding: 0.5rem;
+}
+
+.condition {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    margin-bottom: 0.25rem;
+}
+
+.condition__num {
+    flex: 0 0 1rem;
+    font-size: 0.7rem;
+    color: var(--slds-g-color-on-surface-1, #5c5c5c);
+}
+
+.condition__field {
+    flex: 1 1 0;
+    min-width: 0;
+}
