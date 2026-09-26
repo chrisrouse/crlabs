@@ -5,10 +5,15 @@
 
      The badge is drawn in OUR markup, not through `cellAttributes.class`, which
      is why it survives the row hover: hover repaints the cell and never touches
-     a nested span. Measured in repro/datatable-cell-colour/. -->
+     a nested span. Measured in repro/datatable-cell-colour/.
+
+     `badgeClass` carries `slds-badge` plus whatever conditional formatting
+     resolved for this row, composed in buildColumns. A conditional color on a
+     badged column belongs on the badge; coloring the cell would paint around
+     it. -->
 <template>
     <template lwc:if={typeAttributes.badge}>
-        <span class="slds-badge" title={value}>{value}</span>
+        <span class={typeAttributes.badgeClass} title={value}>{value}</span>
     </template>
     <template lwc:else>
         <span title={value}>{value}</span>

@@ -11,6 +11,7 @@
  * preview convenience, never a runtime behavior — Phase 5 replaces it with real
  * field metadata. See TYPE_HINTS for exactly what it guesses.
  */
+import { parseFormatRules, conditionFields, matchFormatRule, formatClassFor } from "c/fgrid_formatRules";
 
 /** Ordered name-pattern to datatable-type guesses. First match wins. */
 const TYPE_HINTS = [
@@ -125,6 +126,9 @@ export function defaultLabel(fieldPath) {
  * the row rather than derived at render time. `buildRows` populates it.
  */
 export const LINK_SUFFIX = "__fgridUrl";
+
+/** Row field holding the conditional-formatting class for one column. */
+export const FORMAT_SUFFIX = "__fgridFormat";
 
 /** Row field holding a multi-picklist's value as an array, for the checkbox
  *  group, whose `value` is an array while the record stores a `;` string. */
@@ -630,6 +634,47 @@ export function buildColumns(fields, config = {}, options = {}) {
                 column.hideLabel = true;
             }
         }
+        // CONDITIONAL FORMATTING, cell half. Runs BEFORE the attribute bags are
+        // attached below: when a column has no other cell attributes the bag is
+        // empty and never attached at all, so a class written after that point
+        // is silently dropped.
+        //
+        // Two modes, exclusive by design. Per column is one fixed class,
+        // resolved here. Conditional needs a value per ROW, so the class name
+        // is carried in a synthetic row field and pointed at with
+        // `{ fieldName }` -- the same indirection the component we replace
+        // uses, and what makes rules possible without a custom cell type for
+        // every display.
+        //
+        // The rules, and the fields they TEST, are parked on the column:
+        // buildRows is where a row exists to evaluate them against.
+        const formatRules = parseFormatRules(attributes.format);
+        // A badged picklist draws its own span, so its color belongs on the
+        // badge; coloring the cell would paint around it. The typeAttributes
+        // half of that is set further down, where that bag exists.
+        const isBadged =
+            Boolean(attributes.badge) && (column.type === "fgridPicklist" || column.type === "fgridMultiPicklist");
+
+        if (attributes.colorMode === "column" && attributes.columnStyle) {
+            const columnClass = formatClassFor({
+                style: attributes.columnStyle,
+                textOnly: attributes.columnTextOnly
+            });
+            if (columnClass) {
+                cellAttributes.class = columnClass;
+            }
+        } else if (formatRules.length) {
+            column.fgridFormatRules = formatRules;
+            column.fgridFormatKey = `${field}${FORMAT_SUFFIX}`;
+            // A rule may test a column that is not displayed, so buildRows has
+            // to carry those fields too or the rule silently never matches.
+            column.fgridFormatFields = conditionFields(formatRules);
+            column.fgridBadgeFormat = isBadged;
+            if (!isBadged) {
+                cellAttributes.class = { fieldName: column.fgridFormatKey };
+            }
+        }
+
         if (Object.keys(cellAttributes).length) {
             column.cellAttributes = cellAttributes;
         }
@@ -723,8 +768,12 @@ export function buildColumns(fields, config = {}, options = {}) {
         // by our own cell template, so unlike a `cellAttributes.class` it is
         // immune to the row-hover repaint -- hover recolors the cell, never a
         // nested span. See repro/datatable-cell-colour/.
-        if (attributes.badge && (column.type === "fgridPicklist" || column.type === "fgridMultiPicklist")) {
+        // CONDITIONAL FORMATTING, badge half. `slds-badge` is composed with the
+        // resolved class in buildRows, so the badge keeps looking like a badge
+        // when a rule matches.
+        if (isBadged) {
             typeAttributes.badge = true;
+            typeAttributes.badgeClass = column.fgridBadgeFormat ? { fieldName: column.fgridFormatKey } : "slds-badge";
         }
         // Auto-links URLs found inside a plain text cell.
         if (attributes.linkify) {
@@ -783,6 +832,12 @@ export function buildRows(records, columns, keyField = "Id", picklistContext = n
         return [];
     }
     const paths = (columns || []).map((column) => column.fgridLinkFor || column.fieldName).filter(Boolean);
+    // Columns with conditional formatting, and every field their conditions
+    // read. A rule may test a column that is not displayed -- color Amount by
+    // Status with Status hidden -- and without carrying it the row has no
+    // Status and the rule silently never matches.
+    const formatColumns = (columns || []).filter((column) => column.fgridFormatRules?.length);
+    const formatPaths = [...new Set(formatColumns.flatMap((column) => column.fgridFormatFields || []))];
     // The multi-select always needs its stored `A;B` string split into the array the
     // checkbox group binds to.
     const multiPicklistColumns = (columns || []).filter((column) => column.type === "fgridMultiPicklist");
@@ -812,6 +867,11 @@ export function buildRows(records, columns, keyField = "Id", picklistContext = n
 
         paths.forEach((path) => {
             row[path] = resolvePath(record, path) ?? null;
+        });
+        formatPaths.forEach((path) => {
+            if (row[path] === undefined) {
+                row[path] = resolvePath(record, path) ?? null;
+            }
         });
 
         (columns || []).forEach((column) => {
@@ -879,6 +939,18 @@ export function buildRows(records, columns, keyField = "Id", picklistContext = n
             // shows an empty dropdown and leaves the user guessing; the cell is
             // disabled instead, which says the same thing without the guessing.
             row[column.fieldName + PICKLIST_LOCKED_SUFFIX] = resolvedOptions.length === 0;
+        });
+
+        // LAST, because a rule reads the row and everything above is still
+        // filling it -- a percent has to be converted and a lookup labelled
+        // before a condition can be asked about either.
+        formatColumns.forEach((column) => {
+            const matched = matchFormatRule(column.fgridFormatRules, row, matchesFilter);
+            // Empty string, not null: the datatable writes the resolved value
+            // straight into `class`, and a null there renders the literal
+            // "null" as a class name.
+            const resolved = (matched && formatClassFor(matched)) || "";
+            row[column.fgridFormatKey] = column.fgridBadgeFormat ? `slds-badge ${resolved}`.trim() : resolved;
         });
 
         return row;

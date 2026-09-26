@@ -20,6 +20,10 @@
  * spec?" for text, picklist, date, number and boolean, including how blanks
  * behave. A second copy would drift.
  *
+ * It is INJECTED rather than imported, because gridModel has to call back into
+ * this module to evaluate rules while building rows, and importing each other
+ * is a cycle. The caller passes the matcher it already has.
+ *
  * Stored shape, under `columnConfig[fieldPath].format`:
  *
  *   [
@@ -37,8 +41,6 @@
  *     }
  *   ]
  */
-import { matchesFilter } from "c/fgrid_gridModel";
-
 /**
  * The palette, named by MEANING rather than by color.
  *
@@ -132,10 +134,13 @@ export function conditionFields(rules) {
  * backgrounds on one cell is not a thing, and "the first rule that applies"
  * is a model an admin can hold in their head.
  */
-export function matchFormatRule(rules, row, caseSensitive = false) {
+export function matchFormatRule(rules, row, matchValue, caseSensitive = false) {
+    if (typeof matchValue !== "function") {
+        return null;
+    }
     const parsed = parseFormatRules(rules);
     for (const rule of parsed) {
-        if (ruleMatches(rule, row, caseSensitive)) {
+        if (ruleMatches(rule, row, matchValue, caseSensitive)) {
             return rule;
         }
     }
@@ -166,7 +171,7 @@ export function formatClassFor(rule) {
  * Internals
  * ------------------------------------------------------------------ */
 
-function ruleMatches(rule, row, caseSensitive) {
+function ruleMatches(rule, row, matchValue, caseSensitive) {
     const logic = rule.logic || FORMAT_LOGIC.ALL;
     if (logic === FORMAT_LOGIC.ALWAYS) {
         return true;
@@ -179,7 +184,7 @@ function ruleMatches(rule, row, caseSensitive) {
         return true;
     }
 
-    const results = conditions.map((condition) => conditionMatches(condition, row, caseSensitive));
+    const results = conditions.map((condition) => conditionMatches(condition, row, matchValue, caseSensitive));
 
     if (logic === FORMAT_LOGIC.ANY) {
         return results.some(Boolean);
@@ -194,11 +199,11 @@ function ruleMatches(rule, row, caseSensitive) {
     return results.every(Boolean);
 }
 
-function conditionMatches(condition, row, caseSensitive) {
+function conditionMatches(condition, row, matchValue, caseSensitive) {
     if (!condition?.field || !condition?.operator) {
         return false;
     }
-    return matchesFilter(row?.[condition.field], condition, caseSensitive);
+    return matchValue(row?.[condition.field], condition, caseSensitive);
 }
 
 function asConditions(rule) {

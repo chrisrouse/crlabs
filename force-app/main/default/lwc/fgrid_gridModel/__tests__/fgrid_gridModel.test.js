@@ -29,6 +29,77 @@ import {
     parseFieldList
 } from "c/fgrid_gridModel";
 
+describe("conditional formatting reaches the rendered cell", () => {
+    // The gap that made rules look broken: they were saved and read by the
+    // editor, and nothing in the rendering path ever evaluated them.
+    const RULES = [
+        { style: "error", conditions: [{ field: "Status", operator: "equals", value: "Overdue" }] },
+        { style: "success", conditions: [{ field: "Status", operator: "equals", value: "Paid" }] }
+    ];
+    const config = { Amount: { type: "currency", colorMode: "conditional", format: RULES } };
+    const records = [
+        { Id: "1", Amount: 10, Status: "Overdue" },
+        { Id: "2", Amount: 20, Status: "Paid" },
+        { Id: "3", Amount: 30, Status: "Draft" }
+    ];
+
+    it("points the cell class at a per-row field", () => {
+        const [column] = buildColumns(["Amount"], config);
+        expect(column.cellAttributes.class).toEqual({ fieldName: "Amount__fgridFormat" });
+    });
+
+    it("resolves a class per row, and an empty string when nothing matches", () => {
+        const columns = buildColumns(["Amount"], config);
+        const rows = buildRows(records, columns);
+        expect(rows[0].Amount__fgridFormat).toBe("fgridFormat fgridFormat_error");
+        expect(rows[1].Amount__fgridFormat).toBe("fgridFormat fgridFormat_success");
+        // Empty string, not null: the datatable writes this straight into
+        // `class`, and null would render the literal word "null".
+        expect(rows[2].Amount__fgridFormat).toBe("");
+    });
+
+    it("carries a tested field that is not displayed", () => {
+        // Status is not a column here. Without carrying it the row has no
+        // Status and every rule silently fails.
+        const columns = buildColumns(["Amount"], config);
+        const rows = buildRows(records, columns);
+        expect(rows[0].Status).toBe("Overdue");
+        expect(rows[0].Amount__fgridFormat).toContain("fgridFormat_error");
+    });
+
+    it("uses a fixed class for a per-column color, with no row field", () => {
+        const [column] = buildColumns(["Amount"], {
+            Amount: { colorMode: "column", columnStyle: "neutral" }
+        });
+        expect(column.cellAttributes.class).toBe("fgridFormat fgridFormat_neutral");
+        expect(column.fgridFormatRules).toBeUndefined();
+    });
+
+    it("colors the BADGE, not the cell, on a badged picklist", () => {
+        // Coloring the cell would paint around the badge rather than the badge.
+        const columns = buildColumns(["Stage"], {
+            Stage: {
+                type: "fgridPicklist",
+                badge: true,
+                colorMode: "conditional",
+                format: [{ style: "error", conditions: [{ field: "Stage", operator: "equals", value: "Lost" }] }]
+            }
+        });
+        expect(columns[0].typeAttributes.badgeClass).toEqual({ fieldName: "Stage__fgridFormat" });
+        expect(columns[0].cellAttributes?.class).toBeUndefined();
+
+        const rows = buildRows([{ Id: "1", Stage: "Lost" }], columns);
+        // slds-badge must survive alongside the conditional class, or the
+        // badge stops looking like a badge the moment a rule matches.
+        expect(rows[0].Stage__fgridFormat).toBe("slds-badge fgridFormat fgridFormat_error");
+    });
+
+    it("keeps a plain badge styled when the column has no rules", () => {
+        const columns = buildColumns(["Stage"], { Stage: { type: "fgridPicklist", badge: true } });
+        expect(columns[0].typeAttributes.badgeClass).toBe("slds-badge");
+    });
+});
+
 describe("header icon, hidden label and the picklist badge", () => {
     it("puts a cell icon on every cell and a header icon on the header", () => {
         // Two different properties. The old panel offered only the first and

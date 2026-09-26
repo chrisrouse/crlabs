@@ -9,6 +9,15 @@ import {
     formatClassFor,
     evaluateCustomLogic
 } from "c/fgrid_formatRules";
+import { matchesFilter } from "c/fgrid_gridModel";
+
+/**
+ * The matcher is injected rather than imported, so gridModel can call back
+ * into this module while building rows without the two importing each other.
+ * These tests pass the REAL one, so they exercise the same operator semantics
+ * the grid does instead of a stand-in that could drift.
+ */
+const match = (rules, row) => matchFormatRule(rules, row, matchesFilter);
 
 /** A rule with one condition, so tests vary only what they are about. */
 function rule(overrides = {}) {
@@ -64,11 +73,11 @@ describe("which fields the rows must carry", () => {
 
 describe("matching a row", () => {
     it("matches when the condition holds", () => {
-        expect(matchFormatRule([rule()], { Status: "Overdue" })).not.toBeNull();
+        expect(match([rule()], { Status: "Overdue" })).not.toBeNull();
     });
 
     it("does not match when it does not", () => {
-        expect(matchFormatRule([rule()], { Status: "Paid" })).toBeNull();
+        expect(match([rule()], { Status: "Paid" })).toBeNull();
     });
 
     it("returns the FIRST matching rule, not the best or the last", () => {
@@ -76,24 +85,24 @@ describe("matching a row", () => {
             rule({ style: FORMAT_STYLE.WARNING }),
             rule({ style: FORMAT_STYLE.ERROR, conditions: [{ field: "Status", operator: "isNotBlank" }] })
         ];
-        expect(matchFormatRule(rules, { Status: "Overdue" }).style).toBe(FORMAT_STYLE.WARNING);
+        expect(match(rules, { Status: "Overdue" }).style).toBe(FORMAT_STYLE.WARNING);
     });
 
     it("can test a column other than the one being formatted", () => {
         // The whole reason buildRows has to carry extra fields.
         const byOtherField = rule({ conditions: [{ field: "Status", operator: "equals", value: "Overdue" }] });
-        expect(matchFormatRule([byOtherField], { Amount: 50, Status: "Overdue" })).not.toBeNull();
+        expect(match([byOtherField], { Amount: 50, Status: "Overdue" })).not.toBeNull();
     });
 
     it("treats a rule with no conditions as always true", () => {
         // Matches the native editor: "a rule with no conditions defined is
         // always set to True".
-        expect(matchFormatRule([rule({ conditions: [] })], {})).not.toBeNull();
+        expect(match([rule({ conditions: [] })], {})).not.toBeNull();
     });
 
     it("honors Always regardless of the conditions", () => {
         const always = rule({ logic: FORMAT_LOGIC.ALWAYS });
-        expect(matchFormatRule([always], { Status: "Paid" })).not.toBeNull();
+        expect(match([always], { Status: "Paid" })).not.toBeNull();
     });
 
     it("requires every condition under All", () => {
@@ -103,8 +112,8 @@ describe("matching a row", () => {
                 { field: "Tier", operator: "equals", value: "Gold" }
             ]
         });
-        expect(matchFormatRule([both], { Status: "Overdue", Tier: "Gold" })).not.toBeNull();
-        expect(matchFormatRule([both], { Status: "Overdue", Tier: "Bronze" })).toBeNull();
+        expect(match([both], { Status: "Overdue", Tier: "Gold" })).not.toBeNull();
+        expect(match([both], { Status: "Overdue", Tier: "Bronze" })).toBeNull();
     });
 
     it("requires only one under Any", () => {
@@ -115,12 +124,12 @@ describe("matching a row", () => {
                 { field: "Tier", operator: "equals", value: "Gold" }
             ]
         });
-        expect(matchFormatRule([either], { Status: "Paid", Tier: "Gold" })).not.toBeNull();
-        expect(matchFormatRule([either], { Status: "Paid", Tier: "Bronze" })).toBeNull();
+        expect(match([either], { Status: "Paid", Tier: "Gold" })).not.toBeNull();
+        expect(match([either], { Status: "Paid", Tier: "Bronze" })).toBeNull();
     });
 
     it("ignores a condition with no field or operator", () => {
-        expect(matchFormatRule([rule({ conditions: [{ value: "x" }] })], { Status: "Overdue" })).toBeNull();
+        expect(match([rule({ conditions: [{ value: "x" }] })], { Status: "Overdue" })).toBeNull();
     });
 });
 
@@ -167,8 +176,8 @@ describe("custom logic", () => {
                 { field: "Tier", operator: "equals", value: "Gold" }
             ]
         });
-        expect(matchFormatRule([broken], { Status: "Overdue", Tier: "Bronze" })).toBeNull();
-        expect(matchFormatRule([broken], { Status: "Overdue", Tier: "Gold" })).not.toBeNull();
+        expect(match([broken], { Status: "Overdue", Tier: "Bronze" })).toBeNull();
+        expect(match([broken], { Status: "Overdue", Tier: "Gold" })).not.toBeNull();
     });
 
     it("drives a real rule when it is well formed", () => {
@@ -180,7 +189,7 @@ describe("custom logic", () => {
                 { field: "Tier", operator: "equals", value: "Gold" }
             ]
         });
-        expect(matchFormatRule([custom], { Status: "Paid", Tier: "Gold" })).not.toBeNull();
+        expect(match([custom], { Status: "Paid", Tier: "Gold" })).not.toBeNull();
     });
 });
 
