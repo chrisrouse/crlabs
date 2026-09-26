@@ -403,12 +403,22 @@
                                                     <option>Checkbox</option>
                                                 </select>
                                                 <div class="fgrid-hint">
-                                                    Detected from the field. Change it to display the value differently.
+                                                    Only the types a Currency field can be shown as. A Date/Time field
+                                                    offers Date, Date/Time and Text — never Currency or Checkbox.
                                                 </div>
                                             </div>
                                             <div class="fgrid-f">
-                                                <label>Header icon</label>
-                                                <input type="text" placeholder="utility:moneybag" />
+                                                <label>If the field were Date/Time</label>
+                                                <select>
+                                                    <option selected>Date/Time</option>
+                                                    <option>Date</option>
+                                                    <option>Text</option>
+                                                </select>
+                                                <div class="fgrid-hint">
+                                                    Shown here only to make the filtering visible. The list comes from
+                                                    the describe's DisplayType; with no describe — a user-defined object
+                                                    — every type is offered, because nothing can be ruled out.
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
@@ -431,12 +441,17 @@
                                             <div class="fgrid-row">
                                                 <div class="fgrid-f">
                                                     <label>Currency code</label>
-                                                    <select>
-                                                        <option selected>Org default</option>
-                                                        <option>USD</option>
-                                                        <option>EUR</option>
-                                                        <option>GBP</option>
+                                                    <select disabled>
+                                                        <option selected>USD — org default</option>
                                                     </select>
+                                                    <div class="fgrid-hint">
+                                                        Disabled: this org is single-currency. Detected with
+                                                        <code>UserInfo.isMultiCurrencyOrganization()</code>, measured
+                                                        working. In a multi-currency org this lists the org's ACTIVE
+                                                        currencies from <code>CurrencyType</code> — which must be read
+                                                        with dynamic SOQL, since the object does not exist at all
+                                                        otherwise and static SOQL would not compile.
+                                                    </div>
                                                 </div>
                                                 <div class="fgrid-f">
                                                     <label>Show currency as</label>
@@ -459,7 +474,53 @@
                                     </div>
 
                                     <div class="fgrid-sec">
-                                        <div class="fgrid-sec__title">Conditional formatting</div>
+                                        <div class="fgrid-sec__title">Colour</div>
+                                        <div class="fgrid-row">
+                                            <div class="fgrid-f" style="flex: 1 1 100%">
+                                                <label>How this column is coloured</label>
+                                                <select>
+                                                    <option>None</option>
+                                                    <option>Per column — one style for every cell</option>
+                                                    <option selected>Conditional — a style per cell, by rule</option>
+                                                </select>
+                                                <div class="fgrid-hint">
+                                                    The two are mutually exclusive by design. A column-wide colour and a
+                                                    per-cell rule fighting over the same cell has no sensible answer,
+                                                    and "which one won" is not a question an admin should have to ask.
+                                                    Choosing Per column disables the rules below; choosing Conditional
+                                                    disables the column style.
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div
+                                            class="fgrid-typed"
+                                            style="background: #f7f7f7; border-color: #e0e0e0; margin-bottom: 0.7rem"
+                                        >
+                                            <div class="fgrid-typed__why" style="color: #767676">
+                                                Per column — disabled, because Conditional is selected
+                                            </div>
+                                            <div class="fgrid-row">
+                                                <div class="fgrid-f">
+                                                    <label>Style</label>
+                                                    <select disabled>
+                                                        <option>Neutral</option>
+                                                    </select>
+                                                </div>
+                                                <div class="fgrid-f">
+                                                    <label>Applies to</label>
+                                                    <select disabled>
+                                                        <option>Whole cell</option>
+                                                    </select>
+                                                </div>
+                                                <div class="fgrid-f">
+                                                    <label>Emphasis</label>
+                                                    <select disabled>
+                                                        <option>None</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="fgrid-sec__title">Conditional rules</div>
 
                                         <div class="fgrid-rule">
                                             <div class="fgrid-rule__head">
@@ -578,6 +639,40 @@
                                     <details class="fgrid-adv">
                                         <summary>Advanced — raw attributes</summary>
                                         <div class="fgrid-row" style="margin-top: 0.5rem">
+                                            <div class="fgrid-f" style="flex: 1 1 100%">
+                                                <label>Header icon</label>
+                                                <div style="display: flex; gap: 0.35rem; align-items: center">
+                                                    <span
+                                                        style="
+                                                            width: 1.6rem;
+                                                            height: 1.6rem;
+                                                            border: 1px solid #c9c9c9;
+                                                            border-radius: 0.25rem;
+                                                            display: inline-flex;
+                                                            align-items: center;
+                                                            justify-content: center;
+                                                            background: #fff;
+                                                        "
+                                                        >💰</span
+                                                    >
+                                                    <input
+                                                        type="text"
+                                                        value="utility:moneybag"
+                                                        style="flex: 1 1 auto"
+                                                    />
+                                                    <button class="fgrid-settings-btn">Choose…</button>
+                                                </div>
+                                                <div class="fgrid-hint">
+                                                    Opens the SLDS icon picker. Flow Grid already ships
+                                                    <code>fgrid_iconPicker</code>; the proposal is to promote it into
+                                                    the Flow Config Editor Kit as <code>flowConfigIconPicker</code> so
+                                                    every component built on the kit gets it. NOTE: the kit cannot be
+                                                    versioned until PR #25 merges, so the source can move now but the
+                                                    package cannot ship until then.
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="fgrid-row">
                                             <div class="fgrid-f">
                                                 <label>Cell attributes (JSON)</label><textarea rows="2"></textarea>
                                             </div>
@@ -703,6 +798,18 @@
                     — Scale was our invention on top of them, and existing configs will need migrating. Conditional
                     formatting lives in the column drawer, with the grid showing only a count. The rule editor gains an
                     <em>Emphasis</em> control, which is the one idea worth taking from Avonni's class list.
+                </p>
+                <p class="fgrid-note" style="margin-top: 0.6rem">
+                    <strong>Added 2026-09-26, from Chris.</strong> The Type list is filtered by the field's DisplayType,
+                    so a Date/Time field never offers Currency or Checkbox; with no describe, as for a user-defined
+                    object, everything is offered because nothing can be ruled out. Currency code is detected rather
+                    than assumed — <code>UserInfo.isMultiCurrencyOrganization()</code> was measured working, and in a
+                    multi-currency org the list comes from the ACTIVE rows of <code>CurrencyType</code>, read with
+                    dynamic SOQL because the object does not exist at all in a single-currency org and static SOQL would
+                    not compile. The header icon moves into Advanced behind an icon picker. And colour becomes one
+                    choice of three — None, Per column, or Conditional — with Per column and Conditional mutually
+                    exclusive, because a column-wide colour fighting a per-cell rule over the same cell has no sensible
+                    answer.
                 </p>
                 <p class="fgrid-note" style="margin-top: 0.6rem">
                     <strong>Still open.</strong> Whether the drawer is inline, as drawn, or a right-hand panel — inline
