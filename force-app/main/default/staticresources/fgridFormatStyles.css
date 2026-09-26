@@ -125,9 +125,27 @@ c-fgrid_custom-datatable .fgridFormatText_neutral {
  *
  * The colour must come from the hook, not a literal: in dark mode the
  * hover background is dark, and a hardcoded #2e2e2e would be the new bug.
+ *
+ * BOTH PLACEMENTS are selected, `td .fgridFormat` and `td.fgridFormat`,
+ * because it has never been measured which element `cellAttributes.class`
+ * actually lands on. The reasoning said the `td`; the probe's working
+ * hover rules were descendant selectors. Those cannot both be right, and
+ * covering both costs one selector rather than another round of guessing.
+ * If someone measures it, delete the pair that does not match.
  * ---------------------------------------------------------------- */
 
 c-fgrid_custom-datatable .slds-table tbody tr:hover > td .fgridFormat,
-c-fgrid_custom-datatable .slds-table tbody tr:hover > th .fgridFormat {
+c-fgrid_custom-datatable .slds-table tbody tr:hover > th .fgridFormat,
+c-fgrid_custom-datatable .slds-table tbody tr:hover > td.fgridFormat,
+c-fgrid_custom-datatable .slds-table tbody tr:hover > th.fgridFormat,
+/* FOCUS, not hover. Clicking or tabbing into a cell gives it
+   `.slds-has-focus`, which paints it WHITE -- not the hover grey -- and
+   draws a blue ring. Same failure, different trigger: the cell loses its
+   background and the light text stays. Caught on fgridFormat_inverse,
+   where a white cell with white text shows nothing at all. */
+c-fgrid_custom-datatable .slds-table td.slds-has-focus .fgridFormat,
+c-fgrid_custom-datatable .slds-table th.slds-has-focus .fgridFormat,
+c-fgrid_custom-datatable .slds-table td.slds-has-focus.fgridFormat,
+c-fgrid_custom-datatable .slds-table th.slds-has-focus.fgridFormat {
     color: var(--slds-g-color-on-surface-2, #2e2e2e);
 }
