@@ -1015,6 +1015,47 @@ what native does, confirmed from its editor.
 
 1–3 are the engine and are Jest-testable. 4 needs a deploy to judge.
 
+#### Hover — DECIDED by Chris 2026-09-26: revert the text, keep the highlight
+
+A formatted cell loses its colour under the cursor. Cause, measured and then
+confirmed independently in a competitor's component: `cellAttributes.class`
+lands on the `td`, and the row-hover rule `tr:hover > td` outranks a single
+class, so the platform repaints the background to
+`$color-background-row-hover` (`#f3f3f3`, `--lwc-colorBackgroundRowHover`)
+while the class's text colour survives on top. White on `#f3f3f3`.
+
+Two fixes were on the table. Re-asserting background and text at higher
+specificity keeps the cell's colour under the cursor — proven on the probe, but
+a rule per variant. **Chris chose the other: let the hover background win and
+revert only the text to the default.** A hovered formatted cell then looks like
+any hovered cell, which makes the active row clearer, and the contrast problem
+cannot occur because no coloured text survives onto the hover background.
+
+I raised that this removes the visual signal at the moment the user points at
+the row; Chris's judgement is that the clearer row highlight is worth more.
+Proceeding on that.
+
+It is also the simpler build. Every formatted cell carries a shared
+`fgridFormat` marker alongside its variant class, so the whole feature needs
+ONE hover rule rather than one per colour — nothing to enumerate, nothing to
+update when a variant is added, and no dependence on which colours happen to be
+light or dark:
+
+```css
+c-fgrid_flow-grid .slds-table tbody tr:hover > td .fgridFormat {
+    color: var(--slds-g-color-on-surface-2, #2e2e2e);
+}
+```
+
+The `var()` is load-bearing: in dark mode the hover background is dark, so the
+"default" text colour has to come from the hook rather than a literal.
+
+**Not taken, but worth knowing.** A badge or pill — colour on an element INSIDE
+the cell — is immune to this by construction, because hover repaints the `td`
+and never touches a nested span. That is why Avonni's badge style keeps its
+colour while its cell style does not. If a Badge display option is ever wanted
+alongside Fill, it needs no hover handling at all.
+
 #### Reverses the `loadStyle` rejection — approved by Chris 2026-09-26
 
 §1.4's toast work records `loadStyle` as rejected: "a distributed package should
