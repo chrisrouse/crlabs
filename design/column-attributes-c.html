@@ -1,0 +1,716 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Flow Grid — column attributes, treatment C developed</title>
+        <link
+            rel="stylesheet"
+            href="https://unpkg.com/@salesforce-ux/design-system@2.24.2/assets/styles/salesforce-lightning-design-system.min.css"
+        />
+        <style>
+            /* STATIC MOCKUP. Nothing is wired up.
+               Treatment C, chosen from column-attributes-mockup.html, developed.
+
+               THE RULE THIS ESTABLISHES: if you would want to COMPARE it across
+               columns, it lives in the grid row. If it only makes sense for one
+               column, it lives in the drawer. That is what stops "two places to
+               edit" becoming "no idea where anything is" -- the weak point noted
+               against C when it was picked.
+
+               Grid   -> order, field, label, width, alignment, edit, filter, sort,
+                         wrap. All scannable, all comparable, all bulk-ish.
+               Drawer -> type and everything the type implies, conditional
+                         formatting, lookup display, raw JSON escape hatches. */
+
+            body {
+                background: var(--slds-g-color-surface-2, #f3f3f3);
+                padding: 1.5rem;
+                font-size: 13px;
+            }
+            .fgrid-wrap {
+                max-width: 68rem;
+            }
+            .fgrid-card {
+                background: #fff;
+                border: 1px solid #e5e5e5;
+                border-radius: 0.25rem;
+                padding: 1rem;
+                margin-bottom: 1.25rem;
+            }
+            h1 {
+                font-size: 18px;
+                font-weight: 700;
+                margin-bottom: 0.25rem;
+            }
+            h2 {
+                font-size: 14px;
+                font-weight: 700;
+                margin: 0 0 0.5rem;
+            }
+            .fgrid-note {
+                color: #5c5c5c;
+                font-size: 12px;
+                line-height: 1.45;
+            }
+            .fgrid-intro {
+                max-width: 58rem;
+                margin-bottom: 1.25rem;
+                color: #444;
+                line-height: 1.5;
+            }
+
+            /* ---------- the scannable grid ---------- */
+            .fgrid-grid {
+                width: 100%;
+                border-collapse: collapse;
+                font-size: 12px;
+            }
+            .fgrid-grid th {
+                font-size: 10px;
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+                color: #5c5c5c;
+                text-align: left;
+                padding: 0.35rem 0.4rem;
+                border-bottom: 1px solid #d8d8d8;
+                white-space: nowrap;
+            }
+            .fgrid-grid td {
+                padding: 0.3rem 0.4rem;
+                border-bottom: 1px solid #f0f0f0;
+                vertical-align: middle;
+            }
+            .fgrid-grid tr.is-open > td {
+                background: #f6f9ff;
+                border-bottom-color: #cfe0ff;
+            }
+            .fgrid-grid input[type="text"],
+            .fgrid-grid input[type="number"],
+            .fgrid-grid select {
+                width: 100%;
+                border: 1px solid transparent;
+                background: transparent;
+                border-radius: 0.2rem;
+                padding: 0.15rem 0.25rem;
+                font-size: 12px;
+            }
+            .fgrid-grid input[type="text"]:hover,
+            .fgrid-grid select:hover {
+                border-color: #d8d8d8;
+                background: #fff;
+            }
+            .fgrid-num {
+                width: 2rem;
+                color: #969696;
+            }
+            .fgrid-drag {
+                color: #b0b0b0;
+                cursor: grab;
+            }
+            .fgrid-type {
+                font-size: 10px;
+                padding: 0.05rem 0.35rem;
+                border-radius: 0.75rem;
+                background: #ececec;
+                color: #444;
+                white-space: nowrap;
+            }
+            .fgrid-rulecount {
+                font-size: 10px;
+                padding: 0.05rem 0.35rem;
+                border-radius: 0.75rem;
+                background: #e5f0ff;
+                color: #0250d9;
+                white-space: nowrap;
+            }
+            .fgrid-settings-btn {
+                background: none;
+                border: 1px solid #d8d8d8;
+                border-radius: 0.2rem;
+                font-size: 11px;
+                padding: 0.1rem 0.4rem;
+                cursor: pointer;
+                white-space: nowrap;
+            }
+            tr.is-open .fgrid-settings-btn {
+                border-color: #066afe;
+                color: #0250d9;
+                background: #fff;
+            }
+
+            /* ---------- the drawer ---------- */
+            .fgrid-drawer td {
+                background: #fbfdff !important;
+                border-bottom: 1px solid #cfe0ff !important;
+                padding: 0 !important;
+            }
+            .fgrid-drawer__inner {
+                padding: 0.9rem 1rem 1rem;
+                border-left: 3px solid #066afe;
+            }
+            .fgrid-sec {
+                margin-bottom: 0.9rem;
+            }
+            .fgrid-sec__title {
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.05em;
+                font-size: 10px;
+                color: #5c5c5c;
+                margin-bottom: 0.4rem;
+            }
+            .fgrid-row {
+                display: flex;
+                gap: 0.6rem;
+                margin-bottom: 0.5rem;
+                flex-wrap: wrap;
+            }
+            .fgrid-f {
+                flex: 1 1 8rem;
+                min-width: 0;
+            }
+            .fgrid-f label {
+                display: block;
+                font-size: 11px;
+                color: #444;
+                margin-bottom: 0.125rem;
+            }
+            .fgrid-f input,
+            .fgrid-f select {
+                width: 100%;
+                border: 1px solid #c9c9c9;
+                border-radius: 0.25rem;
+                padding: 0.25rem 0.375rem;
+                font-size: 12px;
+                background: #fff;
+            }
+            .fgrid-hint {
+                font-size: 10.5px;
+                color: #767676;
+                margin-top: 0.1rem;
+            }
+            .fgrid-typed {
+                background: #f1f6ff;
+                border: 1px solid #d5e4ff;
+                border-radius: 0.25rem;
+                padding: 0.6rem 0.7rem;
+            }
+            .fgrid-typed__why {
+                font-size: 10.5px;
+                color: #0250d9;
+                margin-bottom: 0.5rem;
+                font-weight: 700;
+            }
+
+            /* ---------- rules ---------- */
+            .fgrid-rule {
+                border: 1px solid #e0e0e0;
+                border-radius: 0.25rem;
+                margin-bottom: 0.5rem;
+                background: #fff;
+            }
+            .fgrid-rule__head {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                padding: 0.4rem 0.55rem;
+                border-bottom: 1px solid #f0f0f0;
+            }
+            .fgrid-rule__body {
+                padding: 0.55rem;
+            }
+            .fgrid-sw {
+                width: 1.6rem;
+                height: 1.1rem;
+                border-radius: 0.2rem;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 9px;
+                flex: 0 0 auto;
+            }
+            .fgrid-cond {
+                display: flex;
+                gap: 0.4rem;
+                align-items: center;
+                margin-bottom: 0.35rem;
+            }
+            .fgrid-cond__n {
+                width: 1.1rem;
+                font-size: 10px;
+                color: #969696;
+                flex: 0 0 auto;
+            }
+            .fgrid-cond select,
+            .fgrid-cond input {
+                border: 1px solid #c9c9c9;
+                border-radius: 0.25rem;
+                padding: 0.2rem 0.3rem;
+                font-size: 11.5px;
+                min-width: 0;
+                flex: 1 1 0;
+            }
+            .fgrid-x {
+                border: none;
+                background: none;
+                color: #999;
+                cursor: pointer;
+                flex: 0 0 auto;
+            }
+            .fgrid-preview {
+                border: 1px dashed #cfcfcf;
+                border-radius: 0.25rem;
+                padding: 0.4rem 0.5rem;
+                font-size: 11px;
+                color: #5c5c5c;
+                background: #fff;
+            }
+            details.fgrid-adv summary {
+                cursor: pointer;
+                font-size: 11px;
+                color: #0250d9;
+            }
+            textarea {
+                width: 100%;
+                border: 1px solid #c9c9c9;
+                border-radius: 0.25rem;
+                font-size: 11px;
+                padding: 0.25rem;
+                font-family: monospace;
+            }
+            .fgrid-variants {
+                display: flex;
+                gap: 1rem;
+                align-items: flex-start;
+            }
+            .fgrid-variant {
+                flex: 1 1 0;
+                min-width: 0;
+                border: 1px solid #e5e5e5;
+                border-radius: 0.25rem;
+                padding: 0.7rem;
+                background: #fff;
+            }
+            .fgrid-variant h3 {
+                font-size: 12px;
+                font-weight: 700;
+                margin-bottom: 0.4rem;
+            }
+            code {
+                background: #f3f3f3;
+                padding: 0 0.2rem;
+                border-radius: 0.15rem;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="fgrid-wrap">
+            <h1>Column attributes — treatment C, developed</h1>
+            <p class="fgrid-intro">
+                The rule that makes two editing surfaces workable:
+                <strong
+                    >if you would want to compare it across columns, it is in the grid row. If it only makes sense for
+                    one column, it is in the drawer.</strong
+                >
+                That puts order, label, width, alignment and the four flags in the grid — scannable and comparable — and
+                puts type, everything the type implies, conditional formatting and the raw escape hatches in the drawer.
+            </p>
+
+            <!-- ================= the grid ================= -->
+            <div class="fgrid-card">
+                <h2>The grid</h2>
+                <p class="fgrid-note" style="margin-bottom: 0.7rem">
+                    Everything here is comparable down a column, which is the test for belonging. The
+                    <strong>Rules</strong> pill is a read-only count: it tells you a column is formatted without
+                    pretending rules can be edited in a table cell.
+                </p>
+                <table class="fgrid-grid">
+                    <thead>
+                        <tr>
+                            <th></th>
+                            <th class="fgrid-num">#</th>
+                            <th>Field</th>
+                            <th>Label</th>
+                            <th>Width</th>
+                            <th>Align</th>
+                            <th>Edit</th>
+                            <th>Filter</th>
+                            <th>Sort</th>
+                            <th>Wrap</th>
+                            <th></th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="fgrid-drag">⠿</td>
+                            <td class="fgrid-num">1</td>
+                            <td>Name <span class="fgrid-type">text</span></td>
+                            <td><input type="text" value="Account Name" /></td>
+                            <td><input type="text" placeholder="Auto" /></td>
+                            <td>
+                                <select>
+                                    <option>Default</option>
+                                </select>
+                            </td>
+                            <td><input type="checkbox" /></td>
+                            <td><input type="checkbox" checked /></td>
+                            <td><input type="checkbox" checked /></td>
+                            <td><input type="checkbox" checked /></td>
+                            <td></td>
+                            <td><button class="fgrid-settings-btn">Settings</button></td>
+                        </tr>
+
+                        <tr class="is-open">
+                            <td class="fgrid-drag">⠿</td>
+                            <td class="fgrid-num">2</td>
+                            <td>Amount <span class="fgrid-type">currency</span></td>
+                            <td><input type="text" value="Amount" /></td>
+                            <td><input type="text" placeholder="Auto" /></td>
+                            <td>
+                                <select>
+                                    <option selected>Right</option>
+                                </select>
+                            </td>
+                            <td><input type="checkbox" /></td>
+                            <td><input type="checkbox" checked /></td>
+                            <td><input type="checkbox" checked /></td>
+                            <td><input type="checkbox" /></td>
+                            <td><span class="fgrid-rulecount">2 rules</span></td>
+                            <td><button class="fgrid-settings-btn">Close</button></td>
+                        </tr>
+
+                        <!-- ============ the drawer ============ -->
+                        <tr class="fgrid-drawer">
+                            <td colspan="12">
+                                <div class="fgrid-drawer__inner">
+                                    <div class="fgrid-sec">
+                                        <div class="fgrid-sec__title">Display</div>
+                                        <div class="fgrid-row">
+                                            <div class="fgrid-f">
+                                                <label>Type</label>
+                                                <select>
+                                                    <option selected>Currency</option>
+                                                    <option>Number</option>
+                                                    <option>Percent</option>
+                                                    <option>Text</option>
+                                                    <option>Date</option>
+                                                    <option>Date/Time</option>
+                                                    <option>Email</option>
+                                                    <option>Phone</option>
+                                                    <option>URL</option>
+                                                    <option>Checkbox</option>
+                                                </select>
+                                                <div class="fgrid-hint">
+                                                    Detected from the field. Change it to display the value differently.
+                                                </div>
+                                            </div>
+                                            <div class="fgrid-f">
+                                                <label>Header icon</label>
+                                                <input type="text" placeholder="utility:moneybag" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="fgrid-sec">
+                                        <div class="fgrid-typed">
+                                            <div class="fgrid-typed__why">Because this column is a currency</div>
+                                            <div class="fgrid-row">
+                                                <div class="fgrid-f">
+                                                    <label>Minimum decimals</label><input type="number" value="2" />
+                                                </div>
+                                                <div class="fgrid-f">
+                                                    <label>Maximum decimals</label><input type="number" value="2" />
+                                                </div>
+                                                <div class="fgrid-f">
+                                                    <label>Minimum whole digits</label>
+                                                    <input type="number" placeholder="1" />
+                                                </div>
+                                            </div>
+                                            <div class="fgrid-row">
+                                                <div class="fgrid-f">
+                                                    <label>Currency code</label>
+                                                    <select>
+                                                        <option selected>Org default</option>
+                                                        <option>USD</option>
+                                                        <option>EUR</option>
+                                                        <option>GBP</option>
+                                                    </select>
+                                                </div>
+                                                <div class="fgrid-f">
+                                                    <label>Show currency as</label>
+                                                    <select>
+                                                        <option selected>Symbol — $1,234.00</option>
+                                                        <option>Code — USD 1,234.00</option>
+                                                        <option>Both — $1,234.00 USD</option>
+                                                    </select>
+                                                </div>
+                                                <div class="fgrid-f">
+                                                    <label>Edit step</label>
+                                                    <input type="text" value="0.01" />
+                                                    <div class="fgrid-hint">
+                                                        Increment while editing. <code>0.01</code> permits two decimals;
+                                                        <code>1</code> whole numbers only.
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="fgrid-sec">
+                                        <div class="fgrid-sec__title">Conditional formatting</div>
+
+                                        <div class="fgrid-rule">
+                                            <div class="fgrid-rule__head">
+                                                <span class="fgrid-num">1</span>
+                                                <span class="fgrid-sw" style="background: #fddde3; color: #b60554"
+                                                    >Aa</span
+                                                >
+                                                <strong style="flex: 1 1 auto; font-size: 11.5px"
+                                                    >Over 500,000 → Error</strong
+                                                >
+                                                <button class="fgrid-x">↑</button>
+                                                <button class="fgrid-x">↓</button>
+                                                <button class="fgrid-x">🗑</button>
+                                            </div>
+                                            <div class="fgrid-rule__body">
+                                                <div class="fgrid-row">
+                                                    <div class="fgrid-f">
+                                                        <label>Apply when</label>
+                                                        <select>
+                                                            <option selected>All conditions are met</option>
+                                                            <option>Any condition is met</option>
+                                                            <option>Custom condition logic is met</option>
+                                                            <option>Always</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div class="fgrid-cond">
+                                                    <span class="fgrid-cond__n">1</span>
+                                                    <select>
+                                                        <option selected>Amount</option>
+                                                        <option>Status</option>
+                                                        <option>Stage</option>
+                                                    </select>
+                                                    <select>
+                                                        <option selected>Greater than</option>
+                                                        <option>Equals</option>
+                                                    </select>
+                                                    <input type="text" value="500000" />
+                                                    <button class="fgrid-x">🗑</button>
+                                                </div>
+                                                <button class="fgrid-settings-btn">+ Add condition</button>
+
+                                                <div class="fgrid-row" style="margin-top: 0.6rem">
+                                                    <div class="fgrid-f">
+                                                        <label>Style</label>
+                                                        <select>
+                                                            <option>Success</option>
+                                                            <option>Warning</option>
+                                                            <option selected>Error</option>
+                                                            <option>Accent</option>
+                                                            <option>Neutral</option>
+                                                            <option>Inverse</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="fgrid-f">
+                                                        <label>Applies to</label>
+                                                        <select>
+                                                            <option selected>Whole cell</option>
+                                                            <option>Text only</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="fgrid-f">
+                                                        <label>Icon</label>
+                                                        <input type="text" placeholder="utility:warning" />
+                                                    </div>
+                                                    <div class="fgrid-f">
+                                                        <label>Emphasis</label>
+                                                        <select>
+                                                            <option selected>None</option>
+                                                            <option>Bold</option>
+                                                            <option>ALL CAPS</option>
+                                                            <option>Bold + caps</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                                <div class="fgrid-preview">
+                                                    Preview —
+                                                    <span
+                                                        style="
+                                                            background: #fddde3;
+                                                            color: #b60554;
+                                                            padding: 0.1rem 0.4rem;
+                                                            border-radius: 0.15rem;
+                                                        "
+                                                        >$750,000.00</span
+                                                    >
+                                                    <span class="fgrid-hint" style="display: inline"
+                                                        >rendered live — colour follows the running theme</span
+                                                    >
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="fgrid-rule">
+                                            <div class="fgrid-rule__head">
+                                                <span class="fgrid-num">2</span>
+                                                <span class="fgrid-sw" style="background: #acf3e4; color: #056764"
+                                                    >Aa</span
+                                                >
+                                                <strong style="flex: 1 1 auto; font-size: 11.5px"
+                                                    >Status is Paid → Success</strong
+                                                >
+                                                <button class="fgrid-x">↑</button>
+                                                <button class="fgrid-x">↓</button>
+                                                <button class="fgrid-x">🗑</button>
+                                            </div>
+                                        </div>
+
+                                        <button class="slds-button slds-button_neutral">+ Add rule</button>
+                                        <div class="fgrid-hint" style="margin-top: 0.3rem">
+                                            Rules are checked in order and the first match wins. A condition can test
+                                            any column, not only this one.
+                                        </div>
+                                    </div>
+
+                                    <details class="fgrid-adv">
+                                        <summary>Advanced — raw attributes</summary>
+                                        <div class="fgrid-row" style="margin-top: 0.5rem">
+                                            <div class="fgrid-f">
+                                                <label>Cell attributes (JSON)</label><textarea rows="2"></textarea>
+                                            </div>
+                                            <div class="fgrid-f">
+                                                <label>Type attributes (JSON)</label><textarea rows="2"></textarea>
+                                            </div>
+                                            <div class="fgrid-f">
+                                                <label>Other attributes (JSON)</label><textarea rows="2"></textarea>
+                                            </div>
+                                        </div>
+                                        <div class="fgrid-hint">
+                                            Escape hatch. Anything set here wins over the controls above.
+                                        </div>
+                                    </details>
+                                </div>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <td class="fgrid-drag">⠿</td>
+                            <td class="fgrid-num">3</td>
+                            <td>Stage <span class="fgrid-type">picklist</span></td>
+                            <td><input type="text" value="Stage" /></td>
+                            <td><input type="text" placeholder="Auto" /></td>
+                            <td>
+                                <select>
+                                    <option>Default</option>
+                                </select>
+                            </td>
+                            <td><input type="checkbox" checked /></td>
+                            <td><input type="checkbox" checked /></td>
+                            <td><input type="checkbox" checked /></td>
+                            <td><input type="checkbox" checked /></td>
+                            <td><span class="fgrid-rulecount">3 rules</span></td>
+                            <td><button class="fgrid-settings-btn">Settings</button></td>
+                        </tr>
+                        <tr>
+                            <td class="fgrid-drag">⠿</td>
+                            <td class="fgrid-num">4</td>
+                            <td>Owner <span class="fgrid-type">lookup</span></td>
+                            <td><input type="text" value="Owner" /></td>
+                            <td><input type="text" placeholder="Auto" /></td>
+                            <td>
+                                <select>
+                                    <option>Default</option>
+                                </select>
+                            </td>
+                            <td><input type="checkbox" /></td>
+                            <td><input type="checkbox" /></td>
+                            <td><input type="checkbox" checked /></td>
+                            <td><input type="checkbox" checked /></td>
+                            <td></td>
+                            <td><button class="fgrid-settings-btn">Settings</button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- ================= type variants ================= -->
+            <div class="fgrid-card">
+                <h2>The same drawer, three other types</h2>
+                <p class="fgrid-note" style="margin-bottom: 0.7rem">
+                    Only the blue block changes. This is the payoff for type-awareness: a text column stops showing
+                    decimals and step, and a lookup stops pretending it is a number. Display, Conditional formatting and
+                    Advanced are identical everywhere.
+                </p>
+                <div class="fgrid-variants">
+                    <div class="fgrid-variant">
+                        <h3>Text</h3>
+                        <div class="fgrid-typed">
+                            <div class="fgrid-typed__why">Because this column is text</div>
+                            <label class="fgrid-f" style="display: block"
+                                ><input type="checkbox" /> Turn URLs into links</label
+                            >
+                            <div class="fgrid-f" style="margin-top: 0.4rem">
+                                <label>Wrapped line limit</label><input type="number" placeholder="3" />
+                            </div>
+                        </div>
+                        <div class="fgrid-hint" style="margin-top: 0.4rem">
+                            No decimals, no step, no currency code — none of it applies.
+                        </div>
+                    </div>
+                    <div class="fgrid-variant">
+                        <h3>Picklist</h3>
+                        <div class="fgrid-typed">
+                            <div class="fgrid-typed__why">Because this column is a picklist</div>
+                            <label class="fgrid-f" style="display: block"
+                                ><input type="checkbox" checked /> Hide --None-- when editing</label
+                            >
+                            <div class="fgrid-f" style="margin-top: 0.4rem">
+                                <label>Filter values by record type</label>
+                                <select>
+                                    <option>Do not filter</option>
+                                    <option>Globally</option>
+                                    <option>Per row</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="fgrid-variant">
+                        <h3>Lookup</h3>
+                        <div class="fgrid-typed">
+                            <div class="fgrid-typed__why">Because this column is a lookup</div>
+                            <label class="fgrid-f" style="display: block"
+                                ><input type="checkbox" checked /> Show the record name</label
+                            >
+                            <label class="fgrid-f" style="display: block"
+                                ><input type="checkbox" checked /> Link to the record</label
+                            >
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="fgrid-card">
+                <h2>Decisions this makes, and what is still open</h2>
+                <p class="fgrid-note">
+                    <strong>Made here.</strong> The grid keeps the comparable attributes and gains a Sort flag and a
+                    read-only rule count. <code>Scale</code> is replaced by <em>Minimum</em> and
+                    <em>Maximum decimals</em>, which are the datatable's own <code>minimumFractionDigits</code>/<code
+                        >maximumFractionDigits</code
+                    >
+                    — Scale was our invention on top of them, and existing configs will need migrating. Conditional
+                    formatting lives in the column drawer, with the grid showing only a count. The rule editor gains an
+                    <em>Emphasis</em> control, which is the one idea worth taking from Avonni's class list.
+                </p>
+                <p class="fgrid-note" style="margin-top: 0.6rem">
+                    <strong>Still open.</strong> Whether the drawer is inline, as drawn, or a right-hand panel — inline
+                    keeps context but pushes rows down once a couple of rules exist. Whether the Type picklist should
+                    ever offer a type the field cannot support, or only sensible re-displays. And whether an
+                    <em>Icon</em> field belongs in the rule, or whether icons deserve their own row-level treatment.
+                </p>
+            </div>
+        </div>
+    </body>
+</html>
