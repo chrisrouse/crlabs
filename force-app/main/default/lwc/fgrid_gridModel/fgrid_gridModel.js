@@ -670,10 +670,35 @@ export function buildColumns(fields, config = {}, options = {}) {
             column.type = "date";
             typeAttributes.timeZone = typeAttributes.timeZone || "UTC";
         }
+        // DECIMALS. `minimumFractionDigits` and `maximumFractionDigits` are what
+        // the datatable actually takes; the older `scale` was our own single
+        // value that set both at once. Still read, so a saved config keeps
+        // working -- the editor only writes the pair now, and `scale` fades out
+        // as columns are re-edited. An explicit value wins over it, and both
+        // win over the describe.
         const scale = firstNumber(attributes.scale, describe?.scale);
-        if (scale !== null) {
-            typeAttributes.minimumFractionDigits = scale;
-            typeAttributes.maximumFractionDigits = scale;
+        const minDecimals = firstNumber(attributes.minDecimals, scale);
+        const maxDecimals = firstNumber(attributes.maxDecimals, scale);
+        if (minDecimals !== null) {
+            typeAttributes.minimumFractionDigits = minDecimals;
+        }
+        if (maxDecimals !== null) {
+            typeAttributes.maximumFractionDigits = maxDecimals;
+        }
+        const minIntegerDigits = firstNumber(attributes.minIntegerDigits);
+        if (minIntegerDigits !== null) {
+            typeAttributes.minimumIntegerDigits = minIntegerDigits;
+        }
+        // CURRENCY. Both are only meaningful on a currency column, and
+        // `currencyCode` only in a multi-currency org -- the editor decides
+        // whether to offer them. Passed straight through either way: a code
+        // stored against a column that later stops being a currency is inert,
+        // not an error.
+        if (attributes.currencyCode) {
+            typeAttributes.currencyCode = attributes.currencyCode;
+        }
+        if (attributes.currencyDisplayAs) {
+            typeAttributes.currencyDisplayAs = attributes.currencyDisplayAs;
         }
         // Inline-edit granularity for currency, number and percent. Without it the
         // editor snaps to the default 0.01, which silently rounds a value needing

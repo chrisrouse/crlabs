@@ -29,6 +29,60 @@ import {
     parseFieldList
 } from "c/fgrid_gridModel";
 
+describe("decimals and currency reach the datatable's own type attributes", () => {
+    const attrs = (config) => buildColumns(["Amount"], config)[0].typeAttributes || {};
+
+    it("reads the legacy scale as both minimum and maximum", () => {
+        // `scale` was our own single value. Saved configs still carry it, so it
+        // keeps working -- the editor writes the pair now and scale fades out
+        // as columns are re-edited.
+        expect(attrs({ Amount: { type: "currency", scale: 2 } })).toMatchObject({
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        });
+    });
+
+    it("lets an explicit pair override scale", () => {
+        expect(attrs({ Amount: { type: "currency", scale: 2, minDecimals: 0, maxDecimals: 4 } })).toMatchObject({
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 4
+        });
+    });
+
+    it("allows a minimum without a maximum, and the reverse", () => {
+        expect(attrs({ Amount: { type: "number", minDecimals: 2 } })).toMatchObject({ minimumFractionDigits: 2 });
+        expect(attrs({ Amount: { type: "number", minDecimals: 2 } }).maximumFractionDigits).toBeUndefined();
+        expect(attrs({ Amount: { type: "number", maxDecimals: 3 } })).toMatchObject({ maximumFractionDigits: 3 });
+    });
+
+    it("honors a zero, which is a real setting and not an absent one", () => {
+        expect(attrs({ Amount: { type: "number", minDecimals: 0, maxDecimals: 0 } })).toMatchObject({
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0
+        });
+    });
+
+    it("passes the whole-digit minimum through", () => {
+        expect(attrs({ Amount: { type: "number", minIntegerDigits: 3 } })).toMatchObject({
+            minimumIntegerDigits: 3
+        });
+    });
+
+    it("passes the currency code and display mode through", () => {
+        expect(attrs({ Amount: { type: "currency", currencyCode: "EUR", currencyDisplayAs: "code" } })).toMatchObject({
+            currencyCode: "EUR",
+            currencyDisplayAs: "code"
+        });
+    });
+
+    it("sets none of them when nothing is configured", () => {
+        const bare = attrs({ Amount: { type: "number" } });
+        ["minimumFractionDigits", "maximumFractionDigits", "minimumIntegerDigits", "currencyCode"].forEach((key) =>
+            expect(bare[key]).toBeUndefined()
+        );
+    });
+});
+
 describe("parseFieldList reads every shape columnFields arrives in", () => {
     it("reads the kit picker's JSON array", () => {
         expect(parseFieldList('["Id","Name","Owner.Alias"]')).toEqual(["Id", "Name", "Owner.Alias"]);
