@@ -33,6 +33,8 @@ import getGridMetadata from "@salesforce/apex/FlowGridController.getGridMetadata
 import runFlow from "@salesforce/apex/FlowGridController.runFlow";
 import getRecordsByIds from "@salesforce/apex/FlowGridController.getRecordsByIds";
 import getFlowVariables from "@salesforce/apex/FlowGridController.getFlowVariables";
+import { loadStyle } from "lightning/platformResourceLoader";
+import FGRID_FORMAT_STYLES from "@salesforce/resourceUrl/fgridFormatStyles";
 import {
     MIN_COLUMN_WIDTH,
     buildColumns,
@@ -1863,11 +1865,37 @@ export default class FgridFlowGrid extends LightningElement {
      * lands mid-table on rows they have not seen the start of.
      */
     renderedCallback() {
+        this.loadFormatStyles();
+
         if (this._scrolledForPage === this._page) {
             return;
         }
         this._scrolledForPage = this._page;
         this.template.querySelector("c-fgrid_custom-datatable")?.scrollToTop?.();
+    }
+
+    /**
+     * Loads the conditional-formatting stylesheet, once per component.
+     *
+     * It has to be a GLOBAL stylesheet: `cellAttributes.class` lands inside
+     * `lightning-datatable`'s shadow root, which this component's own CSS file
+     * cannot reach. Measured both ways on a record page and in an LWR site --
+     * component CSS unstyled, the static resource rendered. Every selector in
+     * it is scoped under `c-fgrid_custom-datatable`, so nothing outside Flow
+     * Grid is affected.
+     *
+     * A failure is swallowed on purpose. The stylesheet only adds colour; a
+     * grid with uncoloured cells is still a working grid, and an error banner
+     * about a stylesheet would tell a site visitor nothing they can act on.
+     */
+    loadFormatStyles() {
+        if (this._formatStylesRequested) {
+            return;
+        }
+        this._formatStylesRequested = true;
+        loadStyle(this, FGRID_FORMAT_STYLES).catch(() => {
+            this._formatStylesFailed = true;
+        });
     }
 
     /** Only the toast elevation window needs tearing down; nothing else here is

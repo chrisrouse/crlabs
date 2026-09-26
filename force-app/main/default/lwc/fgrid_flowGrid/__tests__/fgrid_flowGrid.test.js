@@ -463,9 +463,17 @@ describe("row-action outcomes are toasts, not banners", () => {
 
         expect(ToastContainer.instance).toHaveBeenCalled();
         expect(container.style.zIndex).toBe("100002");
-        // Rejected: a distributed package should not restyle a customer's whole
-        // site. The `!important` rule that does work belongs in the site's own CSS.
-        expect(loadStyle).not.toHaveBeenCalled();
+        // The toast z-index is NOT fixed with a stylesheet: an `!important` rule
+        // against platform chrome would restyle a customer's whole site, and
+        // belongs in the site's own CSS. That decision still stands.
+        //
+        // This used to assert loadStyle was never called at all. The component
+        // now loads one stylesheet, for conditional cell formatting, whose
+        // selectors are all scoped under our own tag -- a different thing, and
+        // approved separately. So the assertion narrowed rather than went away:
+        // no toast stylesheet, and nothing beyond the format one.
+        const loaded = loadStyle.mock.calls.map((call) => String(call[1]));
+        expect(loaded.every((href) => href.includes("fgridFormatStyles"))).toBe(true);
     });
 
     it("re-asserts the z-index after the platform rewrites it", async () => {
@@ -1780,6 +1788,38 @@ describe("change detection is scoped to the columns in use", () => {
         await Promise.resolve();
 
         expect(element.editedCount).toBe(0);
+    });
+});
+
+describe("the conditional formatting stylesheet", () => {
+    // It has to be a GLOBAL stylesheet -- component CSS cannot reach inside
+    // lightning-datatable, measured both ways on a record page and in LWR.
+    // See repro/datatable-cell-colour/ and STATUS 2.3d.
+
+    it("loads once, however many times the grid re-renders", async () => {
+        loadStyle.mockClear();
+        const element = build({ records: records(2) });
+        await Promise.resolve();
+
+        // Force more renders; the stylesheet must not be requested again.
+        element.records = records(3);
+        await Promise.resolve();
+        element.records = records(4);
+        await Promise.resolve();
+
+        expect(loadStyle).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps rendering the grid when the stylesheet fails", async () => {
+        // Colour is the only thing lost. An error banner about a stylesheet
+        // tells a site visitor nothing they can act on.
+        loadStyle.mockClear();
+        loadStyle.mockRejectedValueOnce(new Error("network"));
+        const element = build({ records: records(2) });
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(element.shadowRoot.querySelector("c-fgrid_custom-datatable").data).toHaveLength(2);
     });
 });
 
