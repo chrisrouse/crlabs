@@ -168,6 +168,16 @@ c-fgrid_custom-datatable .fgridProgress {
     width: 100%;
 }
 
+/* The datatable wraps a custom cell in its own elements, which size to
+   their content, so 100% above was 100% of the value text and the bar
+   was only as wide as "20%". Stretch every wrapper between the cell and
+   our template instead. :has() selects them without naming the
+   platform's internal chain, which is unmeasured and free to change. */
+c-fgrid_custom-datatable td :has(.fgridProgress) {
+    display: block;
+    width: 100%;
+}
+
 /* Above the right end, bold. The bar spans the cell, so there is no room
    beside it; sitting above keeps the number readable at x-small. */
 c-fgrid_custom-datatable .fgridProgress__value {

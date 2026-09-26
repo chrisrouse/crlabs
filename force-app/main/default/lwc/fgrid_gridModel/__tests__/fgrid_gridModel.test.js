@@ -57,13 +57,6 @@ describe("the progress bar display", () => {
         expect(row.Complete__fgridProgressLabel).toBe("25%");
     });
 
-    it("scales against a total, so a gauge works off a percent field", () => {
-        // SLDS progress is hard-wired 0-100; without this a field on any other
-        // scale cannot drive one.
-        const [row] = rowsFor([{ Id: "1", Complete: 250 }], { progressTotal: 1000 });
-        expect(row.Complete__fgridProgress).toBe(25);
-    });
-
     it("clamps out-of-range values rather than overflowing the track", () => {
         const [over] = rowsFor([{ Id: "1", Complete: 140 }]);
         expect(over.Complete__fgridProgress).toBe(100);

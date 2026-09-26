@@ -791,9 +791,6 @@ export function buildColumns(fields, config = {}, options = {}) {
 
             const progressKey = `${field}${PROGRESS_SUFFIX}`;
             column.fgridProgressKey = progressKey;
-            // What counts as 100%. SLDS progress is hard-wired 0-100, so a
-            // field on any other scale is unusable without this.
-            column.fgridProgressTotal = firstNumber(attributes.progressTotal) ?? 100;
             typeAttributes.progressValue = { fieldName: progressKey };
             typeAttributes.progressLabel = { fieldName: `${progressKey}Label` };
             typeAttributes.progressStyle = { fieldName: `${progressKey}Style` };
@@ -978,11 +975,10 @@ export function buildRows(records, columns, keyField = "Id", picklistContext = n
 
         progressColumns.forEach((column) => {
             const raw = Number(row[column.fieldName]);
-            const total = column.fgridProgressTotal || 100;
             // Clamped as well as rounded, matching what lightning-progress-bar
             // documents for its own value, so an out-of-range number cannot
             // draw a fill wider than the track.
-            const percent = Number.isFinite(raw) && total ? Math.max(0, Math.min(100, (raw / total) * 100)) : 0;
+            const percent = Number.isFinite(raw) ? Math.max(0, Math.min(100, raw)) : 0;
             const rounded = Math.round(percent);
             row[column.fgridProgressKey] = rounded;
             row[`${column.fgridProgressKey}Label`] = `${rounded}%`;

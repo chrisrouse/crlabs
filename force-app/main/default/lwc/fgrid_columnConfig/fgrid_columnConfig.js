@@ -222,7 +222,6 @@ export default class FgridColumnConfig extends LightningElement {
                 progressTheme: attributes.progressTheme ?? "",
                 progressThickness: attributes.progressThickness ?? "medium",
                 progressShape: attributes.progressShape ?? "",
-                progressTotal: attributes.progressTotal ?? null,
                 showProgressValue: attributes.showProgressValue !== false,
                 icon: attributes.icon ?? "",
                 headerIcon: attributes.headerIcon ?? "",

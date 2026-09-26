@@ -215,11 +215,10 @@
 
             <!-- ======================= values ======================= -->
             <div class="demo-card">
-                <h2>Values — scaling and clamping</h2>
+                <h2>Values — clamping</h2>
                 <p class="demo-note" style="margin-bottom: 0.5rem">
                     A Salesforce Percent field stores <code>25</code> for 25%, which is already what a gauge wants — no
-                    fraction conversion. "Value at 100%" rescales anything else. Out-of-range values clamp rather than
-                    overflowing the track.
+                    fraction conversion. Out-of-range values clamp rather than overflowing the track.
                 </p>
                 <table class="demo" id="values"></table>
             </div>
@@ -240,8 +239,8 @@
             const THICKNESS = ["x-small", "small", "medium", "large"];
 
             /** The cell template, verbatim in structure from progressBarDisplay.html. */
-            function bar({ value, total = 100, theme = "", thickness = "medium", rounded = false, showValue = true }) {
-                const pct = Math.max(0, Math.min(100, (Number(value) / total) * 100 || 0));
+            function bar({ value, theme = "", thickness = "medium", rounded = false, showValue = true }) {
+                const pct = Math.max(0, Math.min(100, Number(value) || 0));
                 const shown = Math.round(pct);
                 const barClass = `slds-progress-bar slds-progress-bar_${thickness}${
                     rounded ? " slds-progress-bar_circular" : ""
@@ -279,8 +278,6 @@
                 row("stored 0", bar({ value: 0, theme: "accent" })),
                 row("stored 25 (Percent field)", bar({ value: 25, theme: "accent" })),
                 row("stored 100", bar({ value: 100, theme: "accent" })),
-                row("stored 250, total 1000", bar({ value: 250, total: 1000, theme: "accent" })),
-                row("stored 4.5, total 5", bar({ value: 4.5, total: 5, theme: "accent" })),
                 row("stored 140 → clamps to 100", bar({ value: 140, theme: "warning" })),
                 row("stored -20 → clamps to 0", bar({ value: -20, theme: "warning" })),
                 row("blank / non-numeric → 0", bar({ value: "", theme: "warning" }))

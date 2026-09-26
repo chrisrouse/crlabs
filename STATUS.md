@@ -1068,6 +1068,27 @@ Raised with Chris as a flagged reversal rather than assumed, and approved. The
 earlier entry stands for what it covers; shipping a static resource for scoped
 cell styling is now a sanctioned exception, not an inference drawn here.
 
+### 2.3f Gauges are percent-only — DECIDED by Chris 2026-09-26
+
+Progress Bar, and Ring and Circle when they are built, are offered on PERCENT
+fields and nowhere else.
+
+A "Value at 100%" input was built first, mirroring Avonni's Total, so a field on
+any other scale could drive a gauge -- SLDS progress components are hard-wired
+0-100. It was removed deliberately. A gauge means a percentage; if the value is
+not already one, the column is the wrong tool.
+
+What that rules out: a Number field holding 0-5 or 0-5000 cannot show a bar. The
+workaround is a formula field returning a percent, which is clearer anyway,
+since the alternative was an admin maintaining a Total that has to stay in step
+with the data.
+
+The value is therefore taken as-is and only clamped to 0-100. Note this is NOT
+the same as the datatable's own `percent` type, which wants a fraction and gets
+one through `percentToFraction`; the conversion is keyed on the type, so a gauge
+skips it. A Salesforce Percent field stores 25 for 25%, which is already what a
+gauge wants. There is a test saying so.
+
 ### 2.3e Native Conditional Field Formatting — INVESTIGATED AND DECLINED 2026-09-19
 
 Whether Flow Grid could read the rulesets an admin already defines in Setup
