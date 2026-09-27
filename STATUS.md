@@ -1097,25 +1097,21 @@ gauge wants. There is a test saying so.
 ### 2.3l NEXT SESSION — start here (handoff 2026-09-27)
 
 Everything through 2.3k is committed on `feature/flow-grid` and deployed to
-Preview Org. **None of 2.3h–2.3k has been checked in the org by eye except
-where noted**; the first job is a pass through it (list below).
+Preview Org. Most of it is now confirmed in the org; one item is left (below).
 
-#### 1. Verify in the org, after a hard refresh
+#### 1. Verify in the org
 
-- **Preview header drag** (2.3k). The only part with no test: the Jest
-  datatable stub draws no header. If headers will not drag, check that
-  `fgrid_customDatatable.renderedCallback` finds `thead th` and that the
-  platform datatable's own `renderedCallback` still runs (it is called
-  through `super`, guarded for the stub).
-- **Columns list drag and Alt+arrows**; a **Hidden** column in grid and
-  preview; drops around a Hidden column.
-- **The kit field picker patch** (Configure Columns offers only retrieved
-  fields, no Relationship Fields), in both the Studio and Flow Builder's
-  panel. Expect for the smoke flow's Get Accounts: Account ID, Account
-  Number, Account Name, Percent Test.
-- **Rule conditions now compare by kind** (2.3h): number, date, picklist and
-  checkbox rules that silently never matched before should now match.
-  Existing flows may change behavior -- intended, but worth seeing.
+**Confirmed by Chris in the org, 2026-09-27:**
+- All three drags (preview headers, Columns list rows, Fields tab into the
+  preview or the list).
+- Hidden columns: not drawn, and still searchable.
+- The Fields tab and the Configure Columns picker both offer only what the
+  Get Records retrieves, in Flow Builder's panel and in the Studio (the kit
+  field-picker patch works).
+
+**Still unchecked:** rule conditions now compare by kind (2.3h). Number,
+date, picklist and checkbox rules that silently never matched before should
+now match. Existing flows may change behavior -- intended, but worth seeing.
 
 #### 2. Next feature: set Text vs Long Text automatically
 
