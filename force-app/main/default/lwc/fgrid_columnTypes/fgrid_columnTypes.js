@@ -4,7 +4,8 @@
  * The column panel used to offer every attribute for every column: decimals and
  * step on a text column, "show the record name" on a number, and a free-text
  * box for the type. This is the model that lets the panel show only what
- * applies -- see flowgrid/design/column-attributes-c.html.
+ * applies -- see column-attributes-c.html, deleted with the other design
+ * mockups; it is in git history at eba68e8f.
  *
  * Two questions, both answered from the field's describe:
  *

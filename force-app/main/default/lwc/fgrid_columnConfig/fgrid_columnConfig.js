@@ -11,7 +11,8 @@
  * scramble their attributes — a real defect class in the index-based design.
  *
  * LAYOUT — treatment C, chosen 2026-09-26. See
- * flowgrid/design/column-attributes-c.html. A scannable grid with an inline
+ * column-attributes-c.html (a deleted design mockup, in git history at
+ * eba68e8f). A scannable grid with an inline
  * drawer, and one rule deciding which is which:
  *
  *   if you would want to COMPARE it across columns, it is in the grid row;

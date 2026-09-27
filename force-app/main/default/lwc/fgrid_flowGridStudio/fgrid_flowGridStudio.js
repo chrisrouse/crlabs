@@ -1,7 +1,8 @@
 /**
  * Grid Studio — a wide workspace launched from the Flow Builder property panel:
  * a live preview in the middle and one inspector on the right, with Data, Table
- * and Columns tabs. Layout C of design/studio-layout-c.html.
+ * and Columns tabs. Layout C of studio-layout-c.html, a design mockup now
+ * deleted; it is in git history at eba68e8f.
  *
  * Renders as the platform's own SLDS 2 modal: this extends `LightningModal` and
  * is opened by the editor with `FgridFlowGridStudio.open({ size: "large" })`.

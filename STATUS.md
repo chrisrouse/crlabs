@@ -1089,6 +1089,11 @@ one through `percentToFraction`; the conversion is keyed on the type, so a gauge
 skips it. A Salesforce Percent field stores 25 for 25%, which is already what a
 gauge wants. There is a test saying so.
 
+> **Design mockups deleted 2026-09-27.** Everything that was in `flowgrid/design/`
+> (the column-attributes, pagination, progress and Studio layout mockups) was
+> removed. References to those files below are historical; the files are in git
+> history at `eba68e8f`. `left-column.html` was never committed and is gone.
+
 ### 2.3j Studio left panel: Fields and Data — BUILT AND DEPLOYED 2026-09-27, NOT YET SEEN IN THE ORG
 
 Flow Builder's left palette shape (15rem, tabset), from `design/left-column.html`.
