@@ -1094,6 +1094,71 @@ gauge wants. There is a test saying so.
 > removed. References to those files below are historical; the files are in git
 > history at `eba68e8f`. `left-column.html` was never committed and is gone.
 
+### 2.3l NEXT SESSION — start here (handoff 2026-09-27)
+
+Everything through 2.3k is committed on `feature/flow-grid` and deployed to
+Preview Org. **None of 2.3h–2.3k has been checked in the org by eye except
+where noted**; the first job is a pass through it (list below).
+
+#### 1. Verify in the org, after a hard refresh
+
+- **Preview header drag** (2.3k). The only part with no test: the Jest
+  datatable stub draws no header. If headers will not drag, check that
+  `fgrid_customDatatable.renderedCallback` finds `thead th` and that the
+  platform datatable's own `renderedCallback` still runs (it is called
+  through `super`, guarded for the stub).
+- **Columns list drag and Alt+arrows**; a **Hidden** column in grid and
+  preview; drops around a Hidden column.
+- **The kit field picker patch** (Configure Columns offers only retrieved
+  fields, no Relationship Fields), in both the Studio and Flow Builder's
+  panel. Expect for the smoke flow's Get Accounts: Account ID, Account
+  Number, Account Name, Percent Test.
+- **Rule conditions now compare by kind** (2.3h): number, date, picklist and
+  checkbox rules that silently never matched before should now match.
+  Existing flows may change behavior -- intended, but worth seeing.
+
+#### 2. Next feature: set Text vs Long Text automatically
+
+Decided 2026-09-27: the admin should not choose between **Text** and **Long
+Text**; the field's type decides. Covers Text, Text Area, Text Area (Long) and
+Text Area (Rich). **Encrypted fields are out of scope**, for a later
+conversation.
+
+What the difference actually is today (measured in code, not the org):
+- **Read-only**, the two render the same, except Long Text adds a `title`
+  tooltip with the full value. `buildColumns` only switches to
+  `fgridLongText` when the column is EDITABLE and `describe.isLongText`
+  (`fgrid_gridModel.js`, "Long text gets its own cell ONLY when editable").
+- **Editable**, Text edits on one line; Long Text in a textarea capped at the
+  field's `describe.length`.
+
+Known gaps to fix as part of it:
+- **Choosing Long Text for a plain STRING field drops the length cap**:
+  `maxLength` is only set when `describe.isLongText`, so the textarea accepts
+  more than a 255-character field stores, and the save fails at DML
+  (unverified in the org).
+- **Rich Text** has no handling at all: shown as text it would print raw
+  HTML. Decide render (formatted rich text) vs strip vs plain, and whether it
+  is editable.
+- The Type dropdown offers both Text and Long Text for STRING and TEXTAREA
+  (`TYPES_FOR_DISPLAY_TYPE` in `fgrid_columnTypes.js`); removing the choice
+  means deciding what the dropdown shows for these fields.
+
+#### 3. Open question: "Turn URLs into links"
+
+Unresolved, needs a design conversation first. It only works on plain Text
+(our Long Text cell ignores the `linkify` attribute), and it is unclear what
+it should mean when a URL field or a formula field already builds a link, or
+in a rich text field.
+
+#### 4. Also still open
+
+- The kit field-picker patch is **local only** (VENDOR.md, fork patch two).
+  Decide whether to contribute it upstream alongside PR #25.
+- `emphasis` (Bold / ALL CAPS) is saved but never rendered.
+- Relative date operators in rules are never resolved (match every row).
+- `config/` at the repo root is untracked and was never looked at.
+
 ### 2.3k Reordering columns, and Hidden columns — BUILT AND DEPLOYED 2026-09-27, NOT YET SEEN IN THE ORG
 
 - **Drag to reorder, three ways**, all carrying the same payload (the field):
