@@ -123,6 +123,20 @@ describe("layout", () => {
         expect(activeLeftTab(empty)).toBe("data");
     });
 
+    it("relays a reordered column list as the Columns property", async () => {
+        const element = build();
+        const notified = [];
+        element.notifyPropertyChange = (detail) => notified.push(detail);
+        await flushPromises();
+
+        element.shadowRoot
+            .querySelector("c-fgrid_column-config")
+            .dispatchEvent(new CustomEvent("columnfieldschange", { detail: { value: '["AnnualRevenue","Name"]' } }));
+        expect(notified[0]).toMatchObject({ property: "columnFields", value: '["AnnualRevenue","Name"]' });
+        // And the preview's headers are the draggable kind, with no resizing to fight it.
+        expect(datatable(element).reorderableColumns).toBe(true);
+    });
+
     it("relays a field clicked in the palette as the Columns property", async () => {
         const element = build();
         const notified = [];
@@ -678,6 +692,20 @@ describe("dragging a field into the preview", () => {
         preview.dispatchEvent(drag("dragover", "AnnualRevenue", 10));
         preview.dispatchEvent(drag("drop", "AnnualRevenue", 10));
         expect(notified[0].value).toBe('["AnnualRevenue","Name"]');
+    });
+
+    it("leaves a Hidden column out of the preview, and drops around it", async () => {
+        // Name, then a Hidden Industry, then AnnualRevenue. The preview draws two
+        // columns, so a drop before the second one lands before AnnualRevenue.
+        const { element, notified, preview } = await setup({
+            columnFields: '["Name","Industry","AnnualRevenue"]',
+            columnConfig: JSON.stringify({ Industry: { hidden: true } })
+        });
+        expect(datatable(element).columns.map((column) => column.fieldName)).toEqual(["Name", "AnnualRevenue"]);
+
+        preview.dispatchEvent(drag("dragover", "Phone", 110));
+        preview.dispatchEvent(drag("drop", "Phone", 110));
+        expect(JSON.parse(notified[0].value)).toEqual(["Name", "Industry", "Phone", "AnnualRevenue"]);
     });
 
     it("ignores anything dragged in that is not a field", async () => {

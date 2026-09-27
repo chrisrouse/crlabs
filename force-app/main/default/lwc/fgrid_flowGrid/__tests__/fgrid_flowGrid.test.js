@@ -1980,3 +1980,17 @@ describe("the removal cap explains itself", () => {
         expect(element.shadowRoot.textContent).toContain("You can only remove 1 row at once.");
     });
 });
+
+describe("a Hidden column", () => {
+    it("is not drawn, but its field is still on every row", async () => {
+        const element = build({
+            records: records(3),
+            columnConfig: JSON.stringify({ Industry: { hidden: true } })
+        });
+        await Promise.resolve();
+        const table = element.shadowRoot.querySelector("c-fgrid_custom-datatable");
+        expect(table.columns.map((column) => column.fieldName)).toEqual(["Name"]);
+        // Carried so search and formatting rules can still read it.
+        expect(table.data[0].Industry).toBe("Retail");
+    });
+});

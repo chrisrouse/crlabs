@@ -31,6 +31,10 @@
  */
 import { api } from "lwc";
 import LightningDatatable from "lightning/datatable";
+
+/** What a dragged field carries, shared with c/fgrid_fieldPalette and
+ *  c/fgrid_flowGridStudio, so a header drops wherever a field does. */
+const FIELD_DRAG_TYPE = "application/x-fgrid-field";
 import picklistDisplay from "./picklistDisplay.html";
 import progressBarDisplay from "./progressBarDisplay.html";
 import picklistEdit from "./picklistEdit.html";
@@ -54,6 +58,57 @@ export default class FgridCustomDatatable extends LightningDatatable {
      * come first, so a caller wanting its columns takes the LAST
      * `columns.length` entries.
      */
+    /**
+     * Lets the Grid Studio's preview drag a column by its header.
+     *
+     * Off everywhere else: the runtime grid never sets it. The header cells are
+     * in this component's shadow root, so only this component can make them
+     * draggable; after each render every field column's cell is marked with
+     * the field it shows (`fgridField`, from buildColumns) and carries it on
+     * drag, the same way a field dragged from the Studio's Fields tab does.
+     * Columns with no field -- the row action -- stay put.
+     */
+    @api reorderableColumns = false;
+
+    _draggableHeaders = new WeakSet();
+
+    renderedCallback() {
+        // The platform datatable has its own, which must still run; the Jest
+        // stub of lightning/datatable has none.
+        if (super.renderedCallback) {
+            super.renderedCallback();
+        }
+        if (!this.reorderableColumns) {
+            return;
+        }
+        const columns = Array.isArray(this.columns) ? this.columns : [];
+        const cells = [...this.template.querySelectorAll("thead th")];
+        // The datatable's own checkbox and row-number cells come first.
+        cells.slice(cells.length - columns.length).forEach((cell, index) => {
+            const field = columns[index]?.fgridField;
+            if (!field) {
+                cell.removeAttribute("draggable");
+                return;
+            }
+            cell.setAttribute("draggable", "true");
+            cell.dataset.fgridField = field;
+            if (!this._draggableHeaders.has(cell)) {
+                cell.addEventListener("dragstart", this.handleHeaderDragStart);
+                this._draggableHeaders.add(cell);
+            }
+        });
+    }
+
+    handleHeaderDragStart = (event) => {
+        const field = event.currentTarget?.dataset?.fgridField;
+        if (!field || !event.dataTransfer) {
+            return;
+        }
+        event.dataTransfer.setData(FIELD_DRAG_TYPE, field);
+        event.dataTransfer.setData("text/plain", field);
+        event.dataTransfer.effectAllowed = "copyMove";
+    };
+
     @api
     getColumnEdges() {
         return [...this.template.querySelectorAll("thead th")].map((cell) => {

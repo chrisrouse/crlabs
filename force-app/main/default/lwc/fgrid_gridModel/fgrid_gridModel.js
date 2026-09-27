@@ -493,6 +493,14 @@ export function buildColumns(fields, config = {}, options = {}) {
         const column = {
             label: attributes.label || describe?.label || defaultLabel(field),
             fieldName: field,
+            // The field this column shows, kept even where `fieldName` is later
+            // pointed at a synthetic row field (a link, a lookup label). The
+            // Studio's preview reads it to drag a column by its field.
+            fgridField: field,
+            // Kept in the column list, so the column is still searched, still
+            // carried on every row for rules and filters -- but not drawn.
+            // Consumers hand the datatable `visibleColumns(columns)`.
+            fgridHidden: attributes.hidden === true,
             type: attributes.type || describe?.dataType || inferType(field),
             // A field the describe says is unsortable can never be sorted, no
             // matter what the grid-level flags say.
@@ -1209,6 +1217,19 @@ function writeGaugeFill(row, column, color) {
     }
     const width = `width: ${gaugePercent(row[column.fieldName])}%`;
     row[`${key}Style`] = hex ? `${width}; background: ${hex}` : width;
+}
+
+/**
+ * The columns the datatable should draw: all but the Hidden ones.
+ *
+ * Hidden columns stay in what buildColumns returns, because rows, search and
+ * formatting rules read the full list; only the datatable's copy leaves them
+ * out. Returns the same array when nothing is hidden, so a caller that
+ * memoizes on identity is not handed a new one for nothing.
+ */
+export function visibleColumns(columns) {
+    const list = columns || [];
+    return list.some((column) => column.fgridHidden) ? list.filter((column) => !column.fgridHidden) : list;
 }
 
 /**

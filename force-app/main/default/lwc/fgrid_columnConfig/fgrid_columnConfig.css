@@ -52,6 +52,25 @@
     background: var(--slds-g-color-surface-container-2, #f3f3f3);
 }
 
+/* Where a dragged column will land: a line on that side of the row. */
+.colrow_drop-before {
+    box-shadow: inset 0 3px 0 var(--slds-g-color-accent-1, #066afe);
+}
+
+.colrow_drop-after {
+    box-shadow: inset 0 -3px 0 var(--slds-g-color-accent-1, #066afe);
+}
+
+/* Hidden columns stay in the list, muted, so they can still be found. */
+.colrow_hidden .colrow__label {
+    color: var(--slds-g-color-on-surface-1, #5c5c5c);
+    font-style: italic;
+}
+
+.colrow[draggable="true"] {
+    cursor: grab;
+}
+
 .colrow__num {
     font-size: 0.75rem;
     text-align: right;

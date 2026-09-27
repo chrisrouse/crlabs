@@ -536,3 +536,9 @@ c-fgrid_custom-datatable .fgridCircle__caption {
 c-fgrid_custom-datatable .slds-scrollable_y tbody tr > :last-child {
     padding-inline-end: calc(var(--slds-g-spacing-2, 0.5rem) + 17px);
 }
+
+/* The Grid Studio preview's column headers can be dragged to reorder the
+   grid; only there does fgrid_customDatatable mark them draggable. */
+c-fgrid_custom-datatable th[draggable="true"] {
+    cursor: grab;
+}

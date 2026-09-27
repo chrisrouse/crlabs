@@ -87,6 +87,10 @@ const SHOW_VALUE_HELP = {
     fgridProgressCircle: "Displays the percentage, and the label if set, inside the circle."
 };
 
+/** What a dragged column or field carries; shared with c/fgrid_fieldPalette,
+ *  c/fgrid_customDatatable and c/fgrid_flowGridStudio. */
+const FIELD_DRAG_TYPE = "application/x-fgrid-field";
+
 /** The flags All Columns sets, in the order the column's own checkboxes use. */
 const BULK_FLAGS = [
     { flag: "edit", label: "Editable", icon: "utility:edit" },
@@ -225,6 +229,14 @@ export default class FgridColumnConfig extends LightningElement {
                 isLastColumn: index === this.fields.length - 1,
 
                 // ----- list -----
+                hidden: attributes.hidden === true,
+                rowClass: [
+                    "colrow",
+                    attributes.hidden === true ? "colrow_hidden" : "",
+                    this.dropField === field ? (this.dropAfter ? "colrow_drop-after" : "colrow_drop-before") : ""
+                ]
+                    .filter(Boolean)
+                    .join(" "),
                 displayLabel: attributes.label || describe?.label || field,
                 // The column's own options first (they carry Badge), then the
                 // full list: the options are what it may BECOME, and do not
@@ -400,6 +412,86 @@ export default class FgridColumnConfig extends LightningElement {
         this.openField = event.currentTarget.dataset.field;
         this.openRuleKey = null;
         this.isBulkOpen = false;
+    }
+
+    /* ------------------------------------------------------------------ *
+     * Reordering the list
+     *
+     * By drag, or Alt with an arrow key. Either one publishes the new order
+     * as `columnfieldschange`, which the Studio relays as the columnFields
+     * property. A drag carries the same payload as one from the Studio's
+     * Fields tab or a preview header, so a field dragged from there lands
+     * here too, and a row dragged from here into the preview moves there.
+     * ------------------------------------------------------------------ */
+
+    /** The row a drag is over, and which side of it the column would land. */
+    dropField = null;
+    dropAfter = false;
+
+    handleRowDragStart(event) {
+        const { field } = event.currentTarget.dataset;
+        event.dataTransfer.setData(FIELD_DRAG_TYPE, field);
+        event.dataTransfer.setData("text/plain", field);
+        event.dataTransfer.effectAllowed = "copyMove";
+    }
+
+    handleRowDragOver(event) {
+        if (![...(event.dataTransfer?.types || [])].includes(FIELD_DRAG_TYPE)) {
+            return;
+        }
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "move";
+        const rect = event.currentTarget.getBoundingClientRect();
+        this.dropField = event.currentTarget.dataset.field;
+        this.dropAfter = event.clientY > rect.top + rect.height / 2;
+    }
+
+    handleRowDragLeave(event) {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+            this.dropField = null;
+        }
+    }
+
+    handleRowDrop(event) {
+        event.preventDefault();
+        const field = event.dataTransfer.getData(FIELD_DRAG_TYPE);
+        const target = event.currentTarget.dataset.field;
+        const after = this.dropAfter;
+        this.dropField = null;
+        if (!field || field === target) {
+            return;
+        }
+        const next = this.fields.filter((path) => path !== field);
+        const at = next.indexOf(target) + (after ? 1 : 0);
+        next.splice(at, 0, field);
+        this.publishFields(next);
+    }
+
+    handleRowDragEnd() {
+        this.dropField = null;
+    }
+
+    /** Alt+Up and Alt+Down move the focused column, for a keyboard user. */
+    handleRowKeydown(event) {
+        if (!event.altKey || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) {
+            return;
+        }
+        event.preventDefault();
+        const { field } = event.currentTarget.dataset;
+        const from = this.fields.indexOf(field);
+        const to = from + (event.key === "ArrowUp" ? -1 : 1);
+        if (to < 0 || to >= this.fields.length) {
+            return;
+        }
+        const next = [...this.fields];
+        [next[from], next[to]] = [next[to], next[from]];
+        this.publishFields(next);
+        // Focus follows the row to its new place once the list re-renders.
+        Promise.resolve().then(() => this.template.querySelector(`.colrow[data-field="${field}"]`)?.focus());
+    }
+
+    publishFields(fields) {
+        this.dispatchEvent(new CustomEvent("columnfieldschange", { detail: { value: JSON.stringify(fields) } }));
     }
 
     handleBackToList() {

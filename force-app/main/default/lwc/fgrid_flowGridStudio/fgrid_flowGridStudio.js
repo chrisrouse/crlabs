@@ -49,6 +49,7 @@ import {
     buildSampleRows,
     parseFieldList,
     parseColumnConfig,
+    visibleColumns,
     withRowActionColumn,
     filterRows,
     filterKindFor,
@@ -376,7 +377,9 @@ export default class FgridFlowGridStudio extends LightningModal {
         }
         // Allowing the drop is what preventDefault means for dragover.
         event.preventDefault();
-        event.dataTransfer.dropEffect = "copy";
+        // "move" suits both: a header or a list row is moved, and a new field
+        // from the palette is taken out of the list of fields not yet shown.
+        event.dataTransfer.dropEffect = "move";
         const { index, x } = this.dropTarget(event.clientX);
         this.dropIndex = index;
         this.dropIndicatorStyle = x === null ? "" : `left: ${x}px;`;
@@ -401,12 +404,16 @@ export default class FgridFlowGridStudio extends LightningModal {
         if (!field) {
             return;
         }
-        // A field already in the grid moves rather than appearing twice.
-        const current = this.columnFields;
-        const from = current.indexOf(field);
-        const next = current.filter((path) => path !== field);
-        const at = from !== -1 && from < index ? index - 1 : index;
-        next.splice(Math.max(0, Math.min(at, next.length)), 0, field);
+        // The index is among the columns the preview draws; a Hidden column is
+        // not one of them. Land before the visible column the field was
+        // dropped in front of, or at the very end, and move rather than
+        // duplicate a field already in the grid.
+        const before = this.visibleColumnFields.filter((path) => path !== field)[
+            index - (this.visibleColumnFields.slice(0, index).includes(field) ? 1 : 0)
+        ];
+        const next = this.columnFields.filter((path) => path !== field);
+        const at = before ? next.indexOf(before) : next.length;
+        next.splice(at, 0, field);
         this.publishColumnFields(JSON.stringify(next));
     }
 
@@ -425,11 +432,11 @@ export default class FgridFlowGridStudio extends LightningModal {
      * first and no marker is drawn.
      */
     dropTarget(clientX) {
-        const fields = this.columnFields;
+        const fields = this.visibleColumnFields;
         const table = this.template.querySelector("c-fgrid_custom-datatable");
         const grid = this.template.querySelector(".preview__grid");
         const edges = table?.getColumnEdges?.() || [];
-        const columns = this.previewColumns.length;
+        const columns = this.previewTableColumns.length;
         if (!fields.length || edges.length < columns || !grid) {
             return { index: fields.length, x: null };
         }
@@ -580,6 +587,18 @@ export default class FgridFlowGridStudio extends LightningModal {
     /** Same switch the runtime applies, so the preview wraps the same way. */
     get previewWrappedLines() {
         return this.values?.limitWrappedLines ? "3" : undefined;
+    }
+
+    /** What the preview's datatable draws: the preview columns less the
+     *  Hidden ones, which stay in `previewColumns` for rows and search. */
+    get previewTableColumns() {
+        return visibleColumns(this.previewColumns);
+    }
+
+    /** The column fields the preview draws, in order. */
+    get visibleColumnFields() {
+        const config = this.columnConfigObject;
+        return this.columnFields.filter((field) => config[field]?.hidden !== true);
     }
 
     get previewColumns() {

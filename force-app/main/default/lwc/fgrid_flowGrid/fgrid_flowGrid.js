@@ -55,7 +55,8 @@ import {
     BLANKS_FIRST_ACTION_NAME,
     PICKLIST_SELECTED_SUFFIX,
     MASTER_RECORD_TYPE_ID,
-    ROW_ACTION_NAME
+    ROW_ACTION_NAME,
+    visibleColumns
 } from "c/fgrid_gridModel";
 import { colorSlotsFor, colorVarsFor } from "c/fgrid_formatRules";
 
@@ -978,6 +979,18 @@ export default class FgridFlowGrid extends LightningElement {
         });
     }
 
+    /**
+     * The columns the datatable draws: `columns` less the Hidden ones.
+     *
+     * Memoized on `columns`, so the datatable is handed a new array only when
+     * the columns really changed; a fresh one each render would reset its
+     * widths. Rows and search keep using `columns`, which is how a Hidden
+     * column is still searched.
+     */
+    get tableColumns() {
+        return this.memoized("tableColumns", [this.columns], () => visibleColumns(this.columns));
+    }
+
     /** Every row available after removals and the display cap. */
     get cappedRows() {
         return this.memoized(
@@ -1855,7 +1868,8 @@ export default class FgridFlowGrid extends LightningElement {
             return;
         }
         const next = { ...this._columnWidths };
-        this.columns.forEach((column, index) => {
+        // The widths are the datatable's, so they index the columns it draws.
+        this.tableColumns.forEach((column, index) => {
             if (Number.isFinite(widths[index]) && widths[index] > 0) {
                 next[column.columnKey] = widths[index];
             }

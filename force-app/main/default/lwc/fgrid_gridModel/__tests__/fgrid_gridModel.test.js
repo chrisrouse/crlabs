@@ -27,8 +27,48 @@ import {
     withRowActionColumn,
     ROW_ACTION_NAME,
     parseFieldList,
-    ringArc
+    ringArc,
+    visibleColumns
 } from "c/fgrid_gridModel";
+
+describe("a Hidden column", () => {
+    const config = { Industry: { hidden: true } };
+
+    it("stays in the column list, marked, and out of the datatable's copy", () => {
+        const columns = buildColumns(["Name", "Industry"], config);
+        expect(columns.map((column) => column.fieldName)).toEqual(["Name", "Industry"]);
+        expect(columns[1].fgridHidden).toBe(true);
+        expect(visibleColumns(columns).map((column) => column.fieldName)).toEqual(["Name"]);
+    });
+
+    it("hands back the same array when nothing is hidden", () => {
+        // Callers memoize on identity; a new array would reset the datatable's widths.
+        const columns = buildColumns(["Name"], {});
+        expect(visibleColumns(columns)).toBe(columns);
+    });
+
+    it("is still searched, and its value is still on every row", () => {
+        const columns = buildColumns(["Name", "Industry"], config);
+        const rows = buildRows(
+            [
+                { Id: "1", Name: "Acme", Industry: "Energy" },
+                { Id: "2", Name: "Globex", Industry: "Retail" }
+            ],
+            columns
+        );
+        expect(rows[0].Industry).toBe("Energy");
+        expect(searchRows(rows, columns, "retail").map((row) => row.Name)).toEqual(["Globex"]);
+    });
+});
+
+describe("columns know their field", () => {
+    it("keeps the field on the column even when fieldName is repointed", () => {
+        // The Studio drags a preview column by this, and a link or lookup
+        // column's fieldName is a synthetic row field.
+        const [column] = buildColumns(["Owner.Name"], {});
+        expect(column.fgridField).toBe("Owner.Name");
+    });
+});
 
 describe("the progress bar display", () => {
     const bar = (attrs = {}) => buildColumns(["Complete"], { Complete: { type: "fgridProgressBar", ...attrs } })[0];

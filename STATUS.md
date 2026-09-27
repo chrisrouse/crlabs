@@ -1094,6 +1094,25 @@ gauge wants. There is a test saying so.
 > removed. References to those files below are historical; the files are in git
 > history at `eba68e8f`. `left-column.html` was never committed and is gone.
 
+### 2.3k Reordering columns, and Hidden columns — BUILT AND DEPLOYED 2026-09-27, NOT YET SEEN IN THE ORG
+
+- **Drag to reorder, three ways**, all carrying the same payload (the field):
+  a preview header, a row in the Columns list, or a field from the Fields
+  tab. Dropping a field already in the grid moves it. The Columns list also
+  moves the focused row with Alt+Up / Alt+Down.
+- **Preview headers are made draggable by `fgrid_customDatatable`** itself,
+  after each render, only when `reorderable-columns` is set (the Studio only).
+  Its header cells are in its shadow root; `buildColumns` now stamps each
+  column with `fgridField` so a cell knows its field. **Unverifiable in Jest**
+  -- the datatable stub draws no header -- so check it in the org. The
+  preview sets `resize-column-disabled`, since a resize drag would fight it.
+- **Hidden** (per column, in its settings): not drawn, but still searched,
+  still on every row for formatting rules, and still in Filters if
+  Filterable. `buildColumns` keeps the column with `fgridHidden`; the grid and
+  the preview hand the datatable `visibleColumns(...)`, memoized so widths do
+  not reset. Column-resize widths now index the drawn columns. The list shows
+  a Hidden column muted, and preview drops land around it correctly.
+
 ### 2.3j Studio left panel: Fields and Data — BUILT AND DEPLOYED 2026-09-27, NOT YET SEEN IN THE ORG
 
 Flow Builder's left palette shape (15rem, tabset), from `design/left-column.html`.

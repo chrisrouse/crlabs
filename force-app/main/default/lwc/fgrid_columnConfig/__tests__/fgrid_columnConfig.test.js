@@ -676,3 +676,82 @@ describe("the column list", () => {
         expect(element.shadowRoot.querySelector(".colrow__meta").textContent).toBe("Industry · Text");
     });
 });
+
+describe("reordering the column list", () => {
+    const TYPE = "application/x-fgrid-field";
+    const row = (element, field) => element.shadowRoot.querySelector(`.colrow[data-field="${field}"]`);
+
+    function dragEvent(type, field, clientY = 0) {
+        const event = new CustomEvent(type, { bubbles: true, cancelable: true });
+        event.clientY = clientY;
+        event.dataTransfer = { types: [TYPE], getData: () => field, setData: jest.fn(), dropEffect: "" };
+        return event;
+    }
+
+    function order(emitted) {
+        return JSON.parse(emitted[emitted.length - 1]);
+    }
+
+    function onFields(element) {
+        const emitted = [];
+        element.addEventListener("columnfieldschange", (event) => emitted.push(event.detail.value));
+        return emitted;
+    }
+
+    it("moves a dragged row below the row it is dropped on the lower half of", async () => {
+        const element = build({ columnFields: '["A","B","C"]' });
+        await Promise.resolve();
+        const emitted = onFields(element);
+        const target = row(element, "C");
+        target.getBoundingClientRect = () => ({ top: 0, height: 20 });
+
+        target.dispatchEvent(dragEvent("dragover", "A", 15));
+        await Promise.resolve();
+        expect(row(element, "C").className).toContain("colrow_drop-after");
+        target.dispatchEvent(dragEvent("drop", "A", 15));
+        expect(order(emitted)).toEqual(["B", "C", "A"]);
+    });
+
+    it("inserts a field dragged in from elsewhere above the row on its upper half", async () => {
+        const element = build({ columnFields: '["A","B"]' });
+        await Promise.resolve();
+        const emitted = onFields(element);
+        const target = row(element, "B");
+        target.getBoundingClientRect = () => ({ top: 0, height: 20 });
+
+        target.dispatchEvent(dragEvent("dragover", "Z", 5));
+        target.dispatchEvent(dragEvent("drop", "Z", 5));
+        expect(order(emitted)).toEqual(["A", "Z", "B"]);
+    });
+
+    it("moves the focused row with Alt and an arrow key", async () => {
+        const element = build({ columnFields: '["A","B","C"]' });
+        await Promise.resolve();
+        const emitted = onFields(element);
+
+        row(element, "B").dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", altKey: true, bubbles: true }));
+        expect(order(emitted)).toEqual(["B", "A", "C"]);
+        // Nowhere to go past the ends, and a plain arrow does nothing.
+        row(element, "A").dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", altKey: true, bubbles: true }));
+        row(element, "A").dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+        expect(emitted).toHaveLength(1);
+    });
+});
+
+describe("hiding a column", () => {
+    it("saves Hidden from the column's settings, and marks it in the list", async () => {
+        const element = build({ columnConfig: '{"Name":{"hidden":true}}' });
+        await Promise.resolve();
+        expect(element.shadowRoot.querySelector('.colrow[data-field="Name"]').textContent).toContain("Hidden");
+        expect(element.shadowRoot.querySelector('.colrow[data-field="AnnualRevenue"]').textContent).not.toContain(
+            "Hidden"
+        );
+
+        await openDrawer(element, "AnnualRevenue");
+        const emitted = onChange(element);
+        const hidden = cell(element, "AnnualRevenue", "hidden");
+        hidden.checked = true;
+        hidden.dispatchEvent(new CustomEvent("change"));
+        expect(JSON.parse(emitted[0]).AnnualRevenue).toEqual({ hidden: true });
+    });
+});

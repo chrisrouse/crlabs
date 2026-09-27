@@ -179,7 +179,7 @@
                              lightning-datatable cannot render. -->
                                     <c-fgrid_custom-datatable
                                         key-field={previewKeyField}
-                                        columns={previewColumns}
+                                        columns={previewTableColumns}
                                         data={previewRows}
                                         hide-checkbox-column={previewHideCheckbox}
                                         max-row-selection={previewMaxRowSelection}
@@ -188,6 +188,8 @@
                                         wrap-table-header="by-column"
                                         wrap-text-max-lines={previewWrappedLines}
                                         onheaderaction={handlePreviewHeaderAction}
+                                        reorderable-columns
+                                        resize-column-disabled
                                         suppress-bottom-bar
                                     ></c-fgrid_custom-datatable>
                                 </template>
@@ -341,6 +343,7 @@
                                                 object-api-name={objectApiName}
                                                 describe-by-path={describeByPath}
                                                 oncolumnconfigchange={handleColumnConfigChange}
+                                                oncolumnfieldschange={handlePaletteFieldsChange}
                                             ></c-fgrid_column-config>
                                         </template>
                                         <template lwc:else>

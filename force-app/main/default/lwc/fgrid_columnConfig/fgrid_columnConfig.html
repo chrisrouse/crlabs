@@ -80,15 +80,24 @@
                     <button
                         type="button"
                         key={row.key}
-                        class="colrow"
-                        title="Edit this column"
+                        class={row.rowClass}
+                        title="Edit this column. Drag, or press Alt and an arrow key, to move it."
+                        draggable="true"
                         data-field={row.field}
                         onclick={handleOpenColumn}
+                        onkeydown={handleRowKeydown}
+                        ondragstart={handleRowDragStart}
+                        ondragover={handleRowDragOver}
+                        ondragleave={handleRowDragLeave}
+                        ondrop={handleRowDrop}
+                        ondragend={handleRowDragEnd}
                     >
                         <span class="colrow__num">{row.position}</span>
                         <span class="colrow__name">
                             <span class="colrow__label">{row.displayLabel}</span>
-                            <span class="colrow__meta">{row.field} · {row.typeLabel}</span>
+                            <span class="colrow__meta"
+                                >{row.field} · {row.typeLabel}<template lwc:if={row.hidden}> · Hidden</template></span
+                            >
                         </span>
                         <span class="colrow__flags">
                             <span class={row.editChipClass} title={row.editChipTitle}>E</span>
@@ -181,6 +190,16 @@
                                     onchange={handleSelectChange}
                                 ></lightning-combobox>
                             </div>
+                            <lightning-input
+                                class="slds-m-top_x-small"
+                                type="checkbox"
+                                label="Hidden"
+                                field-level-help="Not shown in the grid, but still searched, still carried on every row for formatting rules, and still offered in Filters when Filterable."
+                                data-field={row.field}
+                                data-attribute="hidden"
+                                checked={row.hidden}
+                                onchange={handleCheckboxChange}
+                            ></lightning-input>
                             <div class="detail__flags">
                                 <lightning-input
                                     type="checkbox"
