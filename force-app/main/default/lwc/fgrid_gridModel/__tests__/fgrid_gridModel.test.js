@@ -26,7 +26,8 @@ import {
     MASTER_RECORD_TYPE_ID,
     withRowActionColumn,
     ROW_ACTION_NAME,
-    parseFieldList
+    parseFieldList,
+    ringArc
 } from "c/fgrid_gridModel";
 
 describe("the progress bar display", () => {
@@ -39,11 +40,33 @@ describe("the progress bar display", () => {
         expect(bar({ progressShape: "circular" }).typeAttributes.barClass).toContain("slds-progress-bar_circular");
     });
 
-    it("colors the fill from the same palette as the rules", () => {
-        expect(bar().typeAttributes.fillClass).toBe("slds-progress-bar__value");
-        expect(bar({ progressTheme: "success" }).typeAttributes.fillClass).toBe(
-            "slds-progress-bar__value fgridProgressFill_success"
+    it("paints the fill with the column's picked color, inline", () => {
+        const colored = bar({ colorMode: "column", columnColor: "#AD1071" });
+        const [row] = buildRows([{ Id: "1", Complete: 25 }], [colored]);
+        expect(colored.typeAttributes.fillClass).toBe("slds-progress-bar__value");
+        expect(row.Complete__fgridProgressStyle).toBe("width: 25%; background: #ad1071");
+    });
+
+    it("recolors the fill, not the cell, for the rows a rule matches", () => {
+        const ruled = bar({
+            colorMode: "conditional",
+            format: [{ color: "#ba0517", conditions: [{ field: "Complete", operator: "lessThan", value: 30 }] }]
+        });
+        expect(ruled.cellAttributes?.class).toBeUndefined();
+        const [low, high] = buildRows(
+            [
+                { Id: "1", Complete: 20 },
+                { Id: "2", Complete: 80 }
+            ],
+            [ruled]
         );
+        expect(low.Complete__fgridProgressStyle).toBe("width: 20%; background: #ba0517");
+        expect(high.Complete__fgridProgressStyle).toBe("width: 80%");
+    });
+
+    it("turns an old Theme into the matching fill color", () => {
+        const [row] = buildRows([{ Id: "1", Complete: 50 }], [bar({ progressTheme: "success" })]);
+        expect(row.Complete__fgridProgressStyle).toBe("width: 50%; background: #2e844a");
     });
 
     it("takes a stored percent as-is, NOT as a fraction", () => {
@@ -82,12 +105,112 @@ describe("the progress bar display", () => {
     });
 });
 
+describe("the progress ring and circle displays", () => {
+    const column = (type, attrs = {}) => buildColumns(["Complete"], { Complete: { type, ...attrs } })[0];
+    const ring = (attrs) => column("fgridProgressRing", attrs);
+    const circle = (attrs) => column("fgridProgressCircle", attrs);
+    const rowFor = (col, value) => buildRows([{ Id: "1", Complete: value }], [col])[0];
+
+    it("draws the blueprint's own 88% example when draining", () => {
+        // v1.lightningdesignsystem.com renders d="M 1 0 A 1 1 0 1 1 0.73 -0.68 L 0 0".
+        const { path } = ringArc(88, true);
+        expect(path).toMatch(/^M 1 0 A 1 1 0 1 1 0\.72\d+ -0\.68\d+ L 0 0$/);
+    });
+
+    it("fills with sweep 0 and the opposite y, per lightning-progress-ring", () => {
+        expect(ringArc(25, false).path).toBe("M 1 0 A 1 1 0 0 0 0 -1 L 0 0");
+        expect(ringArc(25, true).path).toBe("M 1 0 A 1 1 0 0 1 0 1 L 0 0");
+    });
+
+    it("uses the long arc only past half", () => {
+        expect(ringArc(50, false).path).toContain("A 1 1 0 0 0");
+        expect(ringArc(51, false).path).toContain("A 1 1 0 1 0");
+    });
+
+    it("closes the ring at 100%, where a single arc would draw nothing", () => {
+        expect(ringArc(100, false).path).toBe("M 1 0 A 1 1 0 1 1 -1 0 A 1 1 0 1 1 1 0 Z");
+    });
+
+    it("takes a stored percent as-is and clamps it, like the bar", () => {
+        expect(rowFor(ring(), 25).Complete__fgridProgress).toBe(25);
+        expect(rowFor(ring(), 140).Complete__fgridProgressLabel).toBe("100%");
+        expect(rowFor(circle(), -5).Complete__fgridProgress).toBe(0);
+    });
+
+    it("forces both read-only", () => {
+        expect(ring({ edit: true }).editable).toBe(false);
+        expect(circle({ edit: true }).editable).toBe(false);
+    });
+
+    it("maps ring variant and size onto the blueprint's modifiers", () => {
+        expect(rowFor(ring(), 40).Complete__fgridProgressClass).toBe("slds-progress-ring");
+        expect(
+            rowFor(ring({ progressRingSize: "large", progressRingVariant: "warning" }), 40).Complete__fgridProgressClass
+        ).toBe("slds-progress-ring slds-progress-ring_large slds-progress-ring_warning");
+    });
+
+    it("shows the variant's icon unless it is hidden", () => {
+        expect(rowFor(ring({ progressRingVariant: "expired" }), 40).Complete__fgridProgressIconLabel).toBe("Expired");
+        expect(rowFor(ring({ progressRingVariant: "base" }), 40).Complete__fgridProgressIconPath).toBe("");
+        expect(
+            rowFor(ring({ progressRingVariant: "expired", hideProgressIcon: true }), 40).Complete__fgridProgressIconPath
+        ).toBe("");
+    });
+
+    it("completes Base, Complete at 100% only at 100, and not with the icon hidden", () => {
+        const auto = ring({ progressRingVariant: "base-autocomplete" });
+        expect(rowFor(auto, 99).Complete__fgridProgressClass).not.toContain("_complete");
+        expect(rowFor(auto, 100).Complete__fgridProgressClass).toContain("slds-progress-ring_complete");
+        expect(rowFor(auto, 100).Complete__fgridProgressIconLabel).toBe("Complete");
+        const hidden = ring({ progressRingVariant: "base-autocomplete", hideProgressIcon: true });
+        expect(rowFor(hidden, 100).Complete__fgridProgressClass).toBe("slds-progress-ring");
+    });
+
+    it("puts the ring's head on the arc's end, and only part-way round", () => {
+        const row = rowFor(ring(), 25);
+        expect(row.Complete__fgridProgressHeadVisible).toBe(true);
+        expect(row.Complete__fgridProgressHeadX).toBe(0);
+        expect(row.Complete__fgridProgressHeadY).toBe(-0.7);
+        expect(rowFor(ring(), 0).Complete__fgridProgressHeadVisible).toBe(false);
+        expect(rowFor(ring(), 100).Complete__fgridProgressHeadVisible).toBe(false);
+    });
+
+    it("gives the circle no head, since the blueprint's is sized for the ring", () => {
+        expect(rowFor(circle(), 25).Complete__fgridProgressHeadVisible).toBe(false);
+    });
+
+    it("sizes and thickens the circle through our classes", () => {
+        expect(
+            rowFor(circle({ progressCircleSize: "large", progressCircleThickness: "x-small" }), 40)
+                .Complete__fgridProgressClass
+        ).toBe("slds-progress-ring fgridCircle fgridCircle_large fgridCircleThickness_x-small");
+    });
+
+    it("fills the arc and head with the picked color, and leaves the blueprint's otherwise", () => {
+        expect(rowFor(circle({ colorMode: "column", columnColor: "#00aea9" }), 40).Complete__fgridProgressFill).toBe(
+            "fill: #00aea9"
+        );
+        expect(rowFor(ring(), 40).Complete__fgridProgressFill).toBe("");
+    });
+
+    it("writes the value inside the circle and beside the ring", () => {
+        expect(circle().typeAttributes).toMatchObject({ valueInside: true, valueBeside: false });
+        expect(ring().typeAttributes).toMatchObject({ valueInside: false, valueBeside: true });
+        expect(circle({ showProgressValue: false }).typeAttributes.valueInside).toBe(false);
+        expect(circle({ progressCircleLabel: "done" }).typeAttributes.caption).toBe("done");
+    });
+
+    it("does not write the bar's width onto a ring row", () => {
+        expect(rowFor(ring(), 25).Complete__fgridProgressStyle).toBeUndefined();
+    });
+});
+
 describe("conditional formatting reaches the rendered cell", () => {
     // The gap that made rules look broken: they were saved and read by the
     // editor, and nothing in the rendering path ever evaluated them.
     const RULES = [
-        { style: "error", conditions: [{ field: "Status", operator: "equals", value: "Overdue" }] },
-        { style: "success", conditions: [{ field: "Status", operator: "equals", value: "Paid" }] }
+        { color: "#ba0517", conditions: [{ field: "Status", operator: "equals", value: "Overdue" }] },
+        { color: "#2e844a", conditions: [{ field: "Status", operator: "equals", value: "Paid" }] }
     ];
     const config = { Amount: { type: "currency", colorMode: "conditional", format: RULES } };
     const records = [
@@ -104,8 +227,10 @@ describe("conditional formatting reaches the rendered cell", () => {
     it("resolves a class per row, and an empty string when nothing matches", () => {
         const columns = buildColumns(["Amount"], config);
         const rows = buildRows(records, columns);
-        expect(rows[0].Amount__fgridFormat).toBe("fgridFormat fgridFormat_error");
-        expect(rows[1].Amount__fgridFormat).toBe("fgridFormat fgridFormat_success");
+        // Slots in the order the colors first appear, which is also the order
+        // the grid sets their custom properties in.
+        expect(rows[0].Amount__fgridFormat).toBe("fgridFormat fgridColor_0");
+        expect(rows[1].Amount__fgridFormat).toBe("fgridFormat fgridColor_1");
         // Empty string, not null: the datatable writes this straight into
         // `class`, and null would render the literal word "null".
         expect(rows[2].Amount__fgridFormat).toBe("");
@@ -117,14 +242,14 @@ describe("conditional formatting reaches the rendered cell", () => {
         const columns = buildColumns(["Amount"], config);
         const rows = buildRows(records, columns);
         expect(rows[0].Status).toBe("Overdue");
-        expect(rows[0].Amount__fgridFormat).toContain("fgridFormat_error");
+        expect(rows[0].Amount__fgridFormat).toContain("fgridColor_0");
     });
 
     it("uses a fixed class for a per-column color, with no row field", () => {
         const [column] = buildColumns(["Amount"], {
-            Amount: { colorMode: "column", columnStyle: "neutral" }
+            Amount: { colorMode: "column", columnColor: "#e5e5e5" }
         });
-        expect(column.cellAttributes.class).toBe("fgridFormat fgridFormat_neutral");
+        expect(column.cellAttributes.class).toBe("fgridFormat fgridColor_0");
         expect(column.fgridFormatRules).toBeUndefined();
     });
 
@@ -135,7 +260,7 @@ describe("conditional formatting reaches the rendered cell", () => {
                 type: "fgridPicklist",
                 badge: true,
                 colorMode: "conditional",
-                format: [{ style: "error", conditions: [{ field: "Stage", operator: "equals", value: "Lost" }] }]
+                format: [{ color: "#ba0517", conditions: [{ field: "Stage", operator: "equals", value: "Lost" }] }]
             }
         });
         expect(columns[0].typeAttributes.badgeClass).toEqual({ fieldName: "Stage__fgridFormat" });
@@ -144,7 +269,52 @@ describe("conditional formatting reaches the rendered cell", () => {
         const rows = buildRows([{ Id: "1", Stage: "Lost" }], columns);
         // slds-badge must survive alongside the conditional class, or the
         // badge stops looking like a badge the moment a rule matches.
-        expect(rows[0].Stage__fgridFormat).toBe("slds-badge fgridFormat fgridFormat_error");
+        expect(rows[0].Stage__fgridFormat).toBe("slds-badge fgridFormat fgridColor_0");
+    });
+
+    it("compares a number as a number, not as text", () => {
+        // The panel stores no `kind`, and a kindless condition used to be read
+        // as text, where "less than 30" fell through to "contains 30".
+        const columns = buildColumns(["Amount"], {
+            Amount: {
+                type: "currency",
+                colorMode: "conditional",
+                format: [{ color: "#ba0517", conditions: [{ field: "Amount", operator: "lessThan", value: "30" }] }]
+            }
+        });
+        const [twenty, three00] = buildRows(
+            [
+                { Id: "1", Amount: 20 },
+                { Id: "2", Amount: 300 }
+            ],
+            columns
+        );
+        expect(twenty.Amount__fgridFormat).toBe("fgridFormat fgridColor_0");
+        expect(three00.Amount__fgridFormat).toBe("");
+    });
+
+    it("reads a checkbox condition's stored string as a boolean", () => {
+        const columns = buildColumns(["Active"], {
+            Active: {
+                type: "boolean",
+                colorMode: "conditional",
+                format: [{ color: "#ba0517", conditions: [{ field: "Active", operator: "equals", value: "false" }] }]
+            }
+        });
+        const [off, on] = buildRows(
+            [
+                { Id: "1", Active: false },
+                { Id: "2", Active: true }
+            ],
+            columns
+        );
+        expect(off.Active__fgridFormat).toBe("fgridFormat fgridColor_0");
+        expect(on.Active__fgridFormat).toBe("");
+    });
+
+    it("still renders a config saved with the old named styles", () => {
+        const [column] = buildColumns(["Amount"], { Amount: { colorMode: "column", columnStyle: "neutral" } });
+        expect(column.cellAttributes.class).toBe("fgridFormat fgridColor_0");
     });
 
     it("keeps a plain badge styled when the column has no rules", () => {

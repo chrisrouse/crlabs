@@ -38,6 +38,26 @@ function build(values = {}) {
     return element;
 }
 
+/** The inspector tab with the given label. */
+function tab(element, label) {
+    return [...element.shadowRoot.querySelectorAll("lightning-tab")].find((candidate) => candidate.label === label);
+}
+
+/** What the tabset reports when the admin picks a tab. */
+async function selectTab(element, label) {
+    tab(element, label).dispatchEvent(new CustomEvent("active"));
+    await flushPromises();
+}
+
+/** The inspector's active tab: Table or Columns. */
+const activeTab = (element) => element.shadowRoot.querySelector(".studio__inspector lightning-tabset").activeTabValue;
+
+/** The left panel's active tab: Fields or Data. */
+const activeLeftTab = (element) => element.shadowRoot.querySelector(".studio__palette lightning-tabset").activeTabValue;
+
+const tabLabels = (element, pane) =>
+    [...element.shadowRoot.querySelectorAll(`${pane} lightning-tab`)].map((t) => t.label);
+
 function datatable(element) {
     return element.shadowRoot.querySelector("c-fgrid_custom-datatable");
 }
@@ -49,23 +69,87 @@ afterEach(() => {
 });
 
 describe("layout", () => {
-    it("renders both panes and a control block per section", async () => {
+    it("renders fields and data left, the preview, and Table and Columns right", async () => {
         const element = build();
         await flushPromises();
 
-        expect(element.shadowRoot.querySelector(".studio__controls")).not.toBeNull();
+        expect(element.shadowRoot.querySelector(".studio__palette")).not.toBeNull();
         expect(element.shadowRoot.querySelector(".studio__preview")).not.toBeNull();
-        expect(element.shadowRoot.querySelectorAll("c-fgrid_property-controls")).toHaveLength(SECTIONS.length);
+        expect(element.shadowRoot.querySelector(".studio__inspector")).not.toBeNull();
+        expect(tabLabels(element, ".studio__palette")).toEqual(["Fields", "Data"]);
+        expect(tabLabels(element, ".studio__inspector")).toEqual(["Table", "Columns"]);
+        // Flow Builder's own panel, at its own default size.
+        const panel = element.shadowRoot.querySelector(".studio__inspector").classList;
+        expect(panel).toContain("slds-panel_docked-right");
+        expect(panel).toContain("slds-size_medium");
     });
 
-    it("hosts the column attribute grid in the wide pane", async () => {
+    it("shows every section on exactly one tab", async () => {
+        const element = build();
+        await flushPromises();
+        const count = () => element.shadowRoot.querySelectorAll("c-fgrid_property-controls").length;
+        // Both panes render at once, so count Data with Table, then Columns
+        // alone once Data is out of view.
+        await selectTab(element, "Data");
+        await selectTab(element, "Table");
+        const dataAndTable = count();
+        await selectTab(element, "Fields");
+        await selectTab(element, "Columns");
+        const columnsOnly = count();
+        expect(dataAndTable + columnsOnly).toBe(SECTIONS.length);
+    });
+
+    it("opens on Columns when there are columns, and hosts the column list there", async () => {
         const element = build();
         await flushPromises();
 
-        const grid = element.shadowRoot.querySelector(".studio__columns c-fgrid_column-config");
-        expect(grid).not.toBeNull();
+        expect(activeTab(element)).toBe("columns");
+        const list = element.shadowRoot.querySelector(".studio__inspector c-fgrid_column-config");
+        expect(list).not.toBeNull();
         // Full density, not the panel's compact summary.
-        expect(grid.compact).toBeFalsy();
+        expect(list.compact).toBeFalsy();
+    });
+
+    it("opens the left panel on Data until there is an object, then on Fields", async () => {
+        const element = build();
+        await flushPromises();
+        expect(activeLeftTab(element)).toBe("fields");
+
+        const empty = createElement("c-fgrid_flow-grid-studio", { is: FgridFlowGridStudio });
+        empty.sections = SECTIONS;
+        empty.values = {};
+        document.body.appendChild(empty);
+        await flushPromises();
+        expect(activeLeftTab(empty)).toBe("data");
+    });
+
+    it("relays a field clicked in the palette as the Columns property", async () => {
+        const element = build();
+        const notified = [];
+        element.notifyPropertyChange = (detail) => notified.push(detail);
+        await flushPromises();
+
+        element.shadowRoot
+            .querySelector("c-fgrid_field-palette")
+            .dispatchEvent(new CustomEvent("columnfieldschange", { detail: { value: '["Name"]' } }));
+        expect(notified).toEqual([{ property: "columnFields", value: '["Name"]', dataType: "String", resource: null }]);
+    });
+
+    it("resizes like Flow Builder's panel, medium to x-large and back", async () => {
+        const element = build();
+        await flushPromises();
+        const expand = element.shadowRoot.querySelector(".inspector__expand");
+        const panel = () => element.shadowRoot.querySelector(".studio__inspector").classList;
+
+        expect(expand.iconName).toBe("utility:expand_alt");
+        expand.click();
+        await flushPromises();
+        expect(panel()).toContain("slds-size_x-large");
+        expect(expand.iconName).toBe("utility:contract_alt");
+
+        expand.click();
+        await flushPromises();
+        expect(panel()).toContain("slds-size_medium");
     });
 
     it("prompts instead of previewing when no columns are chosen", async () => {
@@ -163,54 +247,6 @@ describe("kit picker popovers stay attached", () => {
         counter.stop();
 
         expect(counter.seen).toEqual([]);
-    });
-});
-
-describe("settings pane", () => {
-    function toggle(element) {
-        return element.shadowRoot.querySelector(".preview__chrome lightning-button-icon");
-    }
-
-    it("starts expanded", async () => {
-        const element = build();
-        await flushPromises();
-
-        expect(element.shadowRoot.querySelector(".studio__controls")).not.toBeNull();
-        expect(element.shadowRoot.querySelector(".studio__content_collapsed")).toBeNull();
-        expect(toggle(element).iconName).toBe("utility:chevronleft");
-        expect(toggle(element).title).toBe("Hide the Settings Pane");
-    });
-
-    it("collapses to give the preview the full width, and comes back", async () => {
-        const element = build();
-        await flushPromises();
-
-        toggle(element).click();
-        await flushPromises();
-
-        // The pane is hidden by a class on the flex container rather than removed
-        // from the template: the controls keep their state while out of sight.
-        expect(element.shadowRoot.querySelector(".studio__content_collapsed")).not.toBeNull();
-        expect(element.shadowRoot.querySelector(".studio__controls")).not.toBeNull();
-        expect(toggle(element).iconName).toBe("utility:chevronright");
-        expect(toggle(element).title).toBe("Show the Settings Pane");
-
-        toggle(element).click();
-        await flushPromises();
-
-        expect(element.shadowRoot.querySelector(".studio__content_collapsed")).toBeNull();
-        expect(toggle(element).iconName).toBe("utility:chevronleft");
-    });
-
-    it("reports its state to assistive tech as a string", async () => {
-        const element = build();
-        await flushPromises();
-        expect(toggle(element).getAttribute("aria-expanded")).toBe("true");
-
-        toggle(element).click();
-        await flushPromises();
-
-        expect(toggle(element).getAttribute("aria-expanded")).toBe("false");
     });
 });
 
@@ -450,8 +486,45 @@ describe("modal chrome belongs to the platform", () => {
         document.body.appendChild(element);
         await flushPromises();
 
+        await selectTab(element, "Columns");
         expect(element.shadowRoot.querySelector("c-fgrid_column-config")).toBeNull();
-        expect(element.shadowRoot.querySelector(".studio__columns").textContent).toContain("Data Source");
+        expect(element.shadowRoot.querySelector(".inspector__columns").textContent).toContain("Data tab");
+    });
+
+    it("lists errors above the tabs, each linked to the tab that fixes it", async () => {
+        const element = build();
+        element.validationErrors = [
+            { key: "recordsPerPage", errorString: "Records Per Page must be between 1 and 200." },
+            { key: "somethingUnknown", errorString: "Something else." }
+        ];
+        await flushPromises();
+
+        const errors = element.shadowRoot.querySelector(".inspector__errors");
+        expect(errors.textContent).toContain("Records Per Page must be between 1 and 200.");
+        const links = [...errors.querySelectorAll(".inspector__error-link")];
+        // An error the schema cannot place stays listed, unlinked.
+        expect(links).toHaveLength(1);
+        expect(links[0].textContent.trim()).toBe("Table › Pagination");
+        // Flow Builder's own indicator, on the tab that fixes it only.
+        expect(tab(element, "Table").showErrorIndicator).toBe(true);
+        expect(tab(element, "Columns").showErrorIndicator).toBe(false);
+
+        links[0].click();
+        await flushPromises();
+        expect(activeTab(element)).toBe("table");
+    });
+
+    it("links a Data error to the left panel's Data tab", async () => {
+        const element = build();
+        element.validationErrors = [{ key: "records", errorString: "Records is required." }];
+        await flushPromises();
+
+        const link = element.shadowRoot.querySelector(".inspector__error-link");
+        expect(link.textContent.trim()).toBe("Data › Data Source");
+        expect(tab(element, "Data").showErrorIndicator).toBe(true);
+        link.click();
+        await flushPromises();
+        expect(activeLeftTab(element)).toBe("data");
     });
 });
 
@@ -556,5 +629,62 @@ describe("no longer fights Flow Builder's stacking context", () => {
 
         expect(element.style.position).toBe("");
         expect(element.style.zIndex).toBe("");
+    });
+});
+
+describe("dragging a field into the preview", () => {
+    const TYPE = "application/x-fgrid-field";
+
+    function drag(type, field, clientX) {
+        const event = new CustomEvent(type, { bubbles: true, cancelable: true });
+        event.clientX = clientX;
+        event.dataTransfer = { types: [TYPE, "text/plain"], getData: () => field, dropEffect: "" };
+        return event;
+    }
+
+    /** Two field columns, 0-100 and 100-200, after a 40px row-number cell. */
+    async function setup(values = {}) {
+        const element = build(values);
+        const notified = [];
+        element.notifyPropertyChange = (detail) => notified.push(detail);
+        await flushPromises();
+        const table = datatable(element);
+        Object.defineProperty(table, "getColumnEdges", {
+            value: () => [
+                { left: -40, right: 0 },
+                { left: 0, right: 100 },
+                { left: 100, right: 200 }
+            ]
+        });
+        return { element, notified, preview: element.shadowRoot.querySelector(".preview") };
+    }
+
+    it("inserts the field between the columns it is dropped between", async () => {
+        const { element, notified, preview } = await setup();
+        preview.dispatchEvent(drag("dragover", "Industry", 60));
+        await flushPromises();
+        // Right of the first column's middle, so after it.
+        expect(element.shadowRoot.querySelector(".preview__drop")).not.toBeNull();
+        expect(preview.classList).toContain("preview_dropping");
+
+        preview.dispatchEvent(drag("drop", "Industry", 60));
+        expect(notified[0].value).toBe('["Name","Industry","AnnualRevenue"]');
+        await flushPromises();
+        expect(element.shadowRoot.querySelector(".preview__drop")).toBeNull();
+    });
+
+    it("moves a field already in the grid rather than adding it twice", async () => {
+        const { notified, preview } = await setup();
+        preview.dispatchEvent(drag("dragover", "AnnualRevenue", 10));
+        preview.dispatchEvent(drag("drop", "AnnualRevenue", 10));
+        expect(notified[0].value).toBe('["AnnualRevenue","Name"]');
+    });
+
+    it("ignores anything dragged in that is not a field", async () => {
+        const { notified, preview } = await setup();
+        const file = new CustomEvent("drop", { bubbles: true, cancelable: true });
+        file.dataTransfer = { types: ["Files"], getData: () => "" };
+        preview.dispatchEvent(file);
+        expect(notified).toEqual([]);
     });
 });

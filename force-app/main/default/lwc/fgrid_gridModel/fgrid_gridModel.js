@@ -11,7 +11,15 @@
  * preview convenience, never a runtime behavior — Phase 5 replaces it with real
  * field metadata. See TYPE_HINTS for exactly what it guesses.
  */
-import { parseFormatRules, conditionFields, matchFormatRule, formatClassFor } from "c/fgrid_formatRules";
+import {
+    parseFormatRules,
+    conditionFields,
+    matchFormatRule,
+    migrateColumnColors,
+    colorSlotsFor,
+    colorClassFor,
+    normalizeHex
+} from "c/fgrid_formatRules";
 
 /** Ordered name-pattern to datatable-type guesses. First match wins. */
 const TYPE_HINTS = [
@@ -74,8 +82,19 @@ function splitFieldNames(raw) {
         .filter(isNonEmptyString);
 }
 
-/** Reads the `columnConfig` property into an attribute map. */
+/**
+ * Reads the `columnConfig` property into an attribute map.
+ *
+ * Also the one place saved colors are upgraded from the old named palette to
+ * hex. The grid, the Studio preview and the column panel all read through
+ * here, so an old config renders unchanged and is rewritten in the new shape
+ * the next time the panel saves it.
+ */
 export function parseColumnConfig(raw) {
+    return migrateConfig(readColumnConfig(raw));
+}
+
+function readColumnConfig(raw) {
     if (isPlainObject(raw)) {
         return raw;
     }
@@ -88,6 +107,12 @@ export function parseColumnConfig(raw) {
     } catch {
         return {};
     }
+}
+
+function migrateConfig(config) {
+    return Object.fromEntries(
+        Object.entries(config).map(([field, attributes]) => [field, migrateColumnColors(attributes)])
+    );
 }
 
 function isNonEmptyString(value) {
@@ -132,6 +157,64 @@ export const FORMAT_SUFFIX = "__fgridFormat";
 
 /** Row fields a progress display reads: the 0-100 value, its label, its width. */
 export const PROGRESS_SUFFIX = "__fgridProgress";
+
+/** The displays that draw a gauge, whose color goes on the fill. */
+const GAUGE_TYPES = ["fgridProgressBar", "fgridProgressRing", "fgridProgressCircle"];
+
+/** 100% as a path rather than a <circle>, so the template has no branch. Two
+ *  half-arcs, because an arc whose ends meet is not drawn at all. */
+const FULL_RING_PATH = "M 1 0 A 1 1 0 1 1 -1 0 A 1 1 0 1 1 1 0 Z";
+
+/**
+ * How far from the center the ring's progress head travels, in the head's own
+ * viewBox. The head box is the ring plus 0.1875rem each side, so for diameter D
+ * and that inset i the track's centerline is (D - i) / (D + 2i): 21/30 and 29/38.
+ * lightning-progress-ring measures this with getComputedStyle; a cell template
+ * cannot, and the two sizes are fixed, so it is worked out once here.
+ */
+const RING_HEAD_RADIUS = { medium: 0.7, large: 0.7632 };
+
+/** The blueprint's variant icons, as lightning-progress-ring draws them. */
+const RING_ICONS = {
+    warning: {
+        path: "M23.7 19.6L13.2 2.5c-.6-.9-1.8-.9-2.4 0L.3 19.6c-.7 1.1 0 2.6 1.1 2.6h21.2c1.1 0 1.8-1.5 1.1-2.6zM12 18.5c-.8 0-1.4-.6-1.4-1.4s.6-1.4 1.4-1.4 1.4.6 1.4 1.4-.6 1.4-1.4 1.4zm1.4-4.2c0 .3-.2.5-.5.5h-1.8c-.3 0-.5-.2-.5-.5v-6c0-.3.2-.5.5-.5h1.8c.3 0 .5.2.5.5v6z",
+        className: "slds-icon_container slds-icon-utility-warning",
+        label: "Warning"
+    },
+    expired: {
+        path: "M12 .9C5.9.9.9 5.9.9 12s5 11.1 11.1 11.1 11.1-5 11.1-11.1S18.1.9 12 .9zM3.7 12c0-4.6 3.7-8.3 8.3-8.3 1.8 0 3.5.5 4.8 1.5L5.2 16.8c-1-1.3-1.5-3-1.5-4.8zm8.3 8.3c-1.8 0-3.5-.5-4.8-1.5L18.8 7.2c1 1.3 1.5 3 1.5 4.8 0 4.6-3.7 8.3-8.3 8.3z",
+        className: "slds-icon_container slds-icon-utility-error",
+        label: "Expired"
+    },
+    complete: {
+        path: "M8.8 19.6L1.2 12c-.3-.3-.3-.8 0-1.1l1-1c.3-.3.8-.3 1 0L9 15.7c.1.2.5.2.6 0L20.9 4.4c.2-.3.7-.3 1 0l1 1c.3.3.3.7 0 1L9.8 19.6c-.2.3-.7.3-1 0z",
+        className: "slds-icon_container slds-icon-utility-success",
+        label: "Complete"
+    }
+};
+
+const round4 = (number) => Math.round(number * 10000) / 10000;
+
+/**
+ * The ring's arc for a 0-100 value: the path, and where it ends.
+ *
+ * SLDS gives `M 1 0 A 1 1 0 {isLong} 1 {cos} {sin} L 0 0`. Direction follows
+ * lightning-progress-ring's source rather than a guess: fill uses sweep 0 and
+ * negates y, drain uses sweep 1 and keeps it. The blueprint's rotate/flip then
+ * starts both at 12 o'clock, fill clockwise. Drain at 88% gives the blueprint's
+ * own "0.73 -0.68".
+ */
+export function ringArc(percent, drain) {
+    const angle = 2 * Math.PI * (percent / 100);
+    const x = round4(Math.cos(angle));
+    const y = round4(Math.sin(angle) * (drain ? 1 : -1));
+    if (percent >= 100) {
+        return { path: FULL_RING_PATH, x, y };
+    }
+    const isLong = percent > 50 ? 1 : 0;
+    const sweep = drain ? 1 : 0;
+    return { path: `M 1 0 A 1 1 0 ${isLong} ${sweep} ${x} ${y} L 0 0`, x, y };
+}
 
 /** Row field holding a multi-picklist's value as an array, for the checkbox
  *  group, whose `value` is an array while the record stores a `;` string. */
@@ -393,8 +476,14 @@ export function buildColumns(fields, config = {}, options = {}) {
         userTimeZone = null
     } = options;
 
+    // Which slot each color occupies. The grid derives the same map to set the
+    // custom properties, so the classes named here resolve to real colors.
+    const colorSlots = colorSlotsFor(fields, config);
+
     return (fields || []).map((field, index) => {
-        const attributes = config?.[field] || {};
+        // Idempotent, so a config parseColumnConfig already upgraded passes
+        // through untouched and one handed in raw still renders its colors.
+        const attributes = migrateColumnColors(config?.[field] || {});
         const describe = describeByPath?.[field] || null;
         // What the admin configured, before the Studio preview's blanket read-only is
         // applied. The lock icon reads this so the preview shows the same locks the
@@ -651,23 +740,41 @@ export function buildColumns(fields, config = {}, options = {}) {
         //
         // The rules, and the fields they TEST, are parked on the column:
         // buildRows is where a row exists to evaluate them against.
-        const formatRules = parseFormatRules(attributes.format);
+        // Each condition learns what kind of value it compares. The panel never
+        // stored one, so every condition used to be read as text, and "less
+        // than 30" became "contains 30": 20 did not match, 300 did.
+        const formatRules = withConditionKinds(parseFormatRules(attributes.format), config, describeByPath);
         // A badged picklist draws its own span, so its color belongs on the
         // badge; coloring the cell would paint around it. The typeAttributes
         // half of that is set further down, where that bag exists.
         const isBadged =
             Boolean(attributes.badge) && (column.type === "fgridPicklist" || column.type === "fgridMultiPicklist");
 
-        if (attributes.colorMode === "column" && attributes.columnStyle) {
-            const columnClass = formatClassFor({
-                style: attributes.columnStyle,
-                textOnly: attributes.columnTextOnly
-            });
+        // A GAUGE takes its color on the fill, not the cell: our own template
+        // draws it, so it is an inline style rather than a slot class, and
+        // painting the cell behind the ring as well would be noise.
+        if (GAUGE_TYPES.includes(column.type)) {
+            column.fgridGaugeColor = attributes.colorMode === "column" ? normalizeHex(attributes.columnColor) : null;
+            if (attributes.colorMode !== "column" && formatRules.length) {
+                column.fgridFormatRules = formatRules;
+                column.fgridFormatFields = conditionFields(formatRules);
+                column.fgridGaugeRules = true;
+            }
+        } else if (attributes.colorMode === "column" && attributes.columnColor) {
+            const columnClass = colorClassFor(
+                { color: attributes.columnColor, textOnly: attributes.columnTextOnly },
+                colorSlots
+            );
             if (columnClass) {
                 cellAttributes.class = columnClass;
             }
         } else if (formatRules.length) {
-            column.fgridFormatRules = formatRules;
+            // Each rule's class is resolved now, while the slots are in hand;
+            // buildRows only has to pick the rule that matched.
+            column.fgridFormatRules = formatRules.map((rule) => ({
+                ...rule,
+                fgridClass: colorClassFor(rule, colorSlots)
+            }));
             column.fgridFormatKey = `${field}${FORMAT_SUFFIX}`;
             // A rule may test a column that is not displayed, so buildRows has
             // to carry those fields too or the rule silently never matches.
@@ -784,9 +891,7 @@ export function buildColumns(fields, config = {}, options = {}) {
             const thickness = attributes.progressThickness || "medium";
             const rounded = attributes.progressShape === "circular" ? " slds-progress-bar_circular" : "";
             typeAttributes.barClass = `slds-progress-bar slds-progress-bar_${thickness}${rounded}`;
-            typeAttributes.fillClass = attributes.progressTheme
-                ? `slds-progress-bar__value fgridProgressFill_${attributes.progressTheme}`
-                : "slds-progress-bar__value";
+            typeAttributes.fillClass = "slds-progress-bar__value";
             typeAttributes.showValue = attributes.showProgressValue !== false;
 
             const progressKey = `${field}${PROGRESS_SUFFIX}`;
@@ -796,6 +901,59 @@ export function buildColumns(fields, config = {}, options = {}) {
             typeAttributes.progressStyle = { fieldName: `${progressKey}Style` };
             // A gauge is a reading, not an input, and the type has no edit
             // template. Forcing it off here beats a pencil that does nothing.
+            column.editable = false;
+        }
+
+        // RING and CIRCLE: one template, so the difference is which of these
+        // are set. Everything that varies with the value -- the arc, the head,
+        // and the complete state -- is a row field, filled in buildRows from
+        // `column.fgridRing`. Same whole-percent value as the bar, same reason.
+        if (column.type === "fgridProgressRing" || column.type === "fgridProgressCircle") {
+            const isCircle = column.type === "fgridProgressCircle";
+            const showValue = attributes.showProgressValue !== false;
+            let ringClass = "slds-progress-ring";
+            let size = "medium";
+            let variant = "base";
+            if (isCircle) {
+                size = attributes.progressCircleSize || "medium";
+                const thickness = attributes.progressCircleThickness || "medium";
+                ringClass += ` fgridCircle fgridCircle_${size} fgridCircleThickness_${thickness}`;
+            } else {
+                size = attributes.progressRingSize === "large" ? "large" : "medium";
+                variant = attributes.progressRingVariant || "base";
+                if (size === "large") {
+                    ringClass += " slds-progress-ring_large";
+                }
+                if (["active-step", "warning", "expired"].includes(variant)) {
+                    ringClass += ` slds-progress-ring_${variant}`;
+                }
+            }
+            column.fgridRing = {
+                ringClass,
+                variant,
+                drain: attributes.progressDirection === "drain",
+                hideIcon: Boolean(attributes.hideProgressIcon),
+                // The head is the blueprint's, sized for its two rings. On a
+                // resized circle it would be the wrong size, so it is left off.
+                headRadius: isCircle ? null : RING_HEAD_RADIUS[size]
+            };
+            typeAttributes.valueInside = isCircle && showValue;
+            typeAttributes.valueBeside = !isCircle && showValue;
+            typeAttributes.caption = isCircle ? attributes.progressCircleLabel || "" : "";
+
+            const progressKey = `${field}${PROGRESS_SUFFIX}`;
+            column.fgridProgressKey = progressKey;
+            typeAttributes.progressValue = { fieldName: progressKey };
+            typeAttributes.progressLabel = { fieldName: `${progressKey}Label` };
+            typeAttributes.ringPath = { fieldName: `${progressKey}Path` };
+            typeAttributes.ringClass = { fieldName: `${progressKey}Class` };
+            typeAttributes.iconPath = { fieldName: `${progressKey}IconPath` };
+            typeAttributes.iconClass = { fieldName: `${progressKey}IconClass` };
+            typeAttributes.iconLabel = { fieldName: `${progressKey}IconLabel` };
+            typeAttributes.headVisible = { fieldName: `${progressKey}HeadVisible` };
+            typeAttributes.headX = { fieldName: `${progressKey}HeadX` };
+            typeAttributes.headY = { fieldName: `${progressKey}HeadY` };
+            typeAttributes.fillStyle = { fieldName: `${progressKey}Fill` };
             column.editable = false;
         }
 
@@ -974,15 +1132,37 @@ export function buildRows(records, columns, keyField = "Id", picklistContext = n
         });
 
         progressColumns.forEach((column) => {
-            const raw = Number(row[column.fieldName]);
-            // Clamped as well as rounded, matching what lightning-progress-bar
-            // documents for its own value, so an out-of-range number cannot
-            // draw a fill wider than the track.
-            const percent = Number.isFinite(raw) ? Math.max(0, Math.min(100, raw)) : 0;
+            const percent = gaugePercent(row[column.fieldName]);
             const rounded = Math.round(percent);
             row[column.fgridProgressKey] = rounded;
             row[`${column.fgridProgressKey}Label`] = `${rounded}%`;
-            row[`${column.fgridProgressKey}Style`] = `width: ${percent}%`;
+            // The column's own color; a matching rule replaces it further down.
+            writeGaugeFill(row, column, column.fgridGaugeColor);
+
+            const ring = column.fgridRing;
+            if (!ring) {
+                return;
+            }
+            const key = column.fgridProgressKey;
+            const arc = ringArc(percent, ring.drain);
+            // Complete is the one variant state that depends on the value.
+            // Hiding the icon drops it too: without the check, the complete
+            // style is a solid green disc that reads as nothing in particular.
+            const isComplete = ring.variant === "base-autocomplete" && rounded === 100 && !ring.hideIcon;
+            let icon = null;
+            if (isComplete) {
+                icon = RING_ICONS.complete;
+            } else if (!ring.hideIcon) {
+                icon = RING_ICONS[ring.variant] || null;
+            }
+            row[`${key}Path`] = arc.path;
+            row[`${key}Class`] = isComplete ? `${ring.ringClass} slds-progress-ring_complete` : ring.ringClass;
+            row[`${key}IconPath`] = icon?.path || "";
+            row[`${key}IconClass`] = icon?.className || "";
+            row[`${key}IconLabel`] = icon?.label || "";
+            row[`${key}HeadVisible`] = ring.headRadius !== null && percent > 0 && percent < 100;
+            row[`${key}HeadX`] = ring.headRadius === null ? 0 : round4(arc.x * ring.headRadius);
+            row[`${key}HeadY`] = ring.headRadius === null ? 0 : round4(arc.y * ring.headRadius);
         });
 
         // LAST, because a rule reads the row and everything above is still
@@ -990,15 +1170,45 @@ export function buildRows(records, columns, keyField = "Id", picklistContext = n
         // before a condition can be asked about either.
         formatColumns.forEach((column) => {
             const matched = matchFormatRule(column.fgridFormatRules, row, matchesFilter);
+            if (column.fgridGaugeRules) {
+                writeGaugeFill(row, column, matched?.color || column.fgridGaugeColor);
+                return;
+            }
             // Empty string, not null: the datatable writes the resolved value
             // straight into `class`, and a null there renders the literal
             // "null" as a class name.
-            const resolved = (matched && formatClassFor(matched)) || "";
+            const resolved = matched?.fgridClass || "";
             row[column.fgridFormatKey] = column.fgridBadgeFormat ? `slds-badge ${resolved}`.trim() : resolved;
         });
 
         return row;
     });
+}
+
+/**
+ * A gauge's value, 0-100. Clamped as well as validated, matching what
+ * lightning-progress-bar documents for its own value, so an out-of-range
+ * number cannot draw a fill wider than the track.
+ */
+function gaugePercent(value) {
+    const raw = Number(value);
+    return Number.isFinite(raw) ? Math.max(0, Math.min(100, raw)) : 0;
+}
+
+/**
+ * Writes a gauge's fill for one row: the bar's width and background, or the
+ * ring's `fill`. No color leaves the blueprint's own. The color has been
+ * through normalizeHex, so only a hex can reach the style.
+ */
+function writeGaugeFill(row, column, color) {
+    const key = column.fgridProgressKey;
+    const hex = normalizeHex(color);
+    if (column.fgridRing) {
+        row[`${key}Fill`] = hex ? `fill: ${hex}` : "";
+        return;
+    }
+    const width = `width: ${gaugePercent(row[column.fieldName])}%`;
+    row[`${key}Style`] = hex ? `${width}; background: ${hex}` : width;
 }
 
 /**
@@ -1355,6 +1565,48 @@ export function filterKindFor(column) {
     }
     // text, email, phone, url and lookups all filter as text.
     return FILTER_KIND.TEXT;
+}
+
+/**
+ * Rules with each condition made comparable: its `kind` filled in from the
+ * field it tests, and its value in the shape that kind's matcher reads.
+ *
+ * The kind is the same inference the column panel uses to choose which
+ * operators to offer, so a condition compares the way its operator list
+ * promised. A gauge compares as the number it draws. A kind already stored is
+ * kept.
+ *
+ * The value needs converting because the panel stores every condition's value
+ * as one string. A picklist matcher reads a `values` list, and a checkbox
+ * matcher reads a boolean, where the string "false" would count as true.
+ */
+function withConditionKinds(rules, config, describeByPath) {
+    return rules.map((rule) => ({
+        ...rule,
+        conditions: (rule.conditions || []).map((condition) => {
+            if (!condition || condition.kind) {
+                return condition;
+            }
+            const kind = conditionKindFor(condition.field, config, describeByPath);
+            if (kind === FILTER_KIND.PICKLIST && !Array.isArray(condition.values)) {
+                return {
+                    ...condition,
+                    kind,
+                    values: isPresent(condition.value) ? [String(condition.value).trim()] : []
+                };
+            }
+            if (kind === FILTER_KIND.BOOLEAN && typeof condition.value !== "boolean") {
+                return { ...condition, kind, value: String(condition.value).trim().toLowerCase() === "true" };
+            }
+            return { ...condition, kind };
+        })
+    }));
+}
+
+function conditionKindFor(field, config, describeByPath) {
+    const describe = describeByPath?.[field];
+    const type = describe?.dataType || config?.[field]?.type || inferType(field);
+    return GAUGE_TYPES.includes(type) ? FILTER_KIND.NUMBER : filterKindFor({ fieldName: field, ...describe, type });
 }
 
 /**

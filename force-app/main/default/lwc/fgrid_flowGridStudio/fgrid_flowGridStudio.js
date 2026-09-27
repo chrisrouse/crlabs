@@ -1,7 +1,7 @@
 /**
- * Grid Studio — a wide two-pane workspace launched from the Flow Builder property
- * panel: every configuration control on the left, a live preview and the column
- * attribute grid on the right.
+ * Grid Studio — a wide workspace launched from the Flow Builder property panel:
+ * a live preview in the middle and one inspector on the right, with Data, Table
+ * and Columns tabs. Layout C of design/studio-layout-c.html.
  *
  * Renders as the platform's own SLDS 2 modal: this extends `LightningModal` and
  * is opened by the editor with `FgridFlowGridStudio.open({ size: "large" })`.
@@ -59,6 +59,39 @@ import {
 } from "c/fgrid_gridModel";
 import getGridMetadata from "@salesforce/apex/FlowGridController.getGridMetadata";
 import getPreviewRecords from "@salesforce/apex/FlowGridController.getPreviewRecords";
+import { loadStyle } from "lightning/platformResourceLoader";
+import FGRID_FORMAT_STYLES from "@salesforce/resourceUrl/fgridFormatStyles";
+import { colorSlotsFor, colorVarsFor } from "c/fgrid_formatRules";
+
+/** Where each section lives. Data is the left panel's; Table and Columns are
+ *  the inspector's tabs. */
+const TAB = { DATA: "data", TABLE: "table", COLUMNS: "columns" };
+
+/** What a field dragged from the Fields tab carries. Shared with
+ *  c/fgrid_fieldPalette, which sets it. */
+const FIELD_DRAG_TYPE = "application/x-fgrid-field";
+
+/** The left panel's tabs. */
+const LEFT_TAB = { FIELDS: "fields", DATA: "data" };
+
+const TABS = [
+    { name: TAB.DATA, label: "Data" },
+    { name: TAB.TABLE, label: "Table" },
+    { name: TAB.COLUMNS, label: "Columns" }
+];
+
+/** Where the records come from and how rows behave, and choosing columns.
+ *  Every other section is about the grid as a whole, so it goes on Table --
+ *  including any section added later, which is the safe default. */
+const DATA_SECTIONS = ["source", "rows"];
+const COLUMNS_SECTIONS = ["columns"];
+
+function tabForSection(name) {
+    if (DATA_SECTIONS.includes(name)) {
+        return TAB.DATA;
+    }
+    return COLUMNS_SECTIONS.includes(name) ? TAB.COLUMNS : TAB.TABLE;
+}
 
 const PREVIEW_ROW_COUNT = 6;
 
@@ -142,6 +175,10 @@ export default class FgridFlowGridStudio extends LightningModal {
 
     connectedCallback() {
         super.connectedCallback?.();
+        // The grid's global stylesheet, without which the preview shows no
+        // picked colors and no circle sizing. Failure only costs the color,
+        // as it does in the grid itself.
+        loadStyle(this, FGRID_FORMAT_STYLES).catch(() => {});
         this.notifyReady?.(this);
         this.startAnchorWatch();
     }
@@ -224,26 +261,13 @@ export default class FgridFlowGridStudio extends LightningModal {
     };
 
     /* ------------------------------------------------------------------ *
-     * Settings pane
-     * ------------------------------------------------------------------ */
-
-    /**
-     * Whether the settings pane is hidden, giving the preview the full width.
-     *
-     * Deliberately not a Flow property: it is a per-session view preference, and
-     * persisting it would mean an admin's collapsed pane greeted the next person
-     * to open the element with no settings visible.
-     */
-    isSidebarCollapsed = false;
-
-    /* ------------------------------------------------------------------ *
      * Preview size
      * ------------------------------------------------------------------ */
 
     /**
-     * Width the preview renders at. Not a Flow property, for the same reason the
-     * collapsed pane is not: it is a view preference for this sitting, and the
-     * grid's runtime width comes from wherever the flow is embedded.
+     * Width the preview renders at. Not a Flow property: it is a view preference
+     * for this sitting, and the grid's runtime width comes from wherever the flow
+     * is embedded.
      */
     previewSize = "large";
 
@@ -263,25 +287,237 @@ export default class FgridFlowGridStudio extends LightningModal {
         return size?.maxWidth ? `max-width: ${size.maxWidth};` : "";
     }
 
-    handleToggleSidebar() {
-        this.isSidebarCollapsed = !this.isSidebarCollapsed;
+    /* ------------------------------------------------------------------ *
+     * Inspector tabs
+     * ------------------------------------------------------------------ */
+
+    /** The tab the admin chose. Null until they choose, so the Studio can open
+     *  on whichever tab has something to do. */
+    activeTab = null;
+
+    /**
+     * Where a new grid starts: Data until there are columns to configure, then
+     * Columns, which is where most of the work is.
+     */
+    get currentTab() {
+        return this.activeTab || TAB.COLUMNS;
     }
 
-    get contentClass() {
-        return this.isSidebarCollapsed ? "studio__content studio__content_collapsed" : "studio__content";
+    get isColumnsTab() {
+        return this.currentTab === TAB.COLUMNS;
     }
 
-    get sidebarToggleIcon() {
-        return this.isSidebarCollapsed ? "utility:chevronright" : "utility:chevronleft";
+    get currentTabLabel() {
+        return TABS.find((tab) => tab.name === this.currentTab)?.label;
     }
 
-    get sidebarToggleLabel() {
-        return this.isSidebarCollapsed ? "Show the Settings Pane" : "Hide the Settings Pane";
+    /** The sections the current tab shows, in the order the editor supplies. */
+    get tabSections() {
+        return (this.sections || []).filter((section) => tabForSection(section.name) === this.currentTab);
     }
 
-    /** aria-expanded wants the string, not the boolean. */
-    get sidebarExpanded() {
-        return String(!this.isSidebarCollapsed);
+    /* ----- the left panel: Fields and Data ----- */
+
+    /** The left tab the admin chose. Null until they choose: Data until there
+     *  are records to take fields from, then Fields. */
+    leftTab = null;
+
+    get currentLeftTab() {
+        return this.leftTab || (this.hasObject ? LEFT_TAB.FIELDS : LEFT_TAB.DATA);
+    }
+
+    get isFieldsTab() {
+        return this.currentLeftTab === LEFT_TAB.FIELDS;
+    }
+
+    get isLeftDataTab() {
+        return this.currentLeftTab === LEFT_TAB.DATA;
+    }
+
+    /** Data Source and Configure Rows, which live in the left panel now. */
+    get dataSections() {
+        return (this.sections || []).filter((section) => tabForSection(section.name) === TAB.DATA);
+    }
+
+    handleLeftTabActive(event) {
+        this.leftTab = event.target.value;
+    }
+
+    /** A field clicked in the palette, relayed as the property the Columns
+     *  picker writes, so the editor handles both the same way. */
+    handlePaletteFieldsChange(event) {
+        event.stopPropagation();
+        this.publishColumnFields(event.detail.value);
+    }
+
+    publishColumnFields(value) {
+        this.notifyPropertyChange?.({ property: "columnFields", value, dataType: "String", resource: null });
+    }
+
+    /* ----- dragging a field into the preview ----- */
+
+    /** Where the dragged field would land, or null when nothing is dragged. */
+    dropIndex = null;
+    dropIndicatorStyle = "";
+
+    get previewClass() {
+        return this.dropIndex === null ? "preview" : "preview preview_dropping";
+    }
+
+    /** Only a field from our palette; files and text dragged in are ignored. */
+    isFieldDrag(event) {
+        return [...(event.dataTransfer?.types || [])].includes(FIELD_DRAG_TYPE);
+    }
+
+    handlePreviewDragOver(event) {
+        if (!this.isFieldDrag(event)) {
+            return;
+        }
+        // Allowing the drop is what preventDefault means for dragover.
+        event.preventDefault();
+        event.dataTransfer.dropEffect = "copy";
+        const { index, x } = this.dropTarget(event.clientX);
+        this.dropIndex = index;
+        this.dropIndicatorStyle = x === null ? "" : `left: ${x}px;`;
+    }
+
+    handlePreviewDragLeave(event) {
+        // Moving between cells fires leave on the way out of each; only a
+        // leave that exits the preview altogether ends the drag.
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+            this.endDrop();
+        }
+    }
+
+    handlePreviewDrop(event) {
+        if (!this.isFieldDrag(event)) {
+            return;
+        }
+        event.preventDefault();
+        const field = event.dataTransfer.getData(FIELD_DRAG_TYPE);
+        const index = this.dropIndex ?? this.dropTarget(event.clientX).index;
+        this.endDrop();
+        if (!field) {
+            return;
+        }
+        // A field already in the grid moves rather than appearing twice.
+        const current = this.columnFields;
+        const from = current.indexOf(field);
+        const next = current.filter((path) => path !== field);
+        const at = from !== -1 && from < index ? index - 1 : index;
+        next.splice(Math.max(0, Math.min(at, next.length)), 0, field);
+        this.publishColumnFields(JSON.stringify(next));
+    }
+
+    endDrop() {
+        this.dropIndex = null;
+        this.dropIndicatorStyle = "";
+    }
+
+    /**
+     * The column position under the pointer, and where to draw the marker.
+     *
+     * The datatable reports its header cells; the field columns are the ones
+     * after its own checkbox and row-number cells, less the row action column
+     * on whichever side it sits. A drop left of a column's middle goes before
+     * it. With no table to measure -- nothing chosen yet -- the field goes
+     * first and no marker is drawn.
+     */
+    dropTarget(clientX) {
+        const fields = this.columnFields;
+        const table = this.template.querySelector("c-fgrid_custom-datatable");
+        const grid = this.template.querySelector(".preview__grid");
+        const edges = table?.getColumnEdges?.() || [];
+        const columns = this.previewColumns.length;
+        if (!fields.length || edges.length < columns || !grid) {
+            return { index: fields.length, x: null };
+        }
+        const actionFirst = columns > fields.length && (this.values?.rowActionPosition || "Left") === "Left";
+        const own = edges.slice(edges.length - columns);
+        const cells = own.slice(actionFirst ? 1 : 0).slice(0, fields.length);
+        const index = cells.filter((cell) => (cell.left + cell.right) / 2 < clientX).length;
+        const edge = index < cells.length ? cells[index].left : cells[cells.length - 1].right;
+        return { index, x: Math.round(edge - grid.getBoundingClientRect().left) };
+    }
+
+    get isTableTab() {
+        return this.currentTab === TAB.TABLE;
+    }
+
+    /** Flow Builder's own error indicator on a tab, rather than a count. The
+     *  list above the tabs says what each error is. */
+    get dataTabHasErrors() {
+        return this.errorList.some((error) => error.tab === TAB.DATA);
+    }
+
+    get tableTabHasErrors() {
+        return this.errorList.some((error) => error.tab === TAB.TABLE);
+    }
+
+    get columnsTabHasErrors() {
+        return this.errorList.some((error) => error.tab === TAB.COLUMNS);
+    }
+
+    /**
+     * Each error with the tab and section that fix it.
+     *
+     * An error's `key` is the property it is about, which the schema maps to a
+     * section, and a section to a tab. One the schema does not know stays in the
+     * list without a link rather than pointing somewhere wrong.
+     */
+    get errorList() {
+        return (this.validationErrors || []).map((error) => {
+            const section = (this.sections || []).find((candidate) =>
+                (candidate.controls || []).some((control) => control.property === error.key)
+            );
+            const tab = section ? tabForSection(section.name) : null;
+            const tabLabel = TABS.find((candidate) => candidate.name === tab)?.label;
+            return {
+                ...error,
+                tab,
+                where: tab ? `${tabLabel} › ${section.label}` : ""
+            };
+        });
+    }
+
+    handleSelectTab(event) {
+        const { tab } = event.currentTarget.dataset;
+        // Data is on the left now; everything else is on the right.
+        if (tab === TAB.DATA) {
+            this.leftTab = LEFT_TAB.DATA;
+            return;
+        }
+        this.activeTab = tab;
+    }
+
+    /** The tabset reports the tab it activated, including the first one. */
+    handleTabActive(event) {
+        this.activeTab = event.target.value;
+    }
+
+    /* ------------------------------------------------------------------ *
+     * Panel size
+     * ------------------------------------------------------------------ */
+
+    /** Medium or x-large, as Flow Builder's panel resizes. A view preference
+     *  for this sitting, like the preview size, so not a Flow property. */
+    isInspectorExpanded = false;
+
+    get inspectorClass() {
+        const size = this.isInspectorExpanded ? "slds-size_x-large" : "slds-size_medium";
+        return `studio__inspector slds-panel slds-panel_docked slds-panel_docked-right slds-border_left slds-grid slds-grid_vertical ${size}`;
+    }
+
+    get expandIcon() {
+        return this.isInspectorExpanded ? "utility:contract_alt" : "utility:expand_alt";
+    }
+
+    get inspectorExpandedLabel() {
+        return String(this.isInspectorExpanded);
+    }
+
+    handleToggleExpand() {
+        this.isInspectorExpanded = !this.isInspectorExpanded;
     }
 
     _values = {};
@@ -455,7 +691,10 @@ export default class FgridFlowGridStudio extends LightningModal {
     /** Honors the configured grid height so the preview reflects it. */
     get previewGridStyle() {
         const height = this.values?.tableHeight;
-        return height ? `height: ${height}; overflow: auto;` : "";
+        // The same color custom properties the grid sets, so the preview's
+        // slot classes resolve to the colors picked in the column panel.
+        const colors = colorVarsFor(colorSlotsFor(this.columnFields, this.columnConfigObject));
+        return [height ? `height: ${height}; overflow: auto;` : "", colors].filter(Boolean).join(" ");
     }
 
     /* Datatable attributes the preview mirrors so layout choices are visible here. */

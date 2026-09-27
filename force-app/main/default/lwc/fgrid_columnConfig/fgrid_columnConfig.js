@@ -29,7 +29,8 @@
  *
  * Two densities:
  *   compact  — read-only summary, for the narrow Flow Builder property panel
- *   full     — grid plus drawer, for the Grid Studio modal
+ *   full     — a list of columns and one column drilled in, for the Grid
+ *              Studio's inspector
  */
 import { LightningElement, api, track } from "lwc";
 import { parseFieldList, parseColumnConfig, filterKindFor, operatorsFor, defaultOperatorFor } from "c/fgrid_gridModel";
@@ -38,19 +39,19 @@ import {
     attributeGroupFor,
     displayValueFor,
     resolveDisplay,
+    isProgress,
+    COLUMN_TYPES,
     ATTRIBUTE_GROUP,
     CURRENCY_DISPLAYS,
-    PROGRESS_THEMES,
     PROGRESS_THICKNESS,
-    PROGRESS_SHAPES
+    PROGRESS_SHAPES,
+    PROGRESS_RING_VARIANTS,
+    PROGRESS_RING_SIZES,
+    PROGRESS_CIRCLE_SIZES,
+    PROGRESS_CIRCLE_THICKNESS,
+    PROGRESS_DIRECTIONS
 } from "c/fgrid_columnTypes";
-import {
-    FORMAT_STYLES,
-    TEXT_ONLY_STYLES,
-    FORMAT_LOGIC,
-    FORMAT_LOGIC_OPTIONS,
-    parseFormatRules
-} from "c/fgrid_formatRules";
+import { DEFAULT_RULE_COLOR, FORMAT_LOGIC, FORMAT_LOGIC_OPTIONS, parseFormatRules } from "c/fgrid_formatRules";
 
 const ALIGNMENTS = [
     { label: "Default", value: "" },
@@ -67,8 +68,8 @@ const ALIGNMENTS = [
  */
 const COLOR_MODES = [
     { label: "None", value: "none" },
-    { label: "Per column — one style for every cell", value: "column" },
-    { label: "Conditional — a style per cell, by rule", value: "conditional" }
+    { label: "Per column — one color for every cell", value: "column" },
+    { label: "Conditional — a color per cell, by rule", value: "conditional" }
 ];
 
 const EMPHASIS_OPTIONS = [
@@ -77,6 +78,32 @@ const EMPHASIS_OPTIONS = [
     { label: "ALL CAPS", value: "caps" },
     { label: "Bold and caps", value: "boldCaps" }
 ];
+
+/** Where each gauge puts its value, for the Show the value help text. */
+const SHOW_VALUE_HELP = {
+    fgridProgressBar: "Displays the percentage above the right end of the bar.",
+    fgridProgressRing: "Displays the percentage beside the ring.",
+    fgridProgressCircle: "Displays the percentage, and the label if set, inside the circle."
+};
+
+/** The flags All Columns sets, in the order the column's own checkboxes use. */
+const BULK_FLAGS = [
+    { flag: "edit", label: "Editable", icon: "utility:edit" },
+    { flag: "filter", label: "Filterable", icon: "utility:filterList" },
+    { flag: "sort", label: "Sortable", icon: "utility:sort" },
+    { flag: "wrap", label: "Wrap Text", icon: "utility:threedots" }
+];
+
+/** The list's E/F/S/W chips: on or off, with a title a screen reader reads. */
+function chipsFor(flags) {
+    const names = { edit: "Editable", filter: "Filterable", sort: "Sortable", wrap: "Wrap" };
+    return Object.fromEntries(
+        Object.entries(flags).flatMap(([flag, on]) => [
+            [`${flag}ChipClass`, on ? "chip chip_on" : "chip"],
+            [`${flag}ChipTitle`, `${names[flag]}: ${on ? "on" : "off"}`]
+        ])
+    );
+}
 
 export default class FgridColumnConfig extends LightningElement {
     /** JSON array of ordered field API paths, as the kit field picker persists it. */
@@ -112,18 +139,28 @@ export default class FgridColumnConfig extends LightningElement {
 
     _currencyCodes = [];
 
-    /** The one open drawer. Single panel by decision: two open drawers in a
-     *  modal is more scrolling than context. */
+    /** The column drilled into, or null for the list. One at a time: the
+     *  inspector is 24rem wide, and two columns' settings do not fit in it. */
     @track openField = null;
+
+    /** The one rule being edited, as its key. Every rule open at once is a long
+     *  scroll at inspector width. */
+    openRuleKey = null;
+
+    isBulkOpen = false;
 
     alignmentOptions = ALIGNMENTS;
     colorModeOptions = COLOR_MODES;
     emphasisOptions = EMPHASIS_OPTIONS;
     logicOptions = FORMAT_LOGIC_OPTIONS;
     currencyDisplayOptions = CURRENCY_DISPLAYS;
-    progressThemeOptions = PROGRESS_THEMES;
     progressThicknessOptions = PROGRESS_THICKNESS;
     progressShapeOptions = PROGRESS_SHAPES;
+    progressRingVariantOptions = PROGRESS_RING_VARIANTS;
+    progressRingSizeOptions = PROGRESS_RING_SIZES;
+    progressCircleSizeOptions = PROGRESS_CIRCLE_SIZES;
+    progressCircleThicknessOptions = PROGRESS_CIRCLE_THICKNESS;
+    progressDirectionOptions = PROGRESS_DIRECTIONS;
 
     /* ------------------------------------------------------------------ *
      * Derived model
@@ -161,6 +198,14 @@ export default class FgridColumnConfig extends LightningElement {
             const rules = parseFormatRules(attributes.format);
             const colorMode = attributes.colorMode || (rules.length ? "conditional" : "none");
             const isOpen = this.openField === field;
+            const typeOptions = typeOptionsFor(describe?.displayType);
+            const display = displayValueFor(type, attributes.badge);
+            const flags = {
+                edit: Boolean(attributes.edit),
+                filter: Boolean(attributes.filter),
+                sort: attributes.sort !== false,
+                wrap: attributes.wrap !== false
+            };
 
             return {
                 key: field,
@@ -169,24 +214,33 @@ export default class FgridColumnConfig extends LightningElement {
                 label: attributes.label ?? "",
                 width: attributes.width ?? null,
                 align: attributes.align ?? "",
-                edit: Boolean(attributes.edit),
-                filter: Boolean(attributes.filter),
-                // Sorting is on unless turned off, like wrapping: the stored
-                // value is the opt-out, so a saved config carries only what an
-                // admin actually changed.
-                sort: attributes.sort !== false,
-                wrap: attributes.wrap !== false,
+                // Sorting and wrapping are on unless turned off: the stored value
+                // is the opt-out, so a saved config carries only what an admin
+                // actually changed.
+                ...flags,
 
                 isOpen,
-                toggleLabel: isOpen ? "Close" : "Settings",
+                isFirstColumn: index === 0,
+                isLastColumn: index === this.fields.length - 1,
+
+                // ----- list -----
+                displayLabel: attributes.label || describe?.label || field,
+                // The column's own options first (they carry Badge), then the
+                // full list: the options are what it may BECOME, and do not
+                // always include what it is now.
+                typeLabel:
+                    typeOptions.find((option) => option.value === display)?.label ||
+                    COLUMN_TYPES.find((option) => option.value === display)?.label ||
+                    display,
+                ...chipsFor(flags),
                 ruleCount: rules.length,
                 ruleCountLabel: rules.length === 1 ? "1 rule" : `${rules.length} rules`,
                 hasRules: rules.length > 0,
 
                 // ----- drawer -----
                 type,
-                display: displayValueFor(type, attributes.badge),
-                typeOptions: typeOptionsFor(describe?.displayType),
+                display,
+                typeOptions,
                 isNumberGroup: group === ATTRIBUTE_GROUP.NUMBER || group === ATTRIBUTE_GROUP.CURRENCY,
                 isCurrencyGroup: group === ATTRIBUTE_GROUP.CURRENCY,
                 // A plain number can want a variable number of decimals -- a
@@ -194,6 +248,14 @@ export default class FgridColumnConfig extends LightningElement {
                 // So currency gets ONE control and the pair stays for numbers.
                 isPlainNumberGroup: group === ATTRIBUTE_GROUP.NUMBER,
                 isProgressGroup: group === ATTRIBUTE_GROUP.PROGRESS,
+                isNotGauge: group !== ATTRIBUTE_GROUP.PROGRESS,
+                // Three gauges share the group, and each offers a different
+                // subset of it.
+                isProgressBar: type === "fgridProgressBar",
+                isProgressRing: type === "fgridProgressRing",
+                isProgressCircle: type === "fgridProgressCircle",
+                hasProgressDirection: type === "fgridProgressRing" || type === "fgridProgressCircle",
+                showProgressValueHelp: SHOW_VALUE_HELP[type],
                 isTextGroup: group === ATTRIBUTE_GROUP.TEXT,
                 isPicklistGroup: group === ATTRIBUTE_GROUP.PICKLIST,
                 isLookupGroup: group === ATTRIBUTE_GROUP.LOOKUP,
@@ -219,10 +281,16 @@ export default class FgridColumnConfig extends LightningElement {
                 showName: attributes.showName !== false,
                 link: attributes.link !== false,
                 isPolymorphic: Boolean(describe?.isPolymorphic),
-                progressTheme: attributes.progressTheme ?? "",
                 progressThickness: attributes.progressThickness ?? "medium",
                 progressShape: attributes.progressShape ?? "",
                 showProgressValue: attributes.showProgressValue !== false,
+                progressRingVariant: attributes.progressRingVariant ?? "base",
+                progressRingSize: attributes.progressRingSize ?? "medium",
+                progressCircleSize: attributes.progressCircleSize ?? "medium",
+                progressCircleThickness: attributes.progressCircleThickness ?? "medium",
+                progressDirection: attributes.progressDirection ?? "fill",
+                hideProgressIcon: Boolean(attributes.hideProgressIcon),
+                progressCircleLabel: attributes.progressCircleLabel ?? "",
                 icon: attributes.icon ?? "",
                 headerIcon: attributes.headerIcon ?? "",
                 hasHeaderIcon: Boolean(attributes.headerIcon),
@@ -231,11 +299,9 @@ export default class FgridColumnConfig extends LightningElement {
                 colorMode,
                 isPerColumnColor: colorMode === "column",
                 isConditionalColor: colorMode === "conditional",
-                columnStyle: attributes.columnStyle ?? "",
+                columnColor: attributes.columnColor ?? "",
                 columnTextOnly: Boolean(attributes.columnTextOnly),
                 columnEmphasis: attributes.emphasis ?? "",
-                styleOptions: FORMAT_STYLES,
-                textOnlyStyleOptions: TEXT_ONLY_STYLES,
                 rules: this.describeRules(field, rules)
             };
         });
@@ -259,7 +325,7 @@ export default class FgridColumnConfig extends LightningElement {
                 key: `${field}#${ruleIndex}`,
                 ruleIndex,
                 position: ruleIndex + 1,
-                style: rule.style ?? "",
+                color: rule.color ?? "",
                 textOnly: Boolean(rule.textOnly),
                 emphasis: rule.emphasis ?? "",
                 icon: rule.icon ?? "",
@@ -268,9 +334,10 @@ export default class FgridColumnConfig extends LightningElement {
                 showCustomLogic: (rule.logic || FORMAT_LOGIC.ALL) === FORMAT_LOGIC.CUSTOM,
                 showConditions: (rule.logic || FORMAT_LOGIC.ALL) !== FORMAT_LOGIC.ALWAYS,
                 summary: this.summarize(rule),
+                isOpen: this.openRuleKey === `${field}#${ruleIndex}`,
+                toggleLabel: this.openRuleKey === `${field}#${ruleIndex}` ? "Done" : "Edit",
                 isFirst: ruleIndex === 0,
                 isLast: ruleIndex === rules.length - 1,
-                styleOptions: rule.textOnly ? TEXT_ONLY_STYLES : FORMAT_STYLES,
                 conditions: conditions.map((condition, conditionIndex) => ({
                     key: `${field}#${ruleIndex}#${conditionIndex}`,
                     ruleIndex,
@@ -287,17 +354,19 @@ export default class FgridColumnConfig extends LightningElement {
 
     /** One line naming what the rule does, for the collapsed header. */
     summarize(rule) {
-        const style = FORMAT_STYLES.find((option) => option.value === rule.style)?.label || "No style";
+        // The hex itself: a picked color has no name, and the rule's own
+        // swatch sits right below the summary.
+        const outcome = rule.textOnly ? `text ${rule.color}` : rule.color || "no color";
         if ((rule.logic || FORMAT_LOGIC.ALL) === FORMAT_LOGIC.ALWAYS) {
-            return `Always → ${style}`;
+            return `Always → ${outcome}`;
         }
         const conditions = Array.isArray(rule.conditions) ? rule.conditions : [];
         if (!conditions.length) {
-            return `Always → ${style}`;
+            return `Always → ${outcome}`;
         }
         const first = conditions[0];
         const more = conditions.length > 1 ? ` +${conditions.length - 1}` : "";
-        return `${this.labelFor(first.field)} ${first.operator ?? ""} ${first.value ?? ""}${more} → ${style}`.trim();
+        return `${this.labelFor(first.field)} ${first.operator ?? ""} ${first.value ?? ""}${more} → ${outcome}`.trim();
     }
 
     labelFor(field) {
@@ -313,9 +382,145 @@ export default class FgridColumnConfig extends LightningElement {
      * Handlers — grid
      * ------------------------------------------------------------------ */
 
-    handleToggleDrawer(event) {
-        const field = event.currentTarget.dataset.field;
-        this.openField = this.openField === field ? null : field;
+    /* ------------------------------------------------------------------ *
+     * List and detail
+     * ------------------------------------------------------------------ */
+
+    get isListView() {
+        return !this.openField || !this.fields.includes(this.openField);
+    }
+
+    /** The open column as a list of one, so its markup keeps a `row` binding. */
+    get selectedRows() {
+        return this.rows.filter((row) => row.isOpen);
+    }
+
+    handleOpenColumn(event) {
+        this.openField = event.currentTarget.dataset.field;
+        this.openRuleKey = null;
+        this.isBulkOpen = false;
+    }
+
+    handleBackToList() {
+        this.openField = null;
+        this.openRuleKey = null;
+    }
+
+    /** Previous and next without going back: most of what the old table's
+     *  side-by-side rows were good for. */
+    handleStepColumn(event) {
+        const step = Number(event.currentTarget.dataset.direction);
+        const next = this.fields[this.fields.indexOf(this.openField) + step];
+        if (next) {
+            this.openField = next;
+            this.openRuleKey = null;
+        }
+    }
+
+    handleToggleRule(event) {
+        const { ruleKey } = event.currentTarget.dataset;
+        this.openRuleKey = this.openRuleKey === ruleKey ? null : ruleKey;
+    }
+
+    /* ------------------------------------------------------------------ *
+     * All Columns
+     * ------------------------------------------------------------------ */
+
+    get bulkExpanded() {
+        return String(this.isBulkOpen);
+    }
+
+    /**
+     * Each flag's state across the columns that can take it.
+     *
+     * "All", "some" or "none", with a count, so the admin knows what a click
+     * will do: on for every column, unless every column already has it. A
+     * column that can never take the flag -- Edit on a gauge, or on a field
+     * Salesforce reports as read-only -- is left out of the count and named,
+     * rather than switched on to no effect.
+     */
+    get bulkItems() {
+        const rows = this.rows;
+        return BULK_FLAGS.map(({ flag, label, icon }) => {
+            const eligible = rows.filter((row) => flag !== "edit" || this.canEdit(row.field));
+            const on = eligible.filter((row) => row[flag]).length;
+            const isAll = eligible.length > 0 && on === eligible.length;
+            const skipped = rows.length - eligible.length;
+            const action = isAll ? "Turn off for all columns" : "Turn on for all columns";
+            const count = `on for ${on} of ${eligible.length}`;
+            return {
+                flag,
+                label,
+                icon,
+                isAll,
+                ariaChecked: isAll ? "true" : on === 0 ? "false" : "mixed",
+                countLabel: `${on}/${eligible.length}`,
+                countClass: isAll ? "bulk__count bulk__count_all" : "bulk__count",
+                // The sentence the compact count stands for, for the tooltip and
+                // for a screen reader.
+                description: `${label}: ${action}. Currently ${count}${skipped ? `; ${skipped} can't be edited` : ""}.`
+            };
+        });
+    }
+
+    /** Edit can only ever apply where the grid would honor it. */
+    canEdit(field) {
+        const attributes = this.config[field] || {};
+        const describe = this.describeByPath?.[field];
+        const type = attributes.type || describe?.dataType || "text";
+        return describe?.isEditable !== false && !isProgress(type);
+    }
+
+    handleToggleBulk() {
+        this.isBulkOpen = !this.isBulkOpen;
+    }
+
+    /** Stays open, so several flags can be set in a row. */
+    handleBulkItem(event) {
+        const { flag } = event.currentTarget.dataset;
+        const item = this.bulkItems.find((candidate) => candidate.flag === flag);
+        const turnOn = !item.isAll;
+        const next = { ...this.config };
+        this.fields.forEach((field) => {
+            if (flag === "edit" && !this.canEdit(field)) {
+                return;
+            }
+            const attributes = { ...(next[field] || {}) };
+            // The same values the column's own checkbox writes: Edit and Filter
+            // store an opt-in, Sort and Wrap default on and store the opt-out.
+            if (flag === "edit" || flag === "filter") {
+                if (turnOn) {
+                    attributes[flag] = true;
+                } else {
+                    delete attributes[flag];
+                }
+            } else if (turnOn) {
+                delete attributes[flag];
+            } else {
+                attributes[flag] = false;
+            }
+            if (Object.keys(attributes).length) {
+                next[field] = attributes;
+            } else {
+                delete next[field];
+            }
+        });
+        this.publish(next);
+    }
+
+    handleBulkFocusOut(event) {
+        const menu = this.template.querySelector(".bulk");
+        if (!event.relatedTarget || !menu?.contains(event.relatedTarget)) {
+            this.isBulkOpen = false;
+        }
+    }
+
+    handleBulkKeydown(event) {
+        if (event.key === "Escape" && this.isBulkOpen) {
+            event.stopPropagation();
+            this.isBulkOpen = false;
+            this.template.querySelector(".bulk__button")?.focus();
+        }
     }
 
     handleTextChange(event) {
@@ -445,7 +650,7 @@ export default class FgridColumnConfig extends LightningElement {
 
         attributes.colorMode = mode === "none" ? undefined : mode;
         if (mode !== "column") {
-            delete attributes.columnStyle;
+            delete attributes.columnColor;
             delete attributes.columnTextOnly;
         }
         if (mode !== "conditional") {
@@ -460,8 +665,9 @@ export default class FgridColumnConfig extends LightningElement {
     handleAddRule(event) {
         const { field } = event.currentTarget.dataset;
         const rules = [...parseFormatRules(this.config[field]?.format)];
+        this.openRuleKey = `${field}#${rules.length}`;
         rules.push({
-            style: "error",
+            color: DEFAULT_RULE_COLOR,
             logic: FORMAT_LOGIC.ALL,
             conditions: [{ field, operator: defaultOperatorFor(this.kindFor(field)), value: "" }]
         });
@@ -472,6 +678,7 @@ export default class FgridColumnConfig extends LightningElement {
         const { field, ruleIndex } = event.currentTarget.dataset;
         const rules = [...parseFormatRules(this.config[field]?.format)];
         rules.splice(Number(ruleIndex), 1);
+        this.openRuleKey = null;
         this.applyRules(field, rules);
     }
 
@@ -485,6 +692,25 @@ export default class FgridColumnConfig extends LightningElement {
             return;
         }
         [rules[from], rules[to]] = [rules[to], rules[from]];
+        // The open rule moves with its card.
+        if (this.openRuleKey === `${field}#${from}`) {
+            this.openRuleKey = `${field}#${to}`;
+        } else if (this.openRuleKey === `${field}#${to}`) {
+            this.openRuleKey = `${field}#${from}`;
+        }
+        this.applyRules(field, rules);
+    }
+
+    /** The column-wide color: every cell, or a gauge's fill. */
+    handleColumnColorChange(event) {
+        const { field } = event.currentTarget.dataset;
+        this.apply(field, "columnColor", event.detail.value);
+    }
+
+    handleRuleColorChange(event) {
+        const { field, ruleIndex } = event.currentTarget.dataset;
+        const rules = [...parseFormatRules(this.config[field]?.format)];
+        rules[Number(ruleIndex)] = { ...rules[Number(ruleIndex)], color: event.detail.value };
         this.applyRules(field, rules);
     }
 

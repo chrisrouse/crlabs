@@ -22,7 +22,7 @@
  * guess is better than guessing wrong.
  */
 
-/** Everything the grid can render, including our five custom cell types. */
+/** Everything the grid can render, including our eight custom cell types. */
 export const COLUMN_TYPES = [
     { label: "Text", value: "text" },
     { label: "Long Text", value: "fgridLongText" },
@@ -30,6 +30,8 @@ export const COLUMN_TYPES = [
     { label: "Currency", value: "currency" },
     { label: "Percent", value: "percent" },
     { label: "Progress Bar", value: "fgridProgressBar" },
+    { label: "Progress Ring", value: "fgridProgressRing" },
+    { label: "Progress Circle", value: "fgridProgressCircle" },
     { label: "Date", value: "date-local" },
     { label: "Date/Time", value: "date" },
     { label: "Time", value: "fgridTime" },
@@ -59,8 +61,9 @@ const TYPES_FOR_DISPLAY_TYPE = {
     // A percent is the one field that can genuinely be a gauge. Progress Bar
     // renders the SLDS blueprint in our own markup rather than wrapping
     // lightning-progress-bar, which has no slots -- there is nowhere in it to
-    // put a value, and its `variant` cannot carry a theme.
-    PERCENT: ["percent", "fgridProgressBar", "number", "text"],
+    // put a value, and its `variant` cannot carry a theme. Ring and Circle do
+    // the same with the ring blueprint.
+    PERCENT: ["percent", "fgridProgressBar", "fgridProgressRing", "fgridProgressCircle", "number", "text"],
 
     DATE: ["date-local", "date", "text"],
     DATETIME: ["date", "date-local", "text"],
@@ -124,7 +127,7 @@ export const BADGE_DISPLAY = "badge";
  *  datatable's built-in type, which has no template of ours to put one in. */
 /** Displays that render a gauge, and so cannot be edited. */
 export function isProgress(type) {
-    return type === "fgridProgressBar";
+    return type === "fgridProgressBar" || type === "fgridProgressRing" || type === "fgridProgressCircle";
 }
 
 export function supportsBadge(type) {
@@ -216,6 +219,8 @@ export function attributeGroupFor(type) {
         case "fgridLookup":
             return ATTRIBUTE_GROUP.LOOKUP;
         case "fgridProgressBar":
+        case "fgridProgressRing":
+        case "fgridProgressCircle":
             return ATTRIBUTE_GROUP.PROGRESS;
         default:
             return ATTRIBUTE_GROUP.NONE;
@@ -240,17 +245,6 @@ export const CURRENCY_DISPLAYS = [
     { label: "Name — 1,234.00 US dollars", value: "name" }
 ];
 
-/** How the filled portion is colored, from the same palette as the rules. */
-export const PROGRESS_THEMES = [
-    { label: "Default", value: "" },
-    { label: "Success", value: "success" },
-    { label: "Warning", value: "warning" },
-    { label: "Error", value: "error" },
-    { label: "Accent", value: "accent" },
-    { label: "Neutral", value: "neutral" },
-    { label: "Inverse", value: "inverse" }
-];
-
 /**
  * Bar thickness, which is the SLDS blueprint's own size scale.
  *
@@ -268,4 +262,39 @@ export const PROGRESS_THICKNESS = [
 export const PROGRESS_SHAPES = [
     { label: "Square", value: "" },
     { label: "Rounded", value: "circular" }
+];
+
+/** `lightning-progress-ring`'s variants, so the names are familiar. The last
+ *  is `base-autocomplete`: base until 100%, then the green check. */
+export const PROGRESS_RING_VARIANTS = [
+    { label: "Base", value: "base" },
+    { label: "Active Step", value: "active-step" },
+    { label: "Warning", value: "warning" },
+    { label: "Expired", value: "expired" },
+    { label: "Base, Complete at 100%", value: "base-autocomplete" }
+];
+
+/** The ring blueprint has exactly two sizes. */
+export const PROGRESS_RING_SIZES = [
+    { label: "Medium", value: "medium" },
+    { label: "Large", value: "large" }
+];
+
+/** Circle diameter, 2rem to 5rem. Smaller than Avonni's steps, which are
+ *  sized for a page rather than a grid row. */
+export const PROGRESS_CIRCLE_SIZES = [
+    { label: "X-Small", value: "x-small" },
+    { label: "Small", value: "small" },
+    { label: "Medium", value: "medium" },
+    { label: "Large", value: "large" },
+    { label: "X-Large", value: "x-large" }
+];
+
+/** Circle track thickness, as a share of the diameter. */
+export const PROGRESS_CIRCLE_THICKNESS = PROGRESS_CIRCLE_SIZES;
+
+/** Which way the arc runs from 12 o'clock. */
+export const PROGRESS_DIRECTIONS = [
+    { label: "Fill (Clockwise)", value: "fill" },
+    { label: "Drain (Counterclockwise)", value: "drain" }
 ];

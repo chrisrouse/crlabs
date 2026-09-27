@@ -27,7 +27,10 @@ const TEMPLATES = {
     fgridMultiPicklist: ["multiPicklistDisplay.html", "multiPicklistEdit.html"],
     fgridLookup: ["lookupDisplay.html", "lookupEdit.html"],
     fgridLongText: ["longTextDisplay.html", "longTextEdit.html"],
-    fgridTime: ["timeDisplay.html", "timeEdit.html"]
+    fgridTime: ["timeDisplay.html", "timeEdit.html"],
+    fgridProgressBar: ["progressBarDisplay.html"],
+    fgridProgressRing: ["progressRingDisplay.html"],
+    fgridProgressCircle: ["progressRingDisplay.html"]
 };
 
 /** The attribute names declared for one custom type. */

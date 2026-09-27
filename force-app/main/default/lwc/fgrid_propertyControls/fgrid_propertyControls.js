@@ -10,6 +10,7 @@
  * generic type mapping, clearing dependents — stays in the editor.
  */
 import { LightningElement, api } from "lwc";
+import { retrievedFields } from "c/fgrid_recordSource";
 import {
     resolveSection,
     DATA_TYPE_FOR,
@@ -39,6 +40,30 @@ export default class FgridPropertyControls extends LightningElement {
     @api builderContext;
     @api automaticOutputVariables;
     @api apiVersion;
+
+    /**
+     * What a field picker may offer, traced from the Records property.
+     *
+     * When the records come from a Get Records, only the fields it retrieves
+     * are on the records, so only those are offered; and relationships never
+     * are, since a Get Records does not return parent fields even when it
+     * stores all fields. Any other source is left unrestricted, because it may
+     * carry either. Uses the crlabs fork patch to the kit's field picker
+     * (`available-fields`, and a `max-relationship-depth` of 0), recorded in
+     * crlabs/flow-config-editor-kit/VENDOR.md.
+     */
+    get fieldScope() {
+        return retrievedFields(this.values?.records, this.builderContext);
+    }
+
+    get pickerAvailableFields() {
+        const { fields, fromGetRecords } = this.fieldScope;
+        return fromGetRecords && fields ? JSON.stringify(fields) : "";
+    }
+
+    get pickerRelationshipDepth() {
+        return this.fieldScope.fromGetRecords ? 0 : 5;
+    }
 
     get controls() {
         if (!this.section) {

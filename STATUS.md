@@ -1089,10 +1089,136 @@ one through `percentToFraction`; the conversion is keyed on the type, so a gauge
 skips it. A Salesforce Percent field stores 25 for 25%, which is already what a
 gauge wants. There is a test saying so.
 
-### 2.3g NEXT SESSION — build Progress Ring and Progress Circle
+### 2.3j Studio left panel: Fields and Data — BUILT AND DEPLOYED 2026-09-27, NOT YET SEEN IN THE ORG
 
-Progress Bar shipped and is deployed. Ring and Circle are not built. Everything
-needed is below; nothing here has to be re-researched.
+Flow Builder's left palette shape (15rem, tabset), from `design/left-column.html`.
+**Fields** lists what the records carry, click to add or remove a column;
+**Data** holds Data Source and Configure Rows, moved from the right panel,
+which keeps Table and Columns. Collapse hides both side panels.
+
+- **Only retrieved fields are offered** (`c/fgrid_recordSource`): the Records
+  reference is followed to its Get Records (by name, or by the variable it
+  stores into, through Filter/Sort), and if that element chose fields, only
+  those plus Id are listed. All fields otherwise, including any source it
+  cannot see into (a loop, a plain variable).
+- **A column the records will not carry is flagged** in the Fields tab: a
+  field the Get Records did not choose, or any relationship path, which a Get
+  Records never returns. It renders EMPTY, not an error -- the grid shows
+  the records as Flow hands them and re-fetches only one row after a row
+  action (`getRecordsByIds`). Only judged when traced to a Get Records.
+- **`queriedFields` verified 2026-09-27**: a Get Records choosing Id,
+  AccountNumber, Percent_Test__c and Name listed exactly those four.
+- **Drag a field into the preview** to place it between two columns; dragging
+  one already in use moves it. `fgrid_customDatatable.getColumnEdges()`
+  reports the header cells, since they are in its shadow root.
+- **Configure Columns now offers only what the records carry** (Studio and
+  Flow Builder panel alike), via a LOCAL fork patch to the kit's field picker:
+  `available-fields` and a `max-relationship-depth` of 0. Recorded in
+  `crlabs/flow-config-editor-kit/VENDOR.md`; not yet contributed upstream, and
+  it may be out of scope for the kit's owner. The single field pickers (e.g.
+  Unique Identifier) get the same restriction.
+
+### 2.3i Grid Studio layout C — ROUND ONE BUILT AND DEPLOYED 2026-09-27, NOT YET SEEN IN THE ORG
+
+Designed in `design/studio-layout-mockup.html` (options A/B/C, C chosen) and
+`design/studio-layout-c.html` (C developed). Layout only, plus All Columns.
+
+- **The inspector is Flow Builder's own properties panel** (SLDS Panel,
+  docked right, `lightning-tabset` with tab icons and Flow's error
+  indicator): medium 20rem, resizable to x-large 40rem, as Flow's is. This
+  replaced the 24rem custom pane. Its CSS forces `display: flex` and
+  `overflow: hidden`, because `.slds-panel_docked` hides without
+  `.slds-is-open` and `.slds-panel` would scroll the header away.
+- **Preview in the middle, the inspector on the right** with Data
+  (Data Source, Configure Rows), Table (every other section) and Columns
+  (Configure Columns, then the column list). A section the Studio does not
+  know goes to Table. The collapse button now hides the inspector.
+- **Columns tab: a list, then one column drilled in.** Rows show label,
+  field · type and E/F/S/W chips only. The detail leads with label, width,
+  alignment and the four flags (what the old table row held), then the old
+  drawer unchanged. ‹ › step between columns.
+- **Rules edit one at a time**, and conditions stack for the width.
+- **All Columns menu** (informed by Avonni's All Columns Settings): the four
+  flags, each all / some / none with a count; a click turns it on for all
+  unless all have it. Edit skips gauges and describe read-only fields and
+  says so. Positioned inside the component, never fixed.
+- **Errors above the tabs**, each linked to the tab and section that fix it
+  (via the schema's property → section map); a tab with one shows Flow's
+  error indicator.
+- **The Studio is a fixed `calc(90vh - 9rem)` tall, edge to edge**: a -1rem
+  margin cancels lightning-modal-body's padding so the panel meets the header
+  and footer as Flow's does. Measured at ~94% of the window, as Flow's screen
+  editor is. Tabs carry no icons: three with icons overflow 20rem into More.
+
+Dropped by decision: the "what changed" labels and rule swatches in the list,
+and clicking a preview header to open a column.
+
+### 2.3h Picked colors replace the named palette — BUILT AND DEPLOYED 2026-09-27, NOT YET SEEN IN THE ORG
+
+Every color setting (per-column, each rule, a gauge's fill) is now
+`c-fgrid_colorPicker`: the full SLDS Color Picker blueprint in our own markup,
+with the presets INSIDE the popover on a Default tab and the gradient, hue and
+Hex/RGB fields on a Custom tab. `lightning-input type="color"` was tried first
+and dropped: its Default tab is commented out in the shipped component and it
+takes no palette, so presets could only sit outside it. Ours opens INLINE
+under the swatch: a floating version drifted off its button in the Studio
+modal (a transformed ancestor re-bases `position: fixed`) and misread every
+inside press as outside, both passing in Jest. lightning-input floats via the
+private `lightning/positionLibrary`, which we cannot import. Chosen by the
+user over the named palette; picked colors do NOT follow dark mode, and only an
+invalid hex is flagged — contrast is the admin's call, by decision.
+
+- **How a hex reaches a cell.** `cellAttributes` takes no style. Each distinct
+  color gets a slot; `fgridColor_N` / `fgridColorText_N` in the static resource
+  read `--fgrid-color-N`, which the grid and the Studio preview set on the
+  datatable's wrapper. Measured first: `repro/datatable-custom-color/` round a.
+  Cap `MAX_COLOR_SLOTS` = 40, guarded by a test against the CSS.
+- **Gauges take the color on their fill**, inline, and a rule recolors the fill
+  for matching rows instead of painting the cell. The gauge Theme is gone; its
+  color is the Color section's Per column.
+- **Old configs migrate on read** in `parseColumnConfig` (`style`,
+  `columnStyle`, `progressTheme` → the hex each used to render), and are
+  rewritten when the panel next saves.
+- **Fixed on the way: rule conditions compared everything as text.** The panel
+  stores no `kind`, so "less than 30" was "contains 30". `buildColumns` now
+  infers the kind from the tested field and converts picklist and checkbox
+  values.
+- **Studio preview now loads fgridFormatStyles.** It never did, so it showed no
+  rule colors and no circle sizing unless the grid had loaded it first.
+
+Not verified: round b of the repro (links and check marks taking the text
+color), and whether the color popover clips inside the Studio modal.
+Known gaps left alone: relative date operators in rules are never resolved;
+`emphasis` is saved but never rendered; `design/progress-*-demo.html` still
+show the old themes.
+
+### 2.3g Progress Ring and Progress Circle — BUILT AND DEPLOYED 2026-09-27, NOT YET SEEN IN THE ORG
+
+Built to the plan below and deployed to Preview Org; verified by reading the
+source back through Tooling. Jest (532) and eslint pass. **Not yet checked on a
+real grid** — the look was verified only in `design/progress-ring-demo.html`.
+Hard-refresh first (trap 4).
+
+What the build settled, beyond the plan:
+
+- **Fill versus drain is resolved**, from `lightning-progress-ring`'s own source
+  (npm `lightning-base-components`): fill uses sweep `0` with y negated, drain
+  sweep `1` with y as-is. Drain at 88% gives the blueprint's `0.73 -0.68`.
+- **100% is a two-half-arc path**, not a `<circle>`, so the template has no branch.
+- **Theme is Circle only.** The ring's color is its variant; offering both would
+  leave "which one won" to guess.
+- **The progress head is Ring only.** Its size is the blueprint's, which is wrong
+  on a resized circle. Its travel radius is computed, not measured: 0.7 medium,
+  0.7632 large (see `RING_HEAD_RADIUS`).
+- **Hide Icon also drops the complete style**, which without its check is a solid
+  green disc.
+- **Circle sizes are 2rem to 5rem**, smaller than Avonni's page-sized steps.
+  Thickness is a share of the diameter. "Value Hidden" is the existing
+  Show the value checkbox rather than a second variant list.
+- The structural typeAttributes test never listed `fgridProgressBar`; it now
+  covers the bar, ring and circle.
+
+The original plan follows.
 
 #### Already decided, do not relitigate
 

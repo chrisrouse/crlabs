@@ -1,13 +1,16 @@
 import {
-    FORMAT_STYLE,
-    FORMAT_STYLES,
-    TEXT_ONLY_STYLES,
     FORMAT_LOGIC,
+    MAX_COLOR_SLOTS,
     parseFormatRules,
     conditionFields,
     matchFormatRule,
-    formatClassFor,
-    evaluateCustomLogic
+    evaluateCustomLogic,
+    normalizeHex,
+    textColorFor,
+    migrateColumnColors,
+    colorSlotsFor,
+    colorVarsFor,
+    colorClassFor
 } from "c/fgrid_formatRules";
 import { matchesFilter } from "c/fgrid_gridModel";
 
@@ -19,10 +22,13 @@ import { matchesFilter } from "c/fgrid_gridModel";
  */
 const match = (rules, row) => matchFormatRule(rules, row, matchesFilter);
 
+const RED = "#ba0517";
+const ORANGE = "#f99221";
+
 /** A rule with one condition, so tests vary only what they are about. */
 function rule(overrides = {}) {
     return {
-        style: FORMAT_STYLE.ERROR,
+        color: RED,
         logic: FORMAT_LOGIC.ALL,
         conditions: [{ field: "Status", kind: "text", operator: "equals", value: "Overdue" }],
         ...overrides
@@ -47,7 +53,7 @@ describe("reading stored rules", () => {
         expect(parseFormatRules("[{oops")).toEqual([]);
     });
 
-    it("drops entries with no style, which paint nothing", () => {
+    it("drops entries with no color, which paint nothing", () => {
         expect(parseFormatRules([rule(), { conditions: [] }, null])).toHaveLength(1);
     });
 });
@@ -62,7 +68,7 @@ describe("which fields the rows must carry", () => {
     });
 
     it("deduplicates, so buildRows is not asked for a field twice", () => {
-        const rules = [rule(), rule({ style: FORMAT_STYLE.WARNING })];
+        const rules = [rule(), rule({ color: ORANGE })];
         expect(conditionFields(rules)).toEqual(["Status"]);
     });
 
@@ -82,10 +88,10 @@ describe("matching a row", () => {
 
     it("returns the FIRST matching rule, not the best or the last", () => {
         const rules = [
-            rule({ style: FORMAT_STYLE.WARNING }),
-            rule({ style: FORMAT_STYLE.ERROR, conditions: [{ field: "Status", operator: "isNotBlank" }] })
+            rule({ color: ORANGE }),
+            rule({ color: RED, conditions: [{ field: "Status", operator: "isNotBlank" }] })
         ];
-        expect(match(rules, { Status: "Overdue" }).style).toBe(FORMAT_STYLE.WARNING);
+        expect(match(rules, { Status: "Overdue" }).color).toBe(ORANGE);
     });
 
     it("can test a column other than the one being formatted", () => {
@@ -193,35 +199,126 @@ describe("custom logic", () => {
     });
 });
 
-describe("the class a matched rule paints with", () => {
-    it("gives a fill the marker as well as its variant", () => {
-        // The bare marker is what the hover and focus rules select on.
-        expect(formatClassFor({ style: FORMAT_STYLE.ERROR })).toBe("fgridFormat fgridFormat_error");
-    });
-
-    it("gives a text-only rule no marker", () => {
-        // Text color on the hover background is perfectly legible, so there
-        // is nothing to revert and reverting would discard the signal.
-        expect(formatClassFor({ style: FORMAT_STYLE.SUCCESS, textOnly: true })).toBe("fgridFormatText_success");
-    });
-
-    it("falls back to the fill for a text-only inverse", () => {
-        // No such class exists, deliberately: white text with no dark
-        // background renders white-on-white. Emitting it would look like a
-        // broken rule rather than an unavailable option.
-        expect(formatClassFor({ style: FORMAT_STYLE.INVERSE, textOnly: true })).toBe("fgridFormat fgridFormat_inverse");
-    });
-
-    it("paints nothing for an unknown style", () => {
-        expect(formatClassFor({ style: "chartreuse" })).toBeNull();
-        expect(formatClassFor({})).toBeNull();
-    });
-
-    it("offers every fill style a class, and every text style but inverse", () => {
-        FORMAT_STYLES.forEach((style) =>
-            expect(formatClassFor({ value: style.value, style: style.value })).toBeTruthy()
+describe("picked colors", () => {
+    it("normalizes a hex, including the short form, and rejects anything else", () => {
+        expect(normalizeHex("#AD1071")).toBe("#ad1071");
+        expect(normalizeHex(" #abc ")).toBe("#aabbcc");
+        // Only a hex may reach a style attribute, so nothing else survives.
+        ["red", "#12345", "#1234567", "url(x)", "", null, undefined, 42].forEach((value) =>
+            expect(normalizeHex(value)).toBeNull()
         );
-        expect(TEXT_ONLY_STYLES.map((s) => s.value)).not.toContain(FORMAT_STYLE.INVERSE);
-        expect(TEXT_ONLY_STYLES).toHaveLength(FORMAT_STYLES.length - 1);
+    });
+
+    it("writes white on a dark fill and black on a light one", () => {
+        expect(textColorFor("#ad1071")).toBe("#ffffff");
+        expect(textColorFor("#218638")).toBe("#ffffff");
+        expect(textColorFor("#fff099")).toBe("#000000");
+        expect(textColorFor("nonsense")).toBe("#000000");
+    });
+});
+
+describe("color slots", () => {
+    const config = {
+        Amount: { colorMode: "column", columnColor: "#AD1071" },
+        Status: { colorMode: "conditional", format: [rule(), rule({ color: ORANGE }), rule({ color: "#ad1071" })] },
+        Complete: { type: "fgridProgressBar", colorMode: "column", columnColor: "#00aea9" }
+    };
+
+    it("gives each distinct color one slot, in field order", () => {
+        const slots = colorSlotsFor(["Amount", "Status", "Complete"], config);
+        expect([...slots.entries()]).toEqual([
+            ["#ad1071", 0],
+            [RED, 1],
+            [ORANGE, 2]
+        ]);
+    });
+
+    it("leaves gauges out, since they paint their fill inline", () => {
+        expect(colorSlotsFor(["Complete"], config).size).toBe(0);
+    });
+
+    it("stops at the cap rather than inventing classes the stylesheet lacks", () => {
+        const many = Array.from({ length: MAX_COLOR_SLOTS + 5 }, (_, index) => `F${index}`);
+        const wide = Object.fromEntries(
+            many.map((field, index) => [
+                field,
+                { colorMode: "column", columnColor: `#${index.toString(16).padStart(6, "0")}` }
+            ])
+        );
+        const slots = colorSlotsFor(many, wide);
+        expect(slots.size).toBe(MAX_COLOR_SLOTS);
+        expect(colorClassFor({ color: "#00002c" }, slots)).toBeNull();
+    });
+
+    it("sets each slot's color and the text that reads on it", () => {
+        const vars = colorVarsFor(new Map([["#ad1071", 0]]));
+        expect(vars).toBe("--fgrid-color-0: #ad1071; --fgrid-color-0-on: #ffffff;");
+    });
+
+    it("names the slot class, with the marker the hover and link rules select on", () => {
+        const slots = new Map([[RED, 3]]);
+        expect(colorClassFor({ color: RED }, slots)).toBe("fgridFormat fgridColor_3");
+        expect(colorClassFor({ color: RED, textOnly: true }, slots)).toBe("fgridFormatText fgridColorText_3");
+        expect(colorClassFor({ color: ORANGE }, slots)).toBeNull();
+        expect(colorClassFor({}, slots)).toBeNull();
+    });
+
+    it("declares exactly as many slots in the stylesheet as it hands out", () => {
+        // Read from source: a slot class the CSS does not declare paints
+        // nothing, silently, which is the failure this guards.
+        /* eslint-disable no-undef -- Node globals, reading the stylesheet from disk. */
+        const fs = require("fs");
+        const path = require("path");
+        const css = fs.readFileSync(path.join(__dirname, "../../../staticresources/fgridFormatStyles.css"), "utf8");
+        /* eslint-enable no-undef */
+        const fills = new Set([...css.matchAll(/\.fgridColor_(\d+)\s*\{/g)].map((m) => m[1]));
+        const texts = new Set([...css.matchAll(/\.fgridColorText_(\d+)\s*\{/g)].map((m) => m[1]));
+        expect(fills.size).toBe(MAX_COLOR_SLOTS);
+        expect(texts.size).toBe(MAX_COLOR_SLOTS);
+        expect(fills.has(String(MAX_COLOR_SLOTS - 1))).toBe(true);
+    });
+});
+
+describe("configs saved with the old named palette", () => {
+    it("turns a rule's style into the hex it used to render", () => {
+        const [fill, text, inverseText] = parseFormatRules([
+            { style: "error", conditions: [] },
+            { style: "success", textOnly: true, conditions: [] },
+            // Inverse never had a text-only form and rendered as the fill.
+            { style: "inverse", textOnly: true, conditions: [] }
+        ]);
+        expect(fill).toEqual({ color: "#fddde3", conditions: [] });
+        expect(text.color).toBe("#056764");
+        expect(inverseText.color).toBe("#032d60");
+    });
+
+    it("keeps a color already picked, and drops an unknown style", () => {
+        expect(parseFormatRules([{ style: "error", color: "#123456" }])[0].color).toBe("#123456");
+        expect(parseFormatRules([{ style: "chartreuse" }])).toEqual([]);
+    });
+
+    it("turns a column style into a column color", () => {
+        expect(migrateColumnColors({ colorMode: "column", columnStyle: "neutral" })).toEqual({
+            colorMode: "column",
+            columnColor: "#e5e5e5"
+        });
+        expect(
+            migrateColumnColors({ colorMode: "column", columnStyle: "warning", columnTextOnly: true }).columnColor
+        ).toBe("#8c4b02");
+    });
+
+    it("turns a gauge's Theme into its per-column fill, from the gauge set", () => {
+        expect(migrateColumnColors({ type: "fgridProgressRing", progressTheme: "success" })).toEqual({
+            type: "fgridProgressRing",
+            colorMode: "column",
+            columnColor: "#2e844a"
+        });
+        const rules = migrateColumnColors({ type: "fgridProgressBar", format: [{ style: "error" }] }).format;
+        expect(rules[0].color).toBe("#ba0517");
+    });
+
+    it("changes nothing on a config that is already migrated", () => {
+        const current = { colorMode: "conditional", format: [{ color: RED, logic: "always" }] };
+        expect(migrateColumnColors(migrateColumnColors(current))).toEqual(current);
     });
 });

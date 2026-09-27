@@ -17,12 +17,31 @@ function onChange(element) {
     return emitted;
 }
 
-/** Clicks a row's Settings button, which toggles its inline drawer. */
-function openDrawer(element, field) {
-    const buttons = [...element.shadowRoot.querySelectorAll(`lightning-button[data-field="${field}"]`)];
-    // The drawer toggle is the row's own button; Reset this column lives
-    // INSIDE the drawer and carries the same data-field.
-    buttons[0].click();
+/** The drilled-in column's way back to the list, when one is open. */
+function backButton(element) {
+    return [...element.shadowRoot.querySelectorAll("lightning-button")].find((b) => b.label === "All Columns");
+}
+
+/**
+ * Opens a column's settings from the list, going back to the list first when
+ * another column is open. Label, width, alignment and the flags live there
+ * now, with everything the old drawer held.
+ */
+async function openDrawer(element, field) {
+    const back = backButton(element);
+    if (back) {
+        back.click();
+        await Promise.resolve();
+    }
+    element.shadowRoot.querySelector(`.colrow[data-field="${field}"]`).click();
+    await Promise.resolve();
+}
+
+/** Opens a rule's card for editing; one rule edits at a time. */
+async function openRule(element, index = 0) {
+    const toggles = [...element.shadowRoot.querySelectorAll("lightning-button[data-rule-key]")];
+    toggles[index].click();
+    await Promise.resolve();
 }
 
 /** A drawer control identified by its role rather than its position. */
@@ -62,14 +81,14 @@ describe("rendering", () => {
         const element = build();
         await Promise.resolve();
 
-        expect(element.shadowRoot.querySelectorAll("tbody tr")).toHaveLength(2);
+        expect(element.shadowRoot.querySelectorAll(".colrow")).toHaveLength(2);
     });
 
     it("prompts for columns when none are selected", async () => {
         const element = build({ columnFields: null });
         await Promise.resolve();
 
-        expect(element.shadowRoot.querySelector("tbody")).toBeNull();
+        expect(element.shadowRoot.querySelector(".colrow")).toBeNull();
         expect(element.shadowRoot.textContent).toContain("Select columns first");
     });
 
@@ -90,12 +109,13 @@ describe("rendering", () => {
         await Promise.resolve();
 
         // A single bare field name is a legitimate value, so it renders one row.
-        expect(element.shadowRoot.querySelectorAll("tbody tr")).toHaveLength(1);
+        expect(element.shadowRoot.querySelectorAll(".colrow")).toHaveLength(1);
     });
 
     it("hydrates saved attributes into the controls", async () => {
         const element = build({ columnConfig: '{"Name":{"label":"Account","width":220,"wrap":true}}' });
         await Promise.resolve();
+        await openDrawer(element, "Name");
 
         expect(cell(element, "Name", "label").value).toBe("Account");
         expect(cell(element, "Name", "width").value).toBe(220);
@@ -107,6 +127,7 @@ describe("writing attributes", () => {
     it("emits JSON keyed by field API name", async () => {
         const element = build();
         await Promise.resolve();
+        await openDrawer(element, "Name");
         const emitted = onChange(element);
 
         const input = cell(element, "Name", "label");
@@ -119,6 +140,7 @@ describe("writing attributes", () => {
     it("coerces a numeric attribute to a number, not a string", async () => {
         const element = build();
         await Promise.resolve();
+        await openDrawer(element, "Name");
         const emitted = onChange(element);
 
         const input = cell(element, "Name", "width");
@@ -131,6 +153,7 @@ describe("writing attributes", () => {
     it("merges into existing attributes rather than replacing them", async () => {
         const element = build({ columnConfig: '{"Name":{"label":"Account"}}' });
         await Promise.resolve();
+        await openDrawer(element, "Name");
         const emitted = onChange(element);
 
         const input = cell(element, "Name", "width");
@@ -143,6 +166,7 @@ describe("writing attributes", () => {
     it("drops an attribute when it is cleared, and the column when it empties", async () => {
         const element = build({ columnConfig: '{"Name":{"label":"Account"}}' });
         await Promise.resolve();
+        await openDrawer(element, "Name");
         const emitted = onChange(element);
 
         const input = cell(element, "Name", "label");
@@ -156,6 +180,7 @@ describe("writing attributes", () => {
     it("stores an unchecked flag as absent rather than false", async () => {
         const element = build({ columnConfig: '{"Name":{"edit":true,"width":100}}' });
         await Promise.resolve();
+        await openDrawer(element, "Name");
         const emitted = onChange(element);
 
         const input = cell(element, "Name", "edit");
@@ -171,6 +196,7 @@ describe("writing attributes", () => {
             columnConfig: '{"Name":{"width":100},"Industry":{"width":50}}'
         });
         await Promise.resolve();
+        await openDrawer(element, "Name");
         const emitted = onChange(element);
 
         const input = cell(element, "Name", "width");
@@ -185,26 +211,44 @@ describe("writing attributes", () => {
         await Promise.resolve();
         const emitted = onChange(element);
 
-        element.shadowRoot.querySelector(".grid__toolbar lightning-button").click();
+        [...element.shadowRoot.querySelectorAll("lightning-button")]
+            .find((button) => button.label === "Reset All Attributes")
+            .click();
 
         expect(emitted[0]).toBeNull();
     });
 });
 
 describe("advanced attributes", () => {
-    it("opens and closes one column's drawer", async () => {
+    it("opens one column from the list, and goes back to the list", async () => {
         const element = build();
         await Promise.resolve();
 
-        expect(element.shadowRoot.querySelector(".drawer")).toBeNull();
+        expect(element.shadowRoot.querySelector(".detail")).toBeNull();
 
-        openDrawer(element, "Name");
-        await Promise.resolve();
-        expect(element.shadowRoot.querySelector(".drawer")).not.toBeNull();
+        await openDrawer(element, "Name");
+        expect(element.shadowRoot.querySelector(".detail")).not.toBeNull();
+        expect(element.shadowRoot.querySelector(".colrow")).toBeNull();
 
-        openDrawer(element, "Name");
+        backButton(element).click();
         await Promise.resolve();
-        expect(element.shadowRoot.querySelector(".drawer")).toBeNull();
+        expect(element.shadowRoot.querySelector(".detail")).toBeNull();
+        expect(element.shadowRoot.querySelectorAll(".colrow")).toHaveLength(2);
+    });
+
+    it("steps to the next and previous column without going back", async () => {
+        const element = build();
+        await Promise.resolve();
+        await openDrawer(element, "Name");
+        const step = (direction) =>
+            element.shadowRoot.querySelector(`lightning-button-icon[data-direction="${direction}"]`);
+
+        // The first column has nowhere before it.
+        expect(step("-1").disabled).toBe(true);
+        step("1").click();
+        await Promise.resolve();
+        expect(element.shadowRoot.querySelector(".detail__field").textContent).toBe("AnnualRevenue");
+        expect(step("1").disabled).toBe(true);
     });
 
     it("keeps only one drawer open at a time", async () => {
@@ -213,12 +257,12 @@ describe("advanced attributes", () => {
         const element = build();
         await Promise.resolve();
 
-        openDrawer(element, "Name");
+        await openDrawer(element, "Name");
         await Promise.resolve();
-        openDrawer(element, "AnnualRevenue");
+        await openDrawer(element, "AnnualRevenue");
         await Promise.resolve();
 
-        expect(element.shadowRoot.querySelectorAll(".drawer")).toHaveLength(1);
+        expect(element.shadowRoot.querySelectorAll(".detail")).toHaveLength(1);
     });
 
     it("no longer offers the raw JSON boxes", async () => {
@@ -228,7 +272,7 @@ describe("advanced attributes", () => {
         // hideLabel has a checkbox.
         const element = build();
         await Promise.resolve();
-        openDrawer(element, "Name");
+        await openDrawer(element, "Name");
         await Promise.resolve();
 
         expect(element.shadowRoot.querySelector("lightning-textarea")).toBeNull();
@@ -250,7 +294,7 @@ describe("the drawer is type-aware", () => {
         // Money shows as money. The alternatives all make the column worse.
         const element = buildTyped();
         await Promise.resolve();
-        openDrawer(element, "Amount");
+        await openDrawer(element, "Amount");
         await Promise.resolve();
 
         expect(cellIn(element, "Amount").options.map((option) => option.value)).toEqual(["currency"]);
@@ -260,13 +304,13 @@ describe("the drawer is type-aware", () => {
         const element = buildTyped();
         await Promise.resolve();
 
-        openDrawer(element, "Amount");
+        await openDrawer(element, "Amount");
         await Promise.resolve();
         expect(decimalsInput(element, "Amount")).not.toBeNull();
 
-        openDrawer(element, "Amount");
+        await openDrawer(element, "Amount");
         await Promise.resolve();
-        openDrawer(element, "Name");
+        await openDrawer(element, "Name");
         await Promise.resolve();
         expect(decimalsInput(element, "Name")).toBeUndefined();
         expect(cell(element, "Name", "linkify")).not.toBeNull();
@@ -281,7 +325,7 @@ describe("the drawer is type-aware", () => {
             Name: { dataType: "text", displayType: "STRING" }
         };
         await Promise.resolve();
-        openDrawer(element, "Amount");
+        await openDrawer(element, "Amount");
         await Promise.resolve();
 
         const input = decimalsInput(element, "Amount");
@@ -294,7 +338,7 @@ describe("the drawer is type-aware", () => {
         const element = buildTyped();
         element.describeByPath = { Amount: { dataType: "currency", displayType: "CURRENCY", scale: 2 } };
         await Promise.resolve();
-        openDrawer(element, "Amount");
+        await openDrawer(element, "Amount");
         await Promise.resolve();
         const emitted = onChange(element);
 
@@ -313,7 +357,7 @@ describe("the drawer is type-aware", () => {
         // $1,234.5.
         const element = buildTyped();
         await Promise.resolve();
-        openDrawer(element, "Amount");
+        await openDrawer(element, "Amount");
         await Promise.resolve();
         const emitted = onChange(element);
 
@@ -330,7 +374,7 @@ describe("the drawer is type-aware", () => {
         // A code picker where there is only one currency configures nothing.
         const element = buildTyped();
         await Promise.resolve();
-        openDrawer(element, "Amount");
+        await openDrawer(element, "Amount");
         await Promise.resolve();
         expect(cell(element, "Amount", "currencyCode")).toBeNull();
 
@@ -346,7 +390,7 @@ describe("the drawer is type-aware", () => {
         // never made.
         const element = buildTyped('{"Amount":{"type":"currency","minDecimals":2,"currencyCode":"EUR"}}');
         await Promise.resolve();
-        openDrawer(element, "Amount");
+        await openDrawer(element, "Amount");
         await Promise.resolve();
         const emitted = onChange(element);
 
@@ -369,7 +413,7 @@ describe("badge is chosen from the type list", () => {
     it("offers Badge beside Picklist rather than as a separate checkbox", async () => {
         const element = buildPicklist();
         await Promise.resolve();
-        openDrawer(element, "Stage");
+        await openDrawer(element, "Stage");
         await Promise.resolve();
 
         expect(cellIn(element, "Stage").options.map((option) => option.value)).toContain("badge");
@@ -379,7 +423,7 @@ describe("badge is chosen from the type list", () => {
     it("stores Badge as the real type plus a flag", async () => {
         const element = buildPicklist();
         await Promise.resolve();
-        openDrawer(element, "Stage");
+        await openDrawer(element, "Stage");
         await Promise.resolve();
         const emitted = onChange(element);
 
@@ -393,7 +437,7 @@ describe("badge is chosen from the type list", () => {
     it("shows Badge as the selected display when the flag is stored", async () => {
         const element = buildPicklist('{"Stage":{"type":"fgridPicklist","badge":true}}');
         await Promise.resolve();
-        openDrawer(element, "Stage");
+        await openDrawer(element, "Stage");
         await Promise.resolve();
 
         expect(cellIn(element, "Stage").value).toBe("badge");
@@ -402,7 +446,7 @@ describe("badge is chosen from the type list", () => {
     it("clears the flag when another display is chosen", async () => {
         const element = buildPicklist('{"Stage":{"type":"fgridPicklist","badge":true}}');
         await Promise.resolve();
-        openDrawer(element, "Stage");
+        await openDrawer(element, "Stage");
         await Promise.resolve();
         const emitted = onChange(element);
 
@@ -425,16 +469,20 @@ describe("color mode and rules", () => {
         Amount: { colorMode: "conditional", format: [{ style: "error", conditions: [{ field: "Amount" }] }] }
     });
 
-    it("counts the rules in the grid without letting them be edited there", async () => {
+    it("keeps rules out of the list and shows them in the column", async () => {
+        // The list shows only the flags compared across columns, by decision.
         const element = buildRules(ruleConfig);
         await Promise.resolve();
-        expect(element.shadowRoot.textContent).toContain("1 rule");
+        expect(element.shadowRoot.querySelector(".rule")).toBeNull();
+
+        await openDrawer(element, "Amount");
+        expect(element.shadowRoot.querySelectorAll(".rule")).toHaveLength(1);
     });
 
     it("adds a rule, seeded with a condition on its own column", async () => {
         const element = buildRules('{"Amount":{"colorMode":"conditional"}}');
         await Promise.resolve();
-        openDrawer(element, "Amount");
+        await openDrawer(element, "Amount");
         await Promise.resolve();
         const emitted = onChange(element);
 
@@ -452,7 +500,7 @@ describe("color mode and rules", () => {
         // "which one won".
         const element = buildRules(ruleConfig);
         await Promise.resolve();
-        openDrawer(element, "Amount");
+        await openDrawer(element, "Amount");
         await Promise.resolve();
         const emitted = onChange(element);
 
@@ -463,10 +511,10 @@ describe("color mode and rules", () => {
         expect(saved.colorMode).toBe("column");
     });
 
-    it("drops the column style when the mode leaves Per column", async () => {
-        const element = buildRules('{"Amount":{"colorMode":"column","columnStyle":"success"}}');
+    it("drops the column color when the mode leaves Per column", async () => {
+        const element = buildRules('{"Amount":{"colorMode":"column","columnColor":"#2e844a"}}');
         await Promise.resolve();
-        openDrawer(element, "Amount");
+        await openDrawer(element, "Amount");
         await Promise.resolve();
         const emitted = onChange(element);
 
@@ -474,6 +522,157 @@ describe("color mode and rules", () => {
             new CustomEvent("change", { detail: { value: "conditional" } })
         );
 
-        expect(JSON.parse(emitted[0]).Amount.columnStyle).toBeUndefined();
+        expect(JSON.parse(emitted[0]).Amount.columnColor).toBeUndefined();
+    });
+
+    const picker = (element, field) => element.shadowRoot.querySelector(`c-fgrid_color-picker[data-field="${field}"]`);
+
+    it("saves the per-column color the picker reports", async () => {
+        const element = buildRules('{"Amount":{"colorMode":"column"}}');
+        await Promise.resolve();
+        await openDrawer(element, "Amount");
+        await Promise.resolve();
+        const emitted = onChange(element);
+
+        picker(element, "Amount").dispatchEvent(new CustomEvent("colorchange", { detail: { value: "#ad1071" } }));
+
+        expect(JSON.parse(emitted[0]).Amount.columnColor).toBe("#ad1071");
+    });
+
+    it("saves a rule's color, and rewrites an old named style as it does", async () => {
+        const element = buildRules(ruleConfig);
+        await Promise.resolve();
+        await openDrawer(element, "Amount");
+        await openRule(element);
+        // The old "error" arrives already as its hex.
+        expect(picker(element, "Amount").value).toBe("#fddde3");
+        // The other half of the gauge test below: an ordinary column offers it.
+        const labels = [...element.shadowRoot.querySelectorAll("lightning-input")].map((input) => input.label);
+        expect(labels).toContain("Text only");
+        const emitted = onChange(element);
+
+        picker(element, "Amount").dispatchEvent(new CustomEvent("colorchange", { detail: { value: "#218638" } }));
+
+        const [rule] = JSON.parse(emitted[0]).Amount.format;
+        expect(rule.color).toBe("#218638");
+        expect(rule.style).toBeUndefined();
+    });
+
+    it("edits one rule at a time, and opens a new rule for editing", async () => {
+        const twoRules = JSON.stringify({
+            Amount: {
+                colorMode: "conditional",
+                format: [
+                    { color: "#ba0517", conditions: [{ field: "Amount" }] },
+                    { color: "#2e844a", conditions: [{ field: "Amount" }] }
+                ]
+            }
+        });
+        const element = buildRules(twoRules);
+        await Promise.resolve();
+        await openDrawer(element, "Amount");
+        expect(element.shadowRoot.querySelectorAll(".rule__body")).toHaveLength(0);
+
+        await openRule(element, 0);
+        await openRule(element, 1);
+        expect(element.shadowRoot.querySelectorAll(".rule__body")).toHaveLength(1);
+        const toggles = [...element.shadowRoot.querySelectorAll("lightning-button[data-rule-key]")];
+        expect(toggles.map((toggle) => toggle.label)).toEqual(["Edit", "Done"]);
+    });
+
+    it("offers no Text only on a gauge, whose color is its fill", async () => {
+        const element = build({
+            columnFields: '["Complete"]',
+            columnConfig: JSON.stringify({
+                Complete: { type: "fgridProgressBar", colorMode: "conditional", format: [{ color: "#ba0517" }] }
+            })
+        });
+        await Promise.resolve();
+        await openDrawer(element, "Complete");
+        await openRule(element);
+        const labels = [...element.shadowRoot.querySelectorAll("lightning-input")].map((input) => input.label);
+        expect(labels).not.toContain("Text only");
+        expect(picker(element, "Complete")).not.toBeNull();
+    });
+});
+
+describe("All Columns", () => {
+    async function openMenu(element) {
+        element.shadowRoot.querySelector(".bulk__button").click();
+        await Promise.resolve();
+    }
+    const item = (element, flag) => element.shadowRoot.querySelector(`.bulk__item[data-flag="${flag}"]`);
+
+    it("shows each flag as all, some or none, with a count", async () => {
+        const element = build({ columnConfig: '{"Name":{"edit":true}}' });
+        await Promise.resolve();
+        await openMenu(element);
+
+        expect(item(element, "edit").getAttribute("aria-checked")).toBe("mixed");
+        expect(item(element, "edit").textContent).toContain("1/2");
+        expect(item(element, "edit").title).toBe("Editable: Turn on for all columns. Currently on for 1 of 2.");
+        expect(item(element, "filter").getAttribute("aria-checked")).toBe("false");
+        // Sort and Wrap default on, so an untouched grid has them on everywhere.
+        expect(item(element, "sort").getAttribute("aria-checked")).toBe("true");
+        expect(item(element, "sort").title).toContain("Turn off for all columns");
+    });
+
+    it("turns a flag on for every column unless all have it", async () => {
+        const element = build({ columnConfig: '{"Name":{"edit":true}}' });
+        await Promise.resolve();
+        await openMenu(element);
+        const emitted = onChange(element);
+
+        item(element, "edit").click();
+        expect(JSON.parse(emitted[0])).toEqual({ Name: { edit: true }, AnnualRevenue: { edit: true } });
+    });
+
+    it("writes Sort and Wrap as the opt-out their checkboxes store", async () => {
+        const element = build({ columnConfig: '{"Name":{"width":100}}' });
+        await Promise.resolve();
+        await openMenu(element);
+        const emitted = onChange(element);
+
+        item(element, "sort").click();
+        expect(JSON.parse(emitted[0])).toEqual({ Name: { width: 100, sort: false }, AnnualRevenue: { sort: false } });
+    });
+
+    it("skips a gauge for Editable, and says so", async () => {
+        const element = build({
+            columnFields: '["Name","Complete"]',
+            columnConfig: '{"Complete":{"type":"fgridProgressBar"}}'
+        });
+        await Promise.resolve();
+        await openMenu(element);
+        expect(item(element, "edit").textContent).toContain("0/1");
+        expect(item(element, "edit").title).toContain("1 can't be edited");
+        const emitted = onChange(element);
+
+        item(element, "edit").click();
+        const saved = JSON.parse(emitted[0]);
+        expect(saved.Name.edit).toBe(true);
+        expect(saved.Complete.edit).toBeUndefined();
+    });
+
+    it("closes on Escape", async () => {
+        const element = build();
+        await Promise.resolve();
+        await openMenu(element);
+        element.shadowRoot
+            .querySelector(".bulk")
+            .dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+        await Promise.resolve();
+        expect(element.shadowRoot.querySelector(".bulk__menu")).toBeNull();
+    });
+});
+
+describe("the column list", () => {
+    it("names a column's type even when its own options do not include it", async () => {
+        // A picklist describe offers picklist displays; a column still shown as
+        // text read "text", raw, in the list.
+        const element = build({ columnFields: '["Industry"]' });
+        element.describeByPath = { Industry: { dataType: "text", displayType: "PICKLIST", label: "Industry" } };
+        await Promise.resolve();
+        expect(element.shadowRoot.querySelector(".colrow__meta").textContent).toBe("Industry · Text");
     });
 });

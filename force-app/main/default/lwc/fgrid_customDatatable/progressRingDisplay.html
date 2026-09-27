@@ -1,0 +1,72 @@
+<!-- SLDS Progress Ring blueprint, rendered in OUR markup.
+     https://v1.lightningdesignsystem.com/components/progress-ring/
+
+     Serves BOTH fgridProgressRing and fgridProgressCircle. The circle is the
+     same blueprint resized, with the value written inside; which parts show
+     is decided per column in buildColumns, and the arc per row in buildRows.
+
+     NOT lightning-progress-ring, for the bar's reasons: no slots, so nowhere
+     for a value or a label, and its variant cannot carry a theme. It also
+     ties the icon to the variant, which is why Hide Icon is only possible
+     here.
+
+     A picked color arrives as `fillStyle`, an inline `fill` on the arc and
+     the head alike, and beats both the blueprint's color and a variant's.
+
+     As with the bar, the ARIA is ours to keep: role and the three
+     aria-value attributes go on __progress, per the blueprint. -->
+<template>
+    <div class="fgridRing">
+        <div class={typeAttributes.ringClass}>
+            <div
+                class="slds-progress-ring__progress"
+                role="progressbar"
+                aria-valuemin="0"
+                aria-valuemax="100"
+                aria-valuenow={typeAttributes.progressValue}
+                aria-label={typeAttributes.progressLabel}
+            >
+                <svg viewBox="-1 -1 2 2">
+                    <path
+                        class="slds-progress-ring__path"
+                        d={typeAttributes.ringPath}
+                        style={typeAttributes.fillStyle}
+                    ></path>
+                </svg>
+            </div>
+            <div class="slds-progress-ring__content">
+                <template lwc:if={typeAttributes.iconPath}>
+                    <span class={typeAttributes.iconClass} title={typeAttributes.iconLabel}>
+                        <svg class="slds-icon" viewBox="0 0 24 24" aria-hidden="true">
+                            <path d={typeAttributes.iconPath}></path>
+                        </svg>
+                        <span class="slds-assistive-text">{typeAttributes.iconLabel}</span>
+                    </span>
+                </template>
+                <template lwc:if={typeAttributes.valueInside}>
+                    <span class="fgridCircle__value">{typeAttributes.progressLabel}</span>
+                    <template lwc:if={typeAttributes.caption}>
+                        <span class="fgridCircle__caption">{typeAttributes.caption}</span>
+                    </template>
+                </template>
+            </div>
+            <template lwc:if={typeAttributes.headVisible}>
+                <div class="slds-progress-ring__progress-head">
+                    <svg viewBox="-1 -1 2 2">
+                        <circle
+                            class="slds-progress-ring__path"
+                            style={typeAttributes.fillStyle}
+                            cx={typeAttributes.headX}
+                            cy={typeAttributes.headY}
+                            r="0.2"
+                        ></circle>
+                    </svg>
+                </div>
+            </template>
+        </div>
+        <!-- The ring has no room inside, so its value sits beside it. -->
+        <template lwc:if={typeAttributes.valueBeside}>
+            <span class="fgridRing__value">{typeAttributes.progressLabel}</span>
+        </template>
+    </div>
+</template>

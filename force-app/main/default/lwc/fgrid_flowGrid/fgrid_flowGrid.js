@@ -57,6 +57,7 @@ import {
     MASTER_RECORD_TYPE_ID,
     ROW_ACTION_NAME
 } from "c/fgrid_gridModel";
+import { colorSlotsFor, colorVarsFor } from "c/fgrid_formatRules";
 
 /**
  * Rows rendered per batch in scroll mode, and the amount each `loadmore` adds.
@@ -1781,7 +1782,11 @@ export default class FgridFlowGrid extends LightningElement {
         // An explicit height still wins in either mode, which is how an admin keeps
         // the foot of the screen from moving as row content varies.
         const height = this.tableHeight || (this.isPaginated ? null : DEFAULT_TABLE_HEIGHT);
-        return height ? `height: ${height};` : "";
+        // The picked colors, as the custom properties the slot classes in
+        // fgridFormatStyles.css read. They inherit from here into the
+        // datatable's cells, which is the only way a free hex reaches one.
+        const colors = colorVarsFor(colorSlotsFor(this._columnPaths, this._columnConfig));
+        return [height ? `height: ${height};` : "", colors].filter(Boolean).join(" ");
     }
 
     /**

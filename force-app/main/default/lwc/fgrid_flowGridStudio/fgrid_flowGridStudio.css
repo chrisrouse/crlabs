@@ -14,48 +14,47 @@
    this component's shadow root where these selectors cannot reach it anyway.
    Everything below styles our own content inside lightning-modal-body. */
 
-/* The two panes scroll independently, and this clamp is what makes that work.
-   Without a bounded height here the panes grow to their content instead, their
-   own `overflow-y: auto` never engages, and the whole modal body scrolls -- so
-   opening several settings sections drags the preview off screen.
+/* The panes scroll independently, and this fixed height is what makes that
+   work. Without a bounded height the panes grow to their content, their own
+   `overflow-y: auto` never engages, and the whole modal body scrolls.
 
-   The height is a viewport fraction because lightning-modal-body publishes no
-   height we can read: it is in another shadow root, and it sizes itself with a
-   max-height rather than a definite height, so `height: 100%` here would not
-   resolve. The subtraction models the platform's chrome -- modal header, footer
-   and body padding -- which is absolute rather than proportional, so this
-   degrades in the right direction on a short viewport.
+   A HEIGHT, not a max-height, so the Studio is as tall as Flow Builder's own
+   screen editor behind it (about 90vh, measured from a screenshot, 2026-09-27)
+   rather than shrinking to a short preview and leaving the canvas showing
+   above and below. Its size is not readable from here, so this is a match by
+   eye.
 
-   Deliberately conservative: overshooting means the modal body gets a second
-   scrollbar next to the pane's own. If there is dead space below the panes on a
-   tall monitor, this number is what to raise. */
+   A viewport fraction because lightning-modal-body publishes no height we can
+   read: it is in another shadow root and sizes with a max-height, so `100%`
+   would not resolve. The 11rem models the platform's chrome -- modal header,
+   footer and body padding. Deliberately generous: undershooting leaves the
+   modal a little shorter than the editor; overshooting gives the modal body a
+   second scrollbar beside the pane's own. */
 .studio__content {
     display: flex;
     align-items: stretch;
     gap: 0;
     padding: 0;
-    max-height: calc(85vh - 11rem);
+    /* 9rem, not 11: the 2rem the negative margins below take back out of the
+       body's padding goes to the panes, so the modal's own size is unchanged. */
+    height: calc(90vh - 9rem);
     overflow: hidden;
+    /* Edge to edge, as Flow Builder's panel is. lightning-modal-body pads its
+       content 1rem inside a shadow root we cannot style, which left the
+       panel's divider stopping short of the header and footer. */
+    margin: -1rem;
 }
 
-/* Left pane: independently scrolling control list. */
-.studio__controls {
-    flex: 0 0 24rem;
-    max-width: 24rem;
+/* Left: fields and data, Flow Builder's left palette. slds-size_small sets
+   the 15rem; the pane scrolls on its own, tabs included, as Flow's does. */
+.studio__palette {
+    flex: 0 0 auto;
+    min-height: 0;
     overflow-y: auto;
-    padding: 0.75rem;
-    border-right: 1px solid #e5e5e5;
-    background-color: #fbfbfb;
+    background-color: #fff;
 }
 
-/* Collapsed: the preview and the column grid take the whole body. `display: none`
-   rather than a zero width, so the pane's own scroll position and the pickers
-   inside it are not left occupying layout while invisible. */
-.studio__content_collapsed .studio__controls {
-    display: none;
-}
-
-/* Right pane: preview above, column grid below, scrolling together. */
+/* Center: the preview, scrolling on its own. */
 .studio__preview {
     flex: 1 1 auto;
     min-width: 0;
@@ -63,10 +62,60 @@
     padding: 0.75rem 1rem;
 }
 
-.studio__columns {
-    margin-top: 1.5rem;
-    padding-top: 1rem;
-    border-top: 1px solid #e5e5e5;
+/* Right: the inspector, Flow Builder's own panel. Its width is the SLDS size
+   class the component sets -- medium 20rem, x-large 40rem -- so the pane only
+   refuses to be squeezed by the preview. */
+.studio__inspector {
+    flex: 0 0 auto;
+    min-height: 0;
+    background-color: #fff;
+    /* `.slds-panel_docked` is display: none until `.slds-is-open`, which would
+       then force display: block and break the header-over-body column. This
+       scoped rule outranks both. */
+    display: flex;
+    /* `.slds-panel` scrolls itself, which would scroll the header away with
+       the content. The body scrolls instead, under a fixed header. */
+    overflow: hidden;
+}
+
+.inspector__body {
+    min-height: 0;
+}
+
+.inspector__errors {
+    flex: none;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.75rem;
+    color: #3e3e3c;
+    background-color: #fef1ee;
+    border-bottom: 1px solid #fe9339;
+}
+
+.inspector__errors li {
+    margin-top: 0.25rem;
+}
+
+/* Reads as a link, is a button: it switches tab, it does not navigate. */
+.inspector__error-link {
+    padding: 0;
+    border: 0;
+    background: none;
+    font: inherit;
+    color: #0250d9;
+    cursor: pointer;
+}
+
+.inspector__error-link:hover {
+    text-decoration: underline;
+}
+
+/* The Columns tab has no accordion to pad it, so it pads itself. */
+.inspector__columns {
+    padding: 0.5rem 0.75rem 0.75rem;
+}
+
+.inspector__block + .inspector__block {
+    margin-top: 0.75rem;
 }
 
 /* ---------------------------- preview ---------------------------- */
@@ -230,4 +279,25 @@
     color: #2e564a;
     background-color: #ebf7ee;
     border-color: #91db8b;
+}
+
+/* ------------------------ dropping a field ------------------------ */
+
+/* While a field is dragged over the preview, the preview says it will take it. */
+.preview_dropping {
+    outline: 2px dashed #066afe;
+    outline-offset: 0.25rem;
+    border-radius: 0.25rem;
+}
+
+/* The line between two columns where the field will land. */
+.preview__drop {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    margin-left: -1px;
+    background: #066afe;
+    z-index: 2;
+    pointer-events: none;
 }

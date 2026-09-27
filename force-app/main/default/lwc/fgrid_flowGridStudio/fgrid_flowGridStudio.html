@@ -9,53 +9,67 @@
     </lightning-modal-header>
 
     <lightning-modal-body>
-        <div class={contentClass}>
-            <!-- ==================== left: controls ==================== -->
-            <div class="studio__controls">
-                <template lwc:if={hasValidationErrors}>
-                    <div class="slds-box slds-box_x-small slds-theme_error slds-m-bottom_x-small" role="alert">
-                        <p class="slds-text-title_bold slds-m-bottom_xx-small">Fix the following:</p>
-                        <ul class="slds-list_dotted">
-                            <template for:each={validationErrors} for:item="error">
-                                <li key={error.key}>{error.errorString}</li>
-                            </template>
-                        </ul>
-                    </div>
-                </template>
-
-                <lightning-accordion allow-multiple-sections-open active-section-name={openSections}>
-                    <template for:each={sections} for:item="section">
-                        <lightning-accordion-section key={section.name} name={section.name} label={section.label}>
-                            <c-fgrid_property-controls
-                                section={section}
-                                values={values}
-                                value-data-types={valueDataTypes}
+        <div class="studio__content">
+            <!-- ================= left: fields and data ==================
+                 Flow Builder's own left palette (15rem, slds-size_small): a
+                 Fields tab listing what the records carry, and the Data
+                 settings. Informed by Avonni's builder, which lists an object's
+                 fields here. -->
+            <div class="studio__palette slds-size_small slds-border_right">
+                <lightning-tabset active-tab-value={currentLeftTab}>
+                    <lightning-tab label="Fields" value="fields" onactive={handleLeftTabActive}>
+                        <template lwc:if={isFieldsTab}>
+                            <c-fgrid_field-palette
                                 object-api-name={objectApiName}
+                                records-value={values.records}
                                 builder-context={builderContext}
-                                automatic-output-variables={automaticOutputVariables}
-                                api-version={apiVersion}
-                                onpropertychange={handlePropertyChange}
-                            ></c-fgrid_property-controls>
-                        </lightning-accordion-section>
-                    </template>
-                </lightning-accordion>
+                                column-fields={values.columnFields}
+                                oncolumnfieldschange={handlePaletteFieldsChange}
+                            ></c-fgrid_field-palette>
+                        </template>
+                    </lightning-tab>
+                    <lightning-tab
+                        label="Data"
+                        value="data"
+                        show-error-indicator={dataTabHasErrors}
+                        onactive={handleLeftTabActive}
+                    >
+                        <template lwc:if={isLeftDataTab}>
+                            <lightning-accordion allow-multiple-sections-open active-section-name={openSections}>
+                                <template for:each={dataSections} for:item="section">
+                                    <lightning-accordion-section
+                                        key={section.name}
+                                        name={section.name}
+                                        label={section.label}
+                                    >
+                                        <c-fgrid_property-controls
+                                            section={section}
+                                            values={values}
+                                            value-data-types={valueDataTypes}
+                                            object-api-name={objectApiName}
+                                            builder-context={builderContext}
+                                            automatic-output-variables={automaticOutputVariables}
+                                            api-version={apiVersion}
+                                            onpropertychange={handlePropertyChange}
+                                        ></c-fgrid_property-controls>
+                                    </lightning-accordion-section>
+                                </template>
+                            </lightning-accordion>
+                        </template>
+                    </lightning-tab>
+                </lightning-tabset>
             </div>
 
-            <!-- ================= right: preview + columns ============== -->
+            <!-- ===================== center: the preview ===================== -->
             <div class="studio__preview">
-                <div class="preview">
-                    <!-- The toggle leads the banner row so it holds the same spot
-                         whether the settings pane is showing or not. -->
+                <!-- A drop target for fields dragged from the Fields tab. -->
+                <div
+                    class={previewClass}
+                    ondragover={handlePreviewDragOver}
+                    ondragleave={handlePreviewDragLeave}
+                    ondrop={handlePreviewDrop}
+                >
                     <div class="preview__chrome">
-                        <lightning-button-icon
-                            icon-name={sidebarToggleIcon}
-                            variant="border-filled"
-                            size="small"
-                            alternative-text={sidebarToggleLabel}
-                            title={sidebarToggleLabel}
-                            aria-expanded={sidebarExpanded}
-                            onclick={handleToggleSidebar}
-                        ></lightning-button-icon>
                         <div class={previewBannerClass}>
                             <lightning-icon icon-name={previewBannerIcon} size="x-small"></lightning-icon>
                             <span class="slds-m-left_xx-small">{previewBannerText}</span>
@@ -148,6 +162,10 @@
                             </template>
 
                             <div class="preview__grid slds-is-relative" style={previewGridStyle}>
+                                <!-- Where a dragged field will land: between two columns. -->
+                                <template lwc:if={dropIndicatorStyle}>
+                                    <div class="preview__drop" style={dropIndicatorStyle} aria-hidden="true"></div>
+                                </template>
                                 <template lwc:if={isFirstSamplePending}>
                                     <lightning-spinner
                                         alternative-text="Loading a sample of your records"
@@ -203,23 +221,139 @@
                         </div>
                     </template>
                 </div>
+            </div>
 
-                <div class="studio__columns">
-                    <h3 class="slds-text-heading_small slds-m-bottom_x-small">Column attributes</h3>
-                    <template lwc:if={canConfigureColumns}>
-                        <c-fgrid_column-config
-                            column-fields={values.columnFields}
-                            column-config={values.columnConfig}
-                            object-api-name={objectApiName}
-                            describe-by-path={describeByPath}
-                            oncolumnconfigchange={handleColumnConfigChange}
-                        ></c-fgrid_column-config>
+            <!-- ============== right: the inspector (layout C) ==============
+                 Flow Builder's own properties panel, borrowed so the Studio
+                 fits in: the SLDS Panel blueprint docked right, a header with a
+                 resize button, and a tabset. No tab icons: at 20rem three tabs with
+                 icons overflow, and the tabset hides the third under More. Medium is
+                 20rem and expanded is x-large, 40rem, as in Flow Builder.
+                 Errors sit above the tabs and each names the tab that fixes it;
+                 a tab with one shows Flow's own error indicator. Each tab renders
+                 its content only while it is the active one. -->
+            <div class={inspectorClass}>
+                <div class="slds-panel__header slds-truncate_container">
+                    <div class="slds-col slds-truncate">
+                        <h2
+                            class="slds-panel__header-title slds-text-heading_small slds-truncate"
+                            title="Grid Settings"
+                        >
+                            Grid Settings
+                        </h2>
+                    </div>
+                    <lightning-button-icon
+                        class="inspector__expand"
+                        size="small"
+                        variant="container"
+                        icon-name={expandIcon}
+                        alternative-text="Resize panel"
+                        title="Resize panel"
+                        aria-expanded={inspectorExpandedLabel}
+                        onclick={handleToggleExpand}
+                    ></lightning-button-icon>
+                </div>
+
+                <div
+                    class="slds-panel__body slds-scrollable_y slds-p-around_none slds-grid slds-grid_vertical slds-grow inspector__body"
+                >
+                    <template lwc:if={hasValidationErrors}>
+                        <div class="inspector__errors" role="alert">
+                            <p class="slds-text-title_bold">Fix the following:</p>
+                            <ul class="slds-list_dotted">
+                                <template for:each={errorList} for:item="error">
+                                    <li key={error.key}>
+                                        {error.errorString}
+                                        <template lwc:if={error.tab}>
+                                            <button
+                                                type="button"
+                                                class="inspector__error-link"
+                                                data-tab={error.tab}
+                                                onclick={handleSelectTab}
+                                            >
+                                                {error.where}
+                                            </button>
+                                        </template>
+                                    </li>
+                                </template>
+                            </ul>
+                        </div>
                     </template>
-                    <template lwc:else>
-                        <p class="slds-text-body_small slds-text-color_weak">
-                            Choose a record collection in Data Source first — columns come from that object.
-                        </p>
-                    </template>
+
+                    <lightning-tabset class="inspector__tabs" active-tab-value={currentTab}>
+                        <lightning-tab
+                            label="Table"
+                            value="table"
+                            show-error-indicator={tableTabHasErrors}
+                            onactive={handleTabActive}
+                        >
+                            <template lwc:if={isTableTab}>
+                                <lightning-accordion allow-multiple-sections-open active-section-name={openSections}>
+                                    <template for:each={tabSections} for:item="section">
+                                        <lightning-accordion-section
+                                            key={section.name}
+                                            name={section.name}
+                                            label={section.label}
+                                        >
+                                            <c-fgrid_property-controls
+                                                section={section}
+                                                values={values}
+                                                value-data-types={valueDataTypes}
+                                                object-api-name={objectApiName}
+                                                builder-context={builderContext}
+                                                automatic-output-variables={automaticOutputVariables}
+                                                api-version={apiVersion}
+                                                onpropertychange={handlePropertyChange}
+                                            ></c-fgrid_property-controls>
+                                        </lightning-accordion-section>
+                                    </template>
+                                </lightning-accordion>
+                            </template>
+                        </lightning-tab>
+                        <lightning-tab
+                            label="Columns"
+                            value="columns"
+                            show-error-indicator={columnsTabHasErrors}
+                            onactive={handleTabActive}
+                        >
+                            <template lwc:if={isColumnsTab}>
+                                <div class="inspector__columns">
+                                    <!-- Choosing columns sits on top of the list it changes. -->
+                                    <template for:each={tabSections} for:item="section">
+                                        <div key={section.name} class="inspector__block">
+                                            <c-fgrid_property-controls
+                                                section={section}
+                                                values={values}
+                                                value-data-types={valueDataTypes}
+                                                object-api-name={objectApiName}
+                                                builder-context={builderContext}
+                                                automatic-output-variables={automaticOutputVariables}
+                                                api-version={apiVersion}
+                                                onpropertychange={handlePropertyChange}
+                                            ></c-fgrid_property-controls>
+                                        </div>
+                                    </template>
+                                    <div class="inspector__block">
+                                        <template lwc:if={canConfigureColumns}>
+                                            <c-fgrid_column-config
+                                                column-fields={values.columnFields}
+                                                column-config={values.columnConfig}
+                                                object-api-name={objectApiName}
+                                                describe-by-path={describeByPath}
+                                                oncolumnconfigchange={handleColumnConfigChange}
+                                            ></c-fgrid_column-config>
+                                        </template>
+                                        <template lwc:else>
+                                            <p class="slds-text-body_small slds-text-color_weak">
+                                                Choose a record collection on the Data tab first — columns come from
+                                                that object.
+                                            </p>
+                                        </template>
+                                    </div>
+                                </div>
+                            </template>
+                        </lightning-tab>
+                    </lightning-tabset>
                 </div>
             </div>
         </div>

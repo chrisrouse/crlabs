@@ -29,6 +29,7 @@
  *
  * @see c/fgrid_gridModel buildColumns
  */
+import { api } from "lwc";
 import LightningDatatable from "lightning/datatable";
 import picklistDisplay from "./picklistDisplay.html";
 import progressBarDisplay from "./progressBarDisplay.html";
@@ -41,8 +42,26 @@ import longTextDisplay from "./longTextDisplay.html";
 import longTextEdit from "./longTextEdit.html";
 import timeDisplay from "./timeDisplay.html";
 import timeEdit from "./timeEdit.html";
+import progressRingDisplay from "./progressRingDisplay.html";
 
 export default class FgridCustomDatatable extends LightningDatatable {
+    /**
+     * Where each header cell sits on screen, left to right, in viewport pixels.
+     *
+     * For the Grid Studio, which drops a dragged field between two columns and
+     * has no other way to find them: the cells are in this component's shadow
+     * root. Includes the datatable's own checkbox and row-number cells, which
+     * come first, so a caller wanting its columns takes the LAST
+     * `columns.length` entries.
+     */
+    @api
+    getColumnEdges() {
+        return [...this.template.querySelectorAll("thead th")].map((cell) => {
+            const rect = cell.getBoundingClientRect();
+            return { left: rect.left, right: rect.right };
+        });
+    }
+
     static customTypes = {
         fgridPicklist: {
             template: picklistDisplay,
@@ -74,6 +93,48 @@ export default class FgridCustomDatatable extends LightningDatatable {
             template: progressBarDisplay,
             standardCellLayout: true,
             typeAttributes: ["progressValue", "progressLabel", "progressStyle", "barClass", "fillClass", "showValue"]
+        },
+        // One template, two types: the circle is the ring blueprint resized,
+        // so they differ only in which of these buildColumns fills in.
+        fgridProgressRing: {
+            template: progressRingDisplay,
+            standardCellLayout: true,
+            typeAttributes: [
+                "progressValue",
+                "progressLabel",
+                "ringPath",
+                "ringClass",
+                "iconPath",
+                "iconClass",
+                "iconLabel",
+                "valueInside",
+                "valueBeside",
+                "caption",
+                "headVisible",
+                "headX",
+                "headY",
+                "fillStyle"
+            ]
+        },
+        fgridProgressCircle: {
+            template: progressRingDisplay,
+            standardCellLayout: true,
+            typeAttributes: [
+                "progressValue",
+                "progressLabel",
+                "ringPath",
+                "ringClass",
+                "iconPath",
+                "iconClass",
+                "iconLabel",
+                "valueInside",
+                "valueBeside",
+                "caption",
+                "headVisible",
+                "headX",
+                "headY",
+                "fillStyle"
+            ]
         },
         fgridTime: {
             template: timeDisplay,

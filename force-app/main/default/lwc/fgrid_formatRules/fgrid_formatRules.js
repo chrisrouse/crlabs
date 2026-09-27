@@ -28,7 +28,7 @@
  *
  *   [
  *     {
- *       style: "error",                  // a FORMAT_STYLE key
+ *       color: "#ba0517",                // any #rrggbb the admin picked
  *       textOnly: false,                 // color the text, not the cell
  *       icon: "utility:warning",         // optional
  *       iconPosition: "left",
@@ -40,42 +40,57 @@
  *       ]
  *     }
  *   ]
- */
-/**
- * The palette, named by MEANING rather than by color.
  *
- * Measured across five surfaces: the same semantic renders green, teal or pale
- * mint depending on the theme, so a control labeled "Green" would be lying
- * four times out of five. `inverse` is the high-contrast option and inverts in
- * dark mode, so it is not "Dark" either. See repro/datatable-cell-color/.
+ * Configs saved before colors were free-form carry `style: "error"` instead.
+ * `migrateColumnColors` turns those into hex on read; see LEGACY_COLORS.
  */
-export const FORMAT_STYLE = {
-    SUCCESS: "success",
-    WARNING: "warning",
-    ERROR: "error",
-    ACCENT: "accent",
-    NEUTRAL: "neutral",
-    INVERSE: "inverse"
+
+/**
+ * The named palette this replaced, as hex, so a saved config keeps its look.
+ *
+ * The values are the SLDS 1 light-mode fallbacks the old classes used. They
+ * are now fixed: the names used to follow the theme into dark mode, a picked
+ * hex does not, and that was accepted in exchange for any color.
+ */
+const LEGACY_COLORS = {
+    fill: {
+        success: "#acf3e4",
+        warning: "#f9e3b6",
+        error: "#fddde3",
+        accent: "#066afe",
+        neutral: "#e5e5e5",
+        inverse: "#032d60"
+    },
+    text: {
+        success: "#056764",
+        warning: "#8c4b02",
+        error: "#b60554",
+        accent: "#0250d9",
+        neutral: "#5c5c5c"
+    },
+    // A gauge's fill, which had its own stronger set.
+    gauge: {
+        success: "#2e844a",
+        warning: "#dd7a01",
+        error: "#ba0517",
+        accent: "#066afe",
+        neutral: "#747474",
+        inverse: "#032d60"
+    }
 };
 
-/** Fill options, in the order the editor should offer them. */
-export const FORMAT_STYLES = [
-    { label: "Success", value: FORMAT_STYLE.SUCCESS },
-    { label: "Warning", value: FORMAT_STYLE.WARNING },
-    { label: "Error", value: FORMAT_STYLE.ERROR },
-    { label: "Accent", value: FORMAT_STYLE.ACCENT },
-    { label: "Neutral", value: FORMAT_STYLE.NEUTRAL },
-    { label: "Inverse", value: FORMAT_STYLE.INVERSE }
-];
-
 /**
- * Styles with a text-only variant.
+ * How many distinct colors one grid can use.
  *
- * `inverse` is absent on purpose. Its text color is white, and without the
- * dark background it is meaningless — measured rendering white-on-white, the
- * value simply gone, on three of four surfaces.
+ * `cellAttributes` takes a class and no style, so a color reaches a cell as a
+ * fixed class (`fgridColor_3`) whose value is a custom property the grid sets
+ * on the datatable's host. fgridFormatStyles.css declares this many; a grid
+ * using more leaves the extras unpainted rather than failing.
  */
-export const TEXT_ONLY_STYLES = FORMAT_STYLES.filter((style) => style.value !== FORMAT_STYLE.INVERSE);
+export const MAX_COLOR_SLOTS = 40;
+
+/** What a new rule starts with, so it paints something before it is edited. */
+export const DEFAULT_RULE_COLOR = "#ba0517";
 
 /** How a rule's conditions combine. */
 export const FORMAT_LOGIC = {
@@ -102,9 +117,11 @@ const FILL_MARKER = "fgridFormat";
  * configuration problem, and an unformatted grid reports it better than a
  * crash in front of a site visitor.
  */
-export function parseFormatRules(raw) {
-    const parsed = coerceArray(raw);
-    return parsed.filter((rule) => rule && typeof rule === "object" && rule.style);
+export function parseFormatRules(raw, legacy = "fill") {
+    return coerceArray(raw)
+        .filter((rule) => rule && typeof rule === "object")
+        .map((rule) => migrateRule(rule, legacy))
+        .filter((rule) => rule.color);
 }
 
 /**
@@ -148,28 +165,155 @@ export function matchFormatRule(rules, row, matchValue, caseSensitive = false) {
 }
 
 /**
- * The class string for a matched rule, or null if it paints nothing.
+ * A color as `#rrggbb`, lower case, or null when it is not one.
  *
- * A fill carries the marker as well as its variant; the marker is what the
- * hover and focus rules in fgridFormatStyles.css select on.
+ * Accepts the short `#rgb` form, which is what an admin may type. Everything
+ * that ends up in a `style` passes through here first, so nothing but a hex
+ * color can reach one.
  */
-export function formatClassFor(rule) {
-    const style = rule?.style;
-    if (!style || !FORMAT_STYLES.some((option) => option.value === style)) {
+export function normalizeHex(value) {
+    if (typeof value !== "string") {
         return null;
     }
-    // A text-only inverse has no class in the stylesheet, deliberately. Fall
-    // back to the fill rather than emitting a class that does not exist, which
-    // would render as no formatting at all and look like a bug in the rule.
-    if (rule.textOnly && style !== FORMAT_STYLE.INVERSE) {
-        return `fgridFormatText_${style}`;
+    const trimmed = value.trim().toLowerCase();
+    if (/^#[0-9a-f]{6}$/.test(trimmed)) {
+        return trimmed;
     }
-    return `${FILL_MARKER} fgridFormat_${style}`;
+    if (/^#[0-9a-f]{3}$/.test(trimmed)) {
+        return `#${[...trimmed.slice(1)].map((digit) => digit + digit).join("")}`;
+    }
+    return null;
+}
+
+/**
+ * Black or white, whichever reads better on the given background.
+ *
+ * By WCAG relative luminance, picking the higher contrast of the two. This is
+ * the text on a filled cell, not a check: whether the admin's color reads well
+ * overall is theirs to judge.
+ */
+export function textColorFor(hex) {
+    const color = normalizeHex(hex);
+    if (!color) {
+        return "#000000";
+    }
+    const [r, g, b] = [1, 3, 5].map((offset) => {
+        const channel = parseInt(color.slice(offset, offset + 2), 16) / 255;
+        return channel <= 0.03928 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+    });
+    const luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    return 1.05 / (luminance + 0.05) >= (luminance + 0.05) / 0.05 ? "#ffffff" : "#000000";
+}
+
+/**
+ * Rewrites one column's saved colors from the old named palette to hex.
+ *
+ * Pure, and a no-op for anything already migrated, so it is safe on every
+ * read. Gauges map from their own stronger set, and their old Theme becomes the
+ * per-column color, which is where a gauge's fill color now lives.
+ */
+export function migrateColumnColors(attributes) {
+    if (!attributes || typeof attributes !== "object") {
+        return attributes;
+    }
+    const isGauge = isGaugeType(attributes.type);
+    const next = { ...attributes };
+
+    if (next.columnStyle && !next.columnColor) {
+        const set = isGauge ? "gauge" : next.columnTextOnly ? "text" : "fill";
+        next.columnColor = LEGACY_COLORS[set][next.columnStyle] || LEGACY_COLORS.fill[next.columnStyle];
+    }
+    delete next.columnStyle;
+
+    if (isGauge && next.progressTheme && !next.colorMode) {
+        next.colorMode = "column";
+        next.columnColor = LEGACY_COLORS.gauge[next.progressTheme];
+    }
+    delete next.progressTheme;
+
+    if (next.format !== undefined) {
+        next.format = parseFormatRules(next.format, isGauge ? "gauge" : "fill");
+    }
+    return next;
+}
+
+/**
+ * Every distinct color a grid uses, in a stable order, each with its slot.
+ *
+ * Derived from the config alone, so the grid (which sets the custom
+ * properties) and buildColumns (which names the classes) agree without passing
+ * anything between them.
+ */
+export function colorSlotsFor(fields, config) {
+    const slots = new Map();
+    const add = (value) => {
+        const color = normalizeHex(value);
+        if (color && !slots.has(color) && slots.size < MAX_COLOR_SLOTS) {
+            slots.set(color, slots.size);
+        }
+    };
+    (fields || []).forEach((field) => {
+        const attributes = migrateColumnColors(config?.[field] || {});
+        // A gauge draws its own fill in our template, with an inline style,
+        // so it needs no slot and would only use up the cap.
+        if (isGaugeType(attributes.type)) {
+            return;
+        }
+        if (attributes.colorMode === "column") {
+            add(attributes.columnColor);
+        } else {
+            parseFormatRules(attributes.format).forEach((rule) => add(rule.color));
+        }
+    });
+    return slots;
+}
+
+/** The custom properties behind the slot classes, for the datatable host's style. */
+export function colorVarsFor(slots) {
+    return [...slots.entries()]
+        .map(([color, slot]) => `--fgrid-color-${slot}: ${color}; --fgrid-color-${slot}-on: ${textColorFor(color)};`)
+        .join(" ");
+}
+
+/**
+ * The class that paints a color into a cell, or null when it cannot.
+ *
+ * A fill carries the `fgridFormat` marker, a text color `fgridFormatText`; the
+ * hover rule and the link and icon rules in fgridFormatStyles.css select on
+ * those. Null for a color with no slot, which is only ever one past the cap.
+ */
+export function colorClassFor(rule, slots) {
+    const color = normalizeHex(rule?.color);
+    const slot = color ? slots?.get(color) : undefined;
+    if (slot === undefined) {
+        return null;
+    }
+    return rule.textOnly ? `fgridFormatText fgridColorText_${slot}` : `${FILL_MARKER} fgridColor_${slot}`;
 }
 
 /* ------------------------------------------------------------------ *
  * Internals
  * ------------------------------------------------------------------ */
+
+/** Bar, Ring and Circle: the displays whose fill a color paints. */
+function isGaugeType(type) {
+    return /^fgridProgress/.test(type || "");
+}
+
+/** One rule with its color resolved: its own hex, else its old style's. */
+function migrateRule(rule, legacy) {
+    const { style, ...rest } = rule;
+    const color = normalizeHex(rule.color) || (style && legacyColorFor(style, rule.textOnly, legacy)) || null;
+    return color ? { ...rest, color } : rest;
+}
+
+function legacyColorFor(style, textOnly, legacy) {
+    if (legacy === "gauge") {
+        return LEGACY_COLORS.gauge[style];
+    }
+    // Inverse never had a text-only form and always rendered as the fill.
+    return (textOnly && LEGACY_COLORS.text[style]) || LEGACY_COLORS.fill[style];
+}
 
 function ruleMatches(rule, row, matchValue, caseSensitive) {
     const logic = rule.logic || FORMAT_LOGIC.ALL;

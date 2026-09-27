@@ -15,112 +15,200 @@
     color: #706e6b;
 }
 
-/* ---------- full (Grid Studio) ---------- */
-.grid__toolbar {
+/* ---------- full (Grid Studio inspector) ---------- */
+
+.list__head {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 0.5rem;
     margin-bottom: 0.25rem;
 }
 
-.grid__table {
-    font-size: 0.8125rem;
+.list__reset {
+    display: block;
+    margin-top: 0.5rem;
 }
 
-.grid__col-num {
-    width: 2.5rem;
-}
-/* Neither needs the space it was taking — the label input alone was a third of the
-   row. A long label still fits: the input scrolls, and a narrow box is the honest
-   signal that a 255-character column header is the admin's problem to judge. */
-.grid__col-field {
-    width: 11rem;
-}
-.grid__col-label {
-    width: 15rem;
-}
-.grid__col-width,
-.grid__col-align {
-    width: 6rem;
-}
-.grid__col-flag {
-    width: 3.5rem;
-}
-.grid__col-actions {
-    width: 7rem;
+/* A whole row is the target, so it is a button, reset to look like a row. */
+.colrow {
+    display: grid;
+    grid-template-columns: 1.25rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.5rem 0.25rem;
+    border: 0;
+    border-bottom: 1px solid var(--slds-g-color-border-1, #e5e5e5);
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
 }
 
-.grid__cell-num {
+.colrow:hover,
+.colrow:focus-visible {
+    background: var(--slds-g-color-surface-container-2, #f3f3f3);
+}
+
+.colrow__num {
+    font-size: 0.75rem;
     text-align: right;
-    color: #706e6b;
+    color: var(--slds-g-color-on-surface-1, #5c5c5c);
 }
 
-.grid__cell-flag {
-    text-align: center;
-}
-
-.grid__cell-actions {
-    text-align: right;
-}
-
-.grid__field {
-    font-family: monospace;
-}
-
-.grid__advanced {
-    background-color: #f3f3f3;
-}
-
-.advanced {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-    padding: 0.5rem 0;
-}
-
-.advanced__col {
-    flex: 1 1 12rem;
+.colrow__name {
     min-width: 0;
 }
 
-.advanced__col_wide {
-    flex: 2 1 20rem;
-}
-
-.advanced__footer {
-    display: flex;
-    justify-content: flex-end;
-    padding-bottom: 0.5rem;
-}
-
-/* ===================== Treatment C: the inline drawer =====================
-   The grid stays scannable; everything type-specific opens beneath the row it
-   belongs to. Single panel -- one drawer open at a time -- so the modal does
-   not become a scrolling exercise. */
-
-.grid__col-rules {
-    width: 5rem;
-}
-
-.grid__rules {
-    display: inline-block;
-    font-size: 0.7rem;
-    padding: 0 0.375rem;
-    border-radius: 0.75rem;
-    background: var(--slds-g-color-accent-container-2, #d6e6ff);
-    color: var(--slds-g-color-accent-2, #0250d9);
+.colrow__label {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
     white-space: nowrap;
 }
 
-.drawer > td {
-    /* The drawer is one cell spanning the table; its own padding is inside. */
-    padding: 0 !important;
-    background: var(--slds-g-color-surface-container-1, #fff);
+.colrow__meta {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--slds-g-color-on-surface-1, #5c5c5c);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
+.colrow__flags {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+/* The four flags you compare across columns, kept visible without a table. */
+.chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.125rem;
+    height: 1.125rem;
+    border-radius: 0.2rem;
+    font-size: 0.5625rem;
+    font-weight: 700;
+    background: var(--slds-g-color-surface-container-2, #f3f3f3);
+    color: var(--slds-g-color-on-surface-1, #5c5c5c);
+}
+
+/* A container and its own on- color, the pair SLDS 2 guarantees contrast
+   for. accent-container-2 with accent-2 text was the same blue in SLDS 2,
+   which drew solid squares with the letters gone. */
+.chip_on {
+    background: var(--slds-g-color-accent-container-1, #066afe);
+    color: var(--slds-g-color-on-accent-1, #ffffff);
+}
+
+/* ---------- All Columns ---------- */
+
+.bulk {
+    position: relative;
+}
+
+.bulk__button {
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Absolute inside this component, never fixed: the Studio modal has a
+   transform, which re-bases `position: fixed` (see fgrid_colorPicker). */
+.bulk__menu {
+    /* Right-aligned to the button. SLDS centers a dropdown with left: 50% and
+       a -50% transform, which would push this one off the panel's left edge. */
+    left: auto;
+    right: 0;
+    transform: none;
+    /* A fixed width, not a share of its wrapper: the wrapper is only as wide
+       as the button, which squeezed every label. 14rem fits Flow Builder's
+       20rem medium panel with room to spare. */
+    width: 14rem;
+    max-width: none;
+    margin-top: 0.25rem;
+}
+
+.bulk__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    color: inherit;
+    cursor: pointer;
+}
+
+/* No hover background of ours. accent-container-3 is a strong blue in SLDS 2,
+   which put the dark label on dark blue; SLDS's own dropdown item hover is
+   the one every other Salesforce menu uses, and it pairs its own colors. */
+.bulk__item:hover,
+.bulk__item:focus {
+    text-decoration: none;
+}
+
+.bulk__label {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+/* How many columns have it now: the hint Avonni's menu does not give. */
+.bulk__count {
+    flex: none;
+    font-size: 0.75rem;
+    color: var(--slds-g-color-on-surface-1, #5c5c5c);
+}
+
+.bulk__count_all {
+    color: var(--slds-g-color-accent-2, #0250d9);
+    font-weight: 700;
+}
+
+/* ---------- one column, drilled in ---------- */
+
+.detail__nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--slds-g-color-border-1, #e5e5e5);
+}
+
+.detail__step {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.detail__head {
+    padding: 0.5rem 0;
+}
+
+.detail__field {
+    font-size: 0.75rem;
+    color: var(--slds-g-color-on-surface-1, #5c5c5c);
+    background: none;
+}
+
+.detail__group {
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--slds-g-color-border-1, #e5e5e5);
+}
+
+.detail__flags {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.25rem 0.75rem;
+    margin-top: 0.5rem;
+}
+
+/* Was the drawer under a table row; now the rest of the drilled-in column. */
 .drawer__inner {
-    border-left: 3px solid var(--slds-g-color-accent-1, #066afe);
-    padding: 0.75rem 1rem 1rem;
+    padding: 0.75rem 0 1rem;
 }
 
 .drawer__section {
@@ -149,6 +237,12 @@
 .drawer__field {
     flex: 1 1 9rem;
     min-width: 0;
+}
+
+/* Wide enough for the color selector's 14rem card, which opens inline
+   under the swatch, so it never spills out of its column. */
+.drawer__field_color {
+    flex-basis: 14rem;
 }
 
 .drawer__indent {
@@ -214,20 +308,31 @@
     padding: 0.5rem;
 }
 
+/* Stacked for inspector width: the field on its own line, then the operator,
+   the value and the delete button side by side under it. */
 .condition {
-    display: flex;
+    display: grid;
+    grid-template-columns: 1rem minmax(0, 1fr) minmax(0, 1fr) auto;
     align-items: center;
     gap: 0.375rem;
-    margin-bottom: 0.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.condition > :nth-child(1) {
+    grid-row: span 2;
+    align-self: start;
+    padding-top: 0.5rem;
+}
+
+.condition > :nth-child(2) {
+    grid-column: 2 / -1;
 }
 
 .condition__num {
-    flex: 0 0 1rem;
     font-size: 0.7rem;
     color: var(--slds-g-color-on-surface-1, #5c5c5c);
 }
 
 .condition__field {
-    flex: 1 1 0;
     min-width: 0;
 }

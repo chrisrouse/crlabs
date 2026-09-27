@@ -1,0 +1,82 @@
+<!-- Laid out like Flow Builder's own Fields palette: a search box, then one
+     row per field with a type icon and its label. Click a row to add or remove
+     the column; drag it into the preview to place it between two columns. -->
+<template>
+    <template lwc:if={hasObject}>
+        <div class="palette__source">
+            <p class="palette__object slds-truncate" title={objectLabel}>{objectLabel}</p>
+            <p class="palette__scope slds-truncate">
+                <template lwc:if={sourceLabel}>{sourceLabel} · </template>{scopeLabel}
+            </p>
+        </div>
+
+        <template lwc:if={hasMissingColumns}>
+            <div class="palette__warning" role="alert">
+                <lightning-icon icon-name="utility:warning" size="xx-small" variant="warning"></lightning-icon>
+                <span>{missingMessage}</span>
+            </div>
+        </template>
+
+        <div class="palette__search" role="search">
+            <lightning-input
+                type="search"
+                variant="label-hidden"
+                label="Search fields"
+                placeholder="Search fields..."
+                value={searchTerm}
+                onchange={handleSearch}
+            ></lightning-input>
+        </div>
+
+        <template lwc:if={isLoading}>
+            <div class="palette__status">
+                <lightning-spinner alternative-text="Loading fields" size="small"></lightning-spinner>
+            </div>
+        </template>
+        <template lwc:elseif={loadError}>
+            <p class="palette__status slds-text-color_error">This object's fields could not be loaded.</p>
+        </template>
+        <template lwc:elseif={hasFields}>
+            <ul class="palette__list" aria-label="Fields">
+                <template for:each={fields} for:item="field">
+                    <li key={field.apiName}>
+                        <button
+                            type="button"
+                            class={field.rowClass}
+                            aria-pressed={field.pressed}
+                            title={field.title}
+                            draggable="true"
+                            data-field={field.apiName}
+                            onclick={handleToggle}
+                            ondragstart={handleDragStart}
+                        >
+                            <lightning-icon
+                                icon-name={field.icon}
+                                size="x-small"
+                                class="palette__icon"
+                            ></lightning-icon>
+                            <span class="palette__label slds-truncate">{field.label}</span>
+                            <template lwc:if={field.inUse}>
+                                <lightning-icon
+                                    icon-name="utility:check"
+                                    size="xx-small"
+                                    class="palette__check"
+                                    alternative-text="In use"
+                                ></lightning-icon>
+                            </template>
+                        </button>
+                    </li>
+                </template>
+            </ul>
+        </template>
+        <template lwc:else>
+            <p class="palette__status slds-text-color_weak">No fields match.</p>
+        </template>
+    </template>
+
+    <template lwc:else>
+        <p class="palette__status slds-text-color_weak">
+            Choose a record collection on the Data tab. Its fields are listed here.
+        </p>
+    </template>
+</template>
