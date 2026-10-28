@@ -175,3 +175,13 @@ describe("validation", () => {
         ]);
     });
 });
+
+describe("version", () => {
+    it("shows the build version at the foot of the panel", () => {
+        const element = build();
+        const panel = element.shadowRoot.querySelector(".editor");
+        const last = panel.lastElementChild;
+
+        expect(last.textContent).toContain("Version 0.1.0");
+    });
+});

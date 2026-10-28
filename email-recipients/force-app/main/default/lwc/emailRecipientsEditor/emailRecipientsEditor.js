@@ -15,6 +15,9 @@ export default class EmailRecipientsEditor extends FlowConfigEditorBase {
     /** Open on load: the field itself is what every configuration needs. */
     initialSections = ["field"];
 
+    /** Shown at the foot of the panel. Bump it with each change, so a build can be confirmed in Flow Builder. */
+    buildVersion = "Version 0.1.0 · build 2026-10-28.3";
+
     /** Optimistic values, so a control shows what was just entered. */
     pending = {};
 
