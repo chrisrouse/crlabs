@@ -30,6 +30,9 @@ rejected entry is counted once, under its first reason.
   or `*google*`. Blocked is checked before allowed.
 - **Maximum:** 0 to 150. Blank means 150. Entries over the limit are refused and
   counted.
+- **Refused entries stay in the field,** comma-separated, so the user can see and fix
+  them. The message names each one and its reason, listing the first five and
+  summarizing the rest. Accepted entries become pills and leave the field.
 
 ## Outputs
 
