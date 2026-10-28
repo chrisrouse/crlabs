@@ -1113,34 +1113,9 @@ Preview Org. Most of it is now confirmed in the org; one item is left (below).
 date, picklist and checkbox rules that silently never matched before should
 now match. Existing flows may change behavior -- intended, but worth seeing.
 
-#### 2. Next feature: set Text vs Long Text automatically
+#### 2. Text vs Long Text is now automatic -- BUILT, see 2.3m; check it in the org
 
-Decided 2026-09-27: the admin should not choose between **Text** and **Long
-Text**; the field's type decides. Covers Text, Text Area, Text Area (Long) and
-Text Area (Rich). **Encrypted fields are out of scope**, for a later
-conversation.
-
-What the difference actually is today (measured in code, not the org):
-- **Read-only**, the two render the same, except Long Text adds a `title`
-  tooltip with the full value. `buildColumns` only switches to
-  `fgridLongText` when the column is EDITABLE and `describe.isLongText`
-  (`fgrid_gridModel.js`, "Long text gets its own cell ONLY when editable").
-- **Editable**, Text edits on one line; Long Text in a textarea capped at the
-  field's `describe.length`.
-
-Known gaps to fix as part of it:
-- **Choosing Long Text for a plain STRING field drops the length cap**:
-  `maxLength` is only set when `describe.isLongText`, so the textarea accepts
-  more than a 255-character field stores, and the save fails at DML
-  (unverified in the org).
-- **Rich Text** has no handling at all: shown as text it would print raw
-  HTML. Decide render (formatted rich text) vs strip vs plain, and whether it
-  is editable.
-- The Type dropdown offers both Text and Long Text for STRING and TEXTAREA
-  (`TYPES_FOR_DISPLAY_TYPE` in `fgrid_columnTypes.js`); removing the choice
-  means deciding what the dropdown shows for these fields.
-
-#### 3. Open question: "Turn URLs into links"
+#### 3. "Turn URLs into links" -- decided 2026-09-28: opt-in everywhere, see 2.3m
 
 Unresolved, needs a design conversation first. It only works on plain Text
 (our Long Text cell ignores the `linkify` attribute), and it is unclear what
@@ -1154,6 +1129,95 @@ in a rich text field.
 - `emphasis` (Bold / ALL CAPS) is saved but never rendered.
 - Relative date operators in rules are never resolved (match every row).
 - `config/` at the repo root is untracked and was never looked at.
+
+### 2.3m Text, Long Text and Rich Text chosen by the field — BUILT AND DEPLOYED 2026-09-28, NOT YET SEEN IN THE ORG
+
+Decided 2026-09-28 (all as recommended): Rich Text is formatted and
+read-only; the Type list offers one Text entry; Text Area (255) gets the
+multi-line editor too. Encrypted fields are still out of scope.
+
+- **Long Text is gone from the Type list.** Text Area and Long Text Area
+  offer only Text; a String offers Text, Email, Phone, URL. A saved
+  `fgridLongText` reads as `text` (`migrateColumn` in `fgrid_gridModel`, on
+  every read, beside the color migration). That also closes the gap where
+  Long Text on a 255-character String gave an uncapped textarea.
+- **`isLongText` now means any non-rich TEXTAREA** (Apex dropped the
+  `!isSortable()` test), so Text Area (255) edits in the textarea, capped at
+  its length, instead of flattening line breaks on one line.
+- **Rich Text** (`isRichText`, new in the describe) renders through
+  `lightning-formatted-rich-text` in the new `fgridRichText` cell
+  (`richTextDisplay.html`, no edit template). Search, filters and sort read
+  `<field>__fgridRichText`, the words without markup (`plainTextOf`), via
+  `fgridTextField` like lookups do.
+- **Check in the org:** a Text Area (255) and a Long Text Area both edit in
+  a textarea and keep line breaks on save; a Rich Text column shows
+  formatting, not tags, and a search for a tag name matches nothing; an old
+  column saved as Long Text on a Text field loads as Text.
+- **Hover text** (Chris, 2026-09-28: Rich Text had none, and with three-line
+  wrapping nothing else shows the rest): the Rich Text cell's `title` is the
+  plain text, one line per paragraph or list item.
+- **Turn URLs into links stays opt-in everywhere**, decided 2026-09-28 over
+  always linking text areas as record pages do. The editable Long Text cell
+  now renders through `lightning-formatted-text` and honors it (it ignored
+  it), and Rich Text sets `disable-linkify` unless it is on; links the author
+  made are kept. What gets linked is the platform's own rule
+  (`lightning/utils` `urlRegexString`): anything with `http(s)://` or
+  `ftp://`, emails, and bare domains only on its built-in list of ~280
+  endings (.com/.org/.net/.edu/.gov, every country code, a few older
+  ones) -- so bare `acme.dev` does not link, `https://acme.dev` does.
+- **Not handled:** formatting rules on a Rich Text column still test the raw
+  HTML.
+
+#### The last column sits under the vertical scroll bar -- FIXED, CONFIRMED BY CHRIS IN THE ORG 2026-09-28
+
+Every last body cell, not just Rich Text. The cause is the datatable's (npm
+source): table and inner `scrollerY` both get `width: <scrollerX width>px`,
+the bar is drawn inside `scrollerY`, and its `overflow-x: hidden` clips the
+last ~15px. Nothing in the datatable re-fits for it; its width observer
+watches a 100%-wide div the bar does not resize.
+
+We already padded the last body cell (0.5rem + 17px, in the static
+resource, since eba68e8f) -- **but the rule never won**: the datatable's own
+`td { padding: 0.25rem 0.5rem }`, compiled for synthetic shadow with its
+scoping attributes, out-ranks it and its shorthand resets the end padding.
+Now `!important`. What Chris saw as the native table re-fitting was a
+Salesforce-built table (column type `customRichText`) padding its last
+column the same way, via an inline `padding-right: 1.2rem` from
+`cellAttributes.style` -- undocumented, and inline beats the scoped rule.
+
+Rich Text also overflowed on its own: a `<pre>` code block does not wrap and
+widened the whole cell, so every paragraph laid out past the edge. The cell's
+`pre` now wraps and its images are capped at the column width. Both
+confirmed in the org 2026-09-28.
+
+#### Body cells top-aligned, pencil at the top -- DEPLOYED 2026-09-28, NOT YET SEEN IN THE ORG
+
+Found when editing a long Text Area / Long Text "stopped working": the
+editor was opening off screen. The datatable anchors the inline edit panel
+to the cell's top-left corner (private `startPanelPositioning`, not
+configurable), while the pencil sat halfway down a tall cell. Cells were
+vertically centered -- nothing sets vertical-align, so the browser default
+applies, as in Flow's own data table.
+
+Decided with Chris: top-align every body cell (cleaner, and a single-line
+row looks the same) and pin the pencil to the top of the content
+(`align-self: flex-start !important`; what centers it is not in the npm
+source). The pencil, first line and editor now share a row. Rejected:
+shifting the panel to the pencil through the private
+`getPositionedElement()`. If cells still center, the `vertical-align` rule
+needs `!important` too.
+
+**Still failing on very long cells (Chris, 2026-09-28).** A TEMPORARY,
+always-on edit trace is deployed in `fgrid_customDatatable`
+(`BUILD_2026_09_28_D_editTraceEvent`, `console.debug`, Verbose level): the
+cell, pencil, scroller, page scroll and the edit panel's position and
+visibility, plus every scroll and focus, for two seconds after a pencil
+click or Enter. **Remove it before committing.** Suspects: the panel lands
+off screen, or the datatable closes it when its scroller moves more than
+5px while it is open (`handleInlineEditPanelScroll`).
+
+`repro/datatable-scrollbar-fit/` (deployed to Preview Org) measures the
+overlap and the last cell's padding; no longer needed unless the fix fails.
 
 ### 2.3k Reordering columns, and Hidden columns — BUILT AND DEPLOYED 2026-09-27, NOT YET SEEN IN THE ORG
 

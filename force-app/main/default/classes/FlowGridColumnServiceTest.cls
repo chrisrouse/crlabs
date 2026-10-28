@@ -129,6 +129,19 @@ private class FlowGridColumnServiceTest {
     }
 
     @IsTest
+    static void describeColumnsMarksTextAreasMultiLine() {
+        List<FlowGridColumnService.ColumnInfo> columns = FlowGridColumnService.describeColumns(
+            'Account',
+            new List<String>{ 'Description', 'Name' }
+        );
+        Map<String, FlowGridColumnService.ColumnInfo> byPath = indexByPath(columns);
+
+        Assert.isTrue(byPath.get('Description').isLongText, 'A Long Text Area edits on several lines');
+        Assert.isFalse(byPath.get('Description').isRichText, 'Description is not HTML');
+        Assert.isFalse(byPath.get('Name').isLongText, 'A Text field edits on one line');
+    }
+
+    @IsTest
     static void describeColumnsResolvesRelationshipPaths() {
         Test.startTest();
         List<FlowGridColumnService.ColumnInfo> columns = FlowGridColumnService.describeColumns(

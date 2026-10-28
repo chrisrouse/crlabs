@@ -532,9 +532,57 @@ c-fgrid_custom-datatable .fgridCircle__caption {
  * 17px is the widest classic scrollbar (Windows; macOS is 15px). With
  * overlay scrollbars it is only extra padding. Body cells only: the
  * header sits above the scroller and is not covered.
+ *
+ * !important because this rule LOST, silently, from the day it shipped.
+ * The datatable's own `td { padding: 0.25rem 0.5rem }` is compiled for
+ * synthetic shadow with its scoping attributes (`[data-render-mode]`,
+ * the host attribute, `td[lwc-...]`), which out-rank these two classes,
+ * and its shorthand resets the end padding. Salesforce's own tables do
+ * the same thing through an inline `padding-right: 1.2rem` from
+ * cellAttributes, which is what beats it there.
  **********************************************************************/
 c-fgrid_custom-datatable .slds-scrollable_y tbody tr > :last-child {
-    padding-inline-end: calc(var(--slds-g-spacing-2, 0.5rem) + 17px);
+    padding-inline-end: calc(var(--slds-g-spacing-2, 0.5rem) + 17px) !important;
+}
+
+/**********************************************************************
+ * Body cells align to the TOP of the row, not its middle.
+ *
+ * Nothing in the datatable sets vertical-align, so cells took the
+ * browser's table-cell default and were centered, as Flow's own data
+ * table is. Decided 2026-09-28 to top-align: a row is read from the top,
+ * and a single-line row looks the same either way.
+ *
+ * It is also what puts the inline editor in reach. The datatable anchors
+ * the edit panel to the cell's top-left corner (inlineEdit.js,
+ * startPanelPositioning -- private, not configurable), while the pencil
+ * sat halfway down a tall cell, so a long text field opened its editor
+ * off screen. Top-aligning the content and pinning the pencil to the top
+ * of it puts the pencil, the first line and the editor on one row.
+ *
+ * The pencil's centering comes from a rule not in the npm source, so its
+ * alignment is set with !important; see the scrollbar padding above for
+ * how a plain rule loses here.
+ **********************************************************************/
+c-fgrid_custom-datatable .slds-scrollable_y tbody td,
+c-fgrid_custom-datatable .slds-scrollable_y tbody th {
+    vertical-align: top;
+}
+c-fgrid_custom-datatable .slds-scrollable_y tbody .slds-cell-edit__button {
+    align-self: flex-start !important;
+}
+
+/* A rich text value can carry a code block or an image wider than the
+   column. `<pre>` does not wrap, and one that does not fit widens the whole
+   cell, so every paragraph and heading in it lays out past the column edge
+   and is clipped. */
+c-fgrid_custom-datatable .fgridRichText pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+c-fgrid_custom-datatable .fgridRichText img {
+    max-width: 100%;
+    height: auto;
 }
 
 /* The Grid Studio preview's column headers can be dragged to reorder the

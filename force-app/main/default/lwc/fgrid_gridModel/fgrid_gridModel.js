@@ -110,9 +110,21 @@ function readColumnConfig(raw) {
 }
 
 function migrateConfig(config) {
-    return Object.fromEntries(
-        Object.entries(config).map(([field, attributes]) => [field, migrateColumnColors(attributes)])
-    );
+    return Object.fromEntries(Object.entries(config).map(([field, attributes]) => [field, migrateColumn(attributes)]));
+}
+
+/**
+ * Upgrades one column's saved attributes. Pure, and a no-op for anything
+ * already migrated, so it is safe on every read.
+ *
+ * Long Text used to be the admin's choice. The field decides it now, so a saved
+ * Long Text reads as Text and buildColumns puts the multi-line editor back
+ * wherever the field is a text area. On a plain Text field that also retires a
+ * textarea with no length cap, which accepted more than the field stores.
+ */
+function migrateColumn(attributes) {
+    const next = migrateColumnColors(attributes);
+    return next?.type === "fgridLongText" ? { ...next, type: "text" } : next;
 }
 
 function isNonEmptyString(value) {
@@ -293,6 +305,10 @@ export const MULTI_PICKLIST_SEPARATOR = ";";
 /** Row field holding the text shown in a lookup cell — the parent record's name
  *  when it is available, otherwise the raw Id. */
 export const LOOKUP_LABEL_SUFFIX = "__fgridLookupLabel";
+
+/** Row field holding a rich text cell's words without its markup, for search,
+ *  filters, sort and the cell's hover text. */
+export const RICH_TEXT_SUFFIX = "__fgridRichText";
 
 /**
  * Datatable types that cannot wrap, per the component reference: wrapping is not
@@ -483,7 +499,7 @@ export function buildColumns(fields, config = {}, options = {}) {
     return (fields || []).map((field, index) => {
         // Idempotent, so a config parseColumnConfig already upgraded passes
         // through untouched and one handed in raw still renders its colors.
-        const attributes = migrateColumnColors(config?.[field] || {});
+        const attributes = migrateColumn(config?.[field] || {});
         const describe = describeByPath?.[field] || null;
         // What the admin configured, before the Studio preview's blanket read-only is
         // applied. The lock icon reads this so the preview shows the same locks the
@@ -628,6 +644,9 @@ export function buildColumns(fields, config = {}, options = {}) {
         // Long text gets its own cell ONLY when editable, for the same reason
         // picklists do: read-only it is indistinguishable from text, and the point of
         // the custom type is the textarea editor rather than the display.
+        //
+        // `isLongText` covers Text Area (255) as well as Long Text Area: both store
+        // line breaks, which the datatable's one-line editor would flatten.
         if (column.editable && describe?.isLongText) {
             column.type = "fgridLongText";
             column.typeAttributes = {
@@ -635,6 +654,26 @@ export function buildColumns(fields, config = {}, options = {}) {
                 // From the field's own describe, so the editor cannot accept more
                 // than the field will store.
                 maxLength: describe.length || null
+            };
+        }
+
+        // Rich text stores HTML, so it renders through lightning-formatted-rich-text,
+        // which sanitizes it, rather than printing the tags. Read-only: Apex reports
+        // it non-editable until there is a rich text editor (§2.5 gap 4). Search and
+        // filters read a copy without the markup, or searching "strong" would match
+        // every row with a bold word in it.
+        if (describe?.isRichText) {
+            column.type = "fgridRichText";
+            column.fgridTextField = field + RICH_TEXT_SUFFIX;
+            // The hover text, as for long text: with wrapped text limited to three
+            // lines it is the only way to read the whole value.
+            column.typeAttributes = {
+                ...(column.typeAttributes || {}),
+                plainText: { fieldName: column.fgridTextField },
+                // The formatted cell links bare URLs on its own. Turn URLs into
+                // Links is opt-in everywhere, so it follows the setting here too;
+                // links the author made are kept either way.
+                disableLinkify: attributes.linkify !== true
             };
         }
 
@@ -972,7 +1011,8 @@ export function buildColumns(fields, config = {}, options = {}) {
             typeAttributes.badge = true;
             typeAttributes.badgeClass = column.fgridBadgeFormat ? { fieldName: column.fgridFormatKey } : "slds-badge";
         }
-        // Auto-links URLs found inside a plain text cell.
+        // Auto-links URLs found inside a text cell: the standard `text` type and our
+        // long text cell both hand it to lightning-formatted-text.
         if (attributes.linkify) {
             typeAttributes.linkify = true;
         }
@@ -1054,6 +1094,7 @@ export function buildRows(records, columns, keyField = "Id", picklistContext = n
     const optionCache = new Map();
     const lookupColumns = (columns || []).filter((column) => column.type === "fgridLookup");
     const percentColumns = (columns || []).filter((column) => column.type === "percent");
+    const richTextColumns = (columns || []).filter((column) => column.type === "fgridRichText");
 
     return records.map((record, index) => {
         const row = {};
@@ -1096,6 +1137,10 @@ export function buildRows(records, columns, keyField = "Id", picklistContext = n
                 : null;
             row[column.fieldName + LOOKUP_LABEL_SUFFIX] = name ?? id ?? "";
             row[column.fieldName + LINK_SUFFIX] = column.fgridLookupLink && id ? `/${id}` : null;
+        });
+
+        richTextColumns.forEach((column) => {
+            row[column.fgridTextField] = plainTextOf(row[column.fieldName]);
         });
 
         multiPicklistColumns.forEach((column) => {
@@ -1217,6 +1262,33 @@ function writeGaugeFill(row, column, color) {
     }
     const width = `width: ${gaugePercent(row[column.fieldName])}%`;
     row[`${key}Style`] = hex ? `${width}; background: ${hex}` : width;
+}
+
+/**
+ * The words of a rich text value, without its markup.
+ *
+ * Block tags and line breaks become line breaks, so paragraphs and list items
+ * neither run together nor lose their shape in the hover text; inline tags
+ * vanish, so `<b>Acme</b>Corp` stays one word as it reads on screen. The value came from the field, not from a user, and is only
+ * compared against, never rendered, so a regex is enough.
+ */
+export function plainTextOf(html) {
+    if (html === null || html === undefined) {
+        return null;
+    }
+    return String(html)
+        .replace(/<(br|\/?(p|div|li|ul|ol|h[1-6]|tr|td|th|table|blockquote))\b[^>]*>/gi, "\n")
+        .replace(/<[^>]*>/g, "")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&amp;/g, "&")
+        .split("\n")
+        .map((line) => line.replace(/\s+/g, " ").trim())
+        .filter(Boolean)
+        .join("\n");
 }
 
 /**

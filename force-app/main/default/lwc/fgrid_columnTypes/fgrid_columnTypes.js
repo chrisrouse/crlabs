@@ -23,10 +23,15 @@
  * guess is better than guessing wrong.
  */
 
-/** Everything the grid can render, including our eight custom cell types. */
+/**
+ * Everything an admin can choose to render a column as.
+ *
+ * Long Text and Rich Text are not here: the field's type decides them, not the
+ * admin. A text area gets the multi-line editor and a rich text area its
+ * formatted cell, both in buildColumns, so every text field offers just Text.
+ */
 export const COLUMN_TYPES = [
     { label: "Text", value: "text" },
-    { label: "Long Text", value: "fgridLongText" },
     { label: "Number", value: "number" },
     { label: "Currency", value: "currency" },
     { label: "Percent", value: "percent" },
@@ -86,12 +91,12 @@ const TYPES_FOR_DISPLAY_TYPE = {
     MULTIPICKLIST: ["fgridMultiPicklist"],
     REFERENCE: ["fgridLookup", "text"],
 
-    TEXTAREA: ["fgridLongText", "text"],
+    TEXTAREA: ["text"],
     // A plain text field often holds an address, a reference number or a URL,
     // so the contact types stay on offer. Numeric ones do not: a String that
     // happens to contain digits is not a number, and formatting it as one
     // invites a column that renders NaN.
-    STRING: ["text", "fgridLongText", "email", "phone", "url"],
+    STRING: ["text", "email", "phone", "url"],
     ENCRYPTEDSTRING: ["text"],
     ID: ["text"]
 };

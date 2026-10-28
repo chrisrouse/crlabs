@@ -44,9 +44,13 @@ import lookupDisplay from "./lookupDisplay.html";
 import lookupEdit from "./lookupEdit.html";
 import longTextDisplay from "./longTextDisplay.html";
 import longTextEdit from "./longTextEdit.html";
+import richTextDisplay from "./richTextDisplay.html";
 import timeDisplay from "./timeDisplay.html";
 import timeEdit from "./timeEdit.html";
 import progressRingDisplay from "./progressRingDisplay.html";
+
+/** In every trace line, so a stale bundle is visible in the console. */
+const DIAGNOSTICS_BUILD = "BUILD_2026_09_28_D_editTraceEvent";
 
 export default class FgridCustomDatatable extends LightningDatatable {
     /**
@@ -70,13 +74,46 @@ export default class FgridCustomDatatable extends LightningDatatable {
      */
     @api reorderableColumns = false;
 
+    /**
+     * Traces what happens after an edit pencil is clicked (or Enter opens an
+     * editor), for an inline editor that does not appear on a long cell.
+     *
+     * The datatable anchors its edit panel to the cell's top-left corner and
+     * CLOSES it if its inner scroller moves more than 5px while it is open
+     * (inlineEdit.js, private). Both are candidates, so this records the cell,
+     * its content, the scroller, the page scroll, the panel's position and
+     * visibility, every scroll and focus change, for two seconds, to the
+     * browser console at debug (Verbose) level.
+     *
+     * TEMPORARY, always on: a URL switch cannot be set in a Flow Builder debug
+     * run, and Lightning Web Security partitions localStorage by namespace, so
+     * a flag set from the console is not seen. Remove before committing.
+     */
+    editDiagnostics = true;
+
     _draggableHeaders = new WeakSet();
+    _trace = null;
+    _traceListening = false;
 
     renderedCallback() {
         // The platform datatable has its own, which must still run; the Jest
         // stub of lightning/datatable has none.
         if (super.renderedCallback) {
             super.renderedCallback();
+        }
+        if (this.editDiagnostics && !this._traceListening) {
+            this._traceListening = true;
+            // Capture, because scroll and focus do not bubble, and so the trace
+            // starts before the datatable's own click handler opens the panel.
+            // The cell's own request to edit, sent for a pencil click and for
+            // the keyboard alike. A click listener cannot see the pencil: it is
+            // inside the cell's shadow root, so the target arrives retargeted to
+            // the whole cell.
+            this.template.addEventListener("privateeditcell", this.handleTraceEditCell, true);
+            this.template.addEventListener("scroll", this.handleTraceScroll, true);
+            this.template.addEventListener("focusin", this.handleTraceFocus, true);
+            window.addEventListener("scroll", this.handleTracePageScroll);
+            console.debug(`[fgrid edit ${DIAGNOSTICS_BUILD}] trace armed`);
         }
         if (!this.reorderableColumns) {
             return;
@@ -97,6 +134,117 @@ export default class FgridCustomDatatable extends LightningDatatable {
                 this._draggableHeaders.add(cell);
             }
         });
+    }
+
+    disconnectedCallback() {
+        if (super.disconnectedCallback) {
+            super.disconnectedCallback();
+        }
+        window.removeEventListener("scroll", this.handleTracePageScroll);
+    }
+
+    handleTraceEditCell = (event) => {
+        const factory = event.target;
+        this.startTrace(`edit requested (${event.detail?.colKeyValue})`, factory?.closest?.("td, th"), factory);
+    };
+
+    handleTraceScroll = (event) => {
+        const target = event.target;
+        this.traceEntry("scroll", {
+            on: target?.className || target?.tagName,
+            scrollTop: Math.round(target?.scrollTop ?? 0),
+            scrollLeft: Math.round(target?.scrollLeft ?? 0)
+        });
+    };
+
+    handleTracePageScroll = () => {
+        this.traceEntry("page scroll", { scrollY: Math.round(window.scrollY) });
+    };
+
+    handleTraceFocus = (event) => {
+        const target = event.target;
+        this.traceEntry("focus", { on: `${target?.tagName} ${target?.className || ""}`.trim() });
+    };
+
+    startTrace(reason, cell, content) {
+        this._trace = { start: Date.now(), cell, content };
+        this.traceEntry(reason, this.traceSnapshot());
+        // eslint-disable-next-line @lwc/lwc/no-async-operation
+        requestAnimationFrame(() => {
+            // eslint-disable-next-line @lwc/lwc/no-async-operation
+            requestAnimationFrame(() => this.traceEntry("after 2 frames", this.traceSnapshot()));
+        });
+        [100, 500, 1500].forEach((delay) => {
+            // eslint-disable-next-line @lwc/lwc/no-async-operation
+            setTimeout(() => this.traceEntry(`after ${delay}ms`, this.traceSnapshot()), delay);
+        });
+    }
+
+    /** Records one entry, only within two seconds of a trace starting. */
+    traceEntry(label, data) {
+        const trace = this._trace;
+        if (!trace || Date.now() - trace.start > 2000) {
+            return;
+        }
+        console.debug(
+            `[fgrid edit ${DIAGNOSTICS_BUILD}] +${Date.now() - trace.start}ms ${label}`,
+            JSON.stringify(data)
+        );
+    }
+
+    traceSnapshot() {
+        const { cell, content } = this._trace;
+        const box = (element) => {
+            if (!element?.getBoundingClientRect) {
+                return null;
+            }
+            const rect = element.getBoundingClientRect();
+            return {
+                top: Math.round(rect.top),
+                bottom: Math.round(rect.bottom),
+                left: Math.round(rect.left),
+                height: Math.round(rect.height)
+            };
+        };
+        const scrollerY = this.template.querySelector(".slds-scrollable_y");
+        const panel = this.template.querySelector("lightning-primitive-datatable-iedit-panel");
+        let section = null;
+        let sectionError = null;
+        try {
+            section = panel?.getPositionedElement?.() || null;
+        } catch (error) {
+            sectionError = error?.message || String(error);
+        }
+        let editableValid = null;
+        try {
+            editableValid = panel?.isEditableValid ?? null;
+        } catch (error) {
+            editableValid = `error: ${error?.message || error}`;
+        }
+        return {
+            viewport: { height: window.innerHeight, scrollY: Math.round(window.scrollY) },
+            cell: cell ? { ...box(cell), connected: cell.isConnected, col: cell.dataset?.colKeyValue } : null,
+            // The cell's content box, which holds the pencil.
+            content: box(content),
+            scrollerY: scrollerY
+                ? {
+                      ...box(scrollerY),
+                      scrollTop: Math.round(scrollerY.scrollTop),
+                      scrollHeight: scrollerY.scrollHeight,
+                      clientHeight: scrollerY.clientHeight
+                  }
+                : null,
+            panel: panel
+                ? {
+                      visible: panel.visible,
+                      editableValid,
+                      section: box(section),
+                      style: section?.getAttribute?.("style") || null,
+                      sectionError
+                  }
+                : "not rendered",
+            active: this.template.activeElement?.tagName || null
+        };
     }
 
     handleHeaderDragStart = (event) => {
@@ -140,7 +288,14 @@ export default class FgridCustomDatatable extends LightningDatatable {
             template: longTextDisplay,
             editTemplate: longTextEdit,
             standardCellLayout: true,
-            typeAttributes: ["maxLength"]
+            typeAttributes: ["maxLength", "linkify"]
+        },
+        // No editTemplate: rich text stays read-only until there is a rich text
+        // editor, and Apex already reports the field non-editable.
+        fgridRichText: {
+            template: richTextDisplay,
+            standardCellLayout: true,
+            typeAttributes: ["plainText", "disableLinkify"]
         },
         // No editTemplate: a gauge is a reading, not an input. The column
         // forces Editable off rather than showing a pencil that does nothing.

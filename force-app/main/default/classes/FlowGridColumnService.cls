@@ -117,9 +117,15 @@ public with sharing class FlowGridColumnService {
         /** Field length, so a long text editor can bound its input. */
         @AuraEnabled
         public Integer length;
-        /** True for a Long Text Area: a non-sortable TEXTAREA that is not HTML. */
+        /**
+         * True for any text area that is not rich text: Text Area (255) as well as
+         * Long Text Area. Both store line breaks, so both need the multi-line editor.
+         */
         @AuraEnabled
         public Boolean isLongText;
+        /** True for a Rich Text Area, whose value is HTML. */
+        @AuraEnabled
+        public Boolean isRichText;
         @AuraEnabled
         public List<PicklistOption> picklistOptions;
         /**
@@ -295,10 +301,8 @@ public with sharing class FlowGridColumnService {
         column.isNameField = isDirectField && field.getName() == nameField;
         column.scale = scaleOf(field);
         column.length = field.getLength();
-        column.isLongText =
-            field.getType() == Schema.DisplayType.TEXTAREA &&
-            !field.isSortable() &&
-            !field.isHtmlFormatted();
+        column.isRichText = field.getType() == Schema.DisplayType.TEXTAREA && field.isHtmlFormatted();
+        column.isLongText = field.getType() == Schema.DisplayType.TEXTAREA && !column.isRichText;
         applyLookupFacts(column, field);
         column.isEditable = isEditable(field);
         column.picklistOptions = picklistOptionsOf(field);

@@ -1,7 +1,11 @@
-<!-- Long text reads as ordinary text. Wrapping is handled by the standard cell
-     layout and the column's own wrapText, so nothing is forced here — a
-     `slds-truncate` would override it, which is the mistake the picklist and lookup
-     cells originally made. -->
+<!-- Long text reads as ordinary text, through the same lightning-formatted-text
+     the standard `text` type uses: line breaks show, and Turn URLs into Links
+     works here as it does on a read-only text column. Wrapping is handled by the
+     standard cell layout and the column's own wrapText, so nothing is forced
+     here — a `slds-truncate` would override it, which is the mistake the
+     picklist and lookup cells originally made. -->
 <template>
-    <span title={value}>{value}</span>
+    <span title={value}>
+        <lightning-formatted-text value={value} linkify={typeAttributes.linkify}></lightning-formatted-text>
+    </span>
 </template>

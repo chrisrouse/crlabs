@@ -1,0 +1,16 @@
+<!-- A Rich Text Area stores HTML. lightning-formatted-rich-text renders it and
+     sanitizes it: tags and attributes outside its allowlist are removed, so a
+     stored <script> never runs. Display only; there is no edit template until
+     there is a rich text editor.
+
+     The title is the value without markup, one line per paragraph or list item,
+     as long text's title is its value: with wrapped text limited to three lines
+     it is the only way to read the rest. -->
+<template>
+    <div class="fgridRichText" title={typeAttributes.plainText}>
+        <lightning-formatted-rich-text
+            value={value}
+            disable-linkify={typeAttributes.disableLinkify}
+        ></lightning-formatted-rich-text>
+    </div>
+</template>

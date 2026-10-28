@@ -1,5 +1,6 @@
 import {
     buildColumns,
+    plainTextOf,
     buildSampleRows,
     inferType,
     defaultLabel,
@@ -28,7 +29,8 @@ import {
     ROW_ACTION_NAME,
     parseFieldList,
     ringArc,
-    visibleColumns
+    visibleColumns,
+    parseColumnConfig
 } from "c/fgrid_gridModel";
 
 describe("a Hidden column", () => {
@@ -1260,6 +1262,15 @@ describe("long text columns", () => {
         expect(column.typeAttributes.maxLength).toBe(32000);
     });
 
+    it("passes Turn URLs into Links to the long text cell", () => {
+        const [column] = buildColumns(
+            ["Description"],
+            { Description: { edit: true, linkify: true } },
+            { describeByPath: longText() }
+        );
+        expect(column.typeAttributes).toEqual(expect.objectContaining({ maxLength: 32000, linkify: true }));
+    });
+
     it("stays plain text when not editable", () => {
         // Read-only, the custom cell would add a render path for no visible gain.
         const [column] = buildColumns(["Description"], {}, { describeByPath: longText() });
@@ -1278,13 +1289,72 @@ describe("long text columns", () => {
                         dataType: "text",
                         displayType: "TEXTAREA",
                         isEditable: false,
-                        isLongText: false
+                        isLongText: false,
+                        isRichText: true
                     }
                 }
             }
         );
         expect(column.editable).toBe(false);
+        expect(column.type).toBe("fgridRichText");
+    });
+
+    it("reads a saved Long Text as Text, so a plain text field edits on one line", () => {
+        // Long Text was once the admin's choice, and on a 255-character field it
+        // gave a textarea with no cap. The field decides now.
+        const [column] = buildColumns(
+            ["Name"],
+            { Name: { type: "fgridLongText", edit: true } },
+            {
+                describeByPath: {
+                    Name: { label: "Name", dataType: "text", displayType: "STRING", isEditable: true, length: 255 }
+                }
+            }
+        );
         expect(column.type).toBe("text");
+        expect(parseColumnConfig({ Name: { type: "fgridLongText" } }).Name.type).toBe("text");
+    });
+
+    it("keeps the textarea for a text area saved as Long Text", () => {
+        const [column] = buildColumns(
+            ["Description"],
+            { Description: { type: "fgridLongText", edit: true } },
+            { describeByPath: longText() }
+        );
+        expect(column.type).toBe("fgridLongText");
+    });
+});
+
+describe("rich text columns", () => {
+    const describeByPath = {
+        Body: { label: "Body", dataType: "text", displayType: "TEXTAREA", isEditable: false, isRichText: true }
+    };
+
+    it("renders formatted, and searches the words rather than the markup", () => {
+        const columns = buildColumns(["Body"], {}, { describeByPath });
+        expect(columns[0].type).toBe("fgridRichText");
+
+        const rows = buildRows([{ Id: "1", Body: "<p><strong>Acme</strong> renewal</p>" }], columns);
+        expect(rows[0].Body).toBe("<p><strong>Acme</strong> renewal</p>");
+        expect(searchRows(rows, columns, "acme renewal")).toHaveLength(1);
+        expect(searchRows(rows, columns, "strong")).toHaveLength(0);
+        // The hover text: with wrapping limited to three lines, the only way to
+        // read the rest.
+        expect(columns[0].typeAttributes.plainText).toEqual({ fieldName: columns[0].fgridTextField });
+        expect(rows[0][columns[0].fgridTextField]).toBe("Acme renewal");
+    });
+
+    it("links bare URLs only when Turn URLs into Links is on", () => {
+        const [plain] = buildColumns(["Body"], {}, { describeByPath });
+        const [linked] = buildColumns(["Body"], { Body: { linkify: true } }, { describeByPath });
+        expect(plain.typeAttributes.disableLinkify).toBe(true);
+        expect(linked.typeAttributes.disableLinkify).toBe(false);
+    });
+
+    it("strips tags without running words together", () => {
+        expect(plainTextOf("<p>One</p><ul><li>Two</li><li>Three<br>Four</li></ul>")).toBe("One\nTwo\nThree\nFour");
+        expect(plainTextOf("<b>Acme</b>Corp &amp; Sons&nbsp;Ltd")).toBe("AcmeCorp & Sons Ltd");
+        expect(plainTextOf(null)).toBeNull();
     });
 });
 

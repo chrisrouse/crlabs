@@ -62,6 +62,14 @@ describe("what a field may be displayed as", () => {
         expect(valuesFor("STRING")).toEqual(expect.arrayContaining(["email", "phone", "url"]));
     });
 
+    it("never offers Long Text, which the field decides", () => {
+        // A text area gets the multi-line editor from its describe, so Text is
+        // the whole choice for it, and a String keeps only the contact types.
+        expect(valuesFor("TEXTAREA")).toEqual(["text"]);
+        expect(valuesFor("STRING")).toEqual(["text", "email", "phone", "url"]);
+        expect(COLUMN_TYPES.map((type) => type.value)).not.toContain("fgridLongText");
+    });
+
     it("offers everything when there is no describe", () => {
         // The user-defined-object case: nothing can be ruled out, and refusing
         // to guess beats guessing wrong.
