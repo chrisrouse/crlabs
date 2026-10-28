@@ -89,12 +89,13 @@ export default class EmailRecipientsEditor extends FlowConfigEditorBase {
         return this.inputDataType("helpText", null);
     }
 
-    get required() {
-        return Boolean(this.resolve("required"));
+    /** Resource-only: the value is a Boolean the flow decides at runtime, so it is kept as a reference. */
+    get requiredReference() {
+        return this.resolveReference("required");
     }
 
-    get disabled() {
-        return Boolean(this.resolve("disabled"));
+    get disabledReference() {
+        return this.resolveReference("disabled");
     }
 
     get maxEmails() {
@@ -179,10 +180,6 @@ export default class EmailRecipientsEditor extends FlowConfigEditorBase {
     handleResourceChange(event) {
         const { name, newValue, newValueDataType } = event.detail;
         this.commit(name, newValue, newValueDataType || "reference");
-    }
-
-    handleCheckbox(event) {
-        this.commit(event.target.dataset.property, event.target.checked, "Boolean");
     }
 
     /** Blank clears the maximum, so the component uses its default. Anything out of range is refused. */

@@ -41,12 +41,6 @@ function changeNumber(element, property, value) {
     input.dispatchEvent(new CustomEvent("change"));
 }
 
-function toggle(element, property, checked) {
-    const input = control(element, property);
-    input.checked = checked;
-    input.dispatchEvent(new CustomEvent("change"));
-}
-
 afterEach(() => {
     while (document.body.firstChild) {
         document.body.removeChild(document.body.firstChild);
@@ -64,17 +58,17 @@ describe("field settings", () => {
         expect(details).toEqual([{ name: "label", newValue: "Recipients", newValueDataType: "String" }]);
     });
 
-    it("publishes the required and disabled settings as Booleans", async () => {
+    it("saves required and disabled as references, so a formula or field can drive them", async () => {
         const element = build();
         const details = captureInputs(element);
 
-        toggle(element, "required", true);
-        toggle(element, "disabled", true);
+        pickResource(element, "required", "{!IsRequired}");
+        pickResource(element, "disabled", "{!IsLocked}");
         await Promise.resolve();
 
         expect(details).toEqual([
-            { name: "required", newValue: true, newValueDataType: "Boolean" },
-            { name: "disabled", newValue: true, newValueDataType: "Boolean" }
+            { name: "required", newValue: "{!IsRequired}", newValueDataType: "reference" },
+            { name: "disabled", newValue: "{!IsLocked}", newValueDataType: "reference" }
         ]);
     });
 
