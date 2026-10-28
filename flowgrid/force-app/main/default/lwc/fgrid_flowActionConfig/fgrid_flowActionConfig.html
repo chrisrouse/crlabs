@@ -1,0 +1,56 @@
+<template>
+    <div class="flowconfig">
+        <template lwc:if={hasError}>
+            <div class="slds-box slds-box_x-small slds-theme_error slds-m-bottom_x-small" role="alert">
+                <p>{errorMessage}</p>
+            </div>
+        </template>
+
+        <template lwc:if={hasFlows}>
+            <lightning-combobox
+                class="flowconfig__list"
+                data-validatable
+                data-property="rowActionFlowApiName"
+                label={label}
+                placeholder="Select an active flow"
+                value={flowApiName}
+                options={flowOptions}
+                required={required}
+                field-level-help={help}
+                onchange={handleFlowChange}
+            ></lightning-combobox>
+
+            <template lwc:if={hasLaunchModeNote}>
+                <p class="flowconfig__summary">{launchModeNote}</p>
+            </template>
+        </template>
+        <template lwc:else>
+            <p class="slds-text-body_small slds-text-color_weak">
+                No launchable active flows were found. A flow must be activated, and be either a screen flow or an
+                autolaunched flow, before a row action can launch it.
+            </p>
+        </template>
+
+        <template lwc:if={hasFlowSelected}>
+            <lightning-input
+                type="text"
+                data-property="rowActionFlowRecordVariable"
+                label="Record Input Variable"
+                placeholder="Variable name in the launched flow"
+                value={recordVariable}
+                field-level-help="Passes the entire record into the launched flow — enter the variable's API name, or leave blank to omit it. Mark the variable available for output as well if the flow should hand the edited record back, including unsaved changes; input only means the grid re-reads the row from the database instead. With a user-defined object, declare it as a Text variable: the row is sent as JSON, and JSON is what the flow should return."
+                onchange={handleVariableChange}
+            ></lightning-input>
+
+            <lightning-input
+                type="text"
+                data-property="rowActionFlowIdVariable"
+                label="Record ID Input Variable"
+                placeholder="Variable name in the launched flow"
+                value={idVariable}
+                field-level-help="Passes the record Id into the launched flow — enter the variable's API name, or leave blank to omit it. Input only is enough, since nothing is read back from it. Suits a flow that re-queries or updates the record itself."
+                onchange={handleVariableChange}
+            ></lightning-input>
+        </template>
+    </div>
+</template>

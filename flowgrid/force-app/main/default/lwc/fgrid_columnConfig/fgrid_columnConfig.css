@@ -1,0 +1,357 @@
+/* ---------- compact (narrow property panel) ---------- */
+.summary__item {
+    padding: 0.25rem 0;
+}
+
+.summary__field {
+    display: block;
+    font-family: monospace;
+    font-size: 0.75rem;
+}
+
+.summary__detail {
+    display: block;
+    font-size: 0.75rem;
+    color: #706e6b;
+}
+
+/* ---------- full (Grid Studio inspector) ---------- */
+
+.list__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    margin-bottom: 0.25rem;
+}
+
+.list__reset {
+    display: block;
+    margin-top: 0.5rem;
+}
+
+/* A whole row is the target, so it is a button, reset to look like a row. */
+.colrow {
+    display: grid;
+    grid-template-columns: 1.25rem minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.5rem 0.25rem;
+    border: 0;
+    border-bottom: 1px solid var(--slds-g-color-border-1, #e5e5e5);
+    background: none;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+    color: inherit;
+}
+
+.colrow:hover,
+.colrow:focus-visible {
+    background: var(--slds-g-color-surface-container-2, #f3f3f3);
+}
+
+/* Where a dragged column will land: a line on that side of the row. */
+.colrow_drop-before {
+    box-shadow: inset 0 3px 0 var(--slds-g-color-accent-1, #066afe);
+}
+
+.colrow_drop-after {
+    box-shadow: inset 0 -3px 0 var(--slds-g-color-accent-1, #066afe);
+}
+
+/* Hidden columns stay in the list, muted, so they can still be found. */
+.colrow_hidden .colrow__label {
+    color: var(--slds-g-color-on-surface-1, #5c5c5c);
+    font-style: italic;
+}
+
+.colrow[draggable="true"] {
+    cursor: grab;
+}
+
+.colrow__num {
+    font-size: 0.75rem;
+    text-align: right;
+    color: var(--slds-g-color-on-surface-1, #5c5c5c);
+}
+
+.colrow__name {
+    min-width: 0;
+}
+
+.colrow__label {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.colrow__meta {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--slds-g-color-on-surface-1, #5c5c5c);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.colrow__flags {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+/* The four flags you compare across columns, kept visible without a table. */
+.chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.125rem;
+    height: 1.125rem;
+    border-radius: 0.2rem;
+    font-size: 0.5625rem;
+    font-weight: 700;
+    background: var(--slds-g-color-surface-container-2, #f3f3f3);
+    color: var(--slds-g-color-on-surface-1, #5c5c5c);
+}
+
+/* A container and its own on- color, the pair SLDS 2 guarantees contrast
+   for. accent-container-2 with accent-2 text was the same blue in SLDS 2,
+   which drew solid squares with the letters gone. */
+.chip_on {
+    background: var(--slds-g-color-accent-container-1, #066afe);
+    color: var(--slds-g-color-on-accent-1, #ffffff);
+}
+
+/* ---------- All Columns ---------- */
+
+.bulk {
+    position: relative;
+}
+
+.bulk__button {
+    display: inline-flex;
+    align-items: center;
+}
+
+/* Absolute inside this component, never fixed: the Studio modal has a
+   transform, which re-bases `position: fixed` (see fgrid_colorPicker). */
+.bulk__menu {
+    /* Right-aligned to the button. SLDS centers a dropdown with left: 50% and
+       a -50% transform, which would push this one off the panel's left edge. */
+    left: auto;
+    right: 0;
+    transform: none;
+    /* A fixed width, not a share of its wrapper: the wrapper is only as wide
+       as the button, which squeezed every label. 14rem fits Flow Builder's
+       20rem medium panel with room to spare. */
+    width: 14rem;
+    max-width: none;
+    margin-top: 0.25rem;
+}
+
+.bulk__item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.5rem 0.75rem;
+    color: inherit;
+    cursor: pointer;
+}
+
+/* No hover background of ours. accent-container-3 is a strong blue in SLDS 2,
+   which put the dark label on dark blue; SLDS's own dropdown item hover is
+   the one every other Salesforce menu uses, and it pairs its own colors. */
+.bulk__item:hover,
+.bulk__item:focus {
+    text-decoration: none;
+}
+
+.bulk__label {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+
+/* How many columns have it now: the hint Avonni's menu does not give. */
+.bulk__count {
+    flex: none;
+    font-size: 0.75rem;
+    color: var(--slds-g-color-on-surface-1, #5c5c5c);
+}
+
+.bulk__count_all {
+    color: var(--slds-g-color-accent-2, #0250d9);
+    font-weight: 700;
+}
+
+/* ---------- one column, drilled in ---------- */
+
+.detail__nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--slds-g-color-border-1, #e5e5e5);
+}
+
+.detail__step {
+    display: flex;
+    gap: 0.25rem;
+}
+
+.detail__head {
+    padding: 0.5rem 0;
+}
+
+.detail__field {
+    font-size: 0.75rem;
+    color: var(--slds-g-color-on-surface-1, #5c5c5c);
+    background: none;
+}
+
+.detail__group {
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--slds-g-color-border-1, #e5e5e5);
+}
+
+.detail__flags {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.25rem 0.75rem;
+    margin-top: 0.5rem;
+}
+
+/* Was the drawer under a table row; now the rest of the drilled-in column. */
+.drawer__inner {
+    padding: 0.75rem 0 1rem;
+}
+
+.drawer__section {
+    margin-bottom: 0.75rem;
+}
+
+.drawer__section:last-child {
+    margin-bottom: 0;
+}
+
+.drawer__title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--slds-g-color-on-surface-1, #5c5c5c);
+    margin-bottom: 0.25rem;
+}
+
+.drawer__row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.drawer__field {
+    flex: 1 1 9rem;
+    min-width: 0;
+}
+
+/* Wide enough for the color selector's 14rem card, which opens inline
+   under the swatch, so it never spills out of its column. */
+.drawer__field_color {
+    flex-basis: 14rem;
+}
+
+.drawer__indent {
+    padding-left: 0.75rem;
+    border-left: 1px solid var(--slds-g-color-border-1, #e5e5e5);
+    margin-top: 0.5rem;
+}
+
+/* Marks the settings that are only here BECAUSE of the column's type. Without
+   the cue, an admin cannot tell why a currency column has four extra boxes and
+   a text column has none. */
+.drawer__typed {
+    background: var(--slds-g-color-surface-container-2, #f3f3f3);
+    border-radius: 0.25rem;
+    padding: 0.5rem 0.75rem 0.75rem;
+}
+
+.drawer__typed-why {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--slds-g-color-accent-2, #0250d9);
+    margin-bottom: 0.25rem;
+}
+
+.drawer__hint {
+    font-size: 0.75rem;
+    color: var(--slds-g-color-on-surface-1, #5c5c5c);
+    margin-top: 0.25rem;
+}
+
+/* ----------------------------- rules ----------------------------- */
+
+.rule {
+    border: 1px solid var(--slds-g-color-border-1, #e5e5e5);
+    border-radius: 0.25rem;
+    margin-bottom: 0.5rem;
+    background: var(--slds-g-color-surface-container-1, #fff);
+}
+
+.rule__head {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    border-bottom: 1px solid var(--slds-g-color-border-1, #e5e5e5);
+}
+
+.rule__num {
+    font-size: 0.7rem;
+    color: var(--slds-g-color-on-surface-1, #5c5c5c);
+}
+
+.rule__summary {
+    flex: 1 1 auto;
+    min-width: 0;
+    font-size: 0.8rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.rule__body {
+    padding: 0.5rem;
+}
+
+/* Stacked for inspector width: the field on its own line, then the operator,
+   the value and the delete button side by side under it. */
+.condition {
+    display: grid;
+    grid-template-columns: 1rem minmax(0, 1fr) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.375rem;
+    margin-bottom: 0.5rem;
+}
+
+.condition > :nth-child(1) {
+    grid-row: span 2;
+    align-self: start;
+    padding-top: 0.5rem;
+}
+
+.condition > :nth-child(2) {
+    grid-column: 2 / -1;
+}
+
+.condition__num {
+    font-size: 0.7rem;
+    color: var(--slds-g-color-on-surface-1, #5c5c5c);
+}
+
+.condition__field {
+    min-width: 0;
+}

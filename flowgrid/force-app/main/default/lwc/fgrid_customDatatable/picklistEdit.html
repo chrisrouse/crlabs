@@ -1,0 +1,23 @@
+<!-- data-inputable="true" is required for accessibility in the standard cell
+     layout, and is also what the datatable's inline-edit machinery reads the
+     committed value from. Do not remove it.
+
+     `locked` is a dependent picklist with nothing to offer, because the row's
+     controlling field has no value. Salesforce shows an empty dropdown and leaves the
+     user guessing; disabling says the same thing without the guessing. It is a row
+     field rather than a computed getter because a custom cell template has no
+     controller. -->
+<template>
+    <lightning-combobox
+        name="fgridPicklist"
+        label={columnLabel}
+        variant="label-hidden"
+        value={editedValue}
+        options={typeAttributes.options}
+        placeholder={typeAttributes.lockedText}
+        disabled={typeAttributes.locked}
+        required={required}
+        dropdown-alignment="auto"
+        data-inputable="true"
+    ></lightning-combobox>
+</template>

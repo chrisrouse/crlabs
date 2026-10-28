@@ -1,0 +1,252 @@
+<!-- SLDS Color Picker blueprint, rendered in OUR markup.
+     https://www.lightningdesignsystem.com/2e1ef8501/p/67c0e9-color-picker
+
+     Structure and classes are the blueprint's. Two departures, both deliberate:
+     - The tab marked aria-selected is the one showing. The blueprint's own
+       "Open Custom Tab Selected" sample leaves aria-selected on Default.
+     - Swatches and tabs are `a` elements without href. They are options and
+       tabs, not links, and an href would make a click navigate. -->
+<template>
+    <div class="slds-color-picker">
+        <div class={summaryClass}>
+            <div class="fgridColorPicker__label">
+                <label class="slds-form-element__label slds-color-picker__summary-label" for="summary-input">
+                    {label}
+                </label>
+                <template lwc:if={fieldLevelHelp}>
+                    <lightning-helptext content={fieldLevelHelp}></lightning-helptext>
+                </template>
+            </div>
+            <div class="slds-form-element__control">
+                <button
+                    type="button"
+                    class="slds-button slds-color-picker__summary-button slds-button_icon slds-button_icon-more"
+                    title="Choose Color"
+                    aria-haspopup="dialog"
+                    aria-expanded={isOpen}
+                    onclick={handleToggle}
+                >
+                    <span class="slds-swatch" style={summarySwatchStyle}></span>
+                    <lightning-icon
+                        icon-name="utility:down"
+                        size="xx-small"
+                        class="slds-m-left_xx-small"
+                    ></lightning-icon>
+                    <span class="slds-assistive-text">{summaryAssistiveText}</span>
+                </button>
+                <div class="slds-color-picker__summary-input">
+                    <input
+                        type="text"
+                        id="summary-input"
+                        class="slds-input"
+                        maxlength="7"
+                        placeholder="#FFFFFF"
+                        value={summaryText}
+                        aria-invalid={summaryError}
+                        aria-describedby="summary-error"
+                        oninput={handleSummaryInput}
+                        onchange={handleSummaryChange}
+                    />
+                </div>
+            </div>
+            <template lwc:if={summaryError}>
+                <div class="slds-form-element__help" id="summary-error">{summaryError}</div>
+            </template>
+        </div>
+
+        <template lwc:if={isOpen}>
+            <section
+                class="slds-popover slds-color-picker__selector fgridColorPicker__inline"
+                role="dialog"
+                aria-label="Choose a color"
+                onkeydown={handlePopoverKeydown}
+            >
+                <div class="slds-popover__body">
+                    <div class="slds-tabs_default">
+                        <ul class="slds-tabs_default__nav" role="tablist" onkeydown={handleTabKeydown}>
+                            <li class={defaultTabItemClass} title="Default" role="presentation">
+                                <a
+                                    class="slds-tabs_default__link"
+                                    role="tab"
+                                    data-tab="default"
+                                    tabindex={defaultTabIndex}
+                                    aria-selected={defaultTabSelected}
+                                    aria-controls="color-picker-default"
+                                    id="color-picker-default__item"
+                                    onclick={handleTabClick}
+                                    >Default</a
+                                >
+                            </li>
+                            <li class={customTabItemClass} title="Custom" role="presentation">
+                                <a
+                                    class="slds-tabs_default__link"
+                                    role="tab"
+                                    data-tab="custom"
+                                    tabindex={customTabIndex}
+                                    aria-selected={customTabSelected}
+                                    aria-controls="color-picker-custom"
+                                    id="color-picker-custom__item"
+                                    onclick={handleTabClick}
+                                    >Custom</a
+                                >
+                            </li>
+                        </ul>
+
+                        <template lwc:if={isDefaultTab}>
+                            <div
+                                id="color-picker-default"
+                                class="slds-tabs_default__content"
+                                role="tabpanel"
+                                aria-labelledby="color-picker-default__item"
+                            >
+                                <ul
+                                    class="slds-color-picker__swatches fgridColorPicker__swatches"
+                                    role="listbox"
+                                    aria-label="Preset colors"
+                                    onkeydown={handleSwatchKeydown}
+                                >
+                                    <template for:each={swatches} for:item="swatch">
+                                        <li key={swatch.key} class="slds-color-picker__swatch" role="presentation">
+                                            <a
+                                                class={swatch.className}
+                                                role="option"
+                                                tabindex={swatch.tabIndex}
+                                                aria-selected={swatch.selected}
+                                                data-index={swatch.index}
+                                                onclick={handleSwatchClick}
+                                            >
+                                                <span class="slds-swatch" style={swatch.style}>
+                                                    <span class="slds-assistive-text">{swatch.color}</span>
+                                                </span>
+                                            </a>
+                                        </li>
+                                    </template>
+                                </ul>
+                            </div>
+                        </template>
+
+                        <template lwc:if={isCustomTab}>
+                            <div
+                                id="color-picker-custom"
+                                class="slds-tabs_default__content"
+                                role="tabpanel"
+                                aria-labelledby="color-picker-custom__item"
+                            >
+                                <div class="slds-color-picker__custom">
+                                    <p id="color-picker-instructions" class="slds-assistive-text">
+                                        Use arrow keys to select a saturation and brightness, on an x and y axis.
+                                    </p>
+                                    <div
+                                        class="slds-color-picker__custom-range"
+                                        style={rangeStyle}
+                                        onpointerdown={handleRangePointerDown}
+                                    >
+                                        <button
+                                            type="button"
+                                            class="slds-color-picker__range-indicator"
+                                            style={indicatorStyle}
+                                            aria-live="assertive"
+                                            aria-atomic="true"
+                                            aria-describedby="color-picker-instructions"
+                                            onkeydown={handleIndicatorKeydown}
+                                        >
+                                            <span class="slds-assistive-text">{indicatorText}</span>
+                                        </button>
+                                    </div>
+                                    <div class="slds-color-picker__hue-and-preview">
+                                        <label class="slds-assistive-text" for="hue-slider">Select Hue</label>
+                                        <input
+                                            type="range"
+                                            class="slds-color-picker__hue-slider"
+                                            min="0"
+                                            max="360"
+                                            id="hue-slider"
+                                            value={hue}
+                                            oninput={handleHueInput}
+                                        />
+                                        <span class="slds-swatch" style={draftSwatchStyle}>
+                                            <span class="slds-assistive-text" aria-hidden="true">{draft}</span>
+                                        </span>
+                                    </div>
+                                    <div class="slds-color-picker__custom-inputs">
+                                        <div class={customHexClass}>
+                                            <label class="slds-form-element__label" for="custom-hex">Hex</label>
+                                            <div class="slds-form-element__control">
+                                                <input
+                                                    type="text"
+                                                    id="custom-hex"
+                                                    class="slds-input"
+                                                    maxlength="7"
+                                                    value={draft}
+                                                    aria-invalid={customError}
+                                                    aria-describedby="custom-error"
+                                                    onchange={handleCustomHexChange}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div class="slds-form-element">
+                                            <label class="slds-form-element__label" for="custom-r"
+                                                ><abbr title="Red">R</abbr></label
+                                            >
+                                            <div class="slds-form-element__control">
+                                                <input
+                                                    type="text"
+                                                    id="custom-r"
+                                                    class="slds-input"
+                                                    data-channel="red"
+                                                    value={rgb.red}
+                                                    onchange={handleRgbChange}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div class="slds-form-element">
+                                            <label class="slds-form-element__label" for="custom-g"
+                                                ><abbr title="Green">G</abbr></label
+                                            >
+                                            <div class="slds-form-element__control">
+                                                <input
+                                                    type="text"
+                                                    id="custom-g"
+                                                    class="slds-input"
+                                                    data-channel="green"
+                                                    value={rgb.green}
+                                                    onchange={handleRgbChange}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div class="slds-form-element">
+                                            <label class="slds-form-element__label" for="custom-b"
+                                                ><abbr title="Blue">B</abbr></label
+                                            >
+                                            <div class="slds-form-element__control">
+                                                <input
+                                                    type="text"
+                                                    id="custom-b"
+                                                    class="slds-input"
+                                                    data-channel="blue"
+                                                    value={rgb.blue}
+                                                    onchange={handleRgbChange}
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <template lwc:if={customError}>
+                                        <p class="slds-form-error" id="custom-error">{customError}</p>
+                                    </template>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                <footer class="slds-popover__footer">
+                    <div class="slds-color-picker__selector-footer">
+                        <button type="button" class="slds-button slds-button_neutral" onclick={handleCancel}>
+                            Cancel
+                        </button>
+                        <button type="button" class="slds-button slds-button_brand" onclick={handleDone}>Done</button>
+                    </div>
+                </footer>
+            </section>
+        </template>
+    </div>
+</template>

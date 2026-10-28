@@ -1,0 +1,16 @@
+.flowconfig lightning-combobox,
+.flowconfig lightning-input {
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.flowconfig__summary {
+    font-size: 0.75rem;
+    color: #706e6b;
+    margin: 0 0 0.5rem;
+}
+
+/* Reclaims the option gutter lightning-combobox reserves for its check icon. */
+.flowconfig__list {
+    --slds-c-listbox-option-spacing-inline-start: 0.5rem;
+}

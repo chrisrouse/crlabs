@@ -1,0 +1,592 @@
+/**********************************************************************
+ * Flow Grid — conditional cell formatting.
+ *
+ * A GLOBAL stylesheet, loaded with loadStyle, because component CSS is
+ * scoped and never reaches inside lightning-datatable. Measured both
+ * ways on a Lightning record page and in an LWR site: component CSS
+ * unstyled, this rendered. See repro/datatable-cell-color/ and
+ * STATUS 2.3d — nearly every assumption behind this file was wrong
+ * before it was measured.
+ *
+ * SCOPE. Every selector sits under `c-fgrid_custom-datatable`, so
+ * nothing outside Flow Grid can be affected, and both the runtime grid
+ * and the Grid Studio preview are covered by the same rules.
+ *
+ * COLORS are whatever the admin picked. `cellAttributes` takes a class
+ * and no style, so a picked hex cannot be bound to a cell. Instead each
+ * distinct color in a grid gets a numbered SLOT: the classes below are
+ * fixed, their values are custom properties, and the grid sets those on
+ * the datatable's host. Custom properties inherit into the datatable's
+ * shadow root where selectors of ours cannot, which was measured before
+ * this was built: repro/datatable-custom-color/.
+ *
+ * `--fgrid-color-N-on` is black or white, whichever reads better on the
+ * fill, computed in fgrid_formatRules `textColorFor`. Picked colors do
+ * not follow the theme into dark mode; that was accepted in exchange for
+ * any color. The slot count must match MAX_COLOR_SLOTS there.
+ **********************************************************************/
+
+/* ---------------------------------------------------------------- *
+ * Filled — a background and the text that reads on it. Each also
+ * carries the bare `fgridFormat` marker; see the hover rule.
+ * ---------------------------------------------------------------- */
+
+c-fgrid_custom-datatable .fgridColor_0 {
+    background-color: var(--fgrid-color-0);
+    color: var(--fgrid-color-0-on);
+}
+c-fgrid_custom-datatable .fgridColor_1 {
+    background-color: var(--fgrid-color-1);
+    color: var(--fgrid-color-1-on);
+}
+c-fgrid_custom-datatable .fgridColor_2 {
+    background-color: var(--fgrid-color-2);
+    color: var(--fgrid-color-2-on);
+}
+c-fgrid_custom-datatable .fgridColor_3 {
+    background-color: var(--fgrid-color-3);
+    color: var(--fgrid-color-3-on);
+}
+c-fgrid_custom-datatable .fgridColor_4 {
+    background-color: var(--fgrid-color-4);
+    color: var(--fgrid-color-4-on);
+}
+c-fgrid_custom-datatable .fgridColor_5 {
+    background-color: var(--fgrid-color-5);
+    color: var(--fgrid-color-5-on);
+}
+c-fgrid_custom-datatable .fgridColor_6 {
+    background-color: var(--fgrid-color-6);
+    color: var(--fgrid-color-6-on);
+}
+c-fgrid_custom-datatable .fgridColor_7 {
+    background-color: var(--fgrid-color-7);
+    color: var(--fgrid-color-7-on);
+}
+c-fgrid_custom-datatable .fgridColor_8 {
+    background-color: var(--fgrid-color-8);
+    color: var(--fgrid-color-8-on);
+}
+c-fgrid_custom-datatable .fgridColor_9 {
+    background-color: var(--fgrid-color-9);
+    color: var(--fgrid-color-9-on);
+}
+c-fgrid_custom-datatable .fgridColor_10 {
+    background-color: var(--fgrid-color-10);
+    color: var(--fgrid-color-10-on);
+}
+c-fgrid_custom-datatable .fgridColor_11 {
+    background-color: var(--fgrid-color-11);
+    color: var(--fgrid-color-11-on);
+}
+c-fgrid_custom-datatable .fgridColor_12 {
+    background-color: var(--fgrid-color-12);
+    color: var(--fgrid-color-12-on);
+}
+c-fgrid_custom-datatable .fgridColor_13 {
+    background-color: var(--fgrid-color-13);
+    color: var(--fgrid-color-13-on);
+}
+c-fgrid_custom-datatable .fgridColor_14 {
+    background-color: var(--fgrid-color-14);
+    color: var(--fgrid-color-14-on);
+}
+c-fgrid_custom-datatable .fgridColor_15 {
+    background-color: var(--fgrid-color-15);
+    color: var(--fgrid-color-15-on);
+}
+c-fgrid_custom-datatable .fgridColor_16 {
+    background-color: var(--fgrid-color-16);
+    color: var(--fgrid-color-16-on);
+}
+c-fgrid_custom-datatable .fgridColor_17 {
+    background-color: var(--fgrid-color-17);
+    color: var(--fgrid-color-17-on);
+}
+c-fgrid_custom-datatable .fgridColor_18 {
+    background-color: var(--fgrid-color-18);
+    color: var(--fgrid-color-18-on);
+}
+c-fgrid_custom-datatable .fgridColor_19 {
+    background-color: var(--fgrid-color-19);
+    color: var(--fgrid-color-19-on);
+}
+c-fgrid_custom-datatable .fgridColor_20 {
+    background-color: var(--fgrid-color-20);
+    color: var(--fgrid-color-20-on);
+}
+c-fgrid_custom-datatable .fgridColor_21 {
+    background-color: var(--fgrid-color-21);
+    color: var(--fgrid-color-21-on);
+}
+c-fgrid_custom-datatable .fgridColor_22 {
+    background-color: var(--fgrid-color-22);
+    color: var(--fgrid-color-22-on);
+}
+c-fgrid_custom-datatable .fgridColor_23 {
+    background-color: var(--fgrid-color-23);
+    color: var(--fgrid-color-23-on);
+}
+c-fgrid_custom-datatable .fgridColor_24 {
+    background-color: var(--fgrid-color-24);
+    color: var(--fgrid-color-24-on);
+}
+c-fgrid_custom-datatable .fgridColor_25 {
+    background-color: var(--fgrid-color-25);
+    color: var(--fgrid-color-25-on);
+}
+c-fgrid_custom-datatable .fgridColor_26 {
+    background-color: var(--fgrid-color-26);
+    color: var(--fgrid-color-26-on);
+}
+c-fgrid_custom-datatable .fgridColor_27 {
+    background-color: var(--fgrid-color-27);
+    color: var(--fgrid-color-27-on);
+}
+c-fgrid_custom-datatable .fgridColor_28 {
+    background-color: var(--fgrid-color-28);
+    color: var(--fgrid-color-28-on);
+}
+c-fgrid_custom-datatable .fgridColor_29 {
+    background-color: var(--fgrid-color-29);
+    color: var(--fgrid-color-29-on);
+}
+c-fgrid_custom-datatable .fgridColor_30 {
+    background-color: var(--fgrid-color-30);
+    color: var(--fgrid-color-30-on);
+}
+c-fgrid_custom-datatable .fgridColor_31 {
+    background-color: var(--fgrid-color-31);
+    color: var(--fgrid-color-31-on);
+}
+c-fgrid_custom-datatable .fgridColor_32 {
+    background-color: var(--fgrid-color-32);
+    color: var(--fgrid-color-32-on);
+}
+c-fgrid_custom-datatable .fgridColor_33 {
+    background-color: var(--fgrid-color-33);
+    color: var(--fgrid-color-33-on);
+}
+c-fgrid_custom-datatable .fgridColor_34 {
+    background-color: var(--fgrid-color-34);
+    color: var(--fgrid-color-34-on);
+}
+c-fgrid_custom-datatable .fgridColor_35 {
+    background-color: var(--fgrid-color-35);
+    color: var(--fgrid-color-35-on);
+}
+c-fgrid_custom-datatable .fgridColor_36 {
+    background-color: var(--fgrid-color-36);
+    color: var(--fgrid-color-36-on);
+}
+c-fgrid_custom-datatable .fgridColor_37 {
+    background-color: var(--fgrid-color-37);
+    color: var(--fgrid-color-37-on);
+}
+c-fgrid_custom-datatable .fgridColor_38 {
+    background-color: var(--fgrid-color-38);
+    color: var(--fgrid-color-38-on);
+}
+c-fgrid_custom-datatable .fgridColor_39 {
+    background-color: var(--fgrid-color-39);
+    color: var(--fgrid-color-39-on);
+}
+
+/* ---------------------------------------------------------------- *
+ * Text only — color the value, leave the cell background alone. Each
+ * also carries the bare `fgridFormatText` marker.
+ * ---------------------------------------------------------------- */
+
+c-fgrid_custom-datatable .fgridColorText_0 {
+    color: var(--fgrid-color-0);
+}
+c-fgrid_custom-datatable .fgridColorText_1 {
+    color: var(--fgrid-color-1);
+}
+c-fgrid_custom-datatable .fgridColorText_2 {
+    color: var(--fgrid-color-2);
+}
+c-fgrid_custom-datatable .fgridColorText_3 {
+    color: var(--fgrid-color-3);
+}
+c-fgrid_custom-datatable .fgridColorText_4 {
+    color: var(--fgrid-color-4);
+}
+c-fgrid_custom-datatable .fgridColorText_5 {
+    color: var(--fgrid-color-5);
+}
+c-fgrid_custom-datatable .fgridColorText_6 {
+    color: var(--fgrid-color-6);
+}
+c-fgrid_custom-datatable .fgridColorText_7 {
+    color: var(--fgrid-color-7);
+}
+c-fgrid_custom-datatable .fgridColorText_8 {
+    color: var(--fgrid-color-8);
+}
+c-fgrid_custom-datatable .fgridColorText_9 {
+    color: var(--fgrid-color-9);
+}
+c-fgrid_custom-datatable .fgridColorText_10 {
+    color: var(--fgrid-color-10);
+}
+c-fgrid_custom-datatable .fgridColorText_11 {
+    color: var(--fgrid-color-11);
+}
+c-fgrid_custom-datatable .fgridColorText_12 {
+    color: var(--fgrid-color-12);
+}
+c-fgrid_custom-datatable .fgridColorText_13 {
+    color: var(--fgrid-color-13);
+}
+c-fgrid_custom-datatable .fgridColorText_14 {
+    color: var(--fgrid-color-14);
+}
+c-fgrid_custom-datatable .fgridColorText_15 {
+    color: var(--fgrid-color-15);
+}
+c-fgrid_custom-datatable .fgridColorText_16 {
+    color: var(--fgrid-color-16);
+}
+c-fgrid_custom-datatable .fgridColorText_17 {
+    color: var(--fgrid-color-17);
+}
+c-fgrid_custom-datatable .fgridColorText_18 {
+    color: var(--fgrid-color-18);
+}
+c-fgrid_custom-datatable .fgridColorText_19 {
+    color: var(--fgrid-color-19);
+}
+c-fgrid_custom-datatable .fgridColorText_20 {
+    color: var(--fgrid-color-20);
+}
+c-fgrid_custom-datatable .fgridColorText_21 {
+    color: var(--fgrid-color-21);
+}
+c-fgrid_custom-datatable .fgridColorText_22 {
+    color: var(--fgrid-color-22);
+}
+c-fgrid_custom-datatable .fgridColorText_23 {
+    color: var(--fgrid-color-23);
+}
+c-fgrid_custom-datatable .fgridColorText_24 {
+    color: var(--fgrid-color-24);
+}
+c-fgrid_custom-datatable .fgridColorText_25 {
+    color: var(--fgrid-color-25);
+}
+c-fgrid_custom-datatable .fgridColorText_26 {
+    color: var(--fgrid-color-26);
+}
+c-fgrid_custom-datatable .fgridColorText_27 {
+    color: var(--fgrid-color-27);
+}
+c-fgrid_custom-datatable .fgridColorText_28 {
+    color: var(--fgrid-color-28);
+}
+c-fgrid_custom-datatable .fgridColorText_29 {
+    color: var(--fgrid-color-29);
+}
+c-fgrid_custom-datatable .fgridColorText_30 {
+    color: var(--fgrid-color-30);
+}
+c-fgrid_custom-datatable .fgridColorText_31 {
+    color: var(--fgrid-color-31);
+}
+c-fgrid_custom-datatable .fgridColorText_32 {
+    color: var(--fgrid-color-32);
+}
+c-fgrid_custom-datatable .fgridColorText_33 {
+    color: var(--fgrid-color-33);
+}
+c-fgrid_custom-datatable .fgridColorText_34 {
+    color: var(--fgrid-color-34);
+}
+c-fgrid_custom-datatable .fgridColorText_35 {
+    color: var(--fgrid-color-35);
+}
+c-fgrid_custom-datatable .fgridColorText_36 {
+    color: var(--fgrid-color-36);
+}
+c-fgrid_custom-datatable .fgridColorText_37 {
+    color: var(--fgrid-color-37);
+}
+c-fgrid_custom-datatable .fgridColorText_38 {
+    color: var(--fgrid-color-38);
+}
+c-fgrid_custom-datatable .fgridColorText_39 {
+    color: var(--fgrid-color-39);
+}
+
+/* ---------------------------------------------------------------- *
+ * Links and icons follow the cell's text.
+ *
+ * The url type keeps its own link blue and the checkbox its own gray
+ * check, because each sets a color rather than inheriting one. On a
+ * picked fill that is often unreadable, and on a text-only rule it
+ * leaves the link the one value not colored. Measured in round b of
+ * repro/datatable-custom-color/.
+ * ---------------------------------------------------------------- */
+
+c-fgrid_custom-datatable .fgridFormat a,
+c-fgrid_custom-datatable .fgridFormatText a {
+    color: inherit;
+}
+c-fgrid_custom-datatable .fgridFormat .slds-icon,
+c-fgrid_custom-datatable .fgridFormatText .slds-icon {
+    fill: currentColor;
+}
+
+/* ---------------------------------------------------------------- *
+ * Hover — one rule for the whole feature.
+ *
+ * `cellAttributes.class` lands on the `td`, and the row-hover rule
+ * `tr:hover > td` outranks a single class, so the platform repaints the
+ * background to $color-background-row-hover (#f3f3f3) while the class's
+ * text color survives on top of it. White on #f3f3f3, value gone.
+ * Reproduced in a competitor's datatable too, so this is a platform
+ * gotcha rather than anything of ours.
+ *
+ * DECIDED: let the hover background win and revert only the text. A
+ * hovered formatted cell then reads as an ordinary hovered cell, which
+ * makes the active row clearer, and no colored text can ever land on
+ * the hover background. The alternative — re-asserting background and
+ * text at higher specificity — keeps the cell's color under the cursor
+ * but needs a rule per variant.
+ *
+ * Only the FILLED variants carry `fgridFormat` and so only they revert.
+ * Text-only variants are left alone deliberately: their color sits on
+ * the hover background perfectly legibly, so there is no problem to fix
+ * and reverting would throw away the signal for nothing.
+ *
+ * The color must come from the hook, not a literal: in dark mode the
+ * hover background is dark, and a hardcoded #2e2e2e would be the new bug.
+ *
+ * BOTH PLACEMENTS are selected, `td .fgridFormat` and `td.fgridFormat`,
+ * because it has never been measured which element `cellAttributes.class`
+ * actually lands on. The reasoning said the `td`; the probe's working
+ * hover rules were descendant selectors. Those cannot both be right, and
+ * covering both costs one selector rather than another round of guessing.
+ * If someone measures it, delete the pair that does not match.
+ * ---------------------------------------------------------------- */
+
+c-fgrid_custom-datatable .slds-table tbody tr:hover > td .fgridFormat,
+c-fgrid_custom-datatable .slds-table tbody tr:hover > th .fgridFormat,
+c-fgrid_custom-datatable .slds-table tbody tr:hover > td.fgridFormat,
+c-fgrid_custom-datatable .slds-table tbody tr:hover > th.fgridFormat,
+/* FOCUS, not hover. Clicking or tabbing into a cell gives it
+   `.slds-has-focus`, which paints it WHITE -- not the hover gray -- and
+   draws a blue ring. Same failure, different trigger: the cell loses its
+   background and the light text stays. Caught on fgridFormat_inverse,
+   where a white cell with white text shows nothing at all. */
+c-fgrid_custom-datatable .slds-table td.slds-has-focus .fgridFormat,
+c-fgrid_custom-datatable .slds-table th.slds-has-focus .fgridFormat,
+c-fgrid_custom-datatable .slds-table td.slds-has-focus.fgridFormat,
+c-fgrid_custom-datatable .slds-table th.slds-has-focus.fgridFormat {
+    color: var(--slds-g-color-on-surface-2, #2e2e2e);
+}
+
+/**********************************************************************
+ * Progress displays.
+ *
+ * The SLDS Progress Bar blueprint is rendered in our own cell template
+ * rather than using lightning-progress-bar, which has no slots for a
+ * value and whose variant cannot carry a theme. Classes below are OURS;
+ * the slds-progress-bar-* ones come from the blueprint and are left
+ * alone.
+ *
+ * A picked color is an inline style on the fill, written per row by
+ * fgrid_gridModel, so no class here names one.
+ **********************************************************************/
+
+c-fgrid_custom-datatable .fgridProgress {
+    width: 100%;
+}
+
+/* The datatable wraps a custom cell in its own elements, which size to
+   their content, so 100% above was 100% of the value text and the bar
+   was only as wide as "20%". Stretch every wrapper between the cell and
+   our template instead. :has() selects them without naming the
+   platform's internal chain, which is unmeasured and free to change. */
+c-fgrid_custom-datatable td :has(.fgridProgress) {
+    display: block;
+    width: 100%;
+}
+
+/* Above the right end, bold. The bar spans the cell, so there is no room
+   beside it; sitting above keeps the number readable at x-small. */
+c-fgrid_custom-datatable .fgridProgress__value {
+    text-align: right;
+    font-weight: 700;
+    font-size: 0.75rem;
+    line-height: 1.1;
+    margin-bottom: 0.125rem;
+}
+
+/**********************************************************************
+ * Progress Ring and Progress Circle.
+ *
+ * Both render the SLDS Progress Ring blueprint in our own template, for
+ * the same reason as the bar. The ring is the blueprint at its own two
+ * sizes; the circle is the same markup resized, with its track thickness
+ * set by the content inset and the value written inside.
+ **********************************************************************/
+
+/* Padding reserves room for the progress head, which the blueprint
+   places 0.1875rem outside the ring and a cell wrapper would clip. */
+c-fgrid_custom-datatable .fgridRing {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.1875rem;
+    vertical-align: middle;
+}
+
+c-fgrid_custom-datatable .fgridRing__value {
+    font-weight: 700;
+    font-size: 0.75rem;
+}
+
+/* The blueprint sizes the icon by width only and relies on <use>; ours
+   is an inline path, so it needs a height to match. */
+c-fgrid_custom-datatable .fgridRing .slds-progress-ring__content .slds-icon {
+    height: auto;
+    aspect-ratio: 1;
+}
+
+/* The blueprint rounds with a fixed 1.5rem radius, which stops being a
+   circle above that size. */
+c-fgrid_custom-datatable .fgridCircle,
+c-fgrid_custom-datatable .fgridCircle .slds-progress-ring__content {
+    border-radius: 50%;
+}
+c-fgrid_custom-datatable .fgridCircle .slds-progress-ring__content {
+    flex-direction: column;
+    line-height: 1.1;
+    text-align: center;
+}
+
+/* Size: diameter, and the value's type size with it. */
+c-fgrid_custom-datatable .fgridCircle_x-small {
+    width: 2rem;
+    height: 2rem;
+    font-size: 0.5625rem;
+}
+c-fgrid_custom-datatable .fgridCircle_small {
+    width: 2.5rem;
+    height: 2.5rem;
+    font-size: 0.6875rem;
+}
+c-fgrid_custom-datatable .fgridCircle_medium {
+    width: 3rem;
+    height: 3rem;
+    font-size: 0.8125rem;
+}
+c-fgrid_custom-datatable .fgridCircle_large {
+    width: 4rem;
+    height: 4rem;
+    font-size: 1rem;
+}
+c-fgrid_custom-datatable .fgridCircle_x-large {
+    width: 5rem;
+    height: 5rem;
+    font-size: 1.25rem;
+}
+
+/* Thickness: the content inset, as a share of the diameter, so each step
+   looks the same weight at every size. */
+c-fgrid_custom-datatable .fgridCircleThickness_x-small .slds-progress-ring__content {
+    inset: 4%;
+}
+c-fgrid_custom-datatable .fgridCircleThickness_small .slds-progress-ring__content {
+    inset: 7%;
+}
+c-fgrid_custom-datatable .fgridCircleThickness_medium .slds-progress-ring__content {
+    inset: 10%;
+}
+c-fgrid_custom-datatable .fgridCircleThickness_large .slds-progress-ring__content {
+    inset: 14%;
+}
+c-fgrid_custom-datatable .fgridCircleThickness_x-large .slds-progress-ring__content {
+    inset: 20%;
+}
+
+c-fgrid_custom-datatable .fgridCircle__value {
+    font-weight: 700;
+}
+c-fgrid_custom-datatable .fgridCircle__caption {
+    font-size: 0.7em;
+    color: var(--slds-g-color-on-surface-1, #5c5c5c);
+}
+
+/**********************************************************************
+ * Room for the vertical scrollbar.
+ *
+ * lightning-datatable measures its width, then gives its inner
+ * .slds-scrollable_y exactly that width inline. The vertical scrollbar
+ * is drawn INSIDE that box, so the last column is always a scrollbar
+ * wider than the space it gets, and overflow-x: hidden clips the
+ * difference -- which is where the read-only lock and the edit pencil
+ * sit. Padding the last body cell moves them clear.
+ *
+ * 17px is the widest classic scrollbar (Windows; macOS is 15px). With
+ * overlay scrollbars it is only extra padding. Body cells only: the
+ * header sits above the scroller and is not covered.
+ *
+ * !important because this rule LOST, silently, from the day it shipped.
+ * The datatable's own `td { padding: 0.25rem 0.5rem }` is compiled for
+ * synthetic shadow with its scoping attributes (`[data-render-mode]`,
+ * the host attribute, `td[lwc-...]`), which out-rank these two classes,
+ * and its shorthand resets the end padding. Salesforce's own tables do
+ * the same thing through an inline `padding-right: 1.2rem` from
+ * cellAttributes, which is what beats it there.
+ **********************************************************************/
+c-fgrid_custom-datatable .slds-scrollable_y tbody tr > :last-child {
+    padding-inline-end: calc(var(--slds-g-spacing-2, 0.5rem) + 17px) !important;
+}
+
+/**********************************************************************
+ * Body cells align to the TOP of the row, not its middle.
+ *
+ * Nothing in the datatable sets vertical-align, so cells took the
+ * browser's table-cell default and were centered, as Flow's own data
+ * table is. Decided 2026-09-28 to top-align: a row is read from the top,
+ * and a single-line row looks the same either way.
+ *
+ * It is also what puts the inline editor in reach. The datatable anchors
+ * the edit panel to the cell's top-left corner (inlineEdit.js,
+ * startPanelPositioning -- private, not configurable), while the pencil
+ * sat halfway down a tall cell, so a long text field opened its editor
+ * off screen. Top-aligning the content and pinning the pencil to the top
+ * of it puts the pencil, the first line and the editor on one row.
+ *
+ * The pencil's centering comes from a rule not in the npm source, so its
+ * alignment is set with !important; see the scrollbar padding above for
+ * how a plain rule loses here.
+ **********************************************************************/
+c-fgrid_custom-datatable .slds-scrollable_y tbody td,
+c-fgrid_custom-datatable .slds-scrollable_y tbody th {
+    vertical-align: top;
+}
+c-fgrid_custom-datatable .slds-scrollable_y tbody .slds-cell-edit__button {
+    align-self: flex-start !important;
+}
+
+/* A rich text value can carry a code block or an image wider than the
+   column. `<pre>` does not wrap, and one that does not fit widens the whole
+   cell, so every paragraph and heading in it lays out past the column edge
+   and is clipped. */
+c-fgrid_custom-datatable .fgridRichText pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+c-fgrid_custom-datatable .fgridRichText img {
+    max-width: 100%;
+    height: auto;
+}
+
+/* The Grid Studio preview's column headers can be dragged to reorder the
+   grid; only there does fgrid_customDatatable mark them draggable. */
+c-fgrid_custom-datatable th[draggable="true"] {
+    cursor: grab;
+}

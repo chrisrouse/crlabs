@@ -1,0 +1,23 @@
+<!-- A checkbox group rather than a dual listbox: one list, multi-select, and no
+     hidden ctrl-click interaction to discover. Two stacked boxes plus move
+     buttons do not fit an inline-edit panel.
+
+     `value` is an ARRAY here while the record stores a `;`-delimited string, so
+     the array form is precomputed onto the row as typeAttributes.selected. The
+     reverse conversion happens on save, in fgrid_flowGrid.
+
+     The scroll cap keeps a picklist with many values from producing a panel
+     taller than the viewport. -->
+<template>
+    <div class="fgrid-multipicklist">
+        <lightning-checkbox-group
+            name="fgridMultiPicklist"
+            label={columnLabel}
+            variant="label-hidden"
+            options={typeAttributes.options}
+            value={typeAttributes.selected}
+            required={required}
+            data-inputable="true"
+        ></lightning-checkbox-group>
+    </div>
+</template>

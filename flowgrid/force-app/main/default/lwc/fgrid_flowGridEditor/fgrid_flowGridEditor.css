@@ -1,0 +1,19 @@
+/* The Flow Builder property panel is narrow and scrolls vertically. Keep spacing
+   tight and never set an explicit width. */
+.editor {
+    padding: 0.25rem 0;
+}
+
+.editor lightning-input,
+.editor lightning-combobox,
+.editor c-flow-config-value-input,
+.editor c-flow-config-resource-picker,
+.editor c-flow-config-field-picker {
+    display: block;
+    margin-bottom: 0.5rem;
+}
+
+.editor__placeholder {
+    border-left: 3px solid #c9c7c5;
+    padding: 0.25rem 0.5rem;
+}
