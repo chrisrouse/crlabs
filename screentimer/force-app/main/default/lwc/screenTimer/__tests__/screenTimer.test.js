@@ -1,5 +1,5 @@
 import { createElement } from "lwc";
-import FlowAutoNavigate from "c/flowAutoNavigate";
+import ScreenTimer from "c/screenTimer";
 import { notifyRecordUpdateAvailable } from "lightning/uiRecordApi";
 
 const NEXT = "lightning__flownavigationnext";
@@ -19,7 +19,7 @@ const TICK_MS = 250;
 let now;
 
 function build({ hours, minutes, seconds, availableActions = ["NEXT"], ...rest } = {}) {
-    const element = createElement("c-flow-auto-navigate", { is: FlowAutoNavigate });
+    const element = createElement("c-screen-timer", { is: ScreenTimer });
     element.timeoutHours = hours;
     element.timeoutMinutes = minutes;
     element.timeoutSeconds = seconds;
@@ -29,10 +29,19 @@ function build({ hours, minutes, seconds, availableActions = ["NEXT"], ...rest }
     return element;
 }
 
+/** The remaining-time outputs republish every second; tests of other behavior ignore them. */
+function isRemainingTick(event) {
+    return event.type === ATTRIBUTE_CHANGE && event.detail.attributeName.startsWith("timeRemaining");
+}
+
 function captureEvents(element) {
     const events = [];
     [NEXT, BACK, FINISH, PAUSE, ATTRIBUTE_CHANGE, REFRESH].forEach((type) => {
-        element.addEventListener(type, (event) => events.push({ type, detail: event.detail }));
+        element.addEventListener(type, (event) => {
+            if (!isRemainingTick(event)) {
+                events.push({ type, detail: event.detail });
+            }
+        });
     });
     return events;
 }
@@ -559,9 +568,13 @@ describe("timerExpired output", () => {
     }
 
     it("reports both outputs as false up front", async () => {
-        const element = createElement("c-flow-auto-navigate", { is: FlowAutoNavigate });
+        const element = createElement("c-screen-timer", { is: ScreenTimer });
         const seen = [];
-        element.addEventListener(ATTRIBUTE_CHANGE, (event) => seen.push(event.detail));
+        element.addEventListener(ATTRIBUTE_CHANGE, (event) => {
+            if (!isRemainingTick(event)) {
+                seen.push(event.detail);
+            }
+        });
         element.timeoutSeconds = 5;
         document.body.appendChild(element);
         await Promise.resolve();
@@ -589,6 +602,63 @@ describe("timerExpired output", () => {
         const element = build({ seconds: 10 });
         elapse(5_000);
         expect(element.timerExpired).toBe(false);
+    });
+
+    it("republishes timeRemainingSeconds once per whole second, not per tick", () => {
+        // Listener attached before connecting, so the starting value is seen too.
+        const element = createElement("c-screen-timer", { is: ScreenTimer });
+        const seen = [];
+        element.addEventListener(ATTRIBUTE_CHANGE, (event) => seen.push(event.detail));
+        element.timeoutSeconds = 3;
+        element.availableActions = ["NEXT"];
+        document.body.appendChild(element);
+
+        // Twelve 250ms ticks = 3 seconds, the whole duration.
+        for (let i = 0; i < 12; i++) {
+            elapse(250);
+        }
+
+        const published = seen
+            .filter((change) => change.attributeName === "timeRemainingSeconds")
+            .map((change) => change.value);
+        expect(published).toEqual([3, 2, 1, 0]);
+    });
+
+    it("splits the time remaining into days, hours, minutes and seconds", () => {
+        const element = build({ hours: 1, minutes: 1, seconds: 5 });
+
+        expect(element.timeRemainingDays).toBe(0);
+        expect(element.timeRemainingHours).toBe(1);
+        expect(element.timeRemainingMinutes).toBe(1);
+        expect(element.timeRemainingSeconds).toBe(5);
+
+        elapse(1_000);
+        expect(element.timeRemainingSeconds).toBe(4);
+    });
+
+    it("holds the time it had left while paused", () => {
+        const element = build({ seconds: 10 });
+        elapse(3_000);
+
+        element.paused = true;
+        expect(element.timeRemainingSeconds).toBe(7);
+
+        elapse(2_000);
+        expect(element.timeRemainingSeconds).toBe(7);
+    });
+
+    it("reports the time it left when advanced early by a trigger", () => {
+        const element = build({ seconds: 10 });
+        elapse(4_000);
+
+        element.advanceWhen = true;
+
+        expect(element.timeRemainingSeconds).toBe(6);
+    });
+
+    it("reports nothing without a duration", () => {
+        const element = build({ availableActions: [] });
+        expect(element.timeRemainingSeconds).toBeNull();
     });
 });
 
@@ -1087,7 +1157,7 @@ describe("advancing on an external trigger", () => {
     it("advances immediately when the trigger is already true on load", () => {
         // Completion happens inside connectedCallback, so the listener has to
         // be attached before the element is appended or it misses everything.
-        const element = createElement("c-flow-auto-navigate", { is: FlowAutoNavigate });
+        const element = createElement("c-screen-timer", { is: ScreenTimer });
         element.availableActions = ["NEXT"];
         element.advanceWhen = true;
         const seen = [];
@@ -1179,7 +1249,7 @@ describe("durations of a day or more", () => {
     }
 
     function buildDays({ days, hours, minutes, seconds, ...rest }) {
-        const element = createElement("c-flow-auto-navigate", { is: FlowAutoNavigate });
+        const element = createElement("c-screen-timer", { is: ScreenTimer });
         element.timeoutDays = days;
         element.timeoutHours = hours;
         element.timeoutMinutes = minutes;
@@ -1260,7 +1330,7 @@ describe("durations of a day or more", () => {
 
 describe("time format", () => {
     function render(config) {
-        const element = createElement("c-flow-auto-navigate", { is: FlowAutoNavigate });
+        const element = createElement("c-screen-timer", { is: ScreenTimer });
         element.timeoutHours = config.hours;
         element.timeoutMinutes = config.minutes;
         element.timeoutSeconds = config.seconds;
@@ -1348,7 +1418,7 @@ describe("time format", () => {
 
 describe("message position", () => {
     function build2(rest) {
-        const element = createElement("c-flow-auto-navigate", { is: FlowAutoNavigate });
+        const element = createElement("c-screen-timer", { is: ScreenTimer });
         element.timeoutSeconds = 30;
         element.showTimer = true;
         element.timerLabel = "please wait";
@@ -1393,5 +1463,215 @@ describe("message position", () => {
 
         expect(order(element)).toEqual(["message", "timer"]);
         expect(element.shadowRoot.querySelector("lightning-formatted-rich-text").value).toBe("Advancing soon");
+    });
+});
+
+describe("timer style", () => {
+    const styled = (element) => element.shadowRoot.querySelector(".auto-navigate__styled");
+
+    it("keeps the original text timer and progress bar by default", () => {
+        const element = build({ seconds: 10, showTimer: true, showProgressBar: true });
+
+        expect(element.shadowRoot.querySelector(".auto-navigate__timer")).not.toBeNull();
+        expect(element.shadowRoot.querySelector(".auto-navigate__bar-fill")).not.toBeNull();
+        expect(styled(element)).toBeNull();
+    });
+
+    it("draws the ring from the same percentage as the bar, starting full", () => {
+        const element = build({ seconds: 10, showTimer: true, timerStyle: "Ring" });
+        const arc = element.shadowRoot.querySelector(".auto-navigate__ring-arc");
+
+        expect(arc).not.toBeNull();
+        expect(arc.getAttribute("style")).toContain("stroke-dashoffset: 0");
+        expect(element.shadowRoot.querySelector(".auto-navigate__timer")).toBeNull();
+    });
+
+    it("shows the time inside the ring and the pill, and beside the bar", () => {
+        ["Ring", "Bar", "Pill"].forEach((timerStyle) => {
+            const element = build({ seconds: 65, showTimer: true, timerStyle });
+            const timers = element.shadowRoot.querySelectorAll('[role="timer"]');
+            expect(timers).toHaveLength(1);
+            expect(timers[0].textContent.trim()).toBe("1:05");
+        });
+    });
+
+    it("draws the bar's warning tick where the warning begins, counting down", () => {
+        const element = build({ seconds: 100, showTimer: true, timerStyle: "Bar", warningSeconds: 10 });
+        const tick = element.shadowRoot.querySelector(".auto-navigate__tick");
+
+        expect(tick.getAttribute("style")).toBe("left: 10.00%;");
+    });
+
+    it("hides the tick when no warning is set", () => {
+        const element = build({ seconds: 100, showTimer: true, timerStyle: "Bar" });
+        const tick = element.shadowRoot.querySelector(".auto-navigate__tick");
+
+        expect(tick.getAttribute("style")).toBe("display: none;");
+    });
+
+    it("applies the three colors to the styled timer, defaulting to brand blue and the warning red", () => {
+        const element = build({ seconds: 30, showTimer: true, timerStyle: "Pill" });
+
+        expect(styled(element).getAttribute("style")).toBe(
+            "--auto-navigate-fill: #0176D3; --auto-navigate-text: #0176D3; --auto-navigate-warning: #BA0517"
+        );
+    });
+
+    it("uses a chosen color when it is a six-digit hex", () => {
+        const element = build({ seconds: 30, showTimer: true, timerStyle: "Ring", fillColor: "#112233" });
+
+        expect(styled(element).getAttribute("style")).toContain("--auto-navigate-fill: #112233");
+    });
+
+    it("falls back to the default when a color is not a six-digit hex", () => {
+        const element = build({ seconds: 30, showTimer: true, timerStyle: "Ring", fillColor: "red" });
+
+        expect(styled(element).getAttribute("style")).toContain("--auto-navigate-fill: #0176D3");
+    });
+
+    it("switches the styled timer to its warning state inside the warning window", async () => {
+        const element = build({ seconds: 30, showTimer: true, timerStyle: "Pill", warningSeconds: 10 });
+
+        expect(styled(element).classList.contains("auto-navigate__styled_warning")).toBe(false);
+        elapse(21_000);
+        await Promise.resolve();
+        expect(styled(element).classList.contains("auto-navigate__styled_warning")).toBe(true);
+    });
+
+    it("leaves the progress bar to the Text style alone", () => {
+        const element = build({ seconds: 30, showTimer: true, showProgressBar: true, timerStyle: "Bar" });
+
+        expect(element.shadowRoot.querySelector(".auto-navigate__progress")).toBeNull();
+        expect(element.shadowRoot.querySelector(".auto-navigate__track")).not.toBeNull();
+    });
+});
+
+describe("fill direction", () => {
+    const CIRCUMFERENCE = 2 * Math.PI * 44;
+    const ringOffset = (element) => {
+        const style = element.shadowRoot.querySelector(".auto-navigate__ring-arc").getAttribute("style");
+        return Number(style.match(/stroke-dashoffset: ([\d.]+)/)[1]);
+    };
+
+    it("drains a countdown and fills a count up by default, as before", () => {
+        const countdown = build({ seconds: 100, showTimer: true, timerStyle: "Ring" });
+        const countUp = build({ seconds: 100, showTimer: true, timerStyle: "Ring", timerDirection: "Up" });
+
+        // Full ring at the start of a countdown; empty at the start of a count up.
+        expect(ringOffset(countdown)).toBeCloseTo(0, 5);
+        expect(ringOffset(countUp)).toBeCloseTo(CIRCUMFERENCE, 5);
+    });
+
+    it("fills a countdown when Fill is chosen", () => {
+        const element = build({ seconds: 100, showTimer: true, timerStyle: "Ring", fillDirection: "Fill" });
+
+        expect(ringOffset(element)).toBeCloseTo(CIRCUMFERENCE, 5);
+    });
+
+    it("drains a count up when Drain is chosen", () => {
+        const element = build({
+            seconds: 100,
+            showTimer: true,
+            timerStyle: "Ring",
+            timerDirection: "Up",
+            fillDirection: "Drain"
+        });
+
+        expect(ringOffset(element)).toBeCloseTo(0, 5);
+    });
+
+    it("moves the bar's warning tick to match a filling bar", () => {
+        const element = build({
+            seconds: 100,
+            showTimer: true,
+            timerStyle: "Bar",
+            warningSeconds: 10,
+            fillDirection: "Fill"
+        });
+        const tick = element.shadowRoot.querySelector(".auto-navigate__tick");
+
+        expect(tick.getAttribute("style")).toBe("left: 90.00%;");
+    });
+});
+
+describe("ring size", () => {
+    const ringClass = (element) => element.shadowRoot.querySelector(".auto-navigate__ring").className;
+
+    it("draws the ring at the base size by default", () => {
+        const element = build({ seconds: 30, showTimer: true, timerStyle: "Ring" });
+        expect(ringClass(element)).toBe("auto-navigate__ring");
+    });
+
+    it("adds the small and large modifiers when chosen", () => {
+        expect(ringClass(build({ seconds: 30, showTimer: true, timerStyle: "Ring", ringSize: "Small" }))).toBe(
+            "auto-navigate__ring auto-navigate__ring_small"
+        );
+        expect(ringClass(build({ seconds: 30, showTimer: true, timerStyle: "Ring", ringSize: "Large" }))).toBe(
+            "auto-navigate__ring auto-navigate__ring_large"
+        );
+    });
+
+    it("falls back to the base size for an unrecognized value", () => {
+        expect(ringClass(build({ seconds: 30, showTimer: true, timerStyle: "Ring", ringSize: "Huge" }))).toBe(
+            "auto-navigate__ring"
+        );
+    });
+});
+
+describe("overrun", () => {
+    const attributeChanges = (events) =>
+        events.filter((event) => event.type === ATTRIBUTE_CHANGE).map((event) => event.detail);
+
+    it("keeps counting past the target of a countdown as +m:ss, on the warning color", async () => {
+        const element = build({ seconds: 3, showTimer: true, timeoutAction: "Overrun" });
+        const events = captureEvents(element);
+
+        elapse(3_000);
+        expect(element.timerExpired).toBe(true);
+        expect(types(events)).not.toContain(NEXT);
+
+        elapse(2_000);
+        await Promise.resolve();
+        expect(element.shadowRoot.querySelector(".auto-navigate__timer, [role='timer']").textContent.trim()).toBe(
+            "+0:02"
+        );
+        expect(element.shadowRoot.querySelector(".auto-navigate__content").getAttribute("style")).toContain(
+            "--auto-navigate-warning-color: #BA0517"
+        );
+    });
+
+    it("keeps counting up past the full duration of a count up", async () => {
+        const element = build({ seconds: 3, showTimer: true, timeoutAction: "Overrun", timerDirection: "Up" });
+
+        elapse(5_000);
+        await Promise.resolve();
+        expect(element.shadowRoot.querySelector("[role='timer']").textContent.trim()).toBe("0:05");
+    });
+
+    it("uses the Overrun Color once past the target, falling back to the Warning Color", async () => {
+        const element = build({ seconds: 3, showTimer: true, timeoutAction: "Overrun", overrunColor: "#112233" });
+
+        elapse(4_000);
+        await Promise.resolve();
+        expect(element.shadowRoot.querySelector(".auto-navigate__content").getAttribute("style")).toContain(
+            "--auto-navigate-warning-color: #112233"
+        );
+    });
+
+    it("is ignored when Hide When Time Runs Out is on, so the timer stops at its target", async () => {
+        const element = build({ seconds: 3, showTimer: true, timeoutAction: "Overrun", hideOnExpiry: true });
+
+        elapse(5_000);
+        await Promise.resolve();
+        expect(element.shadowRoot.querySelector("[role='timer']").textContent.trim()).toBe("0:00");
+    });
+
+    it("is not offered to Next or Previous, which still navigate at the target", () => {
+        const element = build({ seconds: 3, timeoutAction: "Next", availableActions: ["NEXT"] });
+        const events = captureEvents(element);
+
+        elapse(3_000);
+        expect(types(events)).toContain(NEXT);
+        expect(attributeChanges(events).some((change) => change.attributeName === "timerExpired")).toBe(true);
     });
 });

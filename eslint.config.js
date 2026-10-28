@@ -7,7 +7,7 @@ module.exports = [
     eslintJs.configs.recommended,
     ...(Array.isArray(salesforceLwcConfig) ? salesforceLwcConfig : [salesforceLwcConfig]),
     {
-        files: ["flowautonavigate/**/lwc/**/*.js"],
+        files: ["screentimer/**/lwc/**/*.js"],
         languageOptions: { ecmaVersion: 2023, sourceType: "module" }
     },
     {

@@ -1,5 +1,5 @@
 /**
- * Flow Auto Navigate — advances a Flow screen after a configured duration.
+ * Screen Timer — advances a Flow screen after a configured duration.
  *
  * Timing is measured against a wall-clock deadline (`Date.now()`), never by
  * accumulating a fixed amount per interval callback. The previous version added
@@ -11,7 +11,7 @@
  *
  * The duration is entered as separate Days / Hours / Minutes / Seconds
  * properties and summed, so there is no string format for an admin to get wrong. Those are
- * written by the custom property editor, `c-flow-auto-navigate-editor`.
+ * written by the custom property editor, `c-screen-timer-editor`.
  */
 import { LightningElement, api } from "lwc";
 import {
@@ -58,11 +58,62 @@ export const TIME_FORMAT = {
 
 export const MESSAGE_POSITION = { ABOVE: "Above", BELOW: "Below" };
 
+/**
+ * How the timer is drawn. `Text` is the original text timer with its progress
+ * bar, and stays the default so no configured screen changes appearance. The
+ * others replace both.
+ */
+export const TIMER_STYLE = {
+    TEXT: "Text",
+    RING: "Ring",
+    BAR: "Bar",
+    PILL: "Pill"
+};
+
+/**
+ * Which way the Ring and Bar move. `Match Timer` keeps the timer direction: a
+ * countdown drains and a count up fills.
+ */
+export const FILL_DIRECTION = {
+    MATCH: "Match Timer",
+    DRAIN: "Drain",
+    FILL: "Fill"
+};
+
+/** The Ring's diameter. Medium is the base size; the others are modifiers on it. */
+export const RING_SIZE = {
+    SMALL: "Small",
+    MEDIUM: "Medium",
+    LARGE: "Large"
+};
+
+/** Salesforce brand blue, and the SLDS error red for the warning state. */
+const DEFAULT_BRAND_COLOR = "#0176D3";
+const DEFAULT_WARNING_COLOR = "#BA0517";
+
+/** Circumference of the ring's r=44 circle in the 100-unit viewBox. */
+const RING_CIRCUMFERENCE = 2 * Math.PI * 44;
+
+/** A six-digit hex from the editor's color input; anything else gets the fallback. */
+function safeColor(value, fallback) {
+    return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value) ? value : fallback;
+}
+
+/** Output API name for each unit of the time still remaining. */
+const TIME_REMAINING_OUTPUT = {
+    days: "timeRemainingDays",
+    hours: "timeRemainingHours",
+    minutes: "timeRemainingMinutes",
+    seconds: "timeRemainingSeconds"
+};
+
 export const TIMEOUT_ACTION = {
     NEXT: "Next",
     BACK: "Back",
     /** Expire in place: report the outputs and leave the screen standing. */
-    STAY: "Stay"
+    STAY: "Stay",
+    /** Stay, and keep the clock running past the target as an overrun. */
+    OVERRUN: "Overrun"
 };
 
 /**
@@ -201,7 +252,7 @@ function formatDuration(milliseconds, roundUp, format) {
     return `${minutes}:${pad(seconds)}`;
 }
 
-export default class FlowAutoNavigate extends LightningElement {
+export default class ScreenTimer extends LightningElement {
     /** Supplied by Flow; tells us which navigation actions are possible. */
     @api availableActions = [];
 
@@ -264,6 +315,16 @@ export default class FlowAutoNavigate extends LightningElement {
     @api timeFormat = TIME_FORMAT.STANDARD;
     @api messagePosition = MESSAGE_POSITION.BELOW;
 
+    /** Must match the editor's displayed default, as with the warning style below. */
+    @api timerStyle = TIMER_STYLE.TEXT;
+    @api fillColor = DEFAULT_BRAND_COLOR;
+    @api textColor = DEFAULT_BRAND_COLOR;
+    @api warningColor = DEFAULT_WARNING_COLOR;
+    /** Used once the timer is past its target. Unset means the Warning Color. */
+    @api overrunColor;
+    @api fillDirection = FILL_DIRECTION.MATCH;
+    @api ringSize = RING_SIZE.MEDIUM;
+
     /** Time-running-out treatment. Inert while the threshold sums to zero.
      *  Entered as Days / Hours / Minutes / Seconds, like the total duration. */
     @api warningDays;
@@ -286,6 +347,8 @@ export default class FlowAutoNavigate extends LightningElement {
 
     _triggered = false;
     _timerExpired = false;
+    /** Last published remaining time, per unit, so an output is only sent on change. */
+    _timeRemaining = { days: null, hours: null, minutes: null, seconds: null };
     _advanceWhen = false;
     _paused = false;
     _started = false;
@@ -294,6 +357,8 @@ export default class FlowAutoNavigate extends LightningElement {
     _remainingMs = null;
     _intervalId = null;
     _expired = false;
+    /** True while an Overrun keeps the clock running past the target. */
+    _overrunning = false;
     _announced = new Set();
 
     /**
@@ -325,13 +390,31 @@ export default class FlowAutoNavigate extends LightningElement {
     }
 
     /**
-     * Input: holds the timer without losing the time already served.
-     *
-     * Written as a setter so a reactive screen can drive it mid-screen -- bind
-     * it to a Flow formula or a checkbox on the same screen and the timer stops
-     * and starts as that value changes. Before `connectedCallback` this only
-     * records the flag; `start()` honors it.
+     * Outputs: the time still remaining, split into the same units as the
+     * duration inputs, so it can be passed to the next screen without any
+     * arithmetic. Republished once a second, and when paused, expired or
+     * advanced early. Null when the component has no duration.
      */
+    @api
+    get timeRemainingDays() {
+        return this._timeRemaining.days;
+    }
+
+    @api
+    get timeRemainingHours() {
+        return this._timeRemaining.hours;
+    }
+
+    @api
+    get timeRemainingMinutes() {
+        return this._timeRemaining.minutes;
+    }
+
+    @api
+    get timeRemainingSeconds() {
+        return this._timeRemaining.seconds;
+    }
+
     /**
      * Reactive: run the On Timeout action as soon as this becomes true,
      * without waiting for the timer.
@@ -361,6 +444,14 @@ export default class FlowAutoNavigate extends LightningElement {
         }
     }
 
+    /**
+     * Input: holds the timer without losing the time already served.
+     *
+     * Written as a setter so a reactive screen can drive it mid-screen -- bind
+     * it to a Flow formula or a checkbox on the same screen and the timer stops
+     * and starts as that value changes. Before `connectedCallback` this only
+     * records the flag; `start()` honors it.
+     */
     @api
     get paused() {
         return this._paused;
@@ -464,6 +555,8 @@ export default class FlowAutoNavigate extends LightningElement {
         }
         this._remainingMs = Math.max(0, this._deadline - Date.now());
         this.stop();
+        // Publishes the banked time, so a paused screen hands forward what it held.
+        this.refresh();
     }
 
     resume() {
@@ -483,7 +576,7 @@ export default class FlowAutoNavigate extends LightningElement {
         this.snapBar = false;
         this.refresh();
         if (Date.now() >= this._deadline) {
-            this.expire();
+            this.expire(true);
         }
     }
 
@@ -499,27 +592,75 @@ export default class FlowAutoNavigate extends LightningElement {
      * a hidden timer does not leave the bar frozen, and so neither one drives a
      * re-render faster than 1Hz.
      */
-    refresh() {
-        const remaining =
-            this._paused && this._remainingMs !== null ? this._remainingMs : Math.max(0, this._deadline - Date.now());
+    /** Milliseconds left: the banked value while paused, otherwise against the deadline. */
+    remainingMs() {
+        return Math.max(0, this.rawRemainingMs());
+    }
 
-        this.checkMilestones(remaining);
+    /** As `remainingMs`, but negative once the deadline has passed. Only an overrun reads it that way. */
+    rawRemainingMs() {
+        return this._paused && this._remainingMs !== null ? this._remainingMs : this._deadline - Date.now();
+    }
+
+    /**
+     * Publishes the remaining time as Days, Hours, Minutes and Seconds, sending
+     * only the units that changed. Whole seconds round up, matching the display.
+     * Without a duration every unit is null, so an unset timer reads as unset.
+     */
+    publishTimeRemaining(remainingMs) {
+        const totalSeconds = this._durationMs > 0 ? Math.ceil(remainingMs / 1000) : null;
+        const parts =
+            totalSeconds === null
+                ? { days: null, hours: null, minutes: null, seconds: null }
+                : {
+                      days: Math.floor(totalSeconds / SECONDS_PER_DAY),
+                      hours: Math.floor((totalSeconds % SECONDS_PER_DAY) / SECONDS_PER_HOUR),
+                      minutes: Math.floor((totalSeconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE),
+                      seconds: totalSeconds % SECONDS_PER_MINUTE
+                  };
+
+        Object.keys(parts).forEach((unit) => {
+            if (parts[unit] !== this._timeRemaining[unit]) {
+                this._timeRemaining[unit] = parts[unit];
+                this.dispatchEvent(new FlowAttributeChangeEvent(TIME_REMAINING_OUTPUT[unit], parts[unit]));
+            }
+        });
+    }
+
+    refresh() {
+        // Only an overrun is allowed below zero: any other ending holds at the target.
+        const remaining = this._overrunning ? this.rawRemainingMs() : this.remainingMs();
+
+        this.checkMilestones(Math.max(0, remaining));
 
         // Outside the whole-second gate below: the threshold is expressed in
         // seconds so it lands on a second boundary anyway, and assigning only
-        // on change means this cannot cost an extra render.
-        const warning = this.warningMs > 0 && remaining <= this.warningMs;
+        // on change means this cannot cost an extra render. An overrun is always
+        // in the warning state, so the warning color stays on past the target.
+        const warning = (this.warningMs > 0 && remaining <= this.warningMs) || this._overrunning;
         if (warning !== this.warningActive) {
             this.warningActive = warning;
         }
 
-        const shown = this.isCountdown ? remaining : this._durationMs - remaining;
-        const nextText = formatDuration(shown, this.isCountdown, this.timeFormat);
+        // A countdown past its target reads as "+m:ss"; a count up keeps climbing.
+        let nextText;
+        if (this.isCountdown) {
+            nextText =
+                remaining < 0
+                    ? `+${formatDuration(-remaining, false, this.timeFormat)}`
+                    : formatDuration(remaining, true, this.timeFormat);
+        } else {
+            nextText = formatDuration(this._durationMs - remaining, false, this.timeFormat);
+        }
         if (nextText !== this.timeDisplay) {
             this.timeDisplay = nextText;
         }
 
-        if (this.showProgressBar) {
+        // Sends only on change, so this is once a second in practice.
+        this.publishTimeRemaining(Math.max(0, remaining));
+
+        // The Ring, Bar and Pill styles draw from the same percentage as the bar.
+        if (this.showProgressBar || !this.isTextStyle) {
             const next = this.progressFor(remaining);
             if (next !== this.progressValue) {
                 this.progressValue = next;
@@ -575,12 +716,22 @@ export default class FlowAutoNavigate extends LightningElement {
      * Attribute changes are dispatched before the navigation event so Flow
      * records the outputs while this component is still mounted.
      */
-    expire() {
+    expire(byClock = false) {
         if (this._expired) {
             return;
         }
         this._expired = true;
-        this.stop();
+        // An overrun keeps the clock running past the target; any other ending
+        // stops it. Only the clock can start an overrun, never a trigger, and
+        // Hide When Time Runs Out takes priority: with it on, the timer stops at
+        // the target like a Stay.
+        const overrun = byClock && this.timeoutAction === TIMEOUT_ACTION.OVERRUN && !this.hideOnExpiry;
+        this._overrunning = overrun;
+        if (!overrun) {
+            this.stop();
+        }
+        // Before navigation, so an early trigger hands forward the time it left behind.
+        this.publishTimeRemaining(this.remainingMs());
 
         this._timerExpired = true;
         this.dispatchEvent(new FlowAttributeChangeEvent("timerExpired", true));
@@ -591,9 +742,10 @@ export default class FlowAutoNavigate extends LightningElement {
             this.triggerPageRefresh();
         }
 
-        if (this.timeoutAction === TIMEOUT_ACTION.STAY) {
-            // Nothing else to do: the screen stands, `timerExpired` is true,
-            // and anything on the screen conditioned on it can now render.
+        // Staying, overrunning, or a trigger on a screen that stays: nothing else
+        // to do. The screen stands, `timerExpired` is true, and anything on the
+        // screen conditioned on it can now render.
+        if (overrun || this.timeoutAction === TIMEOUT_ACTION.STAY || this.timeoutAction === TIMEOUT_ACTION.OVERRUN) {
             this.refresh();
             return;
         }
@@ -663,6 +815,7 @@ export default class FlowAutoNavigate extends LightningElement {
     handleReset() {
         this.stop();
         this._expired = false;
+        this._overrunning = false;
         this._triggered = false;
         this._timerExpired = false;
         this._announced = new Set();
@@ -701,6 +854,129 @@ export default class FlowAutoNavigate extends LightningElement {
     get barFillClass() {
         const base = "slds-progress-bar__value auto-navigate__bar-fill";
         return this.snapBar ? `${base} auto-navigate__bar-fill_instant` : base;
+    }
+
+    /* ---- Timer styles: Ring, Bar and Pill ---- */
+
+    get isRingStyle() {
+        return this.timerStyle === TIMER_STYLE.RING;
+    }
+
+    get isBarStyle() {
+        return this.timerStyle === TIMER_STYLE.BAR;
+    }
+
+    get isPillStyle() {
+        return this.timerStyle === TIMER_STYLE.PILL;
+    }
+
+    /** Anything unrecognized, including an unset value, gets the original look. */
+    get isTextStyle() {
+        return !this.isRingStyle && !this.isBarStyle && !this.isPillStyle;
+    }
+
+    get isStyledTimer() {
+        return !this.isTextStyle;
+    }
+
+    /** The Text style's own progress bar; the styled Bar draws its own. */
+    get showTextProgressBar() {
+        return this.showProgressBar && this.isTextStyle;
+    }
+
+    /** The three colors as CSS custom properties, read by the styled timers only. */
+    get styledVars() {
+        return [
+            `--auto-navigate-fill: ${safeColor(this.fillColor, DEFAULT_BRAND_COLOR)}`,
+            `--auto-navigate-text: ${safeColor(this.textColor, DEFAULT_BRAND_COLOR)}`,
+            `--auto-navigate-warning: ${this.activeWarningColor}`
+        ].join("; ");
+    }
+
+    /**
+     * The warning color in force. Once the timer is past its target, the Overrun
+     * Color takes over; it falls back to the Warning Color when unset.
+     */
+    get activeWarningColor() {
+        const warning = safeColor(this.warningColor, DEFAULT_WARNING_COLOR);
+        return this._overrunning ? safeColor(this.overrunColor, warning) : warning;
+    }
+
+    /**
+     * The Text style's warning colors read `--auto-navigate-warning-color`, set
+     * here on the content wrapper so the timer and its progress bar both see it.
+     */
+    get contentVars() {
+        return `--auto-navigate-warning-color: ${this.activeWarningColor};`;
+    }
+
+    get styledClass() {
+        return this.warningActive ? "auto-navigate__styled auto-navigate__styled_warning" : "auto-navigate__styled";
+    }
+
+    /** Medium, the base size, for anything unrecognized. */
+    get ringClass() {
+        const sizes = {
+            [RING_SIZE.SMALL]: "auto-navigate__ring_small",
+            [RING_SIZE.LARGE]: "auto-navigate__ring_large"
+        };
+        const modifier = sizes[this.ringSize];
+        return modifier ? `auto-navigate__ring ${modifier}` : "auto-navigate__ring";
+    }
+
+    /**
+     * Whether the Ring and Bar fill as time passes. Follows the timer direction
+     * unless the admin picked one, so a configured screen keeps its behavior.
+     */
+    get fillsWithTime() {
+        if (this.fillDirection === FILL_DIRECTION.FILL) {
+            return true;
+        }
+        if (this.fillDirection === FILL_DIRECTION.DRAIN) {
+            return false;
+        }
+        return !this.isCountdown;
+    }
+
+    /**
+     * Percent of the Ring or Bar that is filled, in the chosen direction.
+     * `progressValue` is the remaining share for a countdown and the elapsed share
+     * for a count up, so it is flipped whenever the direction disagrees with that.
+     */
+    get styledFillPercent() {
+        return this.fillsWithTime === !this.isCountdown ? this.progressValue : 100 - this.progressValue;
+    }
+
+    /** Stroke offset for the ring: the arc covers the filled share. */
+    get ringStyle() {
+        const offset = RING_CIRCUMFERENCE * (1 - this.styledFillPercent / 100);
+        return `stroke-dasharray: ${RING_CIRCUMFERENCE}; stroke-dashoffset: ${offset};`;
+    }
+
+    /** Width of the styled bar's fill. The Text progress bar keeps `barStyle`. */
+    get styledBarStyle() {
+        return `width: ${this.styledFillPercent}%;`;
+    }
+
+    /**
+     * Where the warning starts along the bar, from the left. A bar that fills with
+     * time reaches the warning at `total - warning`; one that drains reaches it at
+     * `warning`. Hidden when the warning is off or covers the whole duration.
+     */
+    get warningTickStyle() {
+        const total = this._durationMs;
+        const warning = this.warningMs;
+        if (total <= 0 || warning <= 0 || warning >= total) {
+            return "display: none;";
+        }
+        const fraction = this.fillsWithTime ? (total - warning) / total : warning / total;
+        return `left: ${(fraction * 100).toFixed(2)}%;`;
+    }
+
+    /** As `barFillClass`, for the styled bar: its own classes, same reset behavior. */
+    get trackFillClass() {
+        const base = "auto-navigate__track-fill";
+        return this.snapBar ? `${base} auto-navigate__track-fill_instant` : base;
     }
 
     /** The warning wording replaces the usual message, if one was given. */

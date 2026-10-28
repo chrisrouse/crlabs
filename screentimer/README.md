@@ -1,4 +1,4 @@
-# Flow Auto Navigate
+# Screen Timer
 
 A Flow screen component that advances the screen on its own after a configured
 duration. Use it for idle timeouts, timed confirmation screens, and any screen
@@ -18,7 +18,7 @@ duration.
 ## Configuration
 
 Properties are edited through a custom property editor
-(`c-flow-auto-navigate-editor`) rather than Flow Builder's default panel: the
+(`c-screen-timer-editor`) rather than Flow Builder's default panel: the
 duration is four boxes on one row with a live plain-English summary
 ("Advances after 1 minute 5 seconds."), and the panel refuses to save a duration
 of zero.
@@ -27,11 +27,11 @@ of zero.
 
 | Property                  | Type    | Notes                                                             |
 | ------------------------- | ------- | ----------------------------------------------------------------- |
-| Days                      | Integer | Summed with the three below. Leave blank for none.                |
-| Hours                     | Integer |                                                                   |
-| Minutes                   | Integer |                                                                   |
-| Seconds                   | Integer |                                                                   |
-| On Timeout                | String  | `Next` (default), `Back`, `Stay`. See below.                      |
+| Days                      | Integer | A typed number or a Flow resource. Summed with the three below. Blank for none. |
+| Hours                     | Integer | A typed number or a Flow resource.                                |
+| Minutes                   | Integer | A typed number or a Flow resource.                                |
+| Seconds                   | Integer | A typed number or a Flow resource.                                |
+| On Timeout                | String  | `Next` (default), `Back`, `Stay`, `Overrun`. See below.           |
 | Advance When This Is True | Boolean | Optional **resource**. Completes on a trigger instead of a timer. |
 | Pause Timer               | Boolean | Optional **resource**; the timer holds while true.                |
 
@@ -83,19 +83,53 @@ starts as it changes, keeping the time already served rather than restarting.
 | Hide When Time Runs Out | Boolean | Hides the component on expiry but keeps its space. See below.               |
 | Refresh the Page        | Boolean | Refreshes the surrounding page on expiry. See below.                        |
 
+### Style
+
+| Property     | Type   | Notes                                                                 |
+| ------------ | ------ | --------------------------------------------------------------------- |
+| Timer Style  | String | `Text` (default), `Ring`, `Bar` or `Pill`. See below.              |
+| Fill Direction | String | `Match Timer` (default), `Drain` or `Fill`. Ring and Bar only.      |
+| Ring Size    | String | `Medium` (default), `Small` or `Large`. Ring only.                    |
+| Fill Color   | String | Salesforce brand blue by default. Ring, Bar and Pill only.            |
+| Text Color   | String | Salesforce brand blue by default. Ring, Bar and Pill only.            |
+
+`Text` is the original text timer with its progress bar, and is unchanged by any of
+the colors. `Ring`, `Bar` and `Pill` replace both, and show only when Show Timer is
+on. The Warning Color is set in Time Running Out, and applies to every style.
+Warning Style, Warning Icon and Tint Progress Bar apply to `Text` only.
+
+### Overrun
+
+`Overrun` is an On Timeout choice. At the target the timer keeps counting: a
+countdown shows `+m:ss` past zero, and a count up keeps climbing past its full
+duration. The screen stays up, `timerExpired` goes true at the target, and the
+Overrun Color takes over from the Warning Color. It is ignored when Hide When Time
+Runs Out is on, in which case the timer stops at its target as with `Stay`. `Next`
+and `Previous` never overrun.
+
+The `Bar` style marks where the warning starts with a tick on the track. The tick
+follows the Warning threshold, so a longer warning moves it.
+
+`Match Timer` keeps the timer direction: a countdown drains and a count up fills.
+`Drain` and `Fill` override that, so a count up can drain or a countdown can fill.
+
 ### Time running out
 
-The threshold uses the same four-box Days / Hours / Minutes / Seconds control as
-Advance After, summed the same way, so a long screen can warn minutes ahead
-rather than seconds. Everything else here is inert until it sums above zero,
-and it must be shorter than the total duration.
+The threshold uses the same four stacked Days / Hours / Minutes / Seconds fields as
+Advance After, each a typed number or a Flow resource, summed the same way. Everything
+else here is inert until it sums above zero.
+
+The editor does not check the threshold against the duration. A threshold at or
+above the duration shows the warning from the first paint, so keep it shorter. When
+a box holds a resource, the editor cannot know the total, so it says the warning is
+judged at runtime.
 
 | Property                       | Type    | Notes                                                             |
 | ------------------------------ | ------- | ----------------------------------------------------------------- |
-| Warning Days                   | Integer | Summed with the three below. Blank for no warning phase.          |
-| Warning Hours                  | Integer |                                                                   |
-| Warning Minutes                | Integer |                                                                   |
-| Warning Seconds                | Integer |                                                                   |
+| Warning Days                   | Integer | A typed number or a Flow resource. Blank for no warning phase.    |
+| Warning Hours                  | Integer | A typed number or a Flow resource.                                |
+| Warning Minutes                | Integer | A typed number or a Flow resource.                                |
+| Warning Seconds                | Integer | A typed number or a Flow resource.                                |
 | Warning Style                  | String  | `No Change`, `Color`, `Color and Weight`, `Pulse`, `Tinted Pill`. |
 | Warning Message                | String  | Replaces Message to Users during the warning.                     |
 | Show Warning Icon              | Boolean | A warning icon beside the timer.                                  |
@@ -109,13 +143,28 @@ treatments; open it in a browser.
 
 ## Outputs
 
-| Output         | Meaning                                                  |
-| -------------- | -------------------------------------------------------- |
-| `triggered`    | This component advanced the screen itself.               |
-| `timerExpired` | The timer reached zero, whether or not the screen moved. |
+| Output                 | Meaning                                                                  |
+| ---------------------- | ------------------------------------------------------------------------ |
+| `triggered`            | This component advanced the screen itself.                               |
+| `timerExpired`         | The timer reached zero, whether or not the screen moved.                 |
+| `timeRemainingDays`    | Days still remaining. Null when there is no duration.                    |
+| `timeRemainingHours`   | Hours still remaining (0–23), alongside the days.                        |
+| `timeRemainingMinutes` | Minutes still remaining (0–59), alongside the hours.                     |
+| `timeRemainingSeconds` | Seconds still remaining (0–59), alongside the minutes.                   |
 
-Both are reported as `false` when the screen loads, so a Decision reads an
-explicit value rather than relying on an unset Boolean being falsy.
+Both booleans are reported as `false` when the screen loads, so a Decision reads
+an explicit value rather than relying on an unset Boolean being falsy.
+
+### Carrying the time to the next screen
+
+The four `timeRemaining` outputs are the time left on this screen, split into
+the same units as the duration inputs. Map them straight onto the next screen's
+Days, Hours, Minutes and Seconds boxes. No arithmetic is needed.
+
+They are published when the time changes once a second, when the screen is
+paused, and when it advances early on a trigger. Whole seconds round up, matching
+the display. When the screen advances by a Next click, the value is the last one
+published, so it can be up to a second behind.
 
 ### Routing after the screen
 

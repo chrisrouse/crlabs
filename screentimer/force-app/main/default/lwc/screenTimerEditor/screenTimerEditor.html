@@ -21,58 +21,74 @@
              configuration, so it is the one left open. -->
         <lightning-accordion allow-multiple-sections-open active-section-name={initialSections}>
             <lightning-accordion-section name="when" label="When to Advance">
-                <!-- Four boxes on one row, so there is no format to get wrong.
-                     Plain number inputs rather than the kit's value input --
-                     only a literal makes sense here, and a bound Flow formula
-                     could not be summed for the live total below. -->
-                <div class="slds-grid slds-gutters_xx-small">
-                    <div class="slds-col">
-                        <lightning-input
-                            type="number"
+                <!-- Four stacked fields, largest unit first. Each takes a typed number or a Flow
+                     resource, so a value from an earlier screen can be passed in
+                     without converting it. The live total counts typed numbers
+                     only; a bound box is judged when the screen runs. -->
+                <div>
+                    <div class="slds-m-bottom_x-small">
+                        <c-flow-config-value-input
                             data-validatable
                             data-property="timeoutDays"
                             label="Days"
+                            field-level-help="Whole days, added to the other boxes. Type a number or pick a resource."
+                            property-name="timeoutDays"
                             value={timeoutDays}
-                            min="0"
-                            step="1"
-                            onchange={handleDuration}
-                        ></lightning-input>
+                            value-data-type={timeoutDaysDataType}
+                            value-type="Number"
+                            builder-context={builderContext}
+                            automatic-output-variables={automaticOutputVariables}
+                            api-version={apiVersion}
+                            onvaluechange={handleDurationValue}
+                        ></c-flow-config-value-input>
                     </div>
-                    <div class="slds-col">
-                        <lightning-input
-                            type="number"
+                    <div class="slds-m-bottom_x-small">
+                        <c-flow-config-value-input
                             data-validatable
                             data-property="timeoutHours"
                             label="Hours"
+                            field-level-help="Whole hours, added to the other boxes. Type a number or pick a resource."
+                            property-name="timeoutHours"
                             value={timeoutHours}
-                            min="0"
-                            step="1"
-                            onchange={handleDuration}
-                        ></lightning-input>
+                            value-data-type={timeoutHoursDataType}
+                            value-type="Number"
+                            builder-context={builderContext}
+                            automatic-output-variables={automaticOutputVariables}
+                            api-version={apiVersion}
+                            onvaluechange={handleDurationValue}
+                        ></c-flow-config-value-input>
                     </div>
-                    <div class="slds-col">
-                        <lightning-input
-                            type="number"
+                    <div class="slds-m-bottom_x-small">
+                        <c-flow-config-value-input
                             data-validatable
                             data-property="timeoutMinutes"
                             label="Minutes"
+                            field-level-help="Whole minutes, added to the other boxes. Type a number or pick a resource."
+                            property-name="timeoutMinutes"
                             value={timeoutMinutes}
-                            min="0"
-                            step="1"
-                            onchange={handleDuration}
-                        ></lightning-input>
+                            value-data-type={timeoutMinutesDataType}
+                            value-type="Number"
+                            builder-context={builderContext}
+                            automatic-output-variables={automaticOutputVariables}
+                            api-version={apiVersion}
+                            onvaluechange={handleDurationValue}
+                        ></c-flow-config-value-input>
                     </div>
-                    <div class="slds-col">
-                        <lightning-input
-                            type="number"
+                    <div class="slds-m-bottom_x-small">
+                        <c-flow-config-value-input
                             data-validatable
                             data-property="timeoutSeconds"
                             label="Seconds"
+                            field-level-help="Whole seconds, added to the other boxes. Type a number or pick a resource."
+                            property-name="timeoutSeconds"
                             value={timeoutSeconds}
-                            min="0"
-                            step="1"
-                            onchange={handleDuration}
-                        ></lightning-input>
+                            value-data-type={timeoutSecondsDataType}
+                            value-type="Number"
+                            builder-context={builderContext}
+                            automatic-output-variables={automaticOutputVariables}
+                            api-version={apiVersion}
+                            onvaluechange={handleDurationValue}
+                        ></c-flow-config-value-input>
                     </div>
                 </div>
 
@@ -126,7 +142,7 @@
                         label="On Timeout"
                         value={timeoutAction}
                         options={actionOptions}
-                        field-level-help="What the flow does when the time runs out. Next falls back to finishing the flow on a last screen, so it covers that case too. Previous does nothing if the flow does not offer it."
+                        field-level-help="What the flow does when the time runs out. Next falls back to finishing the flow on a last screen, so it covers that case too. Previous does nothing if the flow does not offer it. Overrun keeps the timer counting past its target and stays on this screen, in the warning color."
                         onchange={handleSelect}
                     ></lightning-combobox>
 
@@ -265,59 +281,138 @@
                 </div>
             </lightning-accordion-section>
 
+            <lightning-accordion-section name="style" label="Style">
+                <div class="editor__section">
+                    <lightning-combobox
+                        data-validatable
+                        data-property="timerStyle"
+                        label="Timer Style"
+                        value={timerStyle}
+                        options={timerStyleOptions}
+                        field-level-help="Text is the original text timer with its progress bar. Ring, Bar and Pill replace both, and show only when Show Timer is on. Warning Style, Warning Icon and Tint Progress Bar apply to Text only."
+                        onchange={handleSelect}
+                    ></lightning-combobox>
+                </div>
+
+                <div class="editor__section slds-m-top_x-small">
+                    <lightning-combobox
+                        data-validatable
+                        data-property="fillDirection"
+                        label="Fill Direction"
+                        value={fillDirection}
+                        options={fillDirectionOptions}
+                        field-level-help="Ring and Bar only. Match Timer drains a countdown and fills a count up. Drain empties as time passes; Fill fills as time passes."
+                        onchange={handleSelect}
+                    ></lightning-combobox>
+                </div>
+
+                <div class="editor__section slds-m-top_x-small">
+                    <lightning-combobox
+                        data-validatable
+                        data-property="ringSize"
+                        label="Ring Size"
+                        value={ringSize}
+                        options={ringSizeOptions}
+                        field-level-help="Ring only. Medium matches the default. Small and Large change the diameter and the numerals together."
+                        onchange={handleSelect}
+                    ></lightning-combobox>
+                </div>
+
+                <div class="editor__section slds-m-top_x-small">
+                    <lightning-input
+                        type="color"
+                        data-validatable
+                        data-property="fillColor"
+                        label="Fill Color"
+                        value={fillColor}
+                        field-level-help="The ring, bar and pill fill. Ring, Bar and Pill only."
+                        onchange={handleColor}
+                    ></lightning-input>
+                </div>
+
+                <div class="editor__section slds-m-top_x-small">
+                    <lightning-input
+                        type="color"
+                        data-validatable
+                        data-property="textColor"
+                        label="Text Color"
+                        value={textColor}
+                        field-level-help="The time shown inside the ring, bar or pill. Ring, Bar and Pill only."
+                        onchange={handleColor}
+                    ></lightning-input>
+                </div>
+            </lightning-accordion-section>
+
             <lightning-accordion-section name="warning" label="Time Running Out">
-                <!-- Same four-box shape as Advance After. Duplicated rather
-                     than extracted: the kit's inherited validate() only sweeps
-                     [data-validatable] in THIS template, so moving these into
-                     a child component would cost the inline error mirroring. -->
-                <div class="slds-grid slds-gutters_xx-small">
-                    <div class="slds-col">
-                        <lightning-input
-                            type="number"
+                <!-- Same stacked fields as Advance After, with the same resource
+                     support. Duplicated rather than extracted: the kit's inherited
+                     validate() only sweeps [data-validatable] in THIS template, so
+                     moving these into a child component would cost the inline error
+                     mirroring. -->
+                <div>
+                    <div class="slds-m-bottom_x-small">
+                        <c-flow-config-value-input
                             data-validatable
                             data-property="warningDays"
                             label="Days"
+                            field-level-help="Whole days, added to the other boxes. Type a number or pick a resource."
+                            property-name="warningDays"
                             value={warningDays}
-                            min="0"
-                            step="1"
-                            onchange={handleDuration}
-                        ></lightning-input>
+                            value-data-type={warningDaysDataType}
+                            value-type="Number"
+                            builder-context={builderContext}
+                            automatic-output-variables={automaticOutputVariables}
+                            api-version={apiVersion}
+                            onvaluechange={handleDurationValue}
+                        ></c-flow-config-value-input>
                     </div>
-                    <div class="slds-col">
-                        <lightning-input
-                            type="number"
+                    <div class="slds-m-bottom_x-small">
+                        <c-flow-config-value-input
                             data-validatable
                             data-property="warningHours"
                             label="Hours"
+                            field-level-help="Whole hours, added to the other boxes. Type a number or pick a resource."
+                            property-name="warningHours"
                             value={warningHours}
-                            min="0"
-                            step="1"
-                            onchange={handleDuration}
-                        ></lightning-input>
+                            value-data-type={warningHoursDataType}
+                            value-type="Number"
+                            builder-context={builderContext}
+                            automatic-output-variables={automaticOutputVariables}
+                            api-version={apiVersion}
+                            onvaluechange={handleDurationValue}
+                        ></c-flow-config-value-input>
                     </div>
-                    <div class="slds-col">
-                        <lightning-input
-                            type="number"
+                    <div class="slds-m-bottom_x-small">
+                        <c-flow-config-value-input
                             data-validatable
                             data-property="warningMinutes"
                             label="Minutes"
+                            field-level-help="Whole minutes, added to the other boxes. Type a number or pick a resource."
+                            property-name="warningMinutes"
                             value={warningMinutes}
-                            min="0"
-                            step="1"
-                            onchange={handleDuration}
-                        ></lightning-input>
+                            value-data-type={warningMinutesDataType}
+                            value-type="Number"
+                            builder-context={builderContext}
+                            automatic-output-variables={automaticOutputVariables}
+                            api-version={apiVersion}
+                            onvaluechange={handleDurationValue}
+                        ></c-flow-config-value-input>
                     </div>
-                    <div class="slds-col">
-                        <lightning-input
-                            type="number"
+                    <div class="slds-m-bottom_x-small">
+                        <c-flow-config-value-input
                             data-validatable
                             data-property="warningSeconds"
                             label="Seconds"
+                            field-level-help="Whole seconds, added to the other boxes. Type a number or pick a resource."
+                            property-name="warningSeconds"
                             value={warningSeconds}
-                            min="0"
-                            step="1"
-                            onchange={handleDuration}
-                        ></lightning-input>
+                            value-data-type={warningSecondsDataType}
+                            value-type="Number"
+                            builder-context={builderContext}
+                            automatic-output-variables={automaticOutputVariables}
+                            api-version={apiVersion}
+                            onvaluechange={handleDurationValue}
+                        ></c-flow-config-value-input>
                     </div>
                 </div>
 
@@ -333,6 +428,26 @@
                         field-level-help="How the timer itself changes. Color on its own carries the change by color alone, which fails WCAG 1.4.1 unless you also set a warning message or the icon."
                         onchange={handleSelect}
                     ></lightning-combobox>
+
+                    <lightning-input
+                        type="color"
+                        data-validatable
+                        data-property="warningColor"
+                        label="Warning Color"
+                        value={warningColor}
+                        field-level-help="The color of the timer in its warning phase. Used by Ring, Bar, Pill and the Text timer's color warning styles."
+                        onchange={handleColor}
+                    ></lightning-input>
+
+                    <lightning-input
+                        type="color"
+                        data-validatable
+                        data-property="overrunColor"
+                        label="Overrun Color"
+                        value={overrunColor}
+                        field-level-help="The color once the timer is past its target, on an Overrun. Defaults to the Warning Color."
+                        onchange={handleColor}
+                    ></lightning-input>
 
                     <c-flow-config-value-input
                         data-validatable

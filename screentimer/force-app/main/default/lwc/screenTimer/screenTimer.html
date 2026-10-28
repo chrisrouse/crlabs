@@ -15,7 +15,7 @@
          no phantom gap: with every display option off there is nothing here
          but the assistive text, which takes no space. -->
     <template lwc:if={hasVisibleContent}>
-        <div class={contentClass}>
+        <div class={contentClass} style={contentVars}>
             <template lwc:if={showTimer}>
                 <template lwc:if={messageAbove}>
                     <lightning-formatted-rich-text
@@ -28,19 +28,63 @@
                      what we want: a value that changes every second announced
                      politely would talk over everything else a screen reader is
                      saying. The assistive text above supplies the warnings. -->
-                <div class={timerClass} role="timer" aria-live="off">
-                    <!-- Decorative: the milestone announcements carry the warning
-                         for assistive tech, so a spoken label here would duplicate. -->
-                    <template lwc:if={showWarningIcon}>
-                        <lightning-icon
-                            class="auto-navigate__icon"
-                            icon-name="utility:warning"
-                            size="x-small"
-                            aria-hidden="true"
-                        ></lightning-icon>
-                    </template>
-                    <span>{timeDisplay}</span>
-                </div>
+                <template lwc:if={isTextStyle}>
+                    <div class={timerClass} role="timer" aria-live="off">
+                        <!-- Decorative: the milestone announcements carry the warning
+                             for assistive tech, so a spoken label here would duplicate. -->
+                        <template lwc:if={showWarningIcon}>
+                            <lightning-icon
+                                class="auto-navigate__icon"
+                                icon-name="utility:warning"
+                                size="x-small"
+                                aria-hidden="true"
+                            ></lightning-icon>
+                        </template>
+                        <span>{timeDisplay}</span>
+                    </div>
+                </template>
+
+                <!-- The Ring, Bar and Pill styles. Each carries the same role="timer"
+                     and aria-live="off" as the Text timer, for the same reason. The
+                     warning state is the wrapper's class, which swaps the colors. -->
+                <template lwc:if={isStyledTimer}>
+                    <div class={styledClass} style={styledVars}>
+                        <template lwc:if={isRingStyle}>
+                            <div class={ringClass}>
+                                <svg viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+                                    <circle class="auto-navigate__ring-track" cx="50" cy="50" r="44"></circle>
+                                    <circle
+                                        class="auto-navigate__ring-arc"
+                                        cx="50"
+                                        cy="50"
+                                        r="44"
+                                        style={ringStyle}
+                                    ></circle>
+                                </svg>
+                                <div class="auto-navigate__ring-text" role="timer" aria-live="off">{timeDisplay}</div>
+                            </div>
+                        </template>
+
+                        <template lwc:if={isBarStyle}>
+                            <div class="auto-navigate__bar-reading">
+                                <span role="timer" aria-live="off">{timeDisplay}</span>
+                            </div>
+                            <!-- Decorative, as the Text progress bar is: the timer above and
+                             the milestone announcements already carry the same information. -->
+                            <div class="auto-navigate__track" aria-hidden="true">
+                                <span class={trackFillClass} style={styledBarStyle}></span>
+                                <span class="auto-navigate__tick" style={warningTickStyle}></span>
+                            </div>
+                        </template>
+
+                        <template lwc:if={isPillStyle}>
+                            <div class="auto-navigate__pill">
+                                <span class="auto-navigate__dot" aria-hidden="true"></span>
+                                <span role="timer" aria-live="off">{timeDisplay}</span>
+                            </div>
+                        </template>
+                    </div>
+                </template>
 
                 <template lwc:if={messageBelow}>
                     <lightning-formatted-rich-text
@@ -50,7 +94,7 @@
                 </template>
             </template>
 
-            <template lwc:if={showProgressBar}>
+            <template lwc:if={showTextProgressBar}>
                 <!-- The SLDS blueprint rather than lightning-progress-bar. The
                      base component keeps its fill inside its own shadow root,
                      where a transition cannot be reached from here, so the bar

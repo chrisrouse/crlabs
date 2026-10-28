@@ -110,7 +110,7 @@
 
 .auto-navigate__bar-fill {
     background: var(--auto-navigate-bar-fill, #0176d3);
-    /* MUST match TICK_MS in flowAutoNavigate.js. The component aims the bar one
+    /* MUST match TICK_MS in screenTimer.js. The component aims the bar one
        tick ahead and this interpolates across exactly that gap, so the fill
        tracks the real remaining time instead of trailing it. A longer duration
        here is what left a second of travel on the bar at 0:00. */
@@ -132,5 +132,186 @@
 @media (prefers-reduced-motion: reduce) {
     .auto-navigate__bar-fill {
         transition: none;
+    }
+}
+
+/* ------------------------------------------------------------------ *
+ * Styled timers: Ring, Bar, Pill
+ *
+ * Colors come from custom properties set on the wrapper (fillColor,
+ * textColor, warningColor). The Text style never reads them.
+ * ------------------------------------------------------------------ */
+
+.auto-navigate__styled {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+/* Ring */
+
+.auto-navigate__ring {
+    position: relative;
+    width: 9rem;
+    height: 9rem;
+}
+
+.auto-navigate__ring_small {
+    width: 6rem;
+    height: 6rem;
+}
+
+.auto-navigate__ring_large {
+    width: 12rem;
+    height: 12rem;
+}
+
+.auto-navigate__ring svg {
+    transform: rotate(-90deg);
+    width: 100%;
+    height: 100%;
+}
+
+.auto-navigate__ring-track {
+    fill: none;
+    stroke: #dddbda;
+    stroke-width: 6;
+}
+
+.auto-navigate__ring-arc {
+    fill: none;
+    stroke: var(--auto-navigate-fill);
+    stroke-width: 6;
+    transition:
+        stroke-dashoffset 250ms linear,
+        stroke 0.2s ease;
+}
+
+.auto-navigate__ring-text {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--auto-navigate-text);
+    font-size: 1.75rem;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    font-variant-numeric: tabular-nums;
+    transition: color 0.2s ease;
+}
+
+/* The numerals scale with the ring, so a small ring still reads at a glance. */
+.auto-navigate__ring_small .auto-navigate__ring-text {
+    font-size: 1.25rem;
+}
+
+.auto-navigate__ring_large .auto-navigate__ring-text {
+    font-size: 2.5rem;
+}
+
+/* Bar */
+
+.auto-navigate__bar-reading {
+    width: 100%;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    color: var(--auto-navigate-text);
+    font-size: 1.75rem;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+}
+
+.auto-navigate__track {
+    position: relative;
+    width: 100%;
+    height: 0.75rem;
+    background: #dddbda;
+    border-radius: 0.375rem;
+}
+
+.auto-navigate__track-fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    background: var(--auto-navigate-fill);
+    border-radius: inherit;
+    transition:
+        width 250ms linear,
+        background-color 0.2s ease;
+}
+
+.auto-navigate__track-fill_instant {
+    transition: none;
+}
+
+.auto-navigate__tick {
+    position: absolute;
+    top: -0.3rem;
+    bottom: -0.3rem;
+    width: 2px;
+    background: var(--auto-navigate-text);
+}
+
+/* Pill */
+
+.auto-navigate__pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.5rem 1.1rem;
+    border: 1px solid var(--auto-navigate-fill);
+    border-radius: 999px;
+    color: var(--auto-navigate-text);
+    font-size: 1.5rem;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    transition:
+        border-color 0.2s ease,
+        color 0.2s ease;
+}
+
+.auto-navigate__dot {
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 50%;
+    background: var(--auto-navigate-fill);
+}
+
+/* Warning, shared by all three: the warning color takes over from the fill and text. */
+
+.auto-navigate__styled_warning .auto-navigate__ring-arc,
+.auto-navigate__styled_warning .auto-navigate__track-fill {
+    stroke: var(--auto-navigate-warning);
+    background: var(--auto-navigate-warning);
+}
+
+.auto-navigate__styled_warning .auto-navigate__ring-text,
+.auto-navigate__styled_warning .auto-navigate__bar-reading,
+.auto-navigate__styled_warning .auto-navigate__pill {
+    color: var(--auto-navigate-warning);
+}
+
+.auto-navigate__styled_warning .auto-navigate__pill {
+    border-color: var(--auto-navigate-warning);
+}
+
+.auto-navigate__styled_warning .auto-navigate__dot {
+    background: var(--auto-navigate-warning);
+    animation: auto-navigate-pulse 1s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .auto-navigate__ring-arc,
+    .auto-navigate__track-fill {
+        transition: none;
+    }
+
+    .auto-navigate__styled_warning .auto-navigate__dot {
+        animation: none;
     }
 }

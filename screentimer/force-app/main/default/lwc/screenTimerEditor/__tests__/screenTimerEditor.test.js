@@ -1,10 +1,10 @@
 import { createElement } from "lwc";
-import FlowAutoNavigateEditor from "c/flowAutoNavigateEditor";
+import ScreenTimerEditor from "c/screenTimerEditor";
 
 const INPUT_CHANGED = "configuration_editor_input_value_changed";
 
 function build({ inputVariables = [] } = {}) {
-    const element = createElement("c-flow-auto-navigate-editor", { is: FlowAutoNavigateEditor });
+    const element = createElement("c-screen-timer-editor", { is: ScreenTimerEditor });
     element.builderContext = { variables: [] };
     element.inputVariables = inputVariables;
     document.body.appendChild(element);
@@ -21,11 +21,11 @@ function control(element, property) {
     return element.shadowRoot.querySelector(`[data-property="${property}"]`);
 }
 
-/** A number box change, as lightning-input reports it. */
-function typeDuration(element, property, value) {
-    const input = control(element, property);
-    input.value = value;
-    input.dispatchEvent(new CustomEvent("change"));
+/** A duration box change, as the kit's value input reports it: typed text, or a picked resource. */
+function typeDurationValue(element, property, newValue, newValueDataType = "Number") {
+    control(element, property).dispatchEvent(
+        new CustomEvent("valuechange", { detail: { name: property, newValue, newValueDataType } })
+    );
 }
 
 function toggle(element, property, checked) {
@@ -62,12 +62,24 @@ describe("duration entry", () => {
         const element = build();
         const details = captureInputs(element);
 
-        typeDuration(element, "timeoutMinutes", "2");
+        typeDurationValue(element, "timeoutMinutes", "2");
         await Promise.resolve();
 
         // "Number", not "Integer": Integer is a js-meta.xml property type and is
         // not one of Flow's value data types.
         expect(details).toEqual([{ name: "timeoutMinutes", newValue: "2", newValueDataType: "Number" }]);
+    });
+
+    it("saves a picked resource as the reference itself", async () => {
+        const element = build();
+        const details = captureInputs(element);
+
+        typeDurationValue(element, "timeoutMinutes", "{!Screen1.timeRemainingMinutes}", "reference");
+        await Promise.resolve();
+
+        expect(details).toEqual([
+            { name: "timeoutMinutes", newValue: "{!Screen1.timeRemainingMinutes}", newValueDataType: "reference" }
+        ]);
     });
 
     it("clears the property when a box is emptied, rather than storing zero", async () => {
@@ -76,7 +88,7 @@ describe("duration entry", () => {
         });
         const details = captureInputs(element);
 
-        typeDuration(element, "timeoutMinutes", "");
+        typeDurationValue(element, "timeoutMinutes", "");
         await Promise.resolve();
 
         expect(details).toEqual([{ name: "timeoutMinutes", newValue: null, newValueDataType: "Number" }]);
@@ -86,7 +98,7 @@ describe("duration entry", () => {
         const element = build();
         const details = captureInputs(element);
 
-        typeDuration(element, "timeoutSeconds", "-5");
+        typeDurationValue(element, "timeoutSeconds", "-5");
         await Promise.resolve();
 
         expect(details).toEqual([]);
@@ -96,7 +108,7 @@ describe("duration entry", () => {
         const element = build();
         const details = captureInputs(element);
 
-        typeDuration(element, "timeoutSeconds", "7.9");
+        typeDurationValue(element, "timeoutSeconds", "7.9");
         await Promise.resolve();
 
         expect(details[0].newValue).toBe("7");
@@ -105,7 +117,7 @@ describe("duration entry", () => {
     it("shows what was typed without waiting for Flow Builder to republish", async () => {
         const element = build();
 
-        typeDuration(element, "timeoutMinutes", "3");
+        typeDurationValue(element, "timeoutMinutes", "3");
         await Promise.resolve();
 
         expect(control(element, "timeoutMinutes").value).toBe("3");
@@ -113,8 +125,15 @@ describe("duration entry", () => {
 });
 
 describe("duration summary", () => {
-    it("prompts for a duration when nothing is set", () => {
-        expect(summaryText(build())).toBe("Enter how long the screen should wait before advancing.");
+    it("stays silent when nothing is set, leaving the boxes to explain themselves", () => {
+        expect(summaryText(build())).toBe("");
+    });
+
+    it("gives each duration box its own help text", () => {
+        const element = build();
+        ["timeoutDays", "timeoutHours", "timeoutMinutes", "timeoutSeconds"].forEach((property) => {
+            expect(control(element, property).fieldLevelHelp).toMatch(/^Whole \w+, added to the other boxes\./);
+        });
     });
 
     it("reads the total back in plain English", () => {
@@ -139,10 +158,18 @@ describe("duration summary", () => {
     it("updates as the admin types", async () => {
         const element = build();
 
-        typeDuration(element, "timeoutSeconds", "30");
+        typeDurationValue(element, "timeoutSeconds", "30");
         await Promise.resolve();
 
         expect(summaryText(element)).toBe("Advances after 30 seconds.");
+    });
+
+    it("says the total is judged at runtime when a box holds a resource", () => {
+        const element = build({
+            inputVariables: [{ name: "timeoutDays", value: "Screen1.timeRemainingDays", valueDataType: "reference" }]
+        });
+
+        expect(summaryText(element)).toBe("Advances after the bound values.");
     });
 });
 
@@ -159,10 +186,20 @@ describe("validation", () => {
     it("rejects a duration of explicit zeroes", async () => {
         const element = build();
 
-        typeDuration(element, "timeoutSeconds", "0");
+        typeDurationValue(element, "timeoutSeconds", "0");
         await Promise.resolve();
 
         expect(element.validate()).toHaveLength(1);
+    });
+
+    it("accepts a duration that is a resource, since its value is only known at runtime", () => {
+        const element = build({
+            inputVariables: [
+                { name: "timeoutMinutes", value: "Screen1.timeRemainingMinutes", valueDataType: "reference" }
+            ]
+        });
+
+        expect(element.validate()).toEqual([]);
     });
 
     it("accepts any duration above zero", () => {
@@ -250,13 +287,18 @@ describe("timeout action", () => {
 
     it("offers only the actions that work, plus staying put", () => {
         const values = control(build(), "timeoutAction").options.map((option) => option.value);
-        expect(values).toEqual(["Next", "Back", "Stay"]);
+        expect(values).toEqual(["Next", "Back", "Stay", "Overrun"]);
     });
 
     /** Labels are Flow Builder's wording; the values are the saved contract. */
     it("labels Back as Previous without changing its stored value", () => {
         const options = control(build(), "timeoutAction").options;
-        expect(options.map((o) => o.label)).toEqual(["Next", "Previous", "Stay on This Screen"]);
+        expect(options.map((o) => o.label)).toEqual([
+            "Next",
+            "Previous",
+            "Stay on This Screen",
+            "Overrun on This Screen"
+        ]);
         expect(options.find((o) => o.label === "Previous").value).toBe("Back");
     });
 
@@ -316,7 +358,7 @@ describe("warning threshold entry", () => {
         const element = build();
         const details = captureInputs(element);
 
-        typeDuration(element, "warningMinutes", "2");
+        typeDurationValue(element, "warningMinutes", "2");
         await Promise.resolve();
 
         expect(details).toEqual([{ name: "warningMinutes", newValue: "2", newValueDataType: "Number" }]);
@@ -337,7 +379,7 @@ describe("warning threshold entry", () => {
         expect(warningSummaryText(element)).toBe("Warns 1 minute 30 seconds before advancing.");
     });
 
-    it("rejects a warning at or above the total duration", () => {
+    it("accepts a warning at or above the total duration, leaving the runtime to show it", () => {
         const element = build({
             inputVariables: [
                 { name: "timeoutMinutes", value: "2", valueDataType: "Number" },
@@ -345,12 +387,15 @@ describe("warning threshold entry", () => {
             ]
         });
 
-        expect(element.validate()).toEqual([
-            {
-                key: "warningSeconds",
-                errorString: "The warning must be shorter than the total duration of 2 minutes."
-            }
-        ]);
+        expect(element.validate()).toEqual([]);
+    });
+
+    it("says the warning is judged at runtime when a box holds a resource", () => {
+        const element = build({
+            inputVariables: [{ name: "warningMinutes", value: "Screen1.warningMinutes", valueDataType: "reference" }]
+        });
+
+        expect(warningSummaryText(element)).toBe("Warns by the bound values before advancing.");
     });
 
     it("accepts a warning shorter than the duration", () => {
@@ -431,9 +476,9 @@ describe("day entry", () => {
 
     it("orders the boxes largest unit first", () => {
         const element = build();
-        const labels = [...element.shadowRoot.querySelectorAll('[data-property^="timeout"]')]
-            .filter((c) => c.type === "number")
-            .map((c) => c.label);
+        const labels = ["timeoutDays", "timeoutHours", "timeoutMinutes", "timeoutSeconds"].map(
+            (property) => control(element, property).label
+        );
         expect(labels).toEqual(["Days", "Hours", "Minutes", "Seconds"]);
     });
 
@@ -468,8 +513,7 @@ describe("day entry", () => {
         expect(element.validate()).toEqual([]);
     });
 
-    /** Cross-field rule still holds once days are in play. */
-    it("rejects a warning longer than a duration expressed in days", () => {
+    it("accepts a warning longer than a duration expressed in days, since the runtime judges it", () => {
         const element = build({
             inputVariables: [
                 { name: "timeoutDays", value: "1", valueDataType: "Number" },
@@ -477,12 +521,7 @@ describe("day entry", () => {
             ]
         });
 
-        expect(element.validate()).toEqual([
-            {
-                key: "warningSeconds",
-                errorString: "The warning must be shorter than the total duration of 1 day."
-            }
-        ]);
+        expect(element.validate()).toEqual([]);
     });
 });
 
@@ -496,6 +535,7 @@ describe("panel organization", () => {
             "When to Advance",
             "What Happens Then",
             "While Waiting",
+            "Style",
             "Time Running Out"
         ]);
     });
@@ -607,5 +647,73 @@ describe("new timer options", () => {
         await Promise.resolve();
 
         expect(details).toEqual([{ name: "messagePosition", newValue: "Above", newValueDataType: "String" }]);
+    });
+});
+
+describe("style", () => {
+    it("defaults to the Text timer without writing it", () => {
+        const element = build();
+        expect(control(element, "timerStyle").value).toBe("Text");
+    });
+
+    it("publishes the chosen timer style", async () => {
+        const element = build();
+        const details = captureInputs(element);
+
+        control(element, "timerStyle").dispatchEvent(new CustomEvent("change", { detail: { value: "Ring" } }));
+        await Promise.resolve();
+
+        expect(details).toEqual([{ name: "timerStyle", newValue: "Ring", newValueDataType: "String" }]);
+    });
+
+    it("starts each color at its default", () => {
+        const element = build();
+        expect(control(element, "fillColor").value).toBe("#0176D3");
+        expect(control(element, "textColor").value).toBe("#0176D3");
+        expect(control(element, "warningColor").value).toBe("#BA0517");
+    });
+
+    it("publishes a chosen color as a String", async () => {
+        const element = build();
+        const details = captureInputs(element);
+
+        const input = control(element, "warningColor");
+        input.value = "#FF0000";
+        input.dispatchEvent(new CustomEvent("change"));
+        await Promise.resolve();
+
+        expect(details).toEqual([{ name: "warningColor", newValue: "#FF0000", newValueDataType: "String" }]);
+    });
+});
+
+describe("fill direction entry", () => {
+    it("defaults to matching the timer direction without writing it", () => {
+        expect(control(build(), "fillDirection").value).toBe("Match Timer");
+    });
+
+    it("publishes the chosen fill direction", async () => {
+        const element = build();
+        const details = captureInputs(element);
+
+        control(element, "fillDirection").dispatchEvent(new CustomEvent("change", { detail: { value: "Drain" } }));
+        await Promise.resolve();
+
+        expect(details).toEqual([{ name: "fillDirection", newValue: "Drain", newValueDataType: "String" }]);
+    });
+});
+
+describe("ring size entry", () => {
+    it("defaults to Medium without writing it", () => {
+        expect(control(build(), "ringSize").value).toBe("Medium");
+    });
+
+    it("publishes the chosen ring size", async () => {
+        const element = build();
+        const details = captureInputs(element);
+
+        control(element, "ringSize").dispatchEvent(new CustomEvent("change", { detail: { value: "Large" } }));
+        await Promise.resolve();
+
+        expect(details).toEqual([{ name: "ringSize", newValue: "Large", newValueDataType: "String" }]);
     });
 });

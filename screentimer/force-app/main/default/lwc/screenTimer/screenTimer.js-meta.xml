@@ -2,7 +2,7 @@
 <LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
     <apiVersion>67.0</apiVersion>
     <isExposed>true</isExposed>
-    <masterLabel>Flow Auto Navigate</masterLabel>
+    <masterLabel>Screen Timer</masterLabel>
     <targets>
         <target>lightning__FlowScreen</target>
     </targets>
@@ -11,7 +11,7 @@
              declares `default=`: Flow Builder re-asserts a declared default over
              whatever a custom property editor writes, which no editor-side code
              can survive. Defaults live in the component and the editor instead. -->
-        <targetConfig targets="lightning__FlowScreen" configurationEditor="c-flow-auto-navigate-editor">
+        <targetConfig targets="lightning__FlowScreen" configurationEditor="c-screen-timer-editor">
             <property name="timeoutDays" type="Integer" label="Days" role="inputOnly" />
             <property name="timeoutHours" type="Integer" label="Hours" role="inputOnly" />
             <property name="timeoutMinutes" type="Integer" label="Minutes" role="inputOnly" />
@@ -22,6 +22,16 @@
                  advanceWhen completes immediately; paused holds and resumes. -->
             <property name="advanceWhen" type="Boolean" label="Advance When This Is True" role="inputOnly" />
             <property name="paused" type="Boolean" label="Pause Timer" role="inputOnly" />
+
+            <!-- Style: Text keeps the original text timer and progress bar. Ring,
+                 Bar and Pill replace them, and use the three colors below. -->
+            <property name="timerStyle" type="String" label="Timer Style" role="inputOnly" />
+            <property name="fillDirection" type="String" label="Fill Direction" role="inputOnly" />
+            <property name="ringSize" type="String" label="Ring Size" role="inputOnly" />
+            <property name="fillColor" type="String" label="Fill Color" role="inputOnly" />
+            <property name="textColor" type="String" label="Text Color" role="inputOnly" />
+            <property name="warningColor" type="String" label="Warning Color" role="inputOnly" />
+            <property name="overrunColor" type="String" label="Overrun Color" role="inputOnly" />
 
             <property name="showTimer" type="Boolean" label="Show Timer" role="inputOnly" />
             <property name="timerDirection" type="String" label="Timer Direction" role="inputOnly" />
@@ -59,6 +69,13 @@
                  With On Timeout set to Stay these diverge, which is what makes
                  this one usable to drive something on the same screen. -->
             <property name="timerExpired" type="Boolean" label="Timer Expired" role="outputOnly" />
+
+            <!-- Time still remaining, in the same units as the duration inputs, so a
+                 later screen can take it as its own duration without arithmetic. -->
+            <property name="timeRemainingDays" type="Integer" label="Days Remaining" role="outputOnly" />
+            <property name="timeRemainingHours" type="Integer" label="Hours Remaining" role="outputOnly" />
+            <property name="timeRemainingMinutes" type="Integer" label="Minutes Remaining" role="outputOnly" />
+            <property name="timeRemainingSeconds" type="Integer" label="Seconds Remaining" role="outputOnly" />
         </targetConfig>
     </targetConfigs>
 </LightningComponentBundle>
