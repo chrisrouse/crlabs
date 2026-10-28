@@ -4,7 +4,8 @@ module.exports = {
     ...jestConfig,
     testMatch: [
         "**/flow-config-editor-kit/**/__tests__/**/*.test.js",
-        "**/screentimer/**/__tests__/**/*.test.js"
+        "**/screentimer/**/__tests__/**/*.test.js",
+        "**/email-recipients/**/__tests__/**/*.test.js"
     ],
     moduleNameMapper: {
         ...jestConfig.moduleNameMapper,

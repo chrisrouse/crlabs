@@ -21,6 +21,20 @@
           "versionNumber": "0.1.0.LATEST"
         }
       ]
+    },
+    {
+      "versionName": "ver 0.1",
+      "versionNumber": "0.1.0.NEXT",
+      "path": "email-recipients/force-app",
+      "default": false,
+      "package": "Email Recipients",
+      "versionDescription": "Collects validated email addresses for a Flow screen, with domain rules, a maximum count and a comma-delimited output for Send Email.",
+      "dependencies": [
+        {
+          "package": "CRLabs Foundations",
+          "versionNumber": "0.1.0.LATEST"
+        }
+      ]
     }
   ],
   "namespace": "crlabs",

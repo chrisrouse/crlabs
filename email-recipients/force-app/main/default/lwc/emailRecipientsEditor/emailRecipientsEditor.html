@@ -1,0 +1,232 @@
+<template>
+    <div class="editor">
+        <template lwc:if={hasValidationErrors}>
+            <div class="slds-box slds-box_x-small slds-theme_error slds-m-bottom_x-small" role="alert">
+                <p class="slds-text-title_bold slds-m-bottom_xx-small">Fix the following:</p>
+                <ul class="slds-list_dotted">
+                    <template for:each={validationErrors} for:item="error">
+                        <li key={error.key}>{error.errorString}</li>
+                    </template>
+                </ul>
+            </div>
+        </template>
+
+        <lightning-accordion allow-multiple-sections-open active-section-name={initialSections}>
+            <lightning-accordion-section name="field" label="Field">
+                <div class="editor__section">
+                    <c-flow-config-value-input
+                        data-validatable
+                        data-property="label"
+                        label="Label"
+                        property-name="label"
+                        value={label}
+                        value-data-type={labelDataType}
+                        value-type="String"
+                        field-level-help="The name shown above the field. Defaults to Email."
+                        builder-context={builderContext}
+                        automatic-output-variables={automaticOutputVariables}
+                        api-version={apiVersion}
+                        onvaluechange={handleValueChange}
+                    ></c-flow-config-value-input>
+
+                    <c-flow-config-value-input
+                        data-validatable
+                        data-property="placeholder"
+                        label="Placeholder"
+                        property-name="placeholder"
+                        value={placeholder}
+                        value-data-type={placeholderDataType}
+                        value-type="String"
+                        field-level-help="Shown in the empty field. Gives a hint about what to enter."
+                        builder-context={builderContext}
+                        automatic-output-variables={automaticOutputVariables}
+                        api-version={apiVersion}
+                        onvaluechange={handleValueChange}
+                    ></c-flow-config-value-input>
+
+                    <c-flow-config-value-input
+                        data-validatable
+                        data-property="helpText"
+                        label="Help Text"
+                        property-name="helpText"
+                        value={helpText}
+                        value-data-type={helpTextDataType}
+                        value-type="String"
+                        field-level-help="Shown in a help bubble beside the label. Optional."
+                        builder-context={builderContext}
+                        automatic-output-variables={automaticOutputVariables}
+                        api-version={apiVersion}
+                        onvaluechange={handleValueChange}
+                    ></c-flow-config-value-input>
+
+                    <lightning-input
+                        type="checkbox"
+                        data-validatable
+                        data-property="required"
+                        label="Required"
+                        field-level-help="The screen cannot continue until at least one address is entered."
+                        checked={required}
+                        onchange={handleCheckbox}
+                    ></lightning-input>
+
+                    <lightning-input
+                        type="checkbox"
+                        data-validatable
+                        data-property="disabled"
+                        label="Disabled"
+                        field-level-help="Shows the addresses without allowing changes."
+                        checked={disabled}
+                        onchange={handleCheckbox}
+                    ></lightning-input>
+                </div>
+            </lightning-accordion-section>
+
+            <lightning-accordion-section name="rules" label="Address Rules">
+                <div class="editor__section">
+                    <lightning-input
+                        type="number"
+                        data-validatable
+                        data-property="maxEmails"
+                        label="Maximum Emails"
+                        value={maxEmails}
+                        min="0"
+                        max="150"
+                        step="1"
+                        message-when-range-overflow="Enter a whole number from 0 to 150."
+                        field-level-help={maxEmailsHelp}
+                        onchange={handleMaxEmails}
+                    ></lightning-input>
+
+                    <c-flow-config-value-input
+                        data-validatable
+                        data-property="allowedDomains"
+                        label="Allowed Domains"
+                        property-name="allowedDomains"
+                        value={allowedDomains}
+                        value-data-type={allowedDomainsDataType}
+                        value-type="String"
+                        field-level-help="Comma-separated. Only addresses on these domains are accepted. Wildcards work anywhere, such as *.edu or *google*. Blank accepts every domain."
+                        builder-context={builderContext}
+                        automatic-output-variables={automaticOutputVariables}
+                        api-version={apiVersion}
+                        onvaluechange={handleValueChange}
+                    ></c-flow-config-value-input>
+
+                    <c-flow-config-value-input
+                        data-validatable
+                        data-property="blockedDomains"
+                        label="Blocked Domains"
+                        property-name="blockedDomains"
+                        value={blockedDomains}
+                        value-data-type={blockedDomainsDataType}
+                        value-type="String"
+                        field-level-help="Comma-separated. Addresses on these domains are refused. Wildcards work the same way as in Allowed Domains. Blocked is checked before allowed."
+                        builder-context={builderContext}
+                        automatic-output-variables={automaticOutputVariables}
+                        api-version={apiVersion}
+                        onvaluechange={handleValueChange}
+                    ></c-flow-config-value-input>
+                </div>
+            </lightning-accordion-section>
+
+            <lightning-accordion-section name="messages" label="Messages">
+                <div class="editor__section">
+                    <c-flow-config-value-input
+                        data-validatable
+                        data-property="invalidEmailErrorMessage"
+                        label="Invalid Email"
+                        property-name="invalidEmailErrorMessage"
+                        value={invalidEmailErrorMessage}
+                        value-data-type={invalidEmailErrorMessageDataType}
+                        value-type="String"
+                        field-level-help="Replaces the default message for an address that is not a valid email."
+                        builder-context={builderContext}
+                        automatic-output-variables={automaticOutputVariables}
+                        api-version={apiVersion}
+                        onvaluechange={handleValueChange}
+                    ></c-flow-config-value-input>
+
+                    <c-flow-config-value-input
+                        data-validatable
+                        data-property="allowedDomainsErrorMessage"
+                        label="Domain Not Allowed"
+                        property-name="allowedDomainsErrorMessage"
+                        value={allowedDomainsErrorMessage}
+                        value-data-type={allowedDomainsErrorMessageDataType}
+                        value-type="String"
+                        field-level-help="Replaces the default message for a domain outside the allowed list."
+                        builder-context={builderContext}
+                        automatic-output-variables={automaticOutputVariables}
+                        api-version={apiVersion}
+                        onvaluechange={handleValueChange}
+                    ></c-flow-config-value-input>
+
+                    <c-flow-config-value-input
+                        data-validatable
+                        data-property="blockedDomainsErrorMessage"
+                        label="Domain Blocked"
+                        property-name="blockedDomainsErrorMessage"
+                        value={blockedDomainsErrorMessage}
+                        value-data-type={blockedDomainsErrorMessageDataType}
+                        value-type="String"
+                        field-level-help="Replaces the default message for a blocked domain."
+                        builder-context={builderContext}
+                        automatic-output-variables={automaticOutputVariables}
+                        api-version={apiVersion}
+                        onvaluechange={handleValueChange}
+                    ></c-flow-config-value-input>
+
+                    <c-flow-config-value-input
+                        data-validatable
+                        data-property="maxEmailsErrorMessage"
+                        label="Maximum Reached"
+                        property-name="maxEmailsErrorMessage"
+                        value={maxEmailsErrorMessage}
+                        value-data-type={maxEmailsErrorMessageDataType}
+                        value-type="String"
+                        field-level-help="Replaces the default message when the maximum is reached."
+                        builder-context={builderContext}
+                        automatic-output-variables={automaticOutputVariables}
+                        api-version={apiVersion}
+                        onvaluechange={handleValueChange}
+                    ></c-flow-config-value-input>
+
+                    <c-flow-config-value-input
+                        data-validatable
+                        data-property="duplicateEmailErrorMessage"
+                        label="Duplicate"
+                        property-name="duplicateEmailErrorMessage"
+                        value={duplicateEmailErrorMessage}
+                        value-data-type={duplicateEmailErrorMessageDataType}
+                        value-type="String"
+                        field-level-help="Replaces the default message for an address that is already in the list."
+                        builder-context={builderContext}
+                        automatic-output-variables={automaticOutputVariables}
+                        api-version={apiVersion}
+                        onvaluechange={handleValueChange}
+                    ></c-flow-config-value-input>
+                </div>
+            </lightning-accordion-section>
+
+            <lightning-accordion-section name="initial" label="Initial Emails">
+                <div class="editor__section">
+                    <c-flow-config-resource-picker
+                        data-validatable
+                        data-property="value"
+                        label="Initial Emails"
+                        property-name="value"
+                        value={initialEmails}
+                        accepted-types="String"
+                        collection="only"
+                        allow-literal="false"
+                        field-level-help="Optional. A text collection of addresses to start the list with. Each one is checked against the same rules as typed entries."
+                        builder-context={builderContext}
+                        automatic-output-variables={automaticOutputVariables}
+                        api-version={apiVersion}
+                        onresourcechange={handleResourceChange}
+                    ></c-flow-config-resource-picker>
+                </div>
+            </lightning-accordion-section>
+        </lightning-accordion>
+    </div>
+</template>

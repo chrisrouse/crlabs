@@ -7,7 +7,7 @@ module.exports = [
     eslintJs.configs.recommended,
     ...(Array.isArray(salesforceLwcConfig) ? salesforceLwcConfig : [salesforceLwcConfig]),
     {
-        files: ["screentimer/**/lwc/**/*.js"],
+        files: ["screentimer/**/lwc/**/*.js", "email-recipients/**/lwc/**/*.js"],
         languageOptions: { ecmaVersion: 2023, sourceType: "module" }
     },
     {

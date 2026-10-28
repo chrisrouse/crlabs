@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>67.0</apiVersion>
+    <isExposed>true</isExposed>
+    <masterLabel>Email Recipients</masterLabel>
+    <description>Collects validated email addresses for a Flow screen, with domain rules, a maximum count and a comma-delimited output for Send Email.</description>
+    <targets>
+        <target>lightning__FlowScreen</target>
+    </targets>
+    <targetConfigs>
+        <!-- Defaults are not set here: Flow Builder re-asserts a declared default over an editor's value. The component and its editor carry them. -->
+        <targetConfig targets="lightning__FlowScreen" configurationEditor="c-email-recipients-editor">
+            <property name="label" type="String" label="Label" role="inputOnly" />
+            <property name="placeholder" type="String" label="Placeholder" role="inputOnly" />
+            <property name="helpText" type="String" label="Help Text" role="inputOnly" />
+            <property name="required" type="Boolean" label="Required" role="inputOnly" />
+            <property name="disabled" type="Boolean" label="Disabled" role="inputOnly" />
+
+            <property name="maxEmails" type="Integer" label="Maximum Emails" min="0" max="150" role="inputOnly" />
+            <property name="allowedDomains" type="String" label="Allowed Domains" role="inputOnly" />
+            <property name="blockedDomains" type="String" label="Blocked Domains" role="inputOnly" />
+
+            <property name="invalidEmailErrorMessage" type="String" label="Invalid Email Message" role="inputOnly" />
+            <property name="allowedDomainsErrorMessage" type="String" label="Allowed Domains Message" role="inputOnly" />
+            <property name="blockedDomainsErrorMessage" type="String" label="Blocked Domains Message" role="inputOnly" />
+            <property name="maxEmailsErrorMessage" type="String" label="Maximum Emails Message" role="inputOnly" />
+            <property name="duplicateEmailErrorMessage" type="String" label="Duplicate Email Message" role="inputOnly" />
+
+            <property name="value" type="String[]" label="Initial Emails" role="inputOnly" />
+
+            <property name="emailCollection" type="String[]" label="Email Collection" role="outputOnly" />
+            <property name="emailList" type="String" label="Email List" role="outputOnly" />
+        </targetConfig>
+    </targetConfigs>
+</LightningComponentBundle>

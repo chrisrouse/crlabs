@@ -1,0 +1,46 @@
+<template>
+    <div class="slds-form-element">
+        <!-- The visible label and help sit together; the input keeps the same label for assistive tech. -->
+        <div class="slds-grid slds-grid_vertical-align-center">
+            <span class="slds-form-element__label">
+                <abbr if:true={required} class="slds-required" title="required">*</abbr>
+                {label}
+            </span>
+            <template lwc:if={helpText}>
+                <lightning-helptext class="slds-m-left_xx-small" content={helpText}></lightning-helptext>
+            </template>
+        </div>
+
+        <div class="slds-form-element__control">
+            <lightning-input
+                data-role="entry"
+                type="text"
+                variant="label-hidden"
+                label={label}
+                placeholder={placeholder}
+                required={requiredInput}
+                disabled={disabled}
+                onkeydown={handleKeyDown}
+                onblur={handleBlur}
+                onpaste={handlePaste}
+            ></lightning-input>
+        </div>
+    </div>
+
+    <template lwc:if={disabled}>
+        <ul class="slds-list_horizontal slds-wrap slds-m-top_x-small" aria-label={label}>
+            <template for:each={entries} for:item="entry">
+                <li key={entry.key} class="slds-m-right_x-small slds-m-bottom_xx-small">
+                    <span class="slds-badge">{entry.label}</span>
+                </li>
+            </template>
+        </ul>
+    </template>
+    <template lwc:else>
+        <lightning-pill-container class="slds-m-top_x-small" items={pillItems} onitemremove={handleRemove}>
+        </lightning-pill-container>
+    </template>
+
+    <!-- Announces additions, removals and errors politely, without repeating every change. -->
+    <div class="slds-assistive-text" aria-live="polite">{announcement}</div>
+</template>
