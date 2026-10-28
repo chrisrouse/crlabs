@@ -8,11 +8,11 @@ Status: **built and tested locally; not yet deployed or packaged.**
 
 ## Components
 
-| Component | Folder | Purpose |
-| --- | --- | --- |
-| `c-email-recipients` | `force-app/main/default/lwc/emailRecipients` | The screen component. |
+| Component                   | Folder                                             | Purpose                                                                           |
+| --------------------------- | -------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `c-email-recipients`        | `force-app/main/default/lwc/emailRecipients`       | The screen component.                                                             |
 | `c-email-recipients-editor` | `force-app/main/default/lwc/emailRecipientsEditor` | The Flow Builder panel. Built on the Flow Config Editor Kit (CRLabs Foundations). |
-| `c/emailRecipientsRules` | `force-app/main/default/lwc/emailRecipientsRules` | Pure rules: parsing, domain checks, duplicates and limits. No DOM. |
+| `c/emailRecipientsRules`    | `force-app/main/default/lwc/emailRecipientsRules`  | Pure rules: parsing, domain checks, duplicates and limits. No DOM.                |
 
 ## How entries are checked
 

@@ -5,7 +5,7 @@ import {
     compileDomainRules,
     evaluateEntries,
     parseMaxEmails,
-    rejectionMessages,
+    describeRejections,
     splitEntries
 } from "c/emailRecipientsRules";
 
@@ -138,12 +138,12 @@ export default class EmailRecipients extends LightningElement {
     /** Applies the list from the flow, replacing whatever was there. */
     seedFromValue() {
         const values = Array.isArray(this._value) ? this._value : [];
-        const { accepted, counts } = evaluateEntries(values, {
+        const { accepted, rejected } = evaluateEntries(values, {
             rules: this.rules,
             maxEmails: this.effectiveMax
         });
         this.replaceEntries(accepted);
-        this.showMessages(this.messagesFor(counts));
+        this.showMessages(this.messagesFor(rejected));
     }
 
     /**
@@ -152,7 +152,7 @@ export default class EmailRecipients extends LightningElement {
      * @returns {number} how many were added
      */
     addCandidates(candidates) {
-        const { accepted, counts } = evaluateEntries(candidates, {
+        const { accepted, rejected } = evaluateEntries(candidates, {
             existing: this._emails,
             rules: this.rules,
             maxEmails: this.effectiveMax
@@ -162,17 +162,16 @@ export default class EmailRecipients extends LightningElement {
             this.commitEntries();
             this.announce(accepted.length === 1 ? `${accepted[0]} added.` : `${accepted.length} addresses added.`);
         }
-        this.showMessages(this.messagesFor(counts));
+        // Rejected addresses stay in the field, so the user can see and fix exactly what failed.
+        this.setInputText(rejected.map((entry) => entry.email).join(", "));
+        this.showMessages(this.messagesFor(rejected));
         return accepted.length;
     }
 
     /** Commits text typed or left in the input: one or more addresses, or a single entry to reject. */
     commitText(text) {
         const candidates = splitEntries(text);
-        const added = this.addCandidates(candidates.length > 0 ? candidates : [text.trim()]);
-        if (added > 0) {
-            this.clearInput();
-        }
+        this.addCandidates(candidates.length > 0 ? candidates : [text.trim()]);
     }
 
     replaceEntries(emails) {
@@ -198,8 +197,8 @@ export default class EmailRecipients extends LightningElement {
     // Messages
     // ========================
 
-    messagesFor(counts) {
-        return rejectionMessages(counts, { custom: this.customMessages, maxEmails: this.effectiveMax });
+    messagesFor(rejected) {
+        return describeRejections(rejected, { custom: this.customMessages, maxEmails: this.effectiveMax });
     }
 
     /**
@@ -241,10 +240,10 @@ export default class EmailRecipients extends LightningElement {
         this._announcement = text;
     }
 
-    clearInput() {
+    setInputText(text) {
         const input = this.inputElement;
         if (input) {
-            input.value = "";
+            input.value = text;
         }
     }
 
@@ -356,11 +355,11 @@ export default class EmailRecipients extends LightningElement {
         if (!Array.isArray(emailArray)) {
             return;
         }
-        const { accepted, counts } = evaluateEntries(emailArray, {
+        const { accepted, rejected } = evaluateEntries(emailArray, {
             rules: this.rules,
             maxEmails: this.effectiveMax
         });
         this.replaceEntries(accepted);
-        this.showMessages(this.messagesFor(counts));
+        this.showMessages(this.messagesFor(rejected));
     }
 }

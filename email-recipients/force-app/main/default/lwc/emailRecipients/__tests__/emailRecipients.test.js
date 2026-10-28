@@ -112,14 +112,14 @@ describe("typed entry", () => {
 
         expect(element.emailList).toBe("");
         expect(input.value).toBe("not-an-email");
-        expect(shownMessage()).toBe("Please enter a valid email address.");
+        expect(shownMessage()).toBe("not-an-email: Not a valid email address.");
     });
 
     it("uses a custom invalid-email message in place of the default", () => {
         const element = build({ invalidEmailErrorMessage: "Check that address." });
         press(element, "Enter", "nope");
 
-        expect(shownMessage()).toBe("Check that address.");
+        expect(shownMessage()).toBe("nope: Check that address.");
     });
 
     it("clears a shown message as soon as the user types again", () => {
@@ -164,7 +164,8 @@ describe("paste", () => {
         paste(element, "ann@x.com, bob@x.com, nope@");
 
         expect(element.emailList).toBe("ann@x.com,bob@x.com");
-        expect(shownMessage()).toBe("Please enter a valid email address. This email has already been added.");
+        expect(entryInput(element).value).toBe("ann@x.com, nope@");
+        expect(shownMessage()).toBe("ann@x.com: This email has already been added. nope@: Not a valid email address.");
     });
 });
 
@@ -182,7 +183,7 @@ describe("duplicates", () => {
         press(element, "Enter", "ann@x.com");
         press(element, "Enter", "ann@x.com");
 
-        expect(shownMessage()).toBe("Already on the list.");
+        expect(shownMessage()).toBe("ann@x.com: Already on the list.");
     });
 });
 
@@ -208,7 +209,7 @@ describe("limits and domains", () => {
         press(element, "Enter", "ann@y.com");
 
         expect(element.emailList).toBe("");
-        expect(shownMessage()).toBe("This email domain is not in the allowed list.");
+        expect(shownMessage()).toBe("ann@y.com: This email domain is not in the allowed list.");
     });
 
     it("refuses blocked domains, including wildcard matches", () => {
@@ -216,7 +217,7 @@ describe("limits and domains", () => {
         press(element, "Enter", "ann@mail.spam.net");
 
         expect(element.emailList).toBe("");
-        expect(shownMessage()).toBe("This email domain is not allowed.");
+        expect(shownMessage()).toBe("ann@mail.spam.net: This email domain is not allowed.");
     });
 
     it("applies the rules to the initial values too", () => {
@@ -237,7 +238,7 @@ describe("initial values", () => {
         const element = build({ value: ["ann@x.com", "not-valid"] });
 
         expect(element.emailList).toBe("ann@x.com");
-        expect(shownMessage()).toBe("Please enter a valid email address.");
+        expect(shownMessage()).toBe("not-valid: Not a valid email address.");
     });
 
     it("replaces the list when the flow sets the value later", () => {
@@ -321,5 +322,30 @@ describe("Flow validation", () => {
         const element = build();
 
         expect(element.reportValidity()).toBe(true);
+    });
+});
+
+describe("rejected entries", () => {
+    it("keeps rejected addresses in the field, so the user can see and fix them", () => {
+        const element = build();
+        paste(element, "ann@x.com, bad@x, bob@x.com");
+
+        expect(element.emailCollection).toEqual(["ann@x.com", "bob@x.com"]);
+        expect(entryInput(element).value).toBe("bad@x");
+    });
+
+    it("clears the field when every entry was accepted", () => {
+        const element = build();
+        paste(element, "ann@x.com, bob@x.com");
+
+        expect(entryInput(element).value).toBe("");
+    });
+
+    it("names only the first few rejected addresses, then says how many more there are", () => {
+        const element = build();
+        paste(element, "a@x, b@x, c@x, d@x, e@x, f@x, g@x");
+
+        expect(shownMessage()).toContain("a@x: Not a valid email address.");
+        expect(shownMessage()).toContain("and 2 more could not be added.");
     });
 });

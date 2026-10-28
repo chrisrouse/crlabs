@@ -18,8 +18,6 @@ export const REASON = Object.freeze({
     LIMIT: "limit"
 });
 
-const REASON_ORDER = [REASON.FORMAT, REASON.BLOCKED_DOMAIN, REASON.ALLOWED_DOMAIN, REASON.DUPLICATE, REASON.LIMIT];
-
 /**
  * Local part and domain without spaces or separators, then a dot and a TLD of two
  * or more letters. No nested quantifiers, so a long non-matching string cannot
@@ -132,17 +130,17 @@ export function splitEntries(text) {
  * @param {string[]} [options.existing] addresses already in the list
  * @param {{allowed: Array, blocked: Array}} options.rules from compileDomainRules
  * @param {number} options.maxEmails the limit for the whole list
- * @returns {{accepted: string[], counts: Object<string, number>}}
- *   accepted addresses in order, and how many candidates each reason turned away
+ * @returns {{accepted: string[], rejected: Array<{email: string, reason: string}>}}
+ *   accepted addresses in order, and each rejected candidate with the reason it was turned away
  */
 export function evaluateEntries(candidates, { existing = [], rules, maxEmails }) {
     const accepted = [];
-    const counts = {};
+    const rejected = [];
     const seen = new Set(existing.map((email) => email.toLowerCase()));
     const slots = Math.max(0, maxEmails - existing.length);
 
-    const reject = (reason) => {
-        counts[reason] = (counts[reason] || 0) + 1;
+    const reject = (email, reason) => {
+        rejected.push({ email, reason });
     };
 
     candidates.forEach((candidate) => {
@@ -151,65 +149,70 @@ export function evaluateEntries(candidates, { existing = [], rules, maxEmails })
             return;
         }
         if (email.length > MAX_EMAIL_LENGTH || !EMAIL_PATTERN.test(email)) {
-            reject(REASON.FORMAT);
+            reject(email, REASON.FORMAT);
             return;
         }
         const domainProblem = domainReason(email, rules);
         if (domainProblem) {
-            reject(domainProblem);
+            reject(email, domainProblem);
             return;
         }
         const key = email.toLowerCase();
         if (seen.has(key)) {
-            reject(REASON.DUPLICATE);
+            reject(email, REASON.DUPLICATE);
             return;
         }
         if (accepted.length >= slots) {
-            reject(REASON.LIMIT);
+            reject(email, REASON.LIMIT);
             return;
         }
         seen.add(key);
         accepted.push(email);
     });
 
-    return { accepted, counts };
+    return { accepted, rejected };
 }
 
-function defaultMessage(reason, count, maxEmails) {
-    const one = count === 1;
-    switch (reason) {
-        case REASON.FORMAT:
-            return one ? "Please enter a valid email address." : `${count} entries are not valid email addresses.`;
-        case REASON.BLOCKED_DOMAIN:
-            return one ? "This email domain is not allowed." : `${count} emails use domains that are not allowed.`;
-        case REASON.ALLOWED_DOMAIN:
-            return one
-                ? "This email domain is not in the allowed list."
-                : `${count} emails use domains that are not in the allowed list.`;
-        case REASON.DUPLICATE:
-            return one ? "This email has already been added." : `${count} duplicate emails were skipped.`;
-        case REASON.LIMIT:
-            return `You can only add up to ${maxEmails} email addresses. ${count} ${one ? "was" : "were"} not added.`;
-        default:
-            return "";
-    }
-}
+const SINGULAR_MESSAGE = {
+    [REASON.FORMAT]: "Not a valid email address.",
+    [REASON.BLOCKED_DOMAIN]: "This email domain is not allowed.",
+    [REASON.ALLOWED_DOMAIN]: "This email domain is not in the allowed list.",
+    [REASON.DUPLICATE]: "This email has already been added."
+};
 
 /**
- * The messages to show for a set of rejections, one per reason, in REASON order.
- * A custom message replaces the default text for its reason.
- * @param {Object<string, number>} counts from evaluateEntries
+ * Explains each rejected address, so the user can see which ones failed and why.
+ * Addresses are listed in the order they were given. A custom message replaces the
+ * default text for its reason. Limit rejections are summarized in one line, since
+ * the same reason applies to every address that was left out.
+ *
+ * @param {Array<{email: string, reason: string}>} rejected from evaluateEntries
  * @param {object} options
  * @param {Object<string, string>} [options.custom] custom text keyed by REASON
  * @param {number} options.maxEmails
- * @returns {string[]}
+ * @param {number} [options.listLimit] how many addresses to name before summarizing
+ * @returns {string[]} one line per message
  */
-export function rejectionMessages(counts, { custom = {}, maxEmails }) {
-    return REASON_ORDER.filter((reason) => counts[reason] > 0).map((reason) => {
+export function describeRejections(rejected, { custom = {}, maxEmails, listLimit = 5 }) {
+    const customText = (reason) => {
         const text = custom[reason];
-        if (typeof text === "string" && text.trim() !== "") {
-            return text.trim();
-        }
-        return defaultMessage(reason, counts[reason], maxEmails);
+        return typeof text === "string" && text.trim() !== "" ? text.trim() : null;
+    };
+
+    const named = rejected.filter((entry) => entry.reason !== REASON.LIMIT);
+    const lines = named.slice(0, listLimit).map(({ email, reason }) => {
+        return `${email}: ${customText(reason) || SINGULAR_MESSAGE[reason]}`;
     });
+    if (named.length > listLimit) {
+        lines.push(`and ${named.length - listLimit} more could not be added.`);
+    }
+
+    const limited = rejected.filter((entry) => entry.reason === REASON.LIMIT).length;
+    if (limited > 0) {
+        lines.push(
+            customText(REASON.LIMIT) ||
+                `You can only add up to ${maxEmails} email addresses. ${limited} ${limited === 1 ? "was" : "were"} not added.`
+        );
+    }
+    return lines;
 }

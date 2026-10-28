@@ -5,7 +5,7 @@ import {
     domainReason,
     evaluateEntries,
     parseMaxEmails,
-    rejectionMessages,
+    describeRejections,
     splitEntries
 } from "c/emailRecipientsRules";
 
@@ -87,61 +87,67 @@ describe("domainReason", () => {
 
 describe("evaluateEntries", () => {
     it("accepts valid addresses in order", () => {
-        const { accepted, counts } = evaluateEntries(["a@x.com", "b@y.org"], { rules: NO_RULES, maxEmails: 10 });
+        const { accepted, rejected } = evaluateEntries(["a@x.com", "b@y.org"], { rules: NO_RULES, maxEmails: 10 });
         expect(accepted).toEqual(["a@x.com", "b@y.org"]);
-        expect(counts).toEqual({});
+        expect(rejected).toEqual([]);
     });
 
-    it("rejects malformed addresses and counts them as format errors", () => {
-        const { accepted, counts } = evaluateEntries(["bob", "a@b", "ok@x.com", "a@@x.com"], {
+    it("rejects malformed addresses as format errors, keeping the text as given", () => {
+        const { accepted, rejected } = evaluateEntries(["bob", "a@b", "ok@x.com", "a@@x.com"], {
             rules: NO_RULES,
             maxEmails: 10
         });
         expect(accepted).toEqual(["ok@x.com"]);
-        expect(counts[REASON.FORMAT]).toBe(3);
+        expect(rejected).toEqual([
+            { email: "bob", reason: REASON.FORMAT },
+            { email: "a@b", reason: REASON.FORMAT },
+            { email: "a@@x.com", reason: REASON.FORMAT }
+        ]);
     });
 
-    it("drops blank candidates without counting them", () => {
-        const { accepted, counts } = evaluateEntries(["", "   ", "ok@x.com"], { rules: NO_RULES, maxEmails: 10 });
+    it("drops blank candidates without rejecting them", () => {
+        const { accepted, rejected } = evaluateEntries(["", "   ", "ok@x.com"], { rules: NO_RULES, maxEmails: 10 });
         expect(accepted).toEqual(["ok@x.com"]);
-        expect(counts).toEqual({});
+        expect(rejected).toEqual([]);
     });
 
     it("treats duplicates case-insensitively, against the list and within the batch", () => {
-        const { accepted, counts } = evaluateEntries(["A@x.com", "a@X.com", "b@x.com"], {
+        const { accepted, rejected } = evaluateEntries(["A@x.com", "a@X.com", "b@x.com"], {
             existing: ["a@x.com"],
             rules: NO_RULES,
             maxEmails: 10
         });
         expect(accepted).toEqual(["b@x.com"]);
-        expect(counts[REASON.DUPLICATE]).toBe(2);
+        expect(rejected.map((entry) => entry.reason)).toEqual([REASON.DUPLICATE, REASON.DUPLICATE]);
     });
 
     it("applies the limit to the whole list, counting what is already there", () => {
-        const { accepted, counts } = evaluateEntries(["c@x.com", "d@x.com", "e@x.com"], {
+        const { accepted, rejected } = evaluateEntries(["c@x.com", "d@x.com", "e@x.com"], {
             existing: ["a@x.com", "b@x.com"],
             rules: NO_RULES,
             maxEmails: 4
         });
         expect(accepted).toEqual(["c@x.com", "d@x.com"]);
-        expect(counts[REASON.LIMIT]).toBe(1);
+        expect(rejected).toEqual([{ email: "e@x.com", reason: REASON.LIMIT }]);
     });
 
     it("accepts nothing when the limit is zero", () => {
-        const { accepted, counts } = evaluateEntries(["a@x.com"], { rules: NO_RULES, maxEmails: 0 });
+        const { accepted, rejected } = evaluateEntries(["a@x.com"], { rules: NO_RULES, maxEmails: 0 });
         expect(accepted).toEqual([]);
-        expect(counts[REASON.LIMIT]).toBe(1);
+        expect(rejected).toEqual([{ email: "a@x.com", reason: REASON.LIMIT }]);
     });
 
-    it("rejects addresses on blocked and disallowed domains", () => {
+    it("rejects addresses on blocked and disallowed domains, each with its reason", () => {
         const rules = compileDomainRules("x.com", "spam.x.com");
-        const { accepted, counts } = evaluateEntries(["a@x.com", "b@spam.x.com", "c@y.com"], {
+        const { accepted, rejected } = evaluateEntries(["a@x.com", "b@spam.x.com", "c@y.com"], {
             rules,
             maxEmails: 10
         });
         expect(accepted).toEqual(["a@x.com"]);
-        expect(counts[REASON.BLOCKED_DOMAIN]).toBe(1);
-        expect(counts[REASON.ALLOWED_DOMAIN]).toBe(1);
+        expect(rejected).toEqual([
+            { email: "b@spam.x.com", reason: REASON.BLOCKED_DOMAIN },
+            { email: "c@y.com", reason: REASON.ALLOWED_DOMAIN }
+        ]);
     });
 
     it("handles a long batch, counting duplicates of accepted addresses and the rest as limit", () => {
@@ -149,42 +155,56 @@ describe("evaluateEntries", () => {
         // them). Everything else over the limit is a limit rejection, including repeats of addresses
         // that were turned away.
         const candidates = Array.from({ length: 5000 }, (_, index) => `user${index % 2000}@x.com`);
-        const { accepted, counts } = evaluateEntries(candidates, { rules: NO_RULES, maxEmails: 150 });
+        const { accepted, rejected } = evaluateEntries(candidates, { rules: NO_RULES, maxEmails: 150 });
+        const count = (reason) => rejected.filter((entry) => entry.reason === reason).length;
         expect(accepted).toHaveLength(150);
-        expect(counts[REASON.DUPLICATE]).toBe(300);
-        expect(counts[REASON.LIMIT]).toBe(4550);
+        expect(count(REASON.DUPLICATE)).toBe(300);
+        expect(count(REASON.LIMIT)).toBe(4550);
     });
 });
 
-describe("rejectionMessages", () => {
-    it("describes one reason in singular", () => {
-        expect(rejectionMessages({ [REASON.FORMAT]: 1 }, { maxEmails: 5 })).toEqual([
-            "Please enter a valid email address."
+describe("describeRejections", () => {
+    it("names each rejected address with its reason, in the order given", () => {
+        const rejected = [
+            { email: "bob", reason: REASON.FORMAT },
+            { email: "ann@x.com", reason: REASON.DUPLICATE }
+        ];
+        expect(describeRejections(rejected, { maxEmails: 5 })).toEqual([
+            "bob: Not a valid email address.",
+            "ann@x.com: This email has already been added."
         ]);
     });
 
-    it("describes several rejections of one reason in plural", () => {
-        expect(rejectionMessages({ [REASON.DUPLICATE]: 3 }, { maxEmails: 5 })).toEqual([
-            "3 duplicate emails were skipped."
+    it("uses a custom message in place of the default for its reason", () => {
+        const custom = { [REASON.FORMAT]: "  Check that address.  " };
+        expect(describeRejections([{ email: "bob", reason: REASON.FORMAT }], { custom, maxEmails: 5 })).toEqual([
+            "bob: Check that address."
         ]);
     });
 
-    it("states the maximum and how many were left out", () => {
-        expect(rejectionMessages({ [REASON.LIMIT]: 2 }, { maxEmails: 5 })).toEqual([
+    it("ignores blank custom text", () => {
+        const custom = { [REASON.DUPLICATE]: "   " };
+        expect(describeRejections([{ email: "a@x.com", reason: REASON.DUPLICATE }], { custom, maxEmails: 5 })).toEqual([
+            "a@x.com: This email has already been added."
+        ]);
+    });
+
+    it("summarizes limit rejections in one line, with the maximum and the count", () => {
+        const rejected = [
+            { email: "e@x.com", reason: REASON.LIMIT },
+            { email: "f@x.com", reason: REASON.LIMIT }
+        ];
+        expect(describeRejections(rejected, { maxEmails: 5 })).toEqual([
             "You can only add up to 5 email addresses. 2 were not added."
         ]);
     });
 
-    it("replaces a default with custom text, and ignores blank custom text", () => {
-        const custom = { [REASON.FORMAT]: "  Check that address.  ", [REASON.DUPLICATE]: "   " };
-        expect(rejectionMessages({ [REASON.FORMAT]: 1, [REASON.DUPLICATE]: 1 }, { custom, maxEmails: 5 })).toEqual([
-            "Check that address.",
-            "This email has already been added."
+    it("names at most the listLimit addresses, then says how many more were left out", () => {
+        const rejected = ["a", "b", "c"].map((email) => ({ email, reason: REASON.FORMAT }));
+        expect(describeRejections(rejected, { maxEmails: 5, listLimit: 2 })).toEqual([
+            "a: Not a valid email address.",
+            "b: Not a valid email address.",
+            "and 1 more could not be added."
         ]);
-    });
-
-    it("lists messages in a fixed order, whatever order the counts were built in", () => {
-        const counts = { [REASON.LIMIT]: 1, [REASON.FORMAT]: 1 };
-        expect(rejectionMessages(counts, { maxEmails: 5 })[0]).toBe("Please enter a valid email address.");
     });
 });
