@@ -1,3 +1,8 @@
+/*
+ * MODIFIED by Chris Rouse (CRLabs) from upstream RebbePod/flow-config-editor-kit
+ * at commit 1377405 (Apache License 2.0, Copyright 2026 Fast Track Digital).
+ * Change: Tests for the availableFields allow-list and maxRelationshipDepth of 0. Apache-2.0 section 4(b).
+ */
 import { createElement } from "lwc";
 import { getObjectInfo } from "lightning/uiObjectInfoApi";
 import describeSObjectPath from "@salesforce/apex/FlowConfigApexTypeController.describeSObjectPath";
@@ -678,5 +683,85 @@ describe("c-flow-config-field-picker", () => {
     expect(results.style.position).toBe("fixed");
     expect(Number.parseFloat(results.style.top)).toBeLessThan(600);
     expect(element.style.zIndex).toBe("1000000");
+  });
+
+  // ----- FORK PATCH (crlabs): available-fields and a relationship depth of 0 -----
+
+  async function openPicker(objectInfo, props) {
+    const element = createElement("c-flow-config-field-picker", {
+      is: FlowConfigFieldPicker
+    });
+    Object.assign(element, props);
+    document.body.appendChild(element);
+    getObjectInfo.emit(objectInfo);
+    await Promise.resolve();
+    element.shadowRoot
+      .querySelector("lightning-input")
+      .dispatchEvent(new CustomEvent("focus"));
+    await Promise.resolve();
+    return element;
+  }
+
+  const fieldPaths = (element) =>
+    [...element.shadowRoot.querySelectorAll("[data-api-name]")].map(
+      (node) => node.dataset.apiName
+    );
+  const relationshipPaths = (element) =>
+    [...element.shadowRoot.querySelectorAll("[data-path]")].map(
+      (node) => node.dataset.path
+    );
+
+  it("offers only the fields in available-fields", async () => {
+    const element = await openPicker(ACCOUNT_OBJECT_INFO, {
+      objectApiName: "Account",
+      availableFields: '["Id","Name"]'
+    });
+    expect(fieldPaths(element).sort()).toEqual(["Id", "Name"]);
+  });
+
+  it("accepts available-fields as an array or a comma-separated string", async () => {
+    const asArray = await openPicker(ACCOUNT_OBJECT_INFO, {
+      objectApiName: "Account",
+      availableFields: ["AnnualRevenue"]
+    });
+    expect(fieldPaths(asArray)).toEqual(["AnnualRevenue"]);
+
+    const asList = await openPicker(ACCOUNT_OBJECT_INFO, {
+      objectApiName: "Account",
+      availableFields: "Name, AnnualRevenue"
+    });
+    expect(fieldPaths(asList).sort()).toEqual(["AnnualRevenue", "Name"]);
+  });
+
+  it("offers a relationship only when an allowed path runs through it", async () => {
+    const through = await openPicker(OPPORTUNITY_OBJECT_INFO, {
+      objectApiName: "Opportunity",
+      availableFields: '["Name","Account.Name"]'
+    });
+    expect(relationshipPaths(through)).toEqual(["Account"]);
+
+    const none = await openPicker(OPPORTUNITY_OBJECT_INFO, {
+      objectApiName: "Opportunity",
+      availableFields: '["Name"]'
+    });
+    expect(relationshipPaths(none)).toEqual([]);
+  });
+
+  it("offers every field when available-fields is empty", async () => {
+    const element = await openPicker(ACCOUNT_OBJECT_INFO, {
+      objectApiName: "Account",
+      availableFields: ""
+    });
+    expect(fieldPaths(element)).toHaveLength(4);
+  });
+
+  it("hides relationships at a max-relationship-depth of 0", async () => {
+    // `Number(depth || 5)` used to turn a 0 into 5.
+    const element = await openPicker(OPPORTUNITY_OBJECT_INFO, {
+      objectApiName: "Opportunity",
+      maxRelationshipDepth: 0
+    });
+    expect(relationshipPaths(element)).toEqual([]);
+    expect(fieldPaths(element).sort()).toEqual(["AccountId", "Name"]);
   });
 });

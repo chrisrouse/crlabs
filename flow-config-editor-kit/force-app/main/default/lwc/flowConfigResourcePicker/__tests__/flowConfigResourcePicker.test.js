@@ -1,3 +1,8 @@
+/*
+ * MODIFIED by Chris Rouse (CRLabs) from upstream RebbePod/flow-config-editor-kit
+ * at commit 1377405 (Apache License 2.0, Copyright 2026 Fast Track Digital).
+ * Change: Tests for popover anchoring while an ancestor scrolls (upstream PR #25). Apache-2.0 section 4(b).
+ */
 import { createElement } from "lwc";
 import { getObjectInfo } from "lightning/uiObjectInfoApi";
 import describeApexType from "@salesforce/apex/FlowConfigApexTypeController.describeType";

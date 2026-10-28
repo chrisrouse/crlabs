@@ -1,3 +1,8 @@
+/*
+ * MODIFIED by Chris Rouse (CRLabs) from upstream RebbePod/flow-config-editor-kit
+ * at commit 1377405 (Apache License 2.0, Copyright 2026 Fast Track Digital).
+ * Change: Adds the availableFields allow-list, and a maxRelationshipDepth of 0 now hides relationships. Not yet contributed upstream. Apache-2.0 section 4(b).
+ */
 import { LightningElement, api, wire } from "lwc";
 import { getObjectInfo } from "lightning/uiObjectInfoApi";
 import {
@@ -36,6 +41,13 @@ export default class FlowConfigFieldPicker extends LightningElement {
   @api acceptedTypes = "";
   @api maxResults = 100;
   @api maxRelationshipDepth = 5;
+  /**
+   * Optional allow-list of field paths, as an array, a JSON array string, or a
+   * comma-separated string. Empty offers every field. A relationship is offered
+   * only when an allowed path runs through it, so `Owner.Name` shows Owner with
+   * only Name inside. Mirrors the object picker's `available-object-types`.
+   */
+  @api availableFields;
   @api modeToggleLabel;
   @api modeToggleChecked = false;
 
@@ -241,15 +253,46 @@ export default class FlowConfigFieldPicker extends LightningElement {
     return value;
   }
 
+  /** The allow-list as a Set, or null when every field is offered. */
+  get allowedFieldPaths() {
+    const raw = this.availableFields;
+    let list = [];
+    if (Array.isArray(raw)) {
+      list = raw;
+    } else if (typeof raw === "string" && raw.trim()) {
+      try {
+        const parsed = JSON.parse(raw);
+        list = Array.isArray(parsed) ? parsed : [];
+      } catch {
+        list = raw.split(",");
+      }
+    }
+    const paths = list
+      .filter((path) => typeof path === "string" && path.trim())
+      .map((path) => path.trim());
+    return paths.length ? new Set(paths) : null;
+  }
+
+  /** 0 means no relationship traversal at all; blank or invalid means 5. */
+  get relationshipDepthLimit() {
+    const raw = this.maxRelationshipDepth;
+    const depth = raw === "" || raw === null || raw === undefined ? NaN : Number(raw);
+    return Number.isFinite(depth) && depth >= 0 ? depth : 5;
+  }
+
   get relationshipFields() {
-    if (this.browseStack.length >= Number(this.maxRelationshipDepth || 5)) {
+    if (this.browseStack.length >= this.relationshipDepthLimit) {
       return [];
     }
     const query = this.query.trim().toLowerCase();
+    const allowed = this.allowedFieldPaths;
     return this.allRelationshipFields
       .filter(
         (field) =>
-          field.objectApiName && (!query || field.searchText.includes(query))
+          field.objectApiName &&
+          (!query || field.searchText.includes(query)) &&
+          (!allowed ||
+            [...allowed].some((path) => path.startsWith(`${field.path}.`)))
       )
       .map((field, index) => {
         const isActive = index === this.activeIndex;
@@ -316,12 +359,17 @@ export default class FlowConfigFieldPicker extends LightningElement {
 
   get matchingFields() {
     const query = this.query.trim().toLowerCase();
+    const allowed = this.allowedFieldPaths;
     return this.allFields.filter((field) => {
       const typeMatches = isFieldTypeAccepted(
         field.dataType,
         this.acceptedTypes
       );
-      return typeMatches && (!query || field.searchText.includes(query));
+      return (
+        typeMatches &&
+        (!allowed || allowed.has(field.path)) &&
+        (!query || field.searchText.includes(query))
+      );
     });
   }
 

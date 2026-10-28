@@ -9,21 +9,22 @@ package must be installed before any component package that depends on it.
 
 | Package                | Directory                 | Purpose                                                                                                                                            |
 | ---------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Flow Config Editor Kit | `flow-config-editor-kit/` | **Base package.** Reusable building blocks for Flow Builder custom property editors. Install this first.                                           |
-| Flow Auto Navigate     | `flowautonavigate/`       | Flow screen component that advances a screen on a timer or an external trigger, and can refresh the surrounding page. Depends on the base package. |
+| CRLabs Foundations | `flow-config-editor-kit/` | **Base package, install first.** Reusable building blocks for Flow Builder custom property editors. Forked from the Flow Config Editor Kit (see below). |
+| Screen Timer       | `screentimer/`           | Configure timers for Screen Flows. Depends on CRLabs Foundations. |
 
 More component packages will land here and depend on the base package.
 
 ## About the base package
 
-**The Flow Config Editor Kit is not our code.** It is
+**CRLabs Foundations is a fork.** It is built from
 [RebbePod/flow-config-editor-kit](https://github.com/RebbePod/flow-config-editor-kit)
-by Fast Track Digital, used under the Apache License 2.0. See
-`flow-config-editor-kit/LICENSE` and `flow-config-editor-kit/NOTICE`.
+by Fast Track Digital, pinned at commit 1377405, and used under the Apache License
+2.0. CRLabs maintains the fork and its modifications. Every modified file carries a
+notice at its top, as section 4(b) of the license requires.
 
-It is vendored here so a `crlabs`-namespaced package can be built from it.
-`flow-config-editor-kit/VENDOR.md` records the pinned upstream commit and any
-local changes.
+See `flow-config-editor-kit/LICENSE` and `flow-config-editor-kit/NOTICE`, which carry
+the attribution. `flow-config-editor-kit/VENDOR.md` records the upstream pin and the
+history of the changes.
 
 ### Why namespaced, when upstream is not
 
@@ -51,6 +52,9 @@ its Apex controller and Visualforce bridge:
 sf org assign permset --name Flow_Config_Editor_Access --target-org my-org
 ```
 
+Its full API name is `crlabs__Flow_Config_Editor_Access`, which is how it
+appears in Setup. The CLI matches the unprefixed name above.
+
 Component packages need no permission set of their own; a Flow screen
 component is available to anyone who can run the flow.
 
@@ -67,7 +71,7 @@ because that is what the vendored tree is formatted to — applying our style
 would rewrite every file and destroy the diff against upstream. Prettier uses
 the nearest config to each file, so both are checked correctly in one pass.
 
-ESLint covers `flowautonavigate/` only; the kit is linted upstream.
+ESLint covers `screentimer/` only; the kit is linted upstream.
 
 Fixes to the kit belong **upstream**, not here. Open a PR against
 [the upstream repo](https://github.com/RebbePod/flow-config-editor-kit); once it

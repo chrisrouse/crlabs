@@ -1,3 +1,9 @@
+> **Status: maintained fork.** This is no longer a pristine vendored copy. CRLabs Foundations
+> is maintained by Chris Rouse (CRLabs) from upstream commit 1377405, and the modified
+> files are marked at the top of each file (Apache-2.0 section 4(b)). Attribution to
+> Fast Track Digital is kept in NOTICE and LICENSE. The sections below are the history
+> of how the fork came to be.
+
 # Vendored: Flow Config Editor Kit
 
 **This is third-party code, not ours.** It lives under `crlabs/` because a
