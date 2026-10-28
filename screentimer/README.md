@@ -138,9 +138,6 @@ judged at runtime.
 Style, message, icon and bar tint are separate so they compose freely. Color on
 its own fails WCAG 1.4.1 — pair `Color` with a Warning Message or the icon.
 
-`design/warning-threshold-preview.html` is a standalone page comparing the
-treatments; open it in a browser.
-
 ## Outputs
 
 | Output                 | Meaning                                                                  |
