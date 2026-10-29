@@ -1,0 +1,29 @@
+<template>
+    <section class={sectionClass}>
+        <div class="slds-accordion__summary slds-grid slds-grid_vertical-align-center">
+            <h2 class="slds-accordion__summary-heading slds-grow">
+                <button
+                    class="slds-button slds-button_reset slds-accordion__summary-action slds-grid slds-grid_vertical-align-center"
+                    aria-expanded={ariaExpanded}
+                    aria-controls={contentId}
+                    onclick={handleHeaderClick}
+                >
+                    <lightning-icon
+                        icon-name="utility:chevrondown"
+                        size="xx-small"
+                        class="slds-accordion__summary-action-icon slds-m-right_x-small"
+                    ></lightning-icon>
+                    <span class="slds-accordion__summary-content">
+                        <slot name="title"></slot>
+                    </span>
+                </button>
+            </h2>
+            <div class="slds-grid slds-grid_vertical-align-center">
+                <slot name="actions"></slot>
+            </div>
+        </div>
+        <div id={contentId} class="slds-accordion__content">
+            <slot name="content"></slot>
+        </div>
+    </section>
+</template>
