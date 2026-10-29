@@ -1,0 +1,27 @@
+<template>
+    <lightning-input-rich-text
+        label="Content"
+        label-visible
+        value={value}
+        formats={editorFormats}
+        onchange={handleChange}
+    >
+        <div slot="toolbar">
+            <lightning-button-menu
+                variant="border-filled"
+                icon-name="utility:type_tool"
+                alternative-text="Paragraph and heading styles"
+                onselect={handleStyleChange}
+            >
+                <template for:each={styleOptions} for:item="option">
+                    <lightning-menu-item
+                        key={option.value}
+                        value={option.value}
+                        label={option.label}
+                        checked={option.checked}
+                    ></lightning-menu-item>
+                </template>
+            </lightning-button-menu>
+        </div>
+    </lightning-input-rich-text>
+</template>

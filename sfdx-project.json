@@ -1,6 +1,10 @@
 {
   "packageDirectories": [
     {
+      "path": "experience-cloud/force-app",
+      "default": false
+    },
+    {
       "versionName": "ver 0.1",
       "versionNumber": "0.1.0.NEXT",
       "path": "flow-config-editor-kit/force-app",
