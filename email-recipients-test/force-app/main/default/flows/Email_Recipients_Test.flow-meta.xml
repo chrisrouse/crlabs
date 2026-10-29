@@ -201,7 +201,6 @@
             <dataType>Boolean</dataType>
             <fieldText>Disable the recipients field</fieldText>
             <fieldType>InputField</fieldType>
-            <isRequired>false</isRequired>
         </fields>
         <fields>
             <name>Recipients_Disabled</name>
@@ -217,7 +216,7 @@
             </inputParameters>
             <inputParameters>
                 <name>disabled</name>
-                <value><elementReference>Screen_5_Disabled.Lock_Field</elementReference></value>
+                <value><elementReference>Lock_Field</elementReference></value>
             </inputParameters>
             <inputParameters>
                 <name>value</name>
