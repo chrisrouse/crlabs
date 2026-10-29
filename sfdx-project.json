@@ -28,7 +28,7 @@
       "path": "email-recipients/force-app",
       "default": false,
       "package": "Email Recipients",
-      "versionDescription": "Collects validated email addresses for a Flow screen, with domain rules, a maximum count and a comma-delimited output for Send Email.",
+      "versionDescription": "Screenflow component to collect email addresses.",
       "dependencies": [
         {
           "package": "CRLabs Foundations",
@@ -43,7 +43,7 @@
   "packageAliases": {
     "CRLabs Foundations": "0Hobm0000008kgnCAA",
     "Screen Timer": "0Hobm0000008kiPCAQ",
-    "CRLabs Foundations@0.1.0-1": "04tbm000000tiYHAAY",
-    "Screen Timer@1.0.0-1": "04tbm000000tiZtAAI"
+    "Email Recipients": "0Hobm0000008lRZCAY",
+    "Email Recipients@0.1.0-1": "04tbm000000tsqzAAA"
   }
 }
