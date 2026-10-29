@@ -1,0 +1,325 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>67.0</apiVersion>
+    <description>Test screens for c:emailRecipients: one screen per configuration, then a results screen. Run in Flow Builder debug. Remove after testing.</description>
+    <interviewLabel>Email Recipients Test {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>Email Recipients Test</label>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value><stringValue>LightningFlowBuilder</stringValue></value>
+    </processMetadataValues>
+    <processType>Flow</processType>
+    <start>
+        <locationX>50</locationX>
+        <locationY>0</locationY>
+        <connector><targetReference>Set_Initial_Emails</targetReference></connector>
+    </start>
+    <status>Draft</status>
+
+    <assignments>
+        <name>Set_Initial_Emails</name>
+        <label>Set initial emails</label>
+        <locationX>176</locationX>
+        <locationY>0</locationY>
+        <assignmentItems>
+            <assignToReference>initialEmails</assignToReference>
+            <operator>Add</operator>
+            <value><stringValue>ann@example.com</stringValue></value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>initialEmails</assignToReference>
+            <operator>Add</operator>
+            <value><stringValue>ANN@example.com</stringValue></value>
+        </assignmentItems>
+        <assignmentItems>
+            <assignToReference>initialEmails</assignToReference>
+            <operator>Add</operator>
+            <value><stringValue>not-valid</stringValue></value>
+        </assignmentItems>
+        <connector><targetReference>Screen_1_Basic</targetReference></connector>
+    </assignments>
+
+    <screens>
+        <name>Screen_1_Basic</name>
+        <locationX>176</locationX>
+        <locationY>200</locationY>
+        <label>1. Basic: no rules</label>
+        <allowBack>true</allowBack>
+        <allowFinish>true</allowFinish>
+        <allowPause>false</allowPause>
+        <connector><targetReference>Screen_2_Domains</targetReference></connector>
+        <fields>
+            <name>Recipients_Basic</name>
+            <extensionName>c:emailRecipients</extensionName>
+            <fieldType>ComponentInstance</fieldType>
+            <inputParameters>
+                <name>label</name>
+                <value><stringValue>Recipients (basic)</stringValue></value>
+            </inputParameters>
+            <inputParameters>
+                <name>helpText</name>
+                <value><stringValue>No rules: any valid address, up to 150.</stringValue></value>
+            </inputParameters>
+            <outputParameters>
+                <assignToReference>basicCollection</assignToReference>
+                <name>emailCollection</name>
+            </outputParameters>
+            <outputParameters>
+                <assignToReference>basicList</assignToReference>
+                <name>emailList</name>
+            </outputParameters>
+        </fields>
+        <showFooter>true</showFooter>
+        <showHeader>true</showHeader>
+    </screens>
+
+    <screens>
+        <name>Screen_2_Domains</name>
+        <locationX>176</locationX>
+        <locationY>300</locationY>
+        <label>2. Domain rules</label>
+        <allowBack>true</allowBack>
+        <allowFinish>true</allowFinish>
+        <allowPause>false</allowPause>
+        <connector><targetReference>Screen_3_Maximum</targetReference></connector>
+        <fields>
+            <name>Recipients_Domains</name>
+            <extensionName>c:emailRecipients</extensionName>
+            <fieldType>ComponentInstance</fieldType>
+            <inputParameters>
+                <name>label</name>
+                <value><stringValue>Recipients (domains)</stringValue></value>
+            </inputParameters>
+            <inputParameters>
+                <name>helpText</name>
+                <value><stringValue>Allowed: example.com and *.edu. Blocked: spam.example.com.</stringValue></value>
+            </inputParameters>
+            <inputParameters>
+                <name>allowedDomains</name>
+                <value><stringValue>example.com, *.edu</stringValue></value>
+            </inputParameters>
+            <inputParameters>
+                <name>blockedDomains</name>
+                <value><stringValue>spam.example.com</stringValue></value>
+            </inputParameters>
+            <outputParameters>
+                <assignToReference>domainsCollection</assignToReference>
+                <name>emailCollection</name>
+            </outputParameters>
+            <outputParameters>
+                <assignToReference>domainsList</assignToReference>
+                <name>emailList</name>
+            </outputParameters>
+        </fields>
+        <showFooter>true</showFooter>
+        <showHeader>true</showHeader>
+    </screens>
+
+    <screens>
+        <name>Screen_3_Maximum</name>
+        <locationX>176</locationX>
+        <locationY>400</locationY>
+        <label>3. Maximum of 3</label>
+        <allowBack>true</allowBack>
+        <allowFinish>true</allowFinish>
+        <allowPause>false</allowPause>
+        <connector><targetReference>Screen_4_Required</targetReference></connector>
+        <fields>
+            <name>Recipients_Maximum</name>
+            <extensionName>c:emailRecipients</extensionName>
+            <fieldType>ComponentInstance</fieldType>
+            <inputParameters>
+                <name>label</name>
+                <value><stringValue>Recipients (max 3)</stringValue></value>
+            </inputParameters>
+            <inputParameters>
+                <name>maxEmails</name>
+                <value><numberValue>3.0</numberValue></value>
+            </inputParameters>
+            <outputParameters>
+                <assignToReference>maximumCollection</assignToReference>
+                <name>emailCollection</name>
+            </outputParameters>
+            <outputParameters>
+                <assignToReference>maximumList</assignToReference>
+                <name>emailList</name>
+            </outputParameters>
+        </fields>
+        <showFooter>true</showFooter>
+        <showHeader>true</showHeader>
+    </screens>
+
+    <screens>
+        <name>Screen_4_Required</name>
+        <locationX>176</locationX>
+        <locationY>500</locationY>
+        <label>4. Required (from a variable)</label>
+        <allowBack>true</allowBack>
+        <allowFinish>true</allowFinish>
+        <allowPause>false</allowPause>
+        <connector><targetReference>Screen_5_Disabled</targetReference></connector>
+        <fields>
+            <name>Recipients_Required</name>
+            <extensionName>c:emailRecipients</extensionName>
+            <fieldType>ComponentInstance</fieldType>
+            <inputParameters>
+                <name>label</name>
+                <value><stringValue>Recipients (required)</stringValue></value>
+            </inputParameters>
+            <inputParameters>
+                <name>helpText</name>
+                <value><stringValue>Required is driven by the isRequired variable, which is true. Continue without an address to see the error.</stringValue></value>
+            </inputParameters>
+            <inputParameters>
+                <name>required</name>
+                <value><elementReference>isRequired</elementReference></value>
+            </inputParameters>
+            <outputParameters>
+                <assignToReference>requiredCollection</assignToReference>
+                <name>emailCollection</name>
+            </outputParameters>
+            <outputParameters>
+                <assignToReference>requiredList</assignToReference>
+                <name>emailList</name>
+            </outputParameters>
+        </fields>
+        <showFooter>true</showFooter>
+        <showHeader>true</showHeader>
+    </screens>
+
+    <screens>
+        <name>Screen_5_Disabled</name>
+        <locationX>176</locationX>
+        <locationY>600</locationY>
+        <label>5. Disabled (from a checkbox) with initial emails</label>
+        <allowBack>true</allowBack>
+        <allowFinish>true</allowFinish>
+        <allowPause>false</allowPause>
+        <connector><targetReference>Screen_6_Messages</targetReference></connector>
+        <fields>
+            <name>Lock_Field</name>
+            <dataType>Boolean</dataType>
+            <fieldText>Disable the recipients field</fieldText>
+            <fieldType>InputField</fieldType>
+            <isRequired>false</isRequired>
+        </fields>
+        <fields>
+            <name>Recipients_Disabled</name>
+            <extensionName>c:emailRecipients</extensionName>
+            <fieldType>ComponentInstance</fieldType>
+            <inputParameters>
+                <name>label</name>
+                <value><stringValue>Recipients (disabled, starts with 3 addresses)</stringValue></value>
+            </inputParameters>
+            <inputParameters>
+                <name>helpText</name>
+                <value><stringValue>Tick the checkbox above: the field should lock, and the addresses stay visible.</stringValue></value>
+            </inputParameters>
+            <inputParameters>
+                <name>disabled</name>
+                <value><elementReference>Screen_5_Disabled.Lock_Field</elementReference></value>
+            </inputParameters>
+            <inputParameters>
+                <name>value</name>
+                <value><elementReference>initialEmails</elementReference></value>
+            </inputParameters>
+            <outputParameters>
+                <assignToReference>disabledCollection</assignToReference>
+                <name>emailCollection</name>
+            </outputParameters>
+            <outputParameters>
+                <assignToReference>disabledList</assignToReference>
+                <name>emailList</name>
+            </outputParameters>
+        </fields>
+        <showFooter>true</showFooter>
+        <showHeader>true</showHeader>
+    </screens>
+
+    <screens>
+        <name>Screen_6_Messages</name>
+        <locationX>176</locationX>
+        <locationY>700</locationY>
+        <label>6. Custom messages</label>
+        <allowBack>true</allowBack>
+        <allowFinish>true</allowFinish>
+        <allowPause>false</allowPause>
+        <connector><targetReference>Screen_7_Results</targetReference></connector>
+        <fields>
+            <name>Recipients_Messages</name>
+            <extensionName>c:emailRecipients</extensionName>
+            <fieldType>ComponentInstance</fieldType>
+            <inputParameters>
+                <name>label</name>
+                <value><stringValue>Recipients (custom messages)</stringValue></value>
+            </inputParameters>
+            <inputParameters>
+                <name>helpText</name>
+                <value><stringValue>Enter nope, then the same address twice, to see the custom messages.</stringValue></value>
+            </inputParameters>
+            <inputParameters>
+                <name>invalidEmailErrorMessage</name>
+                <value><stringValue>Check that address and try again.</stringValue></value>
+            </inputParameters>
+            <inputParameters>
+                <name>duplicateEmailErrorMessage</name>
+                <value><stringValue>Already on the list.</stringValue></value>
+            </inputParameters>
+            <outputParameters>
+                <assignToReference>messagesCollection</assignToReference>
+                <name>emailCollection</name>
+            </outputParameters>
+            <outputParameters>
+                <assignToReference>messagesList</assignToReference>
+                <name>emailList</name>
+            </outputParameters>
+        </fields>
+        <showFooter>true</showFooter>
+        <showHeader>true</showHeader>
+    </screens>
+
+    <screens>
+        <name>Screen_7_Results</name>
+        <locationX>176</locationX>
+        <locationY>800</locationY>
+        <label>7. Results</label>
+        <allowBack>true</allowBack>
+        <allowFinish>true</allowFinish>
+        <allowPause>false</allowPause>
+        <fields>
+            <name>Results_Text</name>
+            <fieldText>&lt;p&gt;&lt;strong&gt;1. Basic:&lt;/strong&gt; {!basicList}&lt;/p&gt;&lt;p&gt;&lt;strong&gt;2. Domains:&lt;/strong&gt; {!domainsList}&lt;/p&gt;&lt;p&gt;&lt;strong&gt;3. Maximum 3:&lt;/strong&gt; {!maximumList}&lt;/p&gt;&lt;p&gt;&lt;strong&gt;4. Required:&lt;/strong&gt; {!requiredList}&lt;/p&gt;&lt;p&gt;&lt;strong&gt;5. Disabled:&lt;/strong&gt; {!disabledList}&lt;/p&gt;&lt;p&gt;&lt;strong&gt;6. Messages:&lt;/strong&gt; {!messagesList}&lt;/p&gt;</fieldText>
+            <fieldType>DisplayText</fieldType>
+        </fields>
+        <showFooter>true</showFooter>
+        <showHeader>true</showHeader>
+    </screens>
+
+    <variables>
+        <name>initialEmails</name>
+        <dataType>String</dataType>
+        <isCollection>true</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+    </variables>
+    <variables>
+        <name>isRequired</name>
+        <dataType>Boolean</dataType>
+        <isCollection>false</isCollection>
+        <isInput>false</isInput>
+        <isOutput>false</isOutput>
+        <value><booleanValue>true</booleanValue></value>
+    </variables>
+    <variables><name>basicCollection</name><dataType>String</dataType><isCollection>true</isCollection><isInput>false</isInput><isOutput>false</isOutput></variables>
+    <variables><name>basicList</name><dataType>String</dataType><isCollection>false</isCollection><isInput>false</isInput><isOutput>false</isOutput></variables>
+    <variables><name>domainsCollection</name><dataType>String</dataType><isCollection>true</isCollection><isInput>false</isInput><isOutput>false</isOutput></variables>
+    <variables><name>domainsList</name><dataType>String</dataType><isCollection>false</isCollection><isInput>false</isInput><isOutput>false</isOutput></variables>
+    <variables><name>maximumCollection</name><dataType>String</dataType><isCollection>true</isCollection><isInput>false</isInput><isOutput>false</isOutput></variables>
+    <variables><name>maximumList</name><dataType>String</dataType><isCollection>false</isCollection><isInput>false</isInput><isOutput>false</isOutput></variables>
+    <variables><name>requiredCollection</name><dataType>String</dataType><isCollection>true</isCollection><isInput>false</isInput><isOutput>false</isOutput></variables>
+    <variables><name>requiredList</name><dataType>String</dataType><isCollection>false</isCollection><isInput>false</isInput><isOutput>false</isOutput></variables>
+    <variables><name>disabledCollection</name><dataType>String</dataType><isCollection>true</isCollection><isInput>false</isInput><isOutput>false</isOutput></variables>
+    <variables><name>disabledList</name><dataType>String</dataType><isCollection>false</isCollection><isInput>false</isInput><isOutput>false</isOutput></variables>
+    <variables><name>messagesCollection</name><dataType>String</dataType><isCollection>true</isCollection><isInput>false</isInput><isOutput>false</isOutput></variables>
+    <variables><name>messagesList</name><dataType>String</dataType><isCollection>false</isCollection><isInput>false</isInput><isOutput>false</isOutput></variables>
+</Flow>
