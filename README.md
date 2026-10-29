@@ -46,17 +46,16 @@ applied at package build, not by editing files.
 
 ## Installing
 
-### Beta install links
+### Install links
 
-These are beta versions. They install into scratch orgs and sandboxes only.
 Install in the order listed. Use `test.salesforce.com` in place of
 `login.salesforce.com` for a sandbox.
 
 | Order | Package            | Version | Version ID           | Install link                                                                                 |
 | ----- | ------------------ | ------- | -------------------- | -------------------------------------------------------------------------------------------- |
-| 1     | CRLabs Foundations | 0.1.0.1 | `04tbm000000tiYHAAY` | [Install](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tbm000000tiYHAAY) |
-| 2     | Screen Timer       | 1.0.0.1 | `04tbm000000tiZtAAI` | [Install](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tbm000000tiZtAAI) |
-| 2     | Email Recipients   | 0.1.0.1 | `04tbm000000tsqzAAA` | [Install](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tbm000000tsqzAAA) |
+| 1     | CRLabs Foundations | 0.1.0.2 | `04tbm000000ttBxAAI` | [Install](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tbm000000ttBxAAI) |
+| 2     | Screen Timer       | 1.0.0.2 | `04tbm000000ttDZAAY` | [Install](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tbm000000ttDZAAY) |
+| 2     | Email Recipients   | 0.1.0.2 | `04tbm000000ttFBAAY` | [Install](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tbm000000ttFBAAY) |
 
 Component packages depend on CRLabs Foundations and will not install without it.
 Install it first, then assign the permission set that grants its Apex controller
