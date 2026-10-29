@@ -7,10 +7,13 @@ package must be installed before any component package that depends on it.
 
 ## Packages
 
-| Package                | Directory                 | Purpose                                                                                                                                            |
-| ---------------------- | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Package            | Directory                 | Purpose                                                                                                                                                 |
+| ------------------ | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Package            | Directory                 | Purpose                                                                                                                                                 |
+| ---                | ---                       | ---                                                                                                                                                     |
 | CRLabs Foundations | `flow-config-editor-kit/` | **Base package, install first.** Reusable building blocks for Flow Builder custom property editors. Forked from the Flow Config Editor Kit (see below). |
-| Screen Timer       | `screentimer/`           | Configure timers for Screen Flows. Depends on CRLabs Foundations. |
+| Screen Timer       | `screentimer/`            | Configure timers for Screen Flows. Depends on CRLabs Foundations.                                                                                       |
+| Email Recipients   | `email-recipients/`       | Screenflow component to collect email addresses. Depends on CRLabs Foundations.                                                                         |
 
 More component packages will land here and depend on the base package.
 
@@ -43,10 +46,21 @@ applied at package build, not by editing files.
 
 ## Installing
 
-Install URLs are published on each release. **Install the base package first**
-— component packages declare it as a dependency and will not install without
-it. After installing the base package, assign the permission set that grants
-its Apex controller and Visualforce bridge:
+### Beta install links
+
+These are beta versions. They install into scratch orgs and sandboxes only.
+Install in the order listed. Use `test.salesforce.com` in place of
+`login.salesforce.com` for a sandbox.
+
+| Order | Package            | Version | Version ID           | Install link                                                                                 |
+| ----- | ------------------ | ------- | -------------------- | -------------------------------------------------------------------------------------------- |
+| 1     | CRLabs Foundations | 0.1.0.1 | `04tbm000000tiYHAAY` | [Install](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tbm000000tiYHAAY) |
+| 2     | Screen Timer       | 1.0.0.1 | `04tbm000000tiZtAAI` | [Install](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tbm000000tiZtAAI) |
+| 2     | Email Recipients   | 0.1.0.1 | `04tbm000000tsqzAAA` | [Install](https://login.salesforce.com/packaging/installPackage.apexp?p0=04tbm000000tsqzAAA) |
+
+Component packages depend on CRLabs Foundations and will not install without it.
+Install it first, then assign the permission set that grants its Apex controller
+and Visualforce bridge:
 
 ```bash
 sf org assign permset --name Flow_Config_Editor_Access --target-org my-org
@@ -71,7 +85,7 @@ because that is what the vendored tree is formatted to — applying our style
 would rewrite every file and destroy the diff against upstream. Prettier uses
 the nearest config to each file, so both are checked correctly in one pass.
 
-ESLint covers `screentimer/` only; the kit is linted upstream.
+ESLint covers `screentimer/` and `email-recipients/`; the kit is linted upstream.
 
 Fixes to the kit belong **upstream**, not here. Open a PR against
 [the upstream repo](https://github.com/RebbePod/flow-config-editor-kit); once it
