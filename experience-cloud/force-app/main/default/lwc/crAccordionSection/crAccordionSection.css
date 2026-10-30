@@ -1,0 +1,25 @@
+/* The toggle takes its place from the accordion: 0 puts it first (left), 2 after the title (right). */
+.slds-accordion__summary-action-icon {
+    order: var(--cr-accordion-toggle-order, 0);
+    flex: 0 0 auto;
+    align-self: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 1 / 1;
+}
+
+.slds-accordion__summary-content {
+    order: 1;
+    flex: 1 1 auto;
+}
+
+/* The toggle shows its own open or closed icon, so SLDS's rotation would turn it twice. */
+.slds-accordion__summary-action-icon {
+    transform: none !important;
+}
+
+/* The SVG's fill comes from a site stylesheet rule, so the fill is set on the exported icon part. */
+.has-icon-color::part(icon) {
+    fill: var(--cr-icon-foreground);
+}

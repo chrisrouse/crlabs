@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Accordion style mockups</title>
+        <style>
+            /*
+         * Each style is set by a few custom properties on .cr-accordion. The Builder can later
+         * map each property to a field in the Style panel. Defaults are the Divider style.
+         */
+            .cr-accordion {
+                --cr-accordion-font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                --cr-accordion-gap: 0;
+                --cr-accordion-radius: 0;
+                --cr-accordion-border: 1px solid #c9c9c9;
+                --cr-accordion-outer-border: none;
+                --cr-accordion-section-border: 1px solid #c9c9c9;
+                --cr-accordion-header-background: transparent;
+                --cr-accordion-header-color: #181818;
+                --cr-accordion-header-weight: 600;
+                --cr-accordion-header-size: 1rem;
+                --cr-accordion-header-padding: 0.875rem 1rem;
+                --cr-accordion-open-header-background: var(--cr-accordion-header-background);
+                --cr-accordion-open-header-color: var(--cr-accordion-header-color);
+                --cr-accordion-body-background: transparent;
+                --cr-accordion-body-padding: 0 1rem 1rem 2.75rem;
+                --cr-accordion-body-color: #444444;
+                --cr-accordion-chevron-color: #444444;
+                --cr-accordion-section-shadow: none;
+
+                font-family: var(--cr-accordion-font-family);
+                display: flex;
+                flex-direction: column;
+                gap: var(--cr-accordion-gap);
+                border: var(--cr-accordion-outer-border);
+                border-radius: var(--cr-accordion-radius);
+                max-width: 40rem;
+                margin: 0 0 2.5rem;
+            }
+
+            .cr-accordion__section {
+                border: var(--cr-accordion-section-border);
+                border-radius: var(--cr-accordion-radius);
+                box-shadow: var(--cr-accordion-section-shadow);
+                overflow: hidden;
+                background: var(--cr-accordion-body-background);
+            }
+
+            .cr-accordion__button {
+                all: unset;
+                box-sizing: border-box;
+                display: flex;
+                align-items: center;
+                gap: 0.75rem;
+                width: 100%;
+                padding: var(--cr-accordion-header-padding);
+                background: var(--cr-accordion-header-background);
+                color: var(--cr-accordion-header-color);
+                font-size: var(--cr-accordion-header-size);
+                font-weight: var(--cr-accordion-header-weight);
+                cursor: pointer;
+            }
+
+            .cr-accordion__button:focus-visible {
+                outline: 2px solid #0176d3;
+                outline-offset: -2px;
+            }
+
+            .cr-accordion__section.is-open > .cr-accordion__button {
+                background: var(--cr-accordion-open-header-background);
+                color: var(--cr-accordion-open-header-color);
+            }
+
+            .cr-accordion__chevron {
+                flex: 0 0 auto;
+                width: 0.5rem;
+                height: 0.5rem;
+                border-right: 2px solid var(--cr-accordion-chevron-color);
+                border-bottom: 2px solid var(--cr-accordion-chevron-color);
+                transform: rotate(-45deg);
+                transition: transform 0.15s ease;
+            }
+
+            .cr-accordion__section.is-open .cr-accordion__chevron {
+                transform: rotate(45deg);
+            }
+
+            .cr-accordion__content {
+                display: none;
+                padding: var(--cr-accordion-body-padding);
+                color: var(--cr-accordion-body-color);
+                line-height: 1.5;
+            }
+
+            .cr-accordion__section.is-open > .cr-accordion__content {
+                display: block;
+            }
+
+            /* Style 1: Divider (default). Lines between sections, like the standard accordion. */
+
+            /* Style 2: Card. Each section is a separate rounded card with space between them. */
+            .cr-accordion.is-card {
+                --cr-accordion-gap: 0.75rem;
+                --cr-accordion-radius: 0.75rem;
+                --cr-accordion-section-border: 1px solid #d8dde6;
+                --cr-accordion-section-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+                --cr-accordion-body-padding: 0 1.25rem 1.25rem 3rem;
+                --cr-accordion-header-padding: 1rem 1.25rem;
+            }
+
+            /* Style 3: Filled. Tinted header bars with no lines between sections. */
+            .cr-accordion.is-filled {
+                --cr-accordion-gap: 0.375rem;
+                --cr-accordion-section-border: none;
+                --cr-accordion-header-background: #f3f3f3;
+                --cr-accordion-open-header-background: #0176d3;
+                --cr-accordion-open-header-color: #ffffff;
+                --cr-accordion-chevron-color: #444444;
+                --cr-accordion-body-padding: 1rem 1rem 1rem 2.75rem;
+            }
+
+            .cr-accordion.is-filled .cr-accordion__section.is-open > .cr-accordion__chevron,
+            .cr-accordion.is-filled .cr-accordion__section.is-open .cr-accordion__chevron {
+                border-color: #ffffff;
+            }
+
+            /* Style 4: Outlined. One border around the whole accordion, with lines between sections. */
+            .cr-accordion.is-outlined {
+                --cr-accordion-outer-border: 1px solid #c9c9c9;
+                --cr-accordion-radius: 0.375rem;
+                --cr-accordion-section-border: none;
+                --cr-accordion-body-padding: 0 1rem 1rem 2.75rem;
+                --cr-accordion-header-background: #ffffff;
+                --cr-accordion-gap: 0;
+            }
+
+            .cr-accordion.is-outlined .cr-accordion__section + .cr-accordion__section {
+                border-top: 1px solid #c9c9c9;
+            }
+
+            /* Style 5: Minimal. No lines or boxes. Lighter text, and the open title is bold with a brand color. */
+            .cr-accordion.is-minimal {
+                --cr-accordion-section-border: none;
+                --cr-accordion-header-weight: 400;
+                --cr-accordion-header-padding: 0.75rem 0;
+                --cr-accordion-open-header-color: #0176d3;
+                --cr-accordion-body-padding: 0 0 1rem 2rem;
+                --cr-accordion-chevron-color: #0176d3;
+            }
+
+            .cr-accordion.is-minimal .cr-accordion__section.is-open > .cr-accordion__button {
+                font-weight: 600;
+            }
+
+            /* Style 6: Accent card. Rounded cards, a circular icon, and an accent border on the open card. */
+            .cr-accordion.is-accent {
+                --cr-accordion-gap: 1rem;
+                --cr-accordion-radius: 0.75rem;
+                --cr-accordion-section-border: 1px solid #e3e3ec;
+                --cr-accordion-section-shadow: 0 2px 6px rgba(20, 20, 60, 0.06);
+                --cr-accordion-header-padding: 1.25rem 1.5rem;
+                --cr-accordion-header-color: #1b1452;
+                --cr-accordion-header-size: 1.125rem;
+                --cr-accordion-header-weight: 500;
+                --cr-accordion-body-padding: 0 1.5rem 1.5rem;
+                --cr-accordion-body-color: #6b6b8a;
+                --cr-accordion-chevron-color: #4a3aff;
+                --cr-accordion-accent: #4a3aff;
+            }
+
+            .cr-accordion.is-accent .cr-accordion__section.is-open {
+                border: 2px solid var(--cr-accordion-accent);
+            }
+
+            .cr-accordion.is-accent .cr-accordion__chevron {
+                width: 2.5rem;
+                height: 2.5rem;
+                flex: 0 0 2.5rem;
+                display: grid;
+                place-items: center;
+                border: none;
+                border-radius: 50%;
+                background: #ffffff;
+                box-shadow: 0 2px 6px rgba(20, 20, 60, 0.12);
+                transform: rotate(-45deg);
+                margin-left: auto;
+            }
+
+            .cr-accordion.is-accent .cr-accordion__chevron::before {
+                content: "";
+                width: 0.5rem;
+                height: 0.5rem;
+                border-right: 2px solid var(--cr-accordion-accent);
+                border-bottom: 2px solid var(--cr-accordion-accent);
+                transform: translateY(-1px) rotate(45deg);
+            }
+
+            .cr-accordion.is-accent .cr-accordion__section.is-open .cr-accordion__chevron {
+                background: var(--cr-accordion-accent);
+                box-shadow: none;
+                transform: rotate(45deg);
+            }
+
+            .cr-accordion.is-accent .cr-accordion__section.is-open .cr-accordion__chevron::before {
+                border-color: #ffffff;
+                transform: translateY(-1px) rotate(45deg);
+            }
+
+            /* Style 7: Two-column grid with square plus and minus icons. */
+            .cr-accordion.is-grid {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                align-items: start;
+                max-width: 56rem;
+                --cr-accordion-gap: 1rem;
+                --cr-accordion-radius: 0.75rem;
+                --cr-accordion-section-border: none;
+                --cr-accordion-section-shadow: 0 2px 6px rgba(20, 20, 60, 0.06);
+                --cr-accordion-header-padding: 1.25rem 1.25rem;
+                --cr-accordion-header-color: #1b1452;
+                --cr-accordion-header-size: 1.0625rem;
+                --cr-accordion-header-weight: 500;
+                --cr-accordion-body-padding: 0 1.25rem 1.25rem;
+                --cr-accordion-body-color: #6b6b8a;
+                --cr-accordion-accent: #4a3aff;
+            }
+
+            .cr-accordion.is-grid .cr-accordion__chevron {
+                position: relative;
+                flex: 0 0 2rem;
+                width: 2rem;
+                height: 2rem;
+                margin-left: auto;
+                border: none;
+                border-radius: 0.5rem;
+                background: #f3f3f8;
+                transform: none;
+            }
+
+            .cr-accordion.is-grid .cr-accordion__chevron::before,
+            .cr-accordion.is-grid .cr-accordion__chevron::after {
+                content: "";
+                position: absolute;
+                left: 50%;
+                top: 50%;
+                width: 0.75rem;
+                height: 2px;
+                background: #4a4a66;
+                transform: translate(-50%, -50%);
+            }
+
+            .cr-accordion.is-grid .cr-accordion__chevron::after {
+                transform: translate(-50%, -50%) rotate(90deg);
+            }
+
+            .cr-accordion.is-grid .cr-accordion__section.is-open .cr-accordion__chevron {
+                background: var(--cr-accordion-accent);
+                transform: none;
+            }
+
+            .cr-accordion.is-grid .cr-accordion__section.is-open .cr-accordion__chevron::before,
+            .cr-accordion.is-grid .cr-accordion__section.is-open .cr-accordion__chevron::after {
+                background: #ffffff;
+            }
+
+            .cr-accordion.is-grid .cr-accordion__section.is-open .cr-accordion__chevron::after {
+                display: none;
+            }
+
+            /* Mockup chrome */
+            body {
+                margin: 0;
+                padding: 2rem;
+                background: #f9f9f9;
+                color: #181818;
+                font-family:
+                    system-ui,
+                    -apple-system,
+                    "Segoe UI",
+                    Roboto,
+                    Helvetica,
+                    Arial,
+                    sans-serif;
+            }
+
+            h2 {
+                font-size: 1rem;
+                margin: 0 0 0.75rem;
+                color: #444444;
+            }
+
+            .cr-accordion__section.is-open > .cr-accordion__content p {
+                margin: 0;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- 1. Divider (default) -->
+        <h2>1. Divider (default)</h2>
+        <div class="cr-accordion">
+            <div class="cr-accordion__section is-open">
+                <h3 style="margin: 0">
+                    <button class="cr-accordion__button" aria-expanded="true">
+                        <span class="cr-accordion__chevron"></span>Shipping details
+                    </button>
+                </h3>
+                <div class="cr-accordion__content"><p>Orders ship within two business days.</p></div>
+            </div>
+            <div class="cr-accordion__section">
+                <h3 style="margin: 0">
+                    <button class="cr-accordion__button" aria-expanded="false">
+                        <span class="cr-accordion__chevron"></span>Returns
+                    </button>
+                </h3>
+                <div class="cr-accordion__content"><p>Return unused items within 30 days.</p></div>
+            </div>
+            <div class="cr-accordion__section">
+                <h3 style="margin: 0">
+                    <button class="cr-accordion__button" aria-expanded="false">
+                        <span class="cr-accordion__chevron"></span>Warranty
+                    </button>
+                </h3>
+                <div class="cr-accordion__content"><p>Every product includes a one-year warranty.</p></div>
+            </div>
+        </div>
+
+        <!-- 2. Card -->
+        <h2>2. Card</h2>
+        <div class="cr-accordion is-card">
+            <div class="cr-accordion__section is-open">
+                <h3 style="margin: 0">
+                    <button class="cr-accordion__button" aria-expanded="true">
+                        <span class="cr-accordion__chevron"></span>Shipping details
+                    </button>
+                </h3>
+                <div class="cr-accordion__content"><p>Orders ship within two business days.</p></div>
+            </div>
+            <div class="cr-accordion__section">
+                <h3 style="margin: 0">
+                    <button class="cr-accordion__button" aria-expanded="false">
+                        <span class="cr-accordion__chevron"></span>Returns
+                    </button>
+                </h3>
+                <div class="cr-accordion__content"><p>Return unused items within 30 days.</p></div>
+            </div>
+            <div class="cr-accordion__section">
+                <h3 style="margin: 0">
+                    <button class="cr-accordion__button" aria-expanded="false">
+                        <span class="cr-accordion__chevron"></span>Warranty
+                    </button>
+                </h3>
+                <div class="cr-accordion__content"><p>Every product includes a one-year warranty.</p></div>
+            </div>
+        </div>
+
+        <!-- 3. Filled -->
+        <h2>3. Filled</h2>
+        <div class="cr-accordion is-filled">
+            <div class="cr-accordion__section is-open">
+                <h3 style="margin: 0">
+                    <button class="cr-accordion__button" aria-expanded="true">
+                        <span class="cr-accordion__chevron"></span>Shipping details
+                    </button>
+                </h3>
+                <div class="cr-accordion__content"><p>Orders ship within two business days.</p></div>
+            </div>
+            <div class="cr-accordion__section">
+                <h3 style="margin: 0">
+                    <button class="cr-accordion__button" aria-expanded="false">
+                        <span class="cr-accordion__chevron"></span>Returns
+                    </button>
+                </h3>
+                <div class="cr-accordion__content"><p>Return unused items within 30 days.</p></div>
+            </div>
+            <div class="cr-accordion__section">
+                <h3 style="margin: 0">
+                    <button class="cr-accordion__button" aria-expanded="false">
+                        <span class="cr-accordion__chevron"></span>Warranty
+                    </button>
+                </h3>
+                <div class="cr-accordion__content"><p>Every product includes a one-year warranty.</p></div>
+            </div>
+        </div>
+
+        <!-- 4. Outlined -->
+        <h2>4. Outlined</h2>
+        <div class="cr-accordion is-outlined">
+            <div class="cr-accordion__section is-open">
+                <h3 style="margin: 0">
+                    <button class="cr-accordion__button" aria-expanded="true">
+                        <span class="cr-accordion__chevron"></span>Shipping details
+                    </button>
+                </h3>
+                <div class="cr-accordion__content"><p>Orders ship within two business days.</p></div>
+            </div>
+            <div class="cr-accordion__section">
+                <h3 style="margin: 0">
+                    <button class="cr-accordion__button" aria-expanded="false">
+                        <span class="cr-accordion__chevron"></span>Returns
+                    </button>
+                </h3>
+                <div class="cr-accordion__content"><p>Return unused items within 30 days.</p></div>
+            </div>
+            <div class="cr-accordion__section">
+                <h3 style="margin: 0">
+                    <button class="cr-accordion__button" aria-expanded="false">
+                        <span class="cr-accordion__chevron"></span>Warranty
+                    </button>
+                </h3>
+                <div class="cr-accordion__content"><p>Every product includes a one-year warranty.</p></div>
+            </div>
+        </div>
+
+        <!-- 5. Minimal -->
+        <h2>5. Minimal</h2>
+        <div class="cr-accordion is-minimal">
+            <div class="cr-accordion__section is-open">
+                <h3 style="margin: 0">
+                    <button class="cr-accordion__button" aria-expanded="true">
+                        <span class="cr-accordion__chevron"></span>Shipping details
+                    </button>
+                </h3>
+                <div class="cr-accordion__content"><p>Orders ship within two business days.</p></div>
+            </div>
+            <div class="cr-accordion__section">
+                <h3 style="margin: 0">
+                    <button class="cr-accordion__button" aria-expanded="false">
+                        <span class="cr-accordion__chevron"></span>Returns
+                    </button>
+                </h3>
+                <div class="cr-accordion__content"><p>Return unused items within 30 days.</p></div>
+            </div>
+            <div class="cr-accordion__section">
+                <h3 style="margin: 0">
+                    <button class="cr-accordion__button" aria-expanded="false">
+                        <span class="cr-accordion__chevron"></span>Warranty
+                    </button>
+                </h3>
+                <div class="cr-accordion__content"><p>Every product includes a one-year warranty.</p></div>
+            </div>
+        </div>
+
+        <!-- 6. Accent card -->
+        <h2>6. Accent card</h2>
+        <div class="cr-accordion is-accent">
+            <div class="cr-accordion__section is-open">
+                <h3 style="margin: 0">
+                    <button class="cr-accordion__button" aria-expanded="true">
+                        <span class="cr-accordion__chevron"></span>What is Webflow and why is it the best website
+                        builder?
+                    </button>
+                </h3>
+                <div class="cr-accordion__content">
+                    <p>
+                        Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut
+                        labore et dolore magna aliqua.
+                    </p>
+                </div>
+            </div>
+            <div class="cr-accordion__section">
+                <h3 style="margin: 0">
+                    <button class="cr-accordion__button" aria-expanded="false">
+                        <span class="cr-accordion__chevron"></span>What is your favorite template?
+                    </button>
+                </h3>
+                <div class="cr-accordion__content"><p>Choose any template and customize it.</p></div>
+            </div>
+            <div class="cr-accordion__section">
+                <h3 style="margin: 0">
+                    <button class="cr-accordion__button" aria-expanded="false">
+                        <span class="cr-accordion__chevron"></span>How do you clone a template from the showcase?
+                    </button>
+                </h3>
+                <div class="cr-accordion__content"><p>Open the template and choose clone.</p></div>
+            </div>
+        </div>
+
+        <!-- 7. Two-column grid with plus and minus -->
+        <h2>7. Two-column grid with plus and minus</h2>
+        <div class="cr-accordion is-grid">
+            <div class="cr-accordion__section">
+                <h3 style="margin: 0">
+                    <button class="cr-accordion__button" aria-expanded="false">
+                        <span class="cr-accordion__chevron"></span>Why is Webflow the best nocode tool?
+                    </button>
+                </h3>
+                <div class="cr-accordion__content"><p>Lorem ipsum dolor sit amet.</p></div>
+            </div>
+            <div class="cr-accordion__section">
+                <h3 style="margin: 0">
+                    <button class="cr-accordion__button" aria-expanded="false">
+                        <span class="cr-accordion__chevron"></span>How to launch a Webflow website?
+                    </button>
+                </h3>
+                <div class="cr-accordion__content"><p>Lorem ipsum dolor sit amet.</p></div>
+            </div>
+            <div class="cr-accordion__section is-open">
+                <h3 style="margin: 0">
+                    <button class="cr-accordion__button" aria-expanded="true">
+                        <span class="cr-accordion__chevron"></span>When was Webflow founded?
+                    </button>
+                </h3>
+                <div class="cr-accordion__content">
+                    <p>
+                        Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo
+                        consequat.
+                    </p>
+                </div>
+            </div>
+            <div class="cr-accordion__section">
+                <h3 style="margin: 0">
+                    <button class="cr-accordion__button" aria-expanded="false">
+                        <span class="cr-accordion__chevron"></span>Who founded BRIX Templates?
+                    </button>
+                </h3>
+                <div class="cr-accordion__content"><p>Lorem ipsum dolor sit amet.</p></div>
+            </div>
+        </div>
+
+        <script>
+            // Mockup only: clicking a header opens that section and closes the others in the same accordion.
+            document.querySelectorAll(".cr-accordion").forEach((accordion) => {
+                accordion.querySelectorAll(".cr-accordion__button").forEach((button) => {
+                    button.addEventListener("click", () => {
+                        const section = button.closest(".cr-accordion__section");
+                        const opening = !section.classList.contains("is-open");
+                        accordion.querySelectorAll(".cr-accordion__section").forEach((other) => {
+                            other.classList.remove("is-open");
+                            other.querySelector(".cr-accordion__button").setAttribute("aria-expanded", "false");
+                        });
+                        if (opening) {
+                            section.classList.add("is-open");
+                            button.setAttribute("aria-expanded", "true");
+                        }
+                    });
+                });
+            });
+        </script>
+    </body>
+</html>

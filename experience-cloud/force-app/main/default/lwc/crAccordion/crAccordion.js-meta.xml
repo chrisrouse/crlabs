@@ -11,6 +11,14 @@
     <targetConfigs>
         <targetConfig targets="lightningCommunity__Default">
             <property name="allowMultipleSectionsOpen" type="Boolean" label="Allow Multiple Sections Open" default="false" />
+            <property name="togglePosition" type="String" label="Toggle Position" default="left" datasource="left,right" />
+            <property name="openIconName" type="String" label="Open Icon Name" default="utility:chevrondown" editor="c/crIconPicker" />
+            <property name="closeIconName" type="String" label="Close Icon Name" default="utility:chevronright" editor="c/crIconPicker" />
+            <property name="hideIcon" type="Boolean" label="Hide Icon" default="false" />
+            <property name="iconSize" type="String" label="Icon Size" default="xx-small" datasource="xx-small,x-small,small,medium,large" />
+            <property name="iconBackgroundColor" type="String" label="Icon Background Color" default="" editor="c/crIconBackgroundColorPicker" />
+            <property name="iconForegroundColor" type="String" label="Icon Foreground Color" default="" editor="c/crIconForegroundColorPicker" />
+            <property name="versionInfo" type="String" label="Version" default="" editor="c/crVersionInfo" />
         </targetConfig>
     </targetConfigs>
 </LightningComponentBundle>

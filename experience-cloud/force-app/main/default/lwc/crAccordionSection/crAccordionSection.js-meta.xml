@@ -6,5 +6,11 @@
     <description>One section of an accordion, with title, actions, and content slots.</description>
     <targets>
         <target>lightningCommunity__Page</target>
+        <target>lightningCommunity__Default</target>
     </targets>
+    <targetConfigs>
+        <targetConfig targets="lightningCommunity__Default">
+            <property name="versionInfo" type="String" label="Version" default="" editor="c/crVersionInfo" />
+        </targetConfig>
+    </targetConfigs>
 </LightningComponentBundle>

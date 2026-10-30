@@ -31,7 +31,16 @@ function isSelectedInBuilder(wrapper) {
  * @slot content
  */
 export default class CrAccordionSection extends LightningElement {
+    /** Build label from the properties panel. Not used by the component. */
+    @api versionInfo;
+
     _expanded = false;
+    _openIconName = "utility:chevrondown";
+    _closeIconName = "utility:chevronright";
+    _hideIcon = false;
+    _iconBackgroundColor = "";
+    _iconForegroundColor = "";
+    _iconSize = "xx-small";
     _builderWrapper;
     _builderObserver;
     contentId = `cr-accordion-content-${++sectionCount}`;
@@ -49,8 +58,110 @@ export default class CrAccordionSection extends LightningElement {
     }
 
     /**
-     * Tells a parent accordion that this section has joined, so it can close the others when
-     * this one opens.
+     * Icon shown on the toggle while the section is open. A parent accordion sets this.
+     * @returns {string}
+     */
+    @api
+    get openIconName() {
+        return this._openIconName;
+    }
+    set openIconName(value) {
+        this._openIconName = value;
+    }
+
+    /**
+     * Icon shown on the toggle while the section is closed. A parent accordion sets this.
+     * @returns {string}
+     */
+    @api
+    get closeIconName() {
+        return this._closeIconName;
+    }
+    set closeIconName(value) {
+        this._closeIconName = value;
+    }
+
+    /**
+     * Hides the toggle icon. A parent accordion sets this.
+     * @returns {boolean}
+     */
+    @api
+    get hideIcon() {
+        return this._hideIcon;
+    }
+    set hideIcon(value) {
+        this._hideIcon = Boolean(value);
+    }
+
+    /**
+     * Background color behind the toggle icon. A parent accordion sets this.
+     * @returns {string}
+     */
+    @api
+    get iconBackgroundColor() {
+        return this._iconBackgroundColor;
+    }
+    set iconBackgroundColor(value) {
+        this._iconBackgroundColor = value || "";
+    }
+
+    /**
+     * Color of the toggle icon. A parent accordion sets this.
+     * @returns {string}
+     */
+    @api
+    get iconForegroundColor() {
+        return this._iconForegroundColor;
+    }
+    set iconForegroundColor(value) {
+        this._iconForegroundColor = value || "";
+    }
+
+    /**
+     * Class for the toggle icon. Adds has-icon-color when a foreground color is set, which lets
+     * the stylesheet color the SVG's fill, including action icons.
+     * @returns {string}
+     */
+    get iconClass() {
+        const classes = ["slds-accordion__summary-action-icon", "slds-m-right_x-small"];
+        if (this._iconForegroundColor) {
+            classes.push("has-icon-color");
+        }
+        return classes.join(" ");
+    }
+
+    /**
+     * Inline style for the toggle icon. Sets only the colors that have a value, so the icon's
+     * defaults apply otherwise.
+     * @returns {string}
+     */
+    get iconStyle() {
+        const declarations = [];
+        if (this._iconBackgroundColor) {
+            declarations.push(`--sds-c-icon-color-background: ${this._iconBackgroundColor}`);
+        }
+        if (this._iconForegroundColor) {
+            declarations.push(`--sds-c-icon-color-foreground: ${this._iconForegroundColor}`);
+            declarations.push(`--sds-c-icon-color-foreground-default: ${this._iconForegroundColor}`);
+            declarations.push(`--cr-icon-foreground: ${this._iconForegroundColor}`);
+        }
+        return declarations.join("; ");
+    }
+
+    /**
+     * Size of the toggle icon. A parent accordion sets this.
+     * @returns {string}
+     */
+    @api
+    get iconSize() {
+        return this._iconSize;
+    }
+    set iconSize(value) {
+        this._iconSize = value || "xx-small";
+    }
+
+    /**
+     * Tells a parent accordion that this section has joined, so it can manage the open sections.
      */
     connectedCallback() {
         this.dispatchEvent(new CustomEvent("sectionregister", { bubbles: true }));
@@ -60,6 +171,12 @@ export default class CrAccordionSection extends LightningElement {
      * Watches the Builder's selection once the section is rendered in the canvas.
      */
     renderedCallback() {
+        // The template's class binding doesn't keep the circle on a utility icon, so it is set here.
+        const icon = this.template.querySelector("lightning-icon");
+        if (icon) {
+            const circle = Boolean(this._iconBackgroundColor) && this.toggleIconName.startsWith("utility:");
+            icon.classList.toggle("slds-icon_container_circle", circle);
+        }
         if (this._builderWrapper || !isInExperienceBuilder()) {
             return;
         }
@@ -95,6 +212,20 @@ export default class CrAccordionSection extends LightningElement {
      */
     get sectionClass() {
         return this._expanded ? "slds-accordion__section slds-is-open" : "slds-accordion__section";
+    }
+
+    /**
+     * @returns {boolean} Whether to show the toggle icon.
+     */
+    get showToggleIcon() {
+        return !this._hideIcon && Boolean(this.toggleIconName);
+    }
+
+    /**
+     * @returns {string} The icon for the toggle in the current state.
+     */
+    get toggleIconName() {
+        return this._expanded ? this._openIconName : this._closeIconName;
     }
 
     /**

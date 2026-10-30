@@ -1,0 +1,40 @@
+<template>
+    <div class="slds-form-element">
+        <button class="color-trigger" aria-haspopup="listbox" aria-expanded={ariaExpanded} onclick={handleToggle}>
+            <span class="color-dot" style={currentDotStyle}></span>
+            <span class="color-trigger-label">{currentLabel}</span>
+            <lightning-icon
+                icon-name="utility:down"
+                size="xx-small"
+                alternative-text="Show color choices"
+            ></lightning-icon>
+        </button>
+        <template lwc:if={isExpanded}>
+            <ul class="color-choices" role="listbox" aria-label="Color choices">
+                <template for:each={choices} for:item="choice">
+                    <li key={choice.mode} role="option" aria-selected={choice.pressed}>
+                        <button
+                            class="color-choice"
+                            data-mode={choice.mode}
+                            aria-pressed={choice.pressed}
+                            onclick={handleModeSelect}
+                        >
+                            <span class="color-dot" style={choice.dotStyle}></span>
+                            <span>{choice.label}</span>
+                        </button>
+                    </li>
+                </template>
+            </ul>
+        </template>
+        <template lwc:if={isCustom}>
+            <lightning-input
+                type="color"
+                variant="label-hidden"
+                label={customLabel}
+                value={customValue}
+                class="slds-m-top_x-small"
+                onchange={handleColorChange}
+            ></lightning-input>
+        </template>
+    </div>
+</template>

@@ -1,0 +1,85 @@
+<template>
+    <div class="slds-form-element">
+        <span class="slds-form-element__label">{label}</span>
+        <div class="icon-field slds-m-top_x-small">
+            <button
+                class="icon-trigger"
+                aria-haspopup="dialog"
+                aria-expanded={ariaExpanded}
+                title={selectedName}
+                onclick={handleToggle}
+            >
+                <template lwc:if={hasValue}>
+                    <lightning-icon
+                        icon-name={selectedName}
+                        size="x-small"
+                        alternative-text={selectedName}
+                    ></lightning-icon>
+                </template>
+                <span class="icon-trigger-name slds-truncate">{selectedName}</span>
+                <lightning-icon
+                    icon-name="utility:down"
+                    size="xx-small"
+                    alternative-text="Open icon menu"
+                ></lightning-icon>
+            </button>
+            <template lwc:if={isOpen}>
+                <div class="icon-menu" role="dialog" aria-label={label}>
+                    <lightning-input
+                        type="search"
+                        variant="label-hidden"
+                        label="Search icons"
+                        placeholder="Search icons"
+                        value={searchValue}
+                        onchange={handleSearch}
+                    ></lightning-input>
+                    <div class="category-tabs slds-m-vertical_x-small" role="group" aria-label="Icon set">
+                        <button
+                            class="category-tab"
+                            data-category="utility"
+                            aria-pressed={utilityPressed}
+                            onclick={handleCategory}
+                        >
+                            Utility
+                        </button>
+                        <button
+                            class="category-tab"
+                            data-category="action"
+                            aria-pressed={actionPressed}
+                            onclick={handleCategory}
+                        >
+                            Actions
+                        </button>
+                    </div>
+                    <div class="icon-grid" role="group" aria-label="Icons">
+                        <template for:each={icons} for:item="icon">
+                            <button
+                                key={icon.name}
+                                class={icon.className}
+                                data-name={icon.name}
+                                aria-pressed={icon.pressed}
+                                title={icon.shortName}
+                                onclick={handleSelect}
+                            >
+                                <lightning-icon
+                                    icon-name={icon.name}
+                                    size="x-small"
+                                    alternative-text={icon.shortName}
+                                ></lightning-icon>
+                            </button>
+                        </template>
+                    </div>
+                    <p class="slds-text-body_small slds-m-top_x-small">{noMatches}</p>
+                    <template lwc:if={hasMore}>
+                        <button
+                            class="slds-button slds-button_neutral slds-m-top_x-small show-more"
+                            onclick={handleShowMore}
+                        >
+                            {moreLabel}
+                        </button>
+                    </template>
+                </div>
+            </template>
+        </div>
+    </div>
+</template>

@@ -8,11 +8,14 @@
                     aria-controls={contentId}
                     onclick={handleHeaderClick}
                 >
-                    <lightning-icon
-                        icon-name="utility:chevrondown"
-                        size="xx-small"
-                        class="slds-accordion__summary-action-icon slds-m-right_x-small"
-                    ></lightning-icon>
+                    <template lwc:if={showToggleIcon}>
+                        <lightning-icon
+                            icon-name={toggleIconName}
+                            size={iconSize}
+                            style={iconStyle}
+                            class={iconClass}
+                        ></lightning-icon>
+                    </template>
                     <span class="slds-accordion__summary-content">
                         <slot name="title"></slot>
                     </span>
