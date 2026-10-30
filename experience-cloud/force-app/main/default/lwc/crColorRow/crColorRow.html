@@ -1,0 +1,40 @@
+<template>
+    <div class="color-row">
+        <button class="color-row__trigger" aria-expanded={ariaExpanded} onclick={handleToggle}>
+            <span class="color-row__label">{label}</span>
+            <span class={dotClass} style={dotStyle}></span>
+        </button>
+        <template lwc:if={isExpanded}>
+            <div class="color-row__detail">
+                <div class="color-row__choices" role="group" aria-label={label}>
+                    <button
+                        class="color-row__choice"
+                        data-choice="default"
+                        aria-pressed={defaultPressed}
+                        onclick={handleUseDefault}
+                    >
+                        Use Default
+                    </button>
+                    <button
+                        class="color-row__choice"
+                        data-choice="custom"
+                        aria-pressed={customPressed}
+                        onclick={handleUseCustom}
+                    >
+                        Use Custom
+                    </button>
+                </div>
+                <template lwc:if={isCustom}>
+                    <lightning-input
+                        type="color"
+                        variant="label-hidden"
+                        label={customLabel}
+                        value={customValue}
+                        class="slds-m-top_x-small"
+                        onchange={handleColorChange}
+                    ></lightning-input>
+                </template>
+            </div>
+        </template>
+    </div>
+</template>

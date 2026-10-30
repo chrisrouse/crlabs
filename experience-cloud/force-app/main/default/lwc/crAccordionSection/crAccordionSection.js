@@ -41,6 +41,9 @@ export default class CrAccordionSection extends LightningElement {
     _iconBackgroundColor = "";
     _iconForegroundColor = "";
     _iconSize = "xx-small";
+    _headerBackgroundColor = "";
+    _headerOpenBackgroundColor = "";
+    _contentBackgroundColor = "";
     _builderWrapper;
     _builderObserver;
     contentId = `cr-accordion-content-${++sectionCount}`;
@@ -146,6 +149,63 @@ export default class CrAccordionSection extends LightningElement {
             declarations.push(`--cr-icon-foreground: ${this._iconForegroundColor}`);
         }
         return declarations.join("; ");
+    }
+
+    /**
+     * Background color of the header. A parent accordion sets this.
+     * @returns {string}
+     */
+    @api
+    get headerBackgroundColor() {
+        return this._headerBackgroundColor;
+    }
+    set headerBackgroundColor(value) {
+        this._headerBackgroundColor = value || "";
+    }
+
+    /**
+     * Background color of the content area. A parent accordion sets this.
+     * @returns {string}
+     */
+    @api
+    get contentBackgroundColor() {
+        return this._contentBackgroundColor;
+    }
+    set contentBackgroundColor(value) {
+        this._contentBackgroundColor = value || "";
+    }
+
+    /**
+     * Inline style for the content area. Sets the background only when a color is chosen.
+     * @returns {string}
+     */
+    get contentStyle() {
+        return this._contentBackgroundColor ? `background-color: ${this._contentBackgroundColor}` : "";
+    }
+
+    /**
+     * Background color of the header while the section is open. A parent accordion sets this.
+     * @returns {string}
+     */
+    @api
+    get headerOpenBackgroundColor() {
+        return this._headerOpenBackgroundColor;
+    }
+    set headerOpenBackgroundColor(value) {
+        this._headerOpenBackgroundColor = value || "";
+    }
+
+    /**
+     * Inline style for the header. An open section uses the open background when one is set, and
+     * the regular header background otherwise. Sets nothing when no color is chosen.
+     * @returns {string}
+     */
+    get headerStyle() {
+        const color =
+            this._expanded && this._headerOpenBackgroundColor
+                ? this._headerOpenBackgroundColor
+                : this._headerBackgroundColor;
+        return color ? `background-color: ${color}` : "";
     }
 
     /**

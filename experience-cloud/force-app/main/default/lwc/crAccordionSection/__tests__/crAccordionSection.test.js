@@ -60,4 +60,31 @@ describe("c-cr-accordion-section", () => {
         expect(content.id).toBeTruthy();
         expect(button.getAttribute("aria-controls")).toBe(content.id);
     });
+
+    it("uses the open background on the header only while the section is open", async () => {
+        const element = renderSection();
+        element.headerBackgroundColor = "#eeeeee";
+        element.headerOpenBackgroundColor = "#0176d3";
+        await Promise.resolve();
+        const header = () => element.shadowRoot.querySelector(".slds-accordion__summary");
+
+        expect(header().getAttribute("style")).toContain("#eeeeee");
+
+        element.shadowRoot.querySelector("button").click();
+        await Promise.resolve();
+        expect(header().getAttribute("style")).toContain("#0176d3");
+
+        element.shadowRoot.querySelector("button").click();
+        await Promise.resolve();
+        expect(header().getAttribute("style")).toContain("#eeeeee");
+    });
+
+    it("keeps the regular header background when no open background is set", async () => {
+        const element = renderSection();
+        element.headerBackgroundColor = "#eeeeee";
+        element.shadowRoot.querySelector("button").click();
+        await Promise.resolve();
+
+        expect(element.shadowRoot.querySelector(".slds-accordion__summary").getAttribute("style")).toContain("#eeeeee");
+    });
 });

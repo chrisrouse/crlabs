@@ -54,4 +54,46 @@ describe("c-cr-accordion", () => {
         expect(isOpen(first)).toBe(true);
         expect(isOpen(second)).toBe(true);
     });
+
+    it("passes the header and content colors from the appearance to every section", async () => {
+        const { accordion, first, second } = renderAccordion();
+
+        accordion.appearance = JSON.stringify({
+            header: { background: "#ff0000", openBackground: "#0000ff" },
+            content: { background: "#00ff00" }
+        });
+        await Promise.resolve();
+
+        [first, second].forEach((section) => {
+            expect(section.headerBackgroundColor).toBe("#ff0000");
+            expect(section.headerOpenBackgroundColor).toBe("#0000ff");
+            expect(section.contentBackgroundColor).toBe("#00ff00");
+        });
+    });
+
+    it("uses the shared defaults when no appearance is stored", () => {
+        const { first } = renderAccordion();
+
+        expect(first.iconSize).toBe("xx-small");
+        expect(first.hideIcon).toBe(false);
+        expect(first.headerBackgroundColor).toBe("");
+    });
+
+    const wrapperStyle = (accordion) => accordion.shadowRoot.querySelector(".slds-accordion").getAttribute("style");
+
+    it("uses 1.5 rem between sections by default", () => {
+        const { accordion } = renderAccordion();
+
+        expect(wrapperStyle(accordion)).toContain("--dxp-c-l-component-spacer-size: 1.5rem");
+        expect(wrapperStyle(accordion)).toContain("--dxp-c-s-component-spacer-size: 1.5rem");
+    });
+
+    it("sets the chosen space between sections in rem, including 0", async () => {
+        const { accordion } = renderAccordion();
+
+        accordion.appearance = JSON.stringify({ spacing: { between: 0 } });
+        await Promise.resolve();
+
+        expect(wrapperStyle(accordion)).toContain("--dxp-c-l-component-spacer-size: 0rem");
+    });
 });

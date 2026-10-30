@@ -1,6 +1,6 @@
 <template>
     <section class={sectionClass}>
-        <div class="slds-accordion__summary slds-grid slds-grid_vertical-align-center">
+        <div class="slds-accordion__summary slds-grid slds-grid_vertical-align-center" style={headerStyle}>
             <h2 class="slds-accordion__summary-heading slds-grow">
                 <button
                     class="slds-button slds-button_reset slds-accordion__summary-action slds-grid slds-grid_vertical-align-center"
@@ -25,8 +25,10 @@
                 <slot name="actions"></slot>
             </div>
         </div>
-        <div id={contentId} class="slds-accordion__content">
-            <slot name="content"></slot>
+        <div id={contentId} class="slds-accordion__content" style={contentStyle}>
+            <div class="cr-accordion__body">
+                <slot name="content"></slot>
+            </div>
         </div>
     </section>
 </template>

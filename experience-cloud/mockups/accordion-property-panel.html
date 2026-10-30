@@ -1,0 +1,709 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Accordion property panel mockups</title>
+        <style>
+            body {
+                margin: 0;
+                padding: 2rem;
+                background: #f3f3f3;
+                font-family:
+                    system-ui,
+                    -apple-system,
+                    "Segoe UI",
+                    Roboto,
+                    Helvetica,
+                    Arial,
+                    sans-serif;
+                color: #181818;
+            }
+
+            .options {
+                display: flex;
+                gap: 2rem;
+                align-items: flex-start;
+                flex-wrap: wrap;
+            }
+
+            .option h2 {
+                font-size: 1rem;
+                margin: 0 0 0.25rem;
+            }
+
+            .option p.note {
+                margin: 0 0 0.75rem;
+                max-width: 22rem;
+                font-size: 0.8125rem;
+                color: #444;
+            }
+
+            /* Panel chrome, sized like the Builder's properties panel */
+            .panel {
+                width: 22rem;
+                background: #fff;
+                border: 1px solid #c9c9c9;
+                border-radius: 0.25rem;
+                padding: 1rem;
+                box-sizing: border-box;
+            }
+
+            .panel-title {
+                font-size: 1.125rem;
+                margin: 0 0 0.75rem;
+            }
+
+            .field {
+                margin-bottom: 0.875rem;
+            }
+
+            .field-label {
+                display: block;
+                font-size: 0.8125rem;
+                color: #444;
+                margin-bottom: 0.25rem;
+            }
+
+            .input {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 0.375rem 0.625rem;
+                border: 1px solid #c9c9c9;
+                border-radius: 0.25rem;
+                font-size: 0.875rem;
+            }
+
+            .checkbox {
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                font-size: 0.875rem;
+            }
+
+            .checkbox span.box {
+                width: 1rem;
+                height: 1rem;
+                border: 1px solid #747474;
+                border-radius: 0.125rem;
+            }
+
+            .divider {
+                border: none;
+                border-top: 1px solid #e5e5e5;
+                margin: 1rem 0;
+            }
+
+            /* Compact color row, like the native LWR color control */
+            .color-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 0.375rem 0;
+                font-size: 0.875rem;
+                cursor: pointer;
+            }
+
+            .dot {
+                width: 1.25rem;
+                height: 1.25rem;
+                border-radius: 50%;
+                border: 1px solid #c9c9c9;
+                flex: 0 0 auto;
+            }
+
+            .dot.default {
+                background: linear-gradient(135deg, #fff 45%, #c9c9c9 45%, #c9c9c9 55%, #fff 55%);
+            }
+
+            .color-detail {
+                display: none;
+                margin: 0.25rem 0 0.5rem;
+                padding: 0.5rem;
+                border: 1px solid #e5e5e5;
+                border-radius: 0.25rem;
+                font-size: 0.8125rem;
+            }
+
+            .color-row.is-open + .color-detail {
+                display: block;
+            }
+
+            .color-detail label {
+                display: flex;
+                align-items: center;
+                gap: 0.375rem;
+                margin-bottom: 0.25rem;
+            }
+
+            .group-heading {
+                font-size: 0.75rem;
+                font-weight: 700;
+                text-transform: uppercase;
+                letter-spacing: 0.04em;
+                color: #5c5c5c;
+                margin: 0.75rem 0 0.25rem;
+            }
+
+            /* Option B part selector */
+            .part-select {
+                display: flex;
+                align-items: center;
+                gap: 0.375rem;
+                color: #0176d3;
+                font-size: 1rem;
+                margin-bottom: 0.5rem;
+                cursor: pointer;
+            }
+
+            .part-select select {
+                font: inherit;
+                color: inherit;
+                border: none;
+                background: transparent;
+                cursor: pointer;
+            }
+
+            .part {
+                display: none;
+            }
+
+            .part.is-active {
+                display: block;
+            }
+
+            /* Option C collapsible style sections */
+            .style-section {
+                border-top: 1px solid #e5e5e5;
+            }
+
+            .style-section:last-child {
+                border-bottom: 1px solid #e5e5e5;
+            }
+
+            .style-section__header {
+                all: unset;
+                box-sizing: border-box;
+                display: flex;
+                align-items: center;
+                gap: 0.5rem;
+                width: 100%;
+                padding: 0.625rem 0;
+                font-size: 0.875rem;
+                font-weight: 600;
+                cursor: pointer;
+            }
+
+            .style-section__header:focus-visible {
+                outline: 2px solid #0176d3;
+                outline-offset: 2px;
+            }
+
+            .style-section__chevron {
+                width: 0.4rem;
+                height: 0.4rem;
+                border-right: 2px solid #444;
+                border-bottom: 2px solid #444;
+                transform: rotate(-45deg);
+                transition: transform 0.15s ease;
+            }
+
+            .style-section.is-open .style-section__chevron {
+                transform: rotate(45deg);
+            }
+
+            .style-section__summary {
+                margin-left: auto;
+                display: flex;
+                align-items: center;
+                font-weight: 400;
+                font-size: 0.75rem;
+                color: #747474;
+            }
+
+            .style-section__summary .dot {
+                width: 0.875rem;
+                height: 0.875rem;
+            }
+
+            .style-section__body {
+                display: none;
+                padding: 0 0 0.75rem 1rem;
+            }
+
+            .style-section.is-open .style-section__body {
+                display: block;
+            }
+
+            .appearance-heading {
+                display: flex;
+                align-items: center;
+                gap: 0.375rem;
+                font-weight: 700;
+                color: #032d60;
+                margin-bottom: 0.5rem;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="options">
+            <!-- Option A -->
+            <div class="option">
+                <h2>A. Compact rows in the existing list</h2>
+                <p class="note">
+                    Each color is one labeled row with a dot. Click a row to choose default or custom. Every setting
+                    stays its own property.
+                </p>
+                <div class="panel">
+                    <p class="panel-title">Accordion</p>
+                    <div class="field checkbox"><span class="box"></span>Allow Multiple Sections Open</div>
+                    <div class="field">
+                        <span class="field-label">Toggle Position</span>
+                        <div class="input">left <span>▾</span></div>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">Open Icon</span>
+                        <div class="input">⌄ utility:chevrondown <span>▾</span></div>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">Close Icon</span>
+                        <div class="input">› utility:chevronright <span>▾</span></div>
+                    </div>
+
+                    <hr class="divider" />
+                    <div class="group-heading">Icon</div>
+                    <div class="field checkbox"><span class="box"></span>Hide Icon</div>
+                    <div class="field">
+                        <span class="field-label">Icon Size</span>
+                        <div class="input">xx-small <span>▾</span></div>
+                    </div>
+                    <div class="color-row">Icon Background <span class="dot default"></span></div>
+                    <div class="color-detail">
+                        <label><input type="radio" name="a-ib" checked /> Use default</label>
+                        <label
+                            ><input type="radio" name="a-ib" /> Use custom <input type="color" value="#3f68e4"
+                        /></label>
+                    </div>
+                    <div class="color-row">Icon Foreground <span class="dot default"></span></div>
+                    <div class="color-detail">
+                        <label><input type="radio" name="a-if" checked /> Use default</label>
+                        <label
+                            ><input type="radio" name="a-if" /> Use custom <input type="color" value="#ffffff"
+                        /></label>
+                    </div>
+
+                    <div class="group-heading">Header</div>
+                    <div class="color-row">Background <span class="dot" style="background: #f0ffc5"></span></div>
+                    <div class="color-detail">
+                        <label><input type="radio" name="a-hb" /> Use default</label>
+                        <label
+                            ><input type="radio" name="a-hb" checked /> Use custom <input type="color" value="#f0ffc5"
+                        /></label>
+                    </div>
+                    <div class="color-row">Open Background <span class="dot default"></span></div>
+                    <div class="color-detail">
+                        <label><input type="radio" name="a-hob" checked /> Use default</label>
+                        <label
+                            ><input type="radio" name="a-hob" /> Use custom <input type="color" value="#0176d3"
+                        /></label>
+                    </div>
+                    <div class="color-row">Open Text <span class="dot default"></span></div>
+                    <div class="color-detail">
+                        <label><input type="radio" name="a-hot" checked /> Use default</label>
+                        <label
+                            ><input type="radio" name="a-hot" /> Use custom <input type="color" value="#ffffff"
+                        /></label>
+                    </div>
+
+                    <div class="group-heading">Content</div>
+                    <div class="color-row">Background <span class="dot" style="background: #fdc3f1"></span></div>
+                    <div class="color-detail">
+                        <label><input type="radio" name="a-cb" /> Use default</label>
+                        <label
+                            ><input type="radio" name="a-cb" checked /> Use custom <input type="color" value="#fdc3f1"
+                        /></label>
+                    </div>
+
+                    <div class="group-heading">Section Border</div>
+                    <div class="color-row">Color <span class="dot default"></span></div>
+                    <div class="color-detail">
+                        <label><input type="radio" name="a-sbc" checked /> Use default</label>
+                        <label
+                            ><input type="radio" name="a-sbc" /> Use custom <input type="color" value="#c9c9c9"
+                        /></label>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">Size</span>
+                        <div class="input">1px <span>▾</span></div>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">Radius</span>
+                        <div class="input">None <span>▾</span></div>
+                    </div>
+                    <p class="note" style="margin: 0.5rem 0 0">
+                        …then Container Border, Spacing, and Animation the same way.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Option B -->
+            <div class="option">
+                <h2>B. One Appearance editor with a part picker</h2>
+                <p class="note">
+                    One property holds every style. Pick a part to see only its settings. Behavior settings stay in the
+                    main list above it.
+                </p>
+                <div class="panel">
+                    <p class="panel-title">Accordion</p>
+                    <div class="field checkbox"><span class="box"></span>Allow Multiple Sections Open</div>
+                    <div class="field">
+                        <span class="field-label">Toggle Position</span>
+                        <div class="input">left <span>▾</span></div>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">Open Icon</span>
+                        <div class="input">⌄ utility:chevrondown <span>▾</span></div>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">Close Icon</span>
+                        <div class="input">› utility:chevronright <span>▾</span></div>
+                    </div>
+
+                    <hr class="divider" />
+                    <div class="appearance-heading">⌄ Appearance</div>
+                    <div class="part-select">
+                        <select id="part-picker" aria-label="Part to style">
+                            <option value="header">Header</option>
+                            <option value="content">Content</option>
+                            <option value="section-border">Section Border</option>
+                            <option value="container-border">Container Border</option>
+                            <option value="spacing">Spacing</option>
+                            <option value="icon">Icon</option>
+                            <option value="animation">Animation</option>
+                        </select>
+                    </div>
+
+                    <div class="part is-active" data-part="header">
+                        <div class="color-row">Background <span class="dot" style="background: #f0ffc5"></span></div>
+                        <div class="color-detail">
+                            <label><input type="radio" name="b-hb" /> Use default</label>
+                            <label
+                                ><input type="radio" name="b-hb" checked /> Use custom
+                                <input type="color" value="#f0ffc5"
+                            /></label>
+                        </div>
+                        <div class="color-row">Open Background <span class="dot default"></span></div>
+                        <div class="color-detail">
+                            <label><input type="radio" name="b-hob" checked /> Use default</label>
+                            <label
+                                ><input type="radio" name="b-hob" /> Use custom <input type="color" value="#0176d3"
+                            /></label>
+                        </div>
+                        <div class="color-row">Open Text <span class="dot default"></span></div>
+                        <div class="color-detail">
+                            <label><input type="radio" name="b-hot" checked /> Use default</label>
+                            <label
+                                ><input type="radio" name="b-hot" /> Use custom <input type="color" value="#ffffff"
+                            /></label>
+                        </div>
+                    </div>
+
+                    <div class="part" data-part="content">
+                        <div class="color-row">Background <span class="dot" style="background: #fdc3f1"></span></div>
+                        <div class="color-detail">
+                            <label><input type="radio" name="b-cb" /> Use default</label>
+                            <label
+                                ><input type="radio" name="b-cb" checked /> Use custom
+                                <input type="color" value="#fdc3f1"
+                            /></label>
+                        </div>
+                    </div>
+
+                    <div class="part" data-part="section-border">
+                        <div class="color-row">Color <span class="dot default"></span></div>
+                        <div class="color-detail">
+                            <label><input type="radio" name="b-sbc" checked /> Use default</label>
+                            <label
+                                ><input type="radio" name="b-sbc" /> Use custom <input type="color" value="#c9c9c9"
+                            /></label>
+                        </div>
+                        <div class="field">
+                            <span class="field-label">Size</span>
+                            <div class="input">1px <span>▾</span></div>
+                        </div>
+                        <div class="field">
+                            <span class="field-label">Radius</span>
+                            <div class="input">None <span>▾</span></div>
+                        </div>
+                    </div>
+
+                    <div class="part" data-part="container-border">
+                        <div class="color-row">Color <span class="dot default"></span></div>
+                        <div class="color-detail">
+                            <label><input type="radio" name="b-cbc" checked /> Use default</label>
+                            <label
+                                ><input type="radio" name="b-cbc" /> Use custom <input type="color" value="#c9c9c9"
+                            /></label>
+                        </div>
+                        <div class="field">
+                            <span class="field-label">Size</span>
+                            <div class="input">None <span>▾</span></div>
+                        </div>
+                        <div class="field">
+                            <span class="field-label">Radius</span>
+                            <div class="input">None <span>▾</span></div>
+                        </div>
+                    </div>
+
+                    <div class="part" data-part="spacing">
+                        <div class="field">
+                            <span class="field-label">Space Between Sections</span>
+                            <div class="input">None <span>▾</span></div>
+                        </div>
+                    </div>
+
+                    <div class="part" data-part="icon">
+                        <div class="field checkbox"><span class="box"></span>Hide Icon</div>
+                        <div class="field">
+                            <span class="field-label">Size</span>
+                            <div class="input">xx-small <span>▾</span></div>
+                        </div>
+                        <div class="color-row">Background <span class="dot default"></span></div>
+                        <div class="color-detail">
+                            <label><input type="radio" name="b-ib" checked /> Use default</label>
+                            <label
+                                ><input type="radio" name="b-ib" /> Use custom <input type="color" value="#3f68e4"
+                            /></label>
+                        </div>
+                        <div class="color-row">Foreground <span class="dot default"></span></div>
+                        <div class="color-detail">
+                            <label><input type="radio" name="b-if" checked /> Use default</label>
+                            <label
+                                ><input type="radio" name="b-if" /> Use custom <input type="color" value="#ffffff"
+                            /></label>
+                        </div>
+                    </div>
+
+                    <div class="part" data-part="animation">
+                        <div class="field">
+                            <span class="field-label">Open and Close</span>
+                            <div class="input">Slide <span>▾</span></div>
+                        </div>
+                        <div class="field">
+                            <span class="field-label">Speed</span>
+                            <div class="input">Normal <span>▾</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Option C -->
+            <div class="option">
+                <h2>C. Appearance editor with accordion sections</h2>
+                <p class="note">
+                    One property holds every style. Each part is a collapsible section, and several can be open at once.
+                    Behavior settings stay in the main list above it.
+                </p>
+                <div class="panel">
+                    <p class="panel-title">Accordion</p>
+                    <div class="field checkbox"><span class="box"></span>Allow Multiple Sections Open</div>
+                    <div class="field">
+                        <span class="field-label">Toggle Position</span>
+                        <div class="input">left <span>▾</span></div>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">Open Icon</span>
+                        <div class="input">⌄ utility:chevrondown <span>▾</span></div>
+                    </div>
+                    <div class="field">
+                        <span class="field-label">Close Icon</span>
+                        <div class="input">› utility:chevronright <span>▾</span></div>
+                    </div>
+
+                    <hr class="divider" />
+                    <div class="appearance-heading">Appearance</div>
+
+                    <div class="style-section is-open">
+                        <button class="style-section__header" type="button">
+                            <span class="style-section__chevron"></span>Header
+                            <span class="style-section__summary">
+                                <span class="dot" style="background: #f0ffc5"></span>
+                            </span>
+                        </button>
+                        <div class="style-section__body">
+                            <div class="color-row">
+                                Background <span class="dot" style="background: #f0ffc5"></span>
+                            </div>
+                            <div class="color-detail">
+                                <label><input type="radio" name="c-hb" /> Use default</label>
+                                <label
+                                    ><input type="radio" name="c-hb" checked /> Use custom
+                                    <input type="color" value="#f0ffc5"
+                                /></label>
+                            </div>
+                            <div class="color-row">Open Background <span class="dot default"></span></div>
+                            <div class="color-detail">
+                                <label><input type="radio" name="c-hob" checked /> Use default</label>
+                                <label
+                                    ><input type="radio" name="c-hob" /> Use custom <input type="color" value="#0176d3"
+                                /></label>
+                            </div>
+                            <div class="color-row">Open Text <span class="dot default"></span></div>
+                            <div class="color-detail">
+                                <label><input type="radio" name="c-hot" checked /> Use default</label>
+                                <label
+                                    ><input type="radio" name="c-hot" /> Use custom <input type="color" value="#ffffff"
+                                /></label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="style-section">
+                        <button class="style-section__header" type="button">
+                            <span class="style-section__chevron"></span>Content
+                            <span class="style-section__summary">
+                                <span class="dot" style="background: #fdc3f1"></span>
+                            </span>
+                        </button>
+                        <div class="style-section__body">
+                            <div class="color-row">
+                                Background <span class="dot" style="background: #fdc3f1"></span>
+                            </div>
+                            <div class="color-detail">
+                                <label><input type="radio" name="c-cb" /> Use default</label>
+                                <label
+                                    ><input type="radio" name="c-cb" checked /> Use custom
+                                    <input type="color" value="#fdc3f1"
+                                /></label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="style-section">
+                        <button class="style-section__header" type="button">
+                            <span class="style-section__chevron"></span>Section Border
+                            <span class="style-section__summary">Default</span>
+                        </button>
+                        <div class="style-section__body">
+                            <div class="color-row">Color <span class="dot default"></span></div>
+                            <div class="color-detail">
+                                <label><input type="radio" name="c-sbc" checked /> Use default</label>
+                                <label
+                                    ><input type="radio" name="c-sbc" /> Use custom <input type="color" value="#c9c9c9"
+                                /></label>
+                            </div>
+                            <div class="field">
+                                <span class="field-label">Size</span>
+                                <div class="input">1px <span>▾</span></div>
+                            </div>
+                            <div class="field">
+                                <span class="field-label">Radius</span>
+                                <div class="input">None <span>▾</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="style-section">
+                        <button class="style-section__header" type="button">
+                            <span class="style-section__chevron"></span>Container Border
+                            <span class="style-section__summary">None</span>
+                        </button>
+                        <div class="style-section__body">
+                            <div class="color-row">Color <span class="dot default"></span></div>
+                            <div class="color-detail">
+                                <label><input type="radio" name="c-cbc" checked /> Use default</label>
+                                <label
+                                    ><input type="radio" name="c-cbc" /> Use custom <input type="color" value="#c9c9c9"
+                                /></label>
+                            </div>
+                            <div class="field">
+                                <span class="field-label">Size</span>
+                                <div class="input">None <span>▾</span></div>
+                            </div>
+                            <div class="field">
+                                <span class="field-label">Radius</span>
+                                <div class="input">None <span>▾</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="style-section">
+                        <button class="style-section__header" type="button">
+                            <span class="style-section__chevron"></span>Spacing
+                            <span class="style-section__summary">None</span>
+                        </button>
+                        <div class="style-section__body">
+                            <div class="field">
+                                <span class="field-label">Space Between Sections</span>
+                                <div class="input">None <span>▾</span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="style-section">
+                        <button class="style-section__header" type="button">
+                            <span class="style-section__chevron"></span>Icon
+                            <span class="style-section__summary">xx-small</span>
+                        </button>
+                        <div class="style-section__body">
+                            <div class="field checkbox"><span class="box"></span>Hide Icon</div>
+                            <div class="field">
+                                <span class="field-label">Size</span>
+                                <div class="input">xx-small <span>▾</span></div>
+                            </div>
+                            <div class="color-row">Background <span class="dot default"></span></div>
+                            <div class="color-detail">
+                                <label><input type="radio" name="c-ib" checked /> Use default</label>
+                                <label
+                                    ><input type="radio" name="c-ib" /> Use custom <input type="color" value="#3f68e4"
+                                /></label>
+                            </div>
+                            <div class="color-row">Foreground <span class="dot default"></span></div>
+                            <div class="color-detail">
+                                <label><input type="radio" name="c-if" checked /> Use default</label>
+                                <label
+                                    ><input type="radio" name="c-if" /> Use custom <input type="color" value="#ffffff"
+                                /></label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="style-section">
+                        <button class="style-section__header" type="button">
+                            <span class="style-section__chevron"></span>Animation
+                            <span class="style-section__summary">Slide</span>
+                        </button>
+                        <div class="style-section__body">
+                            <div class="field">
+                                <span class="field-label">Open and Close</span>
+                                <div class="input">Slide <span>▾</span></div>
+                            </div>
+                            <div class="field">
+                                <span class="field-label">Speed</span>
+                                <div class="input">Normal <span>▾</span></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            // Mockup only: clicking a color row shows its default and custom choices.
+            document.querySelectorAll(".color-row").forEach((row) => {
+                row.addEventListener("click", () => row.classList.toggle("is-open"));
+            });
+            // Mockup only: each style section opens and closes on its own, so several can be open at once.
+            document.querySelectorAll(".style-section__header").forEach((header) => {
+                header.addEventListener("click", () => header.parentElement.classList.toggle("is-open"));
+            });
+            // Mockup only: the part picker shows one part's settings at a time.
+            document.getElementById("part-picker").addEventListener("change", (event) => {
+                document.querySelectorAll(".part").forEach((part) => {
+                    part.classList.toggle("is-active", part.dataset.part === event.target.value);
+                });
+            });
+        </script>
+    </body>
+</html>

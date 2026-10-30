@@ -1,4 +1,8 @@
 import { LightningElement, api } from "lwc";
+import { parseAppearance } from "c/crAccordionAppearance";
+
+/** Appearance defaults, from the same module the Appearance editor uses. */
+const DEFAULTS = parseAppearance("");
 
 /**
  * Container for crAccordionSection. Opening one section closes the others, unless
@@ -12,92 +16,44 @@ export default class CrAccordion extends LightningElement {
     /** Build label from the properties panel. Not used by the component. */
     @api versionInfo;
 
-    /** Where the toggle sits in each section's header: "left" or "right". */
-    @api togglePosition = "left";
-
-    _openIconName = "utility:chevrondown";
-    _closeIconName = "utility:chevronright";
-    _hideIcon = false;
-    _iconBackgroundColor = "";
-    _iconForegroundColor = "";
-    _iconSize = "xx-small";
+    _togglePosition = DEFAULTS.toggle.position;
+    _spacingBetween = DEFAULTS.spacing.between;
+    _openIconName = DEFAULTS.toggle.openIcon;
+    _closeIconName = DEFAULTS.toggle.closeIcon;
+    _appearanceJson = "";
+    _hideIcon = DEFAULTS.toggle.hide;
+    _iconBackgroundColor = DEFAULTS.toggle.background;
+    _iconForegroundColor = DEFAULTS.toggle.foreground;
+    _iconSize = DEFAULTS.toggle.size;
+    _headerBackgroundColor = DEFAULTS.header.background;
+    _headerOpenBackgroundColor = DEFAULTS.header.openBackground;
+    _contentBackgroundColor = DEFAULTS.content.background;
     _sections = new Set();
 
     /**
-     * Icon shown on an open section's toggle. Passed to every section.
+     * Style settings as one JSON string, edited in the Appearance editor. Only the settings that are
+     * connected so far are applied: the toggle settings, the header and open header backgrounds, the
+     * content background, and the space between sections.
      * @returns {string}
      */
     @api
-    get openIconName() {
-        return this._openIconName;
+    get appearance() {
+        return this._appearanceJson;
     }
-    set openIconName(value) {
-        this._openIconName = value;
-        this._sections.forEach((section) => this.passSettingsTo(section));
-    }
-
-    /**
-     * Icon shown on a closed section's toggle. Passed to every section.
-     * @returns {string}
-     */
-    @api
-    get closeIconName() {
-        return this._closeIconName;
-    }
-    set closeIconName(value) {
-        this._closeIconName = value;
-        this._sections.forEach((section) => this.passSettingsTo(section));
-    }
-
-    /**
-     * Hides the toggle icon in every section.
-     * @returns {boolean}
-     */
-    @api
-    get hideIcon() {
-        return this._hideIcon;
-    }
-    set hideIcon(value) {
-        this._hideIcon = Boolean(value);
-        this._sections.forEach((section) => this.passSettingsTo(section));
-    }
-
-    /**
-     * Background color behind the toggle icon in every section. Empty means transparent.
-     * @returns {string}
-     */
-    @api
-    get iconBackgroundColor() {
-        return this._iconBackgroundColor;
-    }
-    set iconBackgroundColor(value) {
-        this._iconBackgroundColor = value || "";
-        this._sections.forEach((section) => this.passSettingsTo(section));
-    }
-
-    /**
-     * Color of the toggle icon in every section. Empty means the default color.
-     * @returns {string}
-     */
-    @api
-    get iconForegroundColor() {
-        return this._iconForegroundColor;
-    }
-    set iconForegroundColor(value) {
-        this._iconForegroundColor = value || "";
-        this._sections.forEach((section) => this.passSettingsTo(section));
-    }
-
-    /**
-     * Size of the toggle icon in every section.
-     * @returns {string}
-     */
-    @api
-    get iconSize() {
-        return this._iconSize;
-    }
-    set iconSize(value) {
-        this._iconSize = value || "xx-small";
+    set appearance(value) {
+        this._appearanceJson = value || "";
+        const appearance = parseAppearance(this._appearanceJson);
+        this._togglePosition = appearance.toggle.position;
+        this._spacingBetween = appearance.spacing.between;
+        this._openIconName = appearance.toggle.openIcon;
+        this._closeIconName = appearance.toggle.closeIcon;
+        this._hideIcon = appearance.toggle.hide;
+        this._iconSize = appearance.toggle.size;
+        this._iconBackgroundColor = appearance.toggle.background;
+        this._iconForegroundColor = appearance.toggle.foreground;
+        this._headerBackgroundColor = appearance.header.background;
+        this._headerOpenBackgroundColor = appearance.header.openBackground;
+        this._contentBackgroundColor = appearance.content.background;
         this._sections.forEach((section) => this.passSettingsTo(section));
     }
 
@@ -112,12 +68,21 @@ export default class CrAccordion extends LightningElement {
     }
 
     /**
-     * Inline style for the wrapper. Sections read the toggle order from it, so every section
-     * places its toggle the same way.
-     * @returns {string} The custom property that sets the toggle position.
+     * Inline style for the wrapper. Sections read the toggle order from it, so every section places
+     * its toggle the same way. It also sets the site's component spacer for the sections, so the
+     * space between them follows the Spacing setting instead of the page's Vertical Space Between
+     * Components. -l-, -m- and -s- are the desktop, tablet and mobile versions.
+     * @returns {string} The custom properties for the toggle position and the space between sections.
      */
     get wrapperStyle() {
-        return `--cr-accordion-toggle-order: ${this.togglePosition === "right" ? 2 : 0};`;
+        const rem = Number(this._spacingBetween);
+        const spacer = `${Number.isFinite(rem) ? rem : DEFAULTS.spacing.between}rem`;
+        return [
+            `--cr-accordion-toggle-order: ${this._togglePosition === "right" ? 2 : 0}`,
+            `--dxp-c-l-component-spacer-size: ${spacer}`,
+            `--dxp-c-m-component-spacer-size: ${spacer}`,
+            `--dxp-c-s-component-spacer-size: ${spacer}`
+        ].join("; ");
     }
 
     /**
@@ -158,6 +123,9 @@ export default class CrAccordion extends LightningElement {
         section.iconBackgroundColor = this._iconBackgroundColor;
         section.iconForegroundColor = this._iconForegroundColor;
         section.iconSize = this._iconSize;
+        section.headerBackgroundColor = this._headerBackgroundColor;
+        section.headerOpenBackgroundColor = this._headerOpenBackgroundColor;
+        section.contentBackgroundColor = this._contentBackgroundColor;
     }
 
     /**

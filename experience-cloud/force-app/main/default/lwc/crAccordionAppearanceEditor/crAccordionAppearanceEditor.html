@@ -1,0 +1,292 @@
+<template>
+    <div class="appearance">
+        <div class={sectionClass.toggle}>
+            <button
+                class="style-section__header"
+                data-key="toggle"
+                aria-expanded={expanded.toggle}
+                onclick={handleSectionToggle}
+            >
+                <span class="style-section__chevron"></span>Toggles
+            </button>
+            <template lwc:if={open.toggle}>
+                <div class="style-section__body">
+                    <lightning-combobox
+                        class="appearance-field"
+                        label="Position"
+                        options={positionOptions}
+                        value={appearance.toggle.position}
+                        data-part="toggle"
+                        data-field="position"
+                        onchange={handleOptionChange}
+                    ></lightning-combobox>
+                    <c-cr-icon-picker
+                        class="appearance-field"
+                        label="Open Icon"
+                        value={appearance.toggle.openIcon}
+                        data-part="toggle"
+                        data-field="openIcon"
+                        onvaluechange={handleOptionChange}
+                    ></c-cr-icon-picker>
+                    <c-cr-icon-picker
+                        class="appearance-field"
+                        label="Close Icon"
+                        value={appearance.toggle.closeIcon}
+                        data-part="toggle"
+                        data-field="closeIcon"
+                        onvaluechange={handleOptionChange}
+                    ></c-cr-icon-picker>
+                    <lightning-input
+                        class="appearance-field"
+                        type="checkbox"
+                        label="Hide Icon"
+                        checked={appearance.toggle.hide}
+                        data-part="toggle"
+                        data-field="hide"
+                        onchange={handleCheckboxChange}
+                    ></lightning-input>
+                    <lightning-combobox
+                        class="appearance-field"
+                        label="Icon Size"
+                        options={iconSizeOptions}
+                        value={appearance.toggle.size}
+                        data-part="toggle"
+                        data-field="size"
+                        onchange={handleOptionChange}
+                    ></lightning-combobox>
+                    <c-cr-color-row
+                        label="Icon Background"
+                        value={appearance.toggle.background}
+                        data-part="toggle"
+                        data-field="background"
+                        oncolorchange={handleColorChange}
+                    ></c-cr-color-row>
+                    <c-cr-color-row
+                        label="Icon Foreground"
+                        value={appearance.toggle.foreground}
+                        data-part="toggle"
+                        data-field="foreground"
+                        oncolorchange={handleColorChange}
+                    ></c-cr-color-row>
+                </div>
+            </template>
+        </div>
+
+        <div class={sectionClass.header}>
+            <button
+                class="style-section__header"
+                data-key="header"
+                aria-expanded={expanded.header}
+                onclick={handleSectionToggle}
+            >
+                <span class="style-section__chevron"></span>Header
+            </button>
+            <template lwc:if={open.header}>
+                <div class="style-section__body">
+                    <c-cr-color-row
+                        label="Background"
+                        value={appearance.header.background}
+                        data-part="header"
+                        data-field="background"
+                        oncolorchange={handleColorChange}
+                    ></c-cr-color-row>
+                    <c-cr-color-row
+                        label="Open Background"
+                        value={appearance.header.openBackground}
+                        data-part="header"
+                        data-field="openBackground"
+                        oncolorchange={handleColorChange}
+                    ></c-cr-color-row>
+                    <c-cr-color-row
+                        label="Open Text"
+                        value={appearance.header.openText}
+                        data-part="header"
+                        data-field="openText"
+                        oncolorchange={handleColorChange}
+                    ></c-cr-color-row>
+                </div>
+            </template>
+        </div>
+
+        <div class={sectionClass.content}>
+            <button
+                class="style-section__header"
+                data-key="content"
+                aria-expanded={expanded.content}
+                onclick={handleSectionToggle}
+            >
+                <span class="style-section__chevron"></span>Content
+            </button>
+            <template lwc:if={open.content}>
+                <div class="style-section__body">
+                    <c-cr-color-row
+                        label="Background"
+                        value={appearance.content.background}
+                        data-part="content"
+                        data-field="background"
+                        oncolorchange={handleColorChange}
+                    ></c-cr-color-row>
+                </div>
+            </template>
+        </div>
+
+        <div class={sectionClass.sectionBorder}>
+            <button
+                class="style-section__header"
+                data-key="sectionBorder"
+                aria-expanded={expanded.sectionBorder}
+                onclick={handleSectionToggle}
+            >
+                <span class="style-section__chevron"></span>Section Border
+            </button>
+            <template lwc:if={open.sectionBorder}>
+                <div class="style-section__body">
+                    <c-cr-color-row
+                        label="Color"
+                        value={appearance.sectionBorder.color}
+                        data-part="sectionBorder"
+                        data-field="color"
+                        oncolorchange={handleColorChange}
+                    ></c-cr-color-row>
+                    <c-cr-measure-input
+                        class="appearance-field"
+                        label="Weight"
+                        units={weightUnits}
+                        value={appearance.sectionBorder.size}
+                        data-part="sectionBorder"
+                        data-field="size"
+                        onmeasurechange={handleMeasureChange}
+                    ></c-cr-measure-input>
+                    <lightning-combobox
+                        class="appearance-field"
+                        label="Line Style"
+                        options={lineStyleOptions}
+                        value={appearance.sectionBorder.style}
+                        data-part="sectionBorder"
+                        data-field="style"
+                        onchange={handleOptionChange}
+                    ></lightning-combobox>
+                    <c-cr-measure-input
+                        class="appearance-field"
+                        label="Radius"
+                        units={radiusUnits}
+                        value={appearance.sectionBorder.radius}
+                        data-part="sectionBorder"
+                        data-field="radius"
+                        onmeasurechange={handleMeasureChange}
+                    ></c-cr-measure-input>
+                </div>
+            </template>
+        </div>
+
+        <div class={sectionClass.containerBorder}>
+            <button
+                class="style-section__header"
+                data-key="containerBorder"
+                aria-expanded={expanded.containerBorder}
+                onclick={handleSectionToggle}
+            >
+                <span class="style-section__chevron"></span>Container Border
+            </button>
+            <template lwc:if={open.containerBorder}>
+                <div class="style-section__body">
+                    <c-cr-color-row
+                        label="Color"
+                        value={appearance.containerBorder.color}
+                        data-part="containerBorder"
+                        data-field="color"
+                        oncolorchange={handleColorChange}
+                    ></c-cr-color-row>
+                    <c-cr-measure-input
+                        class="appearance-field"
+                        label="Weight"
+                        units={weightUnits}
+                        value={appearance.containerBorder.size}
+                        data-part="containerBorder"
+                        data-field="size"
+                        onmeasurechange={handleMeasureChange}
+                    ></c-cr-measure-input>
+                    <lightning-combobox
+                        class="appearance-field"
+                        label="Line Style"
+                        options={lineStyleOptions}
+                        value={appearance.containerBorder.style}
+                        data-part="containerBorder"
+                        data-field="style"
+                        onchange={handleOptionChange}
+                    ></lightning-combobox>
+                    <c-cr-measure-input
+                        class="appearance-field"
+                        label="Radius"
+                        units={radiusUnits}
+                        value={appearance.containerBorder.radius}
+                        data-part="containerBorder"
+                        data-field="radius"
+                        onmeasurechange={handleMeasureChange}
+                    ></c-cr-measure-input>
+                </div>
+            </template>
+        </div>
+
+        <div class={sectionClass.spacing}>
+            <button
+                class="style-section__header"
+                data-key="spacing"
+                aria-expanded={expanded.spacing}
+                onclick={handleSectionToggle}
+            >
+                <span class="style-section__chevron"></span>Spacing
+            </button>
+            <template lwc:if={open.spacing}>
+                <div class="style-section__body">
+                    <lightning-input
+                        class="appearance-field"
+                        type="number"
+                        label="Space Between Sections (0–5 rem)"
+                        min="0"
+                        max="5"
+                        step="any"
+                        value={appearance.spacing.between}
+                        data-part="spacing"
+                        data-field="between"
+                        onchange={handleSpacingChange}
+                        onblur={handleSpacingCommit}
+                    ></lightning-input>
+                </div>
+            </template>
+        </div>
+
+        <div class={sectionClass.animation}>
+            <button
+                class="style-section__header"
+                data-key="animation"
+                aria-expanded={expanded.animation}
+                onclick={handleSectionToggle}
+            >
+                <span class="style-section__chevron"></span>Animation
+            </button>
+            <template lwc:if={open.animation}>
+                <div class="style-section__body">
+                    <lightning-combobox
+                        class="appearance-field"
+                        label="Open and Close"
+                        options={animationOptions}
+                        value={appearance.animation.type}
+                        data-part="animation"
+                        data-field="type"
+                        onchange={handleOptionChange}
+                    ></lightning-combobox>
+                    <lightning-combobox
+                        label="Speed"
+                        options={speedOptions}
+                        value={appearance.animation.speed}
+                        data-part="animation"
+                        data-field="speed"
+                        class="appearance-field"
+                        onchange={handleOptionChange}
+                    ></lightning-combobox>
+                </div>
+            </template>
+        </div>
+    </div>
+</template>

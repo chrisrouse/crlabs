@@ -1,3 +1,11 @@
+/*
+ * Spacing follows SLDS. The section has 0.75rem of padding on every side, and the header pulls
+ * itself out to the section's edges with matching negative margins, so its color fills the width.
+ * A closed header also reaches into the bottom padding; an open one stops so the content can follow.
+ * The open content pulls out to the side and bottom edges the same way, so its color fills too.
+ * The section's own padding is left alone, because the closed header depends on it.
+ */
+
 /* The toggle takes its place from the accordion: 0 puts it first (left), 2 after the title (right). */
 .slds-accordion__summary-action-icon {
     order: var(--cr-accordion-toggle-order, 0);
@@ -7,19 +15,35 @@
     align-items: center;
     justify-content: center;
     aspect-ratio: 1 / 1;
+    /* The toggle shows its own open or closed icon, so SLDS's rotation would turn it twice. */
+    transform: none !important;
 }
 
+/* SLDS keeps the title on one line and hides the overflow. The title slot can hold any component,
+   so it wraps instead, and can shrink so the row has room to wrap. */
 .slds-accordion__summary-content {
     order: 1;
-    flex: 1 1 auto;
-}
-
-/* The toggle shows its own open or closed icon, so SLDS's rotation would turn it twice. */
-.slds-accordion__summary-action-icon {
-    transform: none !important;
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-left: 0.5rem;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
 }
 
 /* The SVG's fill comes from a site stylesheet rule, so the fill is set on the exported icon part. */
 .has-icon-color::part(icon) {
     fill: var(--cr-icon-foreground);
+}
+
+/* Open content reaches the section's side and bottom edges, matching how SLDS places the header. */
+.slds-is-open > .slds-accordion__content {
+    margin-right: calc(var(--slds-c-accordion-section-spacing-inline-end, 0.75rem) * -1);
+    margin-bottom: calc(var(--slds-c-accordion-section-spacing-block-end, 0.75rem) * -1);
+    margin-left: calc(var(--slds-c-accordion-section-spacing-inline-start, 0.75rem) * -1);
+}
+
+/* Space around the content slot, inside the colored area. */
+.cr-accordion__body {
+    padding: 0.875rem;
 }
