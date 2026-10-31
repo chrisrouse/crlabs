@@ -220,4 +220,27 @@ describe("c-cr-accordion-appearance-editor", () => {
         await Promise.resolve();
         expect(speedField(element).value).toBe("fast");
     });
+
+    it("stores the border sides, and shows Shadow Sides only with a shadow", async () => {
+        const element = renderEditor("");
+        const handler = jest.fn();
+        element.addEventListener("valuechange", handler);
+        sectionHeader(element, "sectionBorder").click();
+        await Promise.resolve();
+        const shadowSides = () =>
+            element.shadowRoot.querySelector('c-cr-sides-picker[data-part="sectionBorder"][data-field="shadowSides"]');
+
+        element.shadowRoot
+            .querySelector('c-cr-sides-picker[data-part="sectionBorder"][data-field="sides"]')
+            .dispatchEvent(new CustomEvent("sideschange", { detail: { value: ["top", "bottom"] } }));
+        expect(lastStored(handler).sectionBorder.sides).toEqual(["top", "bottom"]);
+        expect(shadowSides()).toBeNull();
+
+        element.shadowRoot
+            .querySelector('c-cr-measure-input[data-part="sectionBorder"][data-field="shadow"]')
+            .dispatchEvent(new CustomEvent("measurechange", { detail: { value: "6px" } }));
+        await Promise.resolve();
+        expect(lastStored(handler).sectionBorder.shadow).toBe("6px");
+        expect(shadowSides()).not.toBeNull();
+    });
 });

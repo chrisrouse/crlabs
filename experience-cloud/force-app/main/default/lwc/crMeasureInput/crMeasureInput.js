@@ -11,6 +11,9 @@ export default class CrMeasureInput extends LightningElement {
     /** Units the dropdown offers, such as ["px", "rem"]. The first is used when none is stored. */
     @api units = ["px"];
 
+    /** Largest number allowed. A larger number is lowered to it when stored. No limit when unset. */
+    @api max;
+
     _number = "0";
     _unit = "";
     _numberChanged = false;
@@ -73,6 +76,10 @@ export default class CrMeasureInput extends LightningElement {
     handleNumberCommit() {
         if (this._numberChanged) {
             this._numberChanged = false;
+            const max = Number(this.max);
+            if (this.max !== undefined && Number(this._number) > max) {
+                this._number = String(max);
+            }
             this.notify();
         }
     }

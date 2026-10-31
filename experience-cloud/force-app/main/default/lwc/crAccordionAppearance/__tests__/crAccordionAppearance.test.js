@@ -40,4 +40,34 @@ describe("c/crAccordionAppearance", () => {
             "overflow: hidden"
         ]);
     });
+
+    const border = (settings) => ({ color: "#000000", size: "2px", style: "solid", radius: "0px", ...settings });
+
+    it("draws the border only on the chosen sides", () => {
+        expect(borderDeclarations(border({ sides: ["top", "bottom"] }))).toEqual([
+            "border-top: 2px solid #000000",
+            "border-bottom: 2px solid #000000"
+        ]);
+    });
+
+    it("draws no border when no side is chosen", () => {
+        expect(borderDeclarations(border({ sides: [] }))).toEqual([]);
+    });
+
+    it("draws an even shadow on all sides", () => {
+        expect(borderDeclarations(border({ size: "0px", shadow: "4px" }))).toEqual([
+            "box-shadow: 0 0 4px rgba(0, 0, 0, 0.2)"
+        ]);
+    });
+
+    it("draws a shadow only on the chosen sides", () => {
+        expect(borderDeclarations(border({ size: "0px", shadow: "8px", shadowSides: ["bottom"] }))).toEqual([
+            "box-shadow: 0px 8px 8px -8px rgba(0, 0, 0, 0.2)"
+        ]);
+    });
+
+    it("defaults to all sides and no shadow", () => {
+        expect(DEFAULT_APPEARANCE.sectionBorder.sides).toEqual(["top", "right", "bottom", "left"]);
+        expect(DEFAULT_APPEARANCE.sectionBorder.shadow).toBe("0px");
+    });
 });

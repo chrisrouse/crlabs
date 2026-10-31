@@ -114,7 +114,7 @@ export default class CrAccordion extends LightningElement {
      */
     handleSectionRegister = (event) => {
         this._sections.add(event.target);
-        this.passSettingsTo(event.target);
+        this._sections.forEach((section) => this.passSettingsTo(section));
     };
 
     /**
@@ -123,6 +123,7 @@ export default class CrAccordion extends LightningElement {
      */
     handleSectionUnregister = (event) => {
         this._sections.delete(event.target);
+        this._sections.forEach((section) => this.passSettingsTo(section));
     };
 
     /**
@@ -150,8 +151,37 @@ export default class CrAccordion extends LightningElement {
         section.headerBackgroundColor = this._headerBackgroundColor;
         section.headerOpenBackgroundColor = this._headerOpenBackgroundColor;
         section.contentBackgroundColor = this._contentBackgroundColor;
-        section.sectionBorder = this._sectionBorder;
+        section.sectionBorder = this.sectionBorderFor(section);
         section.animation = this._animation;
+    }
+
+    /**
+     * The section border for one section. With no space between sections, each section's bottom
+     * border touches the next one's top border and the line looks doubled. So every section after
+     * the first drops its top border, and the bottom border of the section above draws the line.
+     * @param {HTMLElement} section The section that gets the border.
+     * @returns {object} The border settings for that section.
+     */
+    sectionBorderFor(section) {
+        const border = this._sectionBorder;
+        const touching = Number(this._spacingBetween) === 0;
+        if (!touching || !border.sides.includes("bottom") || section === this.firstSection()) {
+            return border;
+        }
+        return { ...border, sides: border.sides.filter((side) => side !== "top") };
+    }
+
+    /**
+     * @returns {HTMLElement} The section that comes first on the page.
+     */
+    firstSection() {
+        let first;
+        this._sections.forEach((section) => {
+            if (!first || first.compareDocumentPosition(section) & Node.DOCUMENT_POSITION_PRECEDING) {
+                first = section;
+            }
+        });
+        return first;
     }
 
     /**

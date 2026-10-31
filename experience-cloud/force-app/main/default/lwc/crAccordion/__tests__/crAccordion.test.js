@@ -148,4 +148,25 @@ describe("c-cr-accordion", () => {
         expect(first.animation).toEqual({ type: "slide", speed: "slow" });
         expect(second.animation).toEqual({ type: "slide", speed: "slow" });
     });
+
+    const allSides = { size: "2px", sides: ["top", "right", "bottom", "left"] };
+
+    it("drops the top border after the first section when there's no space between them", async () => {
+        const { accordion, first, second } = renderAccordion();
+
+        accordion.appearance = JSON.stringify({ sectionBorder: allSides, spacing: { between: 0 } });
+        await Promise.resolve();
+
+        expect(first.sectionBorder.sides).toEqual(["top", "right", "bottom", "left"]);
+        expect(second.sectionBorder.sides).toEqual(["right", "bottom", "left"]);
+    });
+
+    it("keeps every section's full border when there's space between them", async () => {
+        const { accordion, second } = renderAccordion();
+
+        accordion.appearance = JSON.stringify({ sectionBorder: allSides, spacing: { between: 0.5 } });
+        await Promise.resolve();
+
+        expect(second.sectionBorder.sides).toEqual(["top", "right", "bottom", "left"]);
+    });
 });

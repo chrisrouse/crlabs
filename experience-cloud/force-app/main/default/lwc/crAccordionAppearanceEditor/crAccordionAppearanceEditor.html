@@ -166,6 +166,14 @@
                         data-field="style"
                         onchange={handleOptionChange}
                     ></lightning-combobox>
+                    <c-cr-sides-picker
+                        class="appearance-field"
+                        label="Sides"
+                        value={appearance.sectionBorder.sides}
+                        data-part="sectionBorder"
+                        data-field="sides"
+                        onsideschange={handleOptionChange}
+                    ></c-cr-sides-picker>
                     <c-cr-measure-input
                         class="appearance-field"
                         label="Radius"
@@ -175,6 +183,26 @@
                         data-field="radius"
                         onmeasurechange={handleMeasureChange}
                     ></c-cr-measure-input>
+                    <c-cr-measure-input
+                        class="appearance-field"
+                        label="Shadow Size (0–30)"
+                        units={shadowUnits}
+                        max={maxShadow}
+                        value={appearance.sectionBorder.shadow}
+                        data-part="sectionBorder"
+                        data-field="shadow"
+                        onmeasurechange={handleMeasureChange}
+                    ></c-cr-measure-input>
+                    <template lwc:if={hasShadow.sectionBorder}>
+                        <c-cr-sides-picker
+                            class="appearance-field"
+                            label="Shadow Sides"
+                            value={appearance.sectionBorder.shadowSides}
+                            data-part="sectionBorder"
+                            data-field="shadowSides"
+                            onsideschange={handleOptionChange}
+                        ></c-cr-sides-picker>
+                    </template>
                 </div>
             </template>
         </div>
@@ -215,6 +243,14 @@
                         data-field="style"
                         onchange={handleOptionChange}
                     ></lightning-combobox>
+                    <c-cr-sides-picker
+                        class="appearance-field"
+                        label="Sides"
+                        value={appearance.containerBorder.sides}
+                        data-part="containerBorder"
+                        data-field="sides"
+                        onsideschange={handleOptionChange}
+                    ></c-cr-sides-picker>
                     <c-cr-measure-input
                         class="appearance-field"
                         label="Radius"
@@ -224,6 +260,26 @@
                         data-field="radius"
                         onmeasurechange={handleMeasureChange}
                     ></c-cr-measure-input>
+                    <c-cr-measure-input
+                        class="appearance-field"
+                        label="Shadow Size (0–30)"
+                        units={shadowUnits}
+                        max={maxShadow}
+                        value={appearance.containerBorder.shadow}
+                        data-part="containerBorder"
+                        data-field="shadow"
+                        onmeasurechange={handleMeasureChange}
+                    ></c-cr-measure-input>
+                    <template lwc:if={hasShadow.containerBorder}>
+                        <c-cr-sides-picker
+                            class="appearance-field"
+                            label="Shadow Sides"
+                            value={appearance.containerBorder.shadowSides}
+                            data-part="containerBorder"
+                            data-field="shadowSides"
+                            onsideschange={handleOptionChange}
+                        ></c-cr-sides-picker>
+                    </template>
                 </div>
             </template>
         </div>

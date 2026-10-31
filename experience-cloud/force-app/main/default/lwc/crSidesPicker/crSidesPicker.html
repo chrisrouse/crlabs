@@ -1,0 +1,31 @@
+<template>
+    <div role="group" aria-label={label}>
+        <span class="slds-form-element__label">{label}</span>
+        <div class="tiles">
+            <template for:each={tiles} for:item="tile">
+                <button
+                    key={tile.side}
+                    type="button"
+                    class="tile"
+                    aria-pressed={tile.pressed}
+                    data-side={tile.side}
+                    onclick={handleTileClick}
+                >
+                    <svg class="tile__icon" viewBox="0 0 20 20" aria-hidden="true">
+                        <template for:each={tile.edges} for:item="edge">
+                            <line
+                                key={edge.edge}
+                                class={edge.className}
+                                x1={edge.x1}
+                                y1={edge.y1}
+                                x2={edge.x2}
+                                y2={edge.y2}
+                            ></line>
+                        </template>
+                    </svg>
+                    <span>{tile.label}</span>
+                </button>
+            </template>
+        </div>
+    </div>
+</template>

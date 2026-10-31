@@ -29,6 +29,10 @@ const ICON_SIZE_OPTIONS = ["xx-small", "x-small", "small", "medium", "large"].ma
     value: size
 }));
 
+/** Shadow size is a blur in pixels, up to a broad, soft shadow. */
+const SHADOW_UNITS = ["px"];
+const MAX_SHADOW_PX = 30;
+
 const SPEED_OPTIONS = [
     { label: "Slow", value: "slow" },
     { label: "Normal", value: "normal" },
@@ -117,6 +121,25 @@ export default class CrAccordionAppearanceEditor extends LightningElement {
 
     get speedOptions() {
         return SPEED_OPTIONS;
+    }
+
+    get shadowUnits() {
+        return SHADOW_UNITS;
+    }
+
+    get maxShadow() {
+        return MAX_SHADOW_PX;
+    }
+
+    /**
+     * Whether each border part has a shadow, which shows its Shadow Sides field.
+     * @returns {{sectionBorder: boolean, containerBorder: boolean}}
+     */
+    get hasShadow() {
+        return {
+            sectionBorder: parseFloat(this._appearance.sectionBorder.shadow) > 0,
+            containerBorder: parseFloat(this._appearance.containerBorder.shadow) > 0
+        };
     }
 
     /**

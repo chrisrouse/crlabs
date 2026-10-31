@@ -87,4 +87,17 @@ describe("c-cr-measure-input", () => {
 
         expect(handler.mock.calls[0][0].detail.value).toBe("0px");
     });
+
+    it("lowers a number above the maximum to the maximum", () => {
+        const element = renderMeasure("4px", ["px"]);
+        element.max = 30;
+        const handler = jest.fn();
+        element.addEventListener("measurechange", handler);
+
+        numberBox(element).value = "45";
+        numberBox(element).dispatchEvent(new CustomEvent("change"));
+        numberBox(element).dispatchEvent(new CustomEvent("blur"));
+
+        expect(handler.mock.calls[0][0].detail.value).toBe("30px");
+    });
 });
