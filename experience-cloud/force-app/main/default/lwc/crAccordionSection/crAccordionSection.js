@@ -1,4 +1,5 @@
 import { LightningElement, api } from "lwc";
+import { borderDeclarations } from "c/crAccordionAppearance";
 
 let sectionCount = 0;
 
@@ -82,17 +83,7 @@ export default class CrAccordionSection extends LightningElement {
      * @returns {string}
      */
     get sectionStyle() {
-        const { color, size, style, radius } = this._sectionBorder;
-        const declarations = [];
-        if (parseFloat(size) > 0) {
-            declarations.push(
-                `border: ${size} ${style || "solid"} ${color || "var(--slds-g-color-border-1, #c9c9c9)"}`
-            );
-        }
-        if (parseFloat(radius) > 0) {
-            declarations.push(`border-radius: ${radius}`, "overflow: hidden");
-        }
-        return declarations.join("; ");
+        return borderDeclarations(this._sectionBorder).join("; ");
     }
 
     /**

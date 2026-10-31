@@ -120,4 +120,22 @@ describe("c-cr-accordion", () => {
             expect(section.sectionBorder.radius).toBe("8px");
         });
     });
+
+    it("draws no container border by default", () => {
+        const { accordion } = renderAccordion();
+
+        expect(wrapperStyle(accordion)).not.toContain("border:");
+    });
+
+    it("draws the container border around the accordion", async () => {
+        const { accordion } = renderAccordion();
+
+        accordion.appearance = JSON.stringify({
+            containerBorder: { color: "#00ff00", size: "3px", style: "dotted", radius: "1rem" }
+        });
+        await Promise.resolve();
+
+        expect(wrapperStyle(accordion)).toContain("border: 3px dotted #00ff00");
+        expect(wrapperStyle(accordion)).toContain("border-radius: 1rem");
+    });
 });

@@ -1,5 +1,5 @@
 import { LightningElement, api } from "lwc";
-import { parseAppearance } from "c/crAccordionAppearance";
+import { borderDeclarations, parseAppearance } from "c/crAccordionAppearance";
 
 /** Appearance defaults, from the same module the Appearance editor uses. */
 const DEFAULTS = parseAppearance("");
@@ -30,6 +30,7 @@ export default class CrAccordion extends LightningElement {
     _headerOpenBackgroundColor = DEFAULTS.header.openBackground;
     _contentBackgroundColor = DEFAULTS.content.background;
     _sectionBorder = { ...DEFAULTS.sectionBorder };
+    _containerBorder = { ...DEFAULTS.containerBorder };
     _sections = new Set();
 
     /**
@@ -49,7 +50,7 @@ export default class CrAccordion extends LightningElement {
     /**
      * Style settings as one JSON string, edited in the Appearance editor. Only the settings that are
      * connected so far are applied: the toggle settings, the header and open header backgrounds, the
-     * content background, the section border, and the space between sections.
+     * content background, the section and container borders, and the space between sections.
      * @returns {string}
      */
     @api
@@ -71,6 +72,7 @@ export default class CrAccordion extends LightningElement {
         this._headerOpenBackgroundColor = appearance.header.openBackground;
         this._contentBackgroundColor = appearance.content.background;
         this._sectionBorder = appearance.sectionBorder;
+        this._containerBorder = appearance.containerBorder;
         this._sections.forEach((section) => this.passSettingsTo(section));
     }
 
@@ -88,7 +90,8 @@ export default class CrAccordion extends LightningElement {
      * Inline style for the wrapper. Sections read the toggle order from it, so every section places
      * its toggle the same way. It also sets the site's component spacer for the sections, so the
      * space between them follows the Spacing setting instead of the page's Vertical Space Between
-     * Components. -l-, -m- and -s- are the desktop, tablet and mobile versions.
+     * Components. -l-, -m- and -s- are the desktop, tablet and mobile versions. The container border
+     * is drawn here too.
      * @returns {string} The custom properties for the toggle position and the space between sections.
      */
     get wrapperStyle() {
@@ -98,7 +101,8 @@ export default class CrAccordion extends LightningElement {
             `--cr-accordion-toggle-order: ${this._togglePosition === "right" ? 2 : 0}`,
             `--dxp-c-l-component-spacer-size: ${spacer}`,
             `--dxp-c-m-component-spacer-size: ${spacer}`,
-            `--dxp-c-s-component-spacer-size: ${spacer}`
+            `--dxp-c-s-component-spacer-size: ${spacer}`,
+            ...borderDeclarations(this._containerBorder)
         ].join("; ");
     }
 

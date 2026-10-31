@@ -42,3 +42,24 @@ export function parseAppearance(json) {
     });
     return appearance;
 }
+
+/** Border color used when no custom color is chosen: the site's standard border color. */
+const DEFAULT_BORDER_COLOR = "var(--slds-g-color-border-1, #c9c9c9)";
+
+/**
+ * Turns border settings into CSS declarations. A weight of 0 draws no border, and an unset color
+ * uses the site's standard border color. A radius also clips the inside to the rounded corners, so
+ * colors don't poke out.
+ * @param {{color: string, size: string, style: string, radius: string}} border The border settings.
+ * @returns {string[]} The CSS declarations, empty when there's nothing to draw.
+ */
+export function borderDeclarations({ color, size, style, radius }) {
+    const declarations = [];
+    if (parseFloat(size) > 0) {
+        declarations.push(`border: ${size} ${style || "solid"} ${color || DEFAULT_BORDER_COLOR}`);
+    }
+    if (parseFloat(radius) > 0) {
+        declarations.push(`border-radius: ${radius}`, "overflow: hidden");
+    }
+    return declarations;
+}

@@ -1,4 +1,4 @@
-import { DEFAULT_APPEARANCE, parseAppearance } from "c/crAccordionAppearance";
+import { DEFAULT_APPEARANCE, borderDeclarations, parseAppearance } from "c/crAccordionAppearance";
 
 describe("c/crAccordionAppearance", () => {
     it("gives the defaults when nothing is stored", () => {
@@ -22,5 +22,22 @@ describe("c/crAccordionAppearance", () => {
         appearance.header.background = "#00ff00";
 
         expect(DEFAULT_APPEARANCE.header.background).toBe("");
+    });
+
+    it("draws no border at a weight of 0", () => {
+        expect(borderDeclarations({ color: "#ff0000", size: "0px", style: "solid", radius: "0px" })).toEqual([]);
+    });
+
+    it("draws a border with the site's color when none is chosen", () => {
+        expect(borderDeclarations({ color: "", size: "1px", style: "dashed", radius: "0px" })).toEqual([
+            "border: 1px dashed var(--slds-g-color-border-1, #c9c9c9)"
+        ]);
+    });
+
+    it("rounds and clips at a radius above 0", () => {
+        expect(borderDeclarations({ color: "", size: "0px", style: "solid", radius: "50%" })).toEqual([
+            "border-radius: 50%",
+            "overflow: hidden"
+        ]);
     });
 });
