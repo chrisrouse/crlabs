@@ -192,4 +192,32 @@ describe("c-cr-accordion-appearance-editor", () => {
         field.dispatchEvent(new CustomEvent("blur"));
         expect(handler).toHaveBeenCalledTimes(1);
     });
+
+    const speedField = (element) => element.shadowRoot.querySelector('lightning-radio-group[data-field="speed"]');
+
+    it("turns the slide animation on and off with the Animate checkbox", async () => {
+        const element = renderEditor("");
+        const handler = jest.fn();
+        element.addEventListener("valuechange", handler);
+        sectionHeader(element, "animation").click();
+        await Promise.resolve();
+        const animate = element.shadowRoot.querySelector('lightning-input[data-part="animation"]');
+
+        animate.dispatchEvent(new CustomEvent("change", { detail: { checked: true } }));
+        expect(lastStored(handler).animation.type).toBe("slide");
+
+        animate.dispatchEvent(new CustomEvent("change", { detail: { checked: false } }));
+        expect(lastStored(handler).animation.type).toBe("none");
+    });
+
+    it("shows Speed only while animation is on", async () => {
+        const element = renderEditor(JSON.stringify({ animation: { type: "none" } }));
+        sectionHeader(element, "animation").click();
+        await Promise.resolve();
+        expect(speedField(element)).toBeNull();
+
+        element.value = JSON.stringify({ animation: { type: "slide", speed: "fast" } });
+        await Promise.resolve();
+        expect(speedField(element).value).toBe("fast");
+    });
 });

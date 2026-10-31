@@ -29,12 +29,6 @@ const ICON_SIZE_OPTIONS = ["xx-small", "x-small", "small", "medium", "large"].ma
     value: size
 }));
 
-const ANIMATION_OPTIONS = [
-    { label: "None", value: "none" },
-    { label: "Slide", value: "slide" },
-    { label: "Fade", value: "fade" }
-];
-
 const SPEED_OPTIONS = [
     { label: "Slow", value: "slow" },
     { label: "Normal", value: "normal" },
@@ -112,8 +106,13 @@ export default class CrAccordionAppearanceEditor extends LightningElement {
         return ICON_SIZE_OPTIONS;
     }
 
-    get animationOptions() {
-        return ANIMATION_OPTIONS;
+    /**
+     * Whether sections animate. Stored as the animation type, slide or none, so another animation
+     * can be added later without changing the stored format.
+     * @returns {boolean}
+     */
+    get isAnimated() {
+        return this._appearance.animation.type === "slide";
     }
 
     get speedOptions() {
@@ -191,6 +190,14 @@ export default class CrAccordionAppearanceEditor extends LightningElement {
     handleCheckboxChange(event) {
         const { part, field } = event.currentTarget.dataset;
         this.update(part, field, event.detail.checked);
+    }
+
+    /**
+     * Turns the slide animation on or off.
+     * @param {CustomEvent} event The change event from the Animate checkbox.
+     */
+    handleAnimateChange(event) {
+        this.update("animation", "type", event.detail.checked ? "slide" : "none");
     }
 
     /**

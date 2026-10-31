@@ -137,4 +137,38 @@ describe("c-cr-accordion-section", () => {
         expect(style).toContain("border-radius: 12px");
         expect(style).toContain("overflow: hidden");
     });
+
+    const sectionClasses = (element) => sectionBox(element).classList;
+
+    it("doesn't animate by default", () => {
+        const element = renderSection();
+
+        expect(sectionClasses(element).contains("cr-animated")).toBe(false);
+        expect(sectionBox(element).getAttribute("style") || "").not.toContain("--cr-accordion-duration");
+    });
+
+    it("animates with the chosen type and speed", async () => {
+        const element = renderSection();
+        element.animation = { type: "slide", speed: "fast" };
+        await Promise.resolve();
+
+        expect(sectionClasses(element).contains("cr-animate-slide")).toBe(true);
+        expect(sectionBox(element).getAttribute("style")).toContain("--cr-accordion-duration: 250ms");
+    });
+
+    it("lets open content overflow only after it finishes opening, and clips it again when closing", async () => {
+        const element = renderSection();
+        element.animation = { type: "slide", speed: "normal" };
+        element.shadowRoot.querySelector("button").click();
+        await Promise.resolve();
+        expect(sectionClasses(element).contains("cr-is-settled")).toBe(false);
+
+        element.shadowRoot.querySelector(".slds-accordion__content").dispatchEvent(new CustomEvent("transitionend"));
+        await Promise.resolve();
+        expect(sectionClasses(element).contains("cr-is-settled")).toBe(true);
+
+        element.shadowRoot.querySelector("button").click();
+        await Promise.resolve();
+        expect(sectionClasses(element).contains("cr-is-settled")).toBe(false);
+    });
 });

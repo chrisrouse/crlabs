@@ -1,0 +1,30 @@
+<!-- Scraped 2026-10-31 from https://main.d3739ajl2fez28.amplifyapp.com/examples/github-accordion -->
+<div class="Accordion_accordion__Naf1K"><div class="Accordion_entries__XdoFY"><details class="Accordion_details__xxYKX" open="" name=":S1:"><summary>Automate any workflow<svg aria-hidden="true" focusable="false" class="octicon octicon-plus" viewBox="0 0 16 16" width="16" height="16" fill="#a371f7"><path d="(plus icon)"></path></svg></summary><p>Optimize your process with simple and secured CI/CD.</p></details><details class="Accordion_details__xxYKX" name=":S1:"><summary>Get up and running in seconds<svg aria-hidden="true" focusable="false" class="octicon octicon-plus" viewBox="0 0 16 16" width="16" height="16" fill="#a371f7"><path d="(plus icon)"></path></svg></summary><p>Start building instantly with a comprehensive dev environment in the cloud.</p></details><details class="Accordion_details__xxYKX" name=":S1:"><summary>Build on the go<svg aria-hidden="true" focusable="false" class="octicon octicon-plus" viewBox="0 0 16 16" width="16" height="16" fill="#a371f7"><path d="(plus icon)"></path></svg></summary><p>Manage projects and chat with GitHub Copilot from anywhere.</p></details><details class="Accordion_details__xxYKX" name=":S1:"><summary>Integrate the tools you love<svg aria-hidden="true" focusable="false" class="octicon octicon-plus" viewBox="0 0 16 16" width="16" height="16" fill="#a371f7"><path d="(plus icon)"></path></svg></summary><p>Sync with 17,000+ integrations and a growing library of Copilot Extensions.</p></details><details class="Accordion_details__xxYKX" name=":S1:"><summary>Share ideas and ask questions<svg aria-hidden="true" focusable="false" class="octicon octicon-plus" viewBox="0 0 16 16" width="16" height="16" fill="#a371f7"><path d="(plus icon)"></path></svg></summary><p>Create space for open-ended conversations alongside your project.</p></details></div><div class="Accordion_images__3BwYp"><img src="/accordion/01.webp" alt="" class="Accordion_image__hN6kA" height="1000" width="1000"><img src="/accordion/02.webp" alt="" class="Accordion_image__hN6kA" height="1000" width="1000"><img src="/accordion/03.webp" alt="" class="Accordion_image__hN6kA" height="1000" width="1000"><img src="/accordion/04.webp" alt="" class="Accordion_image__hN6kA" height="1000" width="1000"><img src="/accordion/05.webp" alt="" class="Accordion_image__hN6kA" height="1000" width="1000"><img src="/accordion/00.webp" alt="" class="Accordion_image__hN6kA Accordion_default__7ofiI" height="1000" width="1000"></div></div>
+
+<style>
+:root { --background: #fff; --foreground: #171717; interpolate-size: allow-keywords; font-family: system-ui; }
+.Accordion_accordionContainer__Z1RpT { container-type: inline-size; width: 95%; max-width: 60rem; margin: 1rem; padding: 2rem; }
+.Accordion_accordion__Naf1K {
+  --border-color: #223; display: grid; grid-template-areas: "images" "entries"; border: 1px solid var(--border-color); border-radius: 0.25rem; overflow: hidden;
+  @container (min-width: 700px) {
+  & { grid-template-columns: 1fr 1fr; grid-template-areas: "entries images"; }
+  & .Accordion_images__3BwYp { aspect-ratio: auto; }
+}
+}
+.Accordion_accordion__Naf1K:not(:has(details[open])) .Accordion_default__7ofiI { opacity: 1; scale: 1; z-index: 1; }
+.Accordion_accordion__Naf1K:has(details:first-child[open]) .Accordion_image__hN6kA:first-child, .Accordion_accordion__Naf1K:has(details:nth-child(2)[open]) .Accordion_image__hN6kA:nth-child(2), .Accordion_accordion__Naf1K:has(details:nth-child(3)[open]) .Accordion_image__hN6kA:nth-child(3), .Accordion_accordion__Naf1K:has(details:nth-child(4)[open]) .Accordion_image__hN6kA:nth-child(4), .Accordion_accordion__Naf1K:has(details:nth-child(5)[open]) .Accordion_image__hN6kA:nth-child(5) { opacity: 1; scale: 1; z-index: 1; }
+.Accordion_accordion__Naf1K > div { padding: 2rem; }
+.Accordion_accordion__Naf1K div + div { border-left: 1px solid var(--border-color); }
+.Accordion_details__xxYKX + .Accordion_details__xxYKX { border-top: 1px solid var(--border-color); }
+.Accordion_details__xxYKX summary { cursor: pointer; font-weight: 700; padding: 1rem 0px; font-size: 1.25rem; color: rgb(187, 187, 187); display: flex; gap: 1rem; justify-content: space-between; align-items: center; text-align: left; }
+.Accordion_details__xxYKX summary::-webkit-details-marker { display: none; }
+.Accordion_details__xxYKX:open summary { color: rgb(255, 255, 255); }
+.Accordion_details__xxYKX summary svg { opacity: 1; }
+.Accordion_details__xxYKX[open] summary svg { opacity: 0; }
+.Accordion_details__xxYKX p { padding: 0px 0px 1rem; }
+.Accordion_details__xxYKX::details-content { overflow: hidden; height: 0px; transition: height 0.3s allow-discrete, content-visibility 0.3s; }
+.Accordion_details__xxYKX[open]::details-content { height: auto; }
+.Accordion_entries__XdoFY { display: flex; flex-direction: column; justify-content: center; flex-grow: 1; flex-shrink: 0; grid-area: entries; }
+.Accordion_images__3BwYp { position: relative; overflow: hidden; aspect-ratio: 1 / 1; grid-area: images; }
+.Accordion_image__hN6kA { transition: opacity 0.3s, scale 0.3s; position: absolute; inset: 0px; width: 100%; height: 100%; object-fit: cover; opacity: 0; scale: 1.1; }
+</style>

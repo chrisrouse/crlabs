@@ -3,6 +3,12 @@ import { borderDeclarations } from "c/crAccordionAppearance";
 
 let sectionCount = 0;
 
+/** Open and close animations the stylesheet knows. Anything else means no animation. */
+const ANIMATION_TYPES = ["slide"];
+
+/** How long an open or close animation takes, by speed. */
+const ANIMATION_DURATIONS = { slow: "600ms", normal: "400ms", fast: "250ms" };
+
 /**
  * Whether the component is running in the Experience Builder canvas. The canvas runs in a frame
  * on the live-preview host. This checks the frame's address, which is not a documented API, so
@@ -36,6 +42,8 @@ export default class CrAccordionSection extends LightningElement {
     @api versionInfo;
 
     _expanded = false;
+    _settled = false;
+    _animation = { type: "none", speed: "normal" };
     _showActions = true;
     _sectionBorder = { color: "", size: "0px", style: "solid", radius: "0px" };
     _openIconName = "utility:chevrondown";
@@ -60,7 +68,38 @@ export default class CrAccordionSection extends LightningElement {
         return this._expanded;
     }
     set expanded(value) {
-        this._expanded = Boolean(value);
+        this.applyOpenState(Boolean(value));
+    }
+
+    /**
+     * Stores the open state. A change clears cr-is-settled, so the content is clipped while it moves.
+     * @param {boolean} open Whether the section is open.
+     */
+    applyOpenState(open) {
+        if (open !== this._expanded) {
+            this._settled = false;
+        }
+        this._expanded = open;
+    }
+
+    /**
+     * How the content opens and closes: type (none or slide) and speed (slow, normal, or
+     * fast). A parent accordion sets this from its Animation settings.
+     * @returns {object}
+     */
+    @api
+    get animation() {
+        return this._animation;
+    }
+    set animation(value) {
+        this._animation = { ...this._animation, ...(value || {}) };
+    }
+
+    /**
+     * @returns {boolean} Whether the content animates when it opens and closes.
+     */
+    get isAnimated() {
+        return ANIMATION_TYPES.includes(this._animation.type);
     }
 
     /**
@@ -83,7 +122,12 @@ export default class CrAccordionSection extends LightningElement {
      * @returns {string}
      */
     get sectionStyle() {
-        return borderDeclarations(this._sectionBorder).join("; ");
+        const declarations = borderDeclarations(this._sectionBorder);
+        if (this.isAnimated) {
+            const duration = ANIMATION_DURATIONS[this._animation.speed] || ANIMATION_DURATIONS.normal;
+            declarations.push(`--cr-accordion-duration: ${duration}`);
+        }
+        return declarations.join("; ");
     }
 
     /**
@@ -306,10 +350,34 @@ export default class CrAccordionSection extends LightningElement {
     };
 
     /**
-     * @returns {string} The SLDS section classes, including slds-is-open when expanded.
+     * The SLDS section classes, with slds-is-open when expanded. An animated section also gets its
+     * animation's class, and cr-is-settled once it has finished opening, which lets its content
+     * overflow again.
+     * @returns {string}
      */
     get sectionClass() {
-        return this._expanded ? "slds-accordion__section slds-is-open" : "slds-accordion__section";
+        const classes = ["slds-accordion__section"];
+        if (this._expanded) {
+            classes.push("slds-is-open");
+        }
+        if (this.isAnimated) {
+            classes.push("cr-animated", `cr-animate-${this._animation.type}`);
+            if (this._expanded && this._settled) {
+                classes.push("cr-is-settled");
+            }
+        }
+        return classes.join(" ");
+    }
+
+    /**
+     * Marks the section as settled once its content has finished opening. Content is clipped while
+     * it moves, so it doesn't spill over the sections below.
+     * @param {TransitionEvent} event A transition ending on the content or inside it.
+     */
+    handleContentTransitionEnd(event) {
+        if (event.target === event.currentTarget && this._expanded) {
+            this._settled = true;
+        }
     }
 
     /**
@@ -348,7 +416,7 @@ export default class CrAccordionSection extends LightningElement {
      * @param {boolean} open Whether the section should be open.
      */
     setExpanded(open) {
-        this._expanded = open;
+        this.applyOpenState(open);
         this.dispatchEvent(new CustomEvent("sectiontoggle", { bubbles: true, detail: { open } }));
     }
 }

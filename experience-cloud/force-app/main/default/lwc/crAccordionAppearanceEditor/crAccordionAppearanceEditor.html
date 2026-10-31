@@ -267,24 +267,27 @@
             </button>
             <template lwc:if={open.animation}>
                 <div class="style-section__body">
-                    <lightning-combobox
+                    <lightning-input
                         class="appearance-field"
-                        label="Open and Close"
-                        options={animationOptions}
-                        value={appearance.animation.type}
+                        type="checkbox"
+                        label="Animate Open and Close"
+                        checked={isAnimated}
                         data-part="animation"
                         data-field="type"
-                        onchange={handleOptionChange}
-                    ></lightning-combobox>
-                    <lightning-combobox
-                        label="Speed"
-                        options={speedOptions}
-                        value={appearance.animation.speed}
-                        data-part="animation"
-                        data-field="speed"
-                        class="appearance-field"
-                        onchange={handleOptionChange}
-                    ></lightning-combobox>
+                        onchange={handleAnimateChange}
+                    ></lightning-input>
+                    <template lwc:if={isAnimated}>
+                        <lightning-radio-group
+                            class="appearance-field"
+                            type="button"
+                            label="Speed"
+                            options={speedOptions}
+                            value={appearance.animation.speed}
+                            data-part="animation"
+                            data-field="speed"
+                            onchange={handleOptionChange}
+                        ></lightning-radio-group>
+                    </template>
                 </div>
             </template>
         </div>

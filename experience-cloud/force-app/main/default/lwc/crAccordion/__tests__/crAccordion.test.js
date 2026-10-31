@@ -138,4 +138,14 @@ describe("c-cr-accordion", () => {
         expect(wrapperStyle(accordion)).toContain("border: 3px dotted #00ff00");
         expect(wrapperStyle(accordion)).toContain("border-radius: 1rem");
     });
+
+    it("gives every section the animation", async () => {
+        const { accordion, first, second } = renderAccordion();
+
+        accordion.appearance = JSON.stringify({ animation: { type: "slide", speed: "slow" } });
+        await Promise.resolve();
+
+        expect(first.animation).toEqual({ type: "slide", speed: "slow" });
+        expect(second.animation).toEqual({ type: "slide", speed: "slow" });
+    });
 });

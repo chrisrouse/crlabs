@@ -47,3 +47,81 @@
 .cr-accordion__body {
     padding: 0.875rem;
 }
+
+/*
+ * Slide animation. SLDS hides closed content with height 0, which can't animate to auto. An animated
+ * section instead makes the content a one-row grid and moves the row between 0fr and 1fr, while the
+ * body travels down from above with it. The clip holds the content at 0 while closed and hides it
+ * while it moves, until cr-is-settled.
+ *
+ * Only the height moves. The margins are set once: the header keeps margin-bottom 0, and the content
+ * always reaches the section's side and bottom edges. A closed section lays out the same as SLDS's,
+ * since the empty content takes the header's place in the bottom padding.
+ */
+.cr-animated > .slds-accordion__summary {
+    position: relative;
+    z-index: 1;
+    margin-bottom: 0;
+    transition: box-shadow var(--cr-accordion-duration) ease;
+}
+
+/* A light shadow under the open header, so the content reads as coming out from under it. */
+.cr-animated.slds-is-open > .slds-accordion__summary {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    transition: box-shadow calc(var(--cr-accordion-duration) / 4) ease;
+}
+
+/* The content stays visible; the body inside does the hiding, so closing can play out. */
+.cr-animated > .slds-accordion__content {
+    display: grid;
+    grid-template-rows: 0fr;
+    height: auto;
+    visibility: visible;
+    opacity: 1;
+    margin-right: calc(var(--slds-c-accordion-section-spacing-inline-end, 0.75rem) * -1);
+    margin-bottom: calc(var(--slds-c-accordion-section-spacing-block-end, 0.75rem) * -1);
+    margin-left: calc(var(--slds-c-accordion-section-spacing-inline-start, 0.75rem) * -1);
+    transition: grid-template-rows var(--cr-accordion-duration) ease;
+}
+
+.cr-animated.slds-is-open > .slds-accordion__content {
+    grid-template-rows: 1fr;
+}
+
+.cr-animated .cr-accordion__clip {
+    min-height: 0;
+    overflow: hidden;
+}
+
+.cr-animated.cr-is-settled .cr-accordion__clip {
+    overflow: visible;
+}
+
+.cr-animated .cr-accordion__body {
+    transform: translateY(-100%);
+    visibility: hidden;
+    transition:
+        transform var(--cr-accordion-duration) ease,
+        visibility 0s var(--cr-accordion-duration);
+}
+
+.cr-animated.slds-is-open .cr-accordion__body {
+    transform: none;
+    visibility: visible;
+    transition:
+        transform var(--cr-accordion-duration) ease,
+        visibility 0s;
+}
+
+/* No movement for people who ask for less. Nothing moves, so open content can overflow right away. */
+@media (prefers-reduced-motion: reduce) {
+    .cr-animated > .slds-accordion__summary,
+    .cr-animated > .slds-accordion__content,
+    .cr-animated .cr-accordion__body {
+        transition: none;
+    }
+
+    .cr-animated.slds-is-open .cr-accordion__clip {
+        overflow: visible;
+    }
+}

@@ -27,9 +27,16 @@
                 </div>
             </template>
         </div>
-        <div id={contentId} class="slds-accordion__content" style={contentStyle}>
-            <div class="cr-accordion__body">
-                <slot name="content"></slot>
+        <div
+            id={contentId}
+            class="slds-accordion__content"
+            style={contentStyle}
+            ontransitionend={handleContentTransitionEnd}
+        >
+            <div class="cr-accordion__clip">
+                <div class="cr-accordion__body">
+                    <slot name="content"></slot>
+                </div>
             </div>
         </div>
     </section>
