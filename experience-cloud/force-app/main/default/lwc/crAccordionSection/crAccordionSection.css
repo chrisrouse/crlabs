@@ -21,6 +21,27 @@
     transform: none !important;
 }
 
+/* Both icons sit in the same spot and cross-fade, on the same timing as the header color and the
+   content, so the whole section changes together. Each icon carries its own background. */
+.cr-toggle {
+    display: inline-grid;
+}
+
+.cr-toggle__icon {
+    grid-area: 1 / 1;
+    place-self: center;
+    transition: opacity var(--cr-accordion-duration, 200ms) ease;
+}
+
+.cr-toggle__open,
+.slds-is-open .cr-toggle__close {
+    opacity: 0;
+}
+
+.slds-is-open .cr-toggle__open {
+    opacity: 1;
+}
+
 /* The site's focus ring (dxp-slds-extensions, .slds-button:focus) also shows after a mouse click,
    boxing the whole header. It's kept for keyboard focus and cleared only when the browser says
    focus came from a pointer, the same rule browsers use for their own focus rings. */
@@ -28,6 +49,11 @@
     box-shadow: none;
     border-color: transparent;
     outline: none;
+}
+
+/* The header's color eases between open and closed, at the animation's speed when there is one. */
+.slds-accordion__summary {
+    transition: background-color var(--cr-accordion-duration, 200ms) ease;
 }
 
 /* SLDS keeps the title on one line and hides the overflow. The title slot can hold any component,
@@ -113,6 +139,8 @@
 
 /* No movement for people who ask for less. Nothing moves, so open content can overflow right away. */
 @media (prefers-reduced-motion: reduce) {
+    .slds-accordion__summary,
+    .cr-toggle__icon,
     .cr-animated > .slds-accordion__content,
     .cr-animated .cr-accordion__body {
         transition: none;

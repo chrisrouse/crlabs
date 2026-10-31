@@ -9,12 +9,22 @@
                     onclick={handleHeaderClick}
                 >
                     <template lwc:if={showToggleIcon}>
-                        <lightning-icon
-                            icon-name={toggleIconName}
-                            size={iconSize}
-                            style={iconStyle}
-                            class="slds-accordion__summary-action-icon slds-m-right_x-small"
-                        ></lightning-icon>
+                        <span class="slds-accordion__summary-action-icon cr-toggle slds-m-right_x-small">
+                            <lightning-icon
+                                class="cr-toggle__icon cr-toggle__close"
+                                data-state="close"
+                                icon-name={closeIconName}
+                                size={iconSize}
+                                style={closeIconStyle}
+                            ></lightning-icon>
+                            <lightning-icon
+                                class="cr-toggle__icon cr-toggle__open"
+                                data-state="open"
+                                icon-name={openIconName}
+                                size={iconSize}
+                                style={openIconStyle}
+                            ></lightning-icon>
+                        </span>
                     </template>
                     <span class="slds-accordion__summary-content">
                         <slot name="title"></slot>

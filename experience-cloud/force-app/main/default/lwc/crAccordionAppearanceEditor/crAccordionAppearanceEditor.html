@@ -223,6 +223,17 @@
                         data-field="radius"
                         onmeasurechange={handleMeasureChange}
                     ></c-cr-measure-input>
+                    <template lwc:if={hasRadius.sectionBorder}>
+                        <c-cr-sides-picker
+                            class="appearance-field"
+                            kind="corners"
+                            label="Rounded Corners"
+                            value={appearance.sectionBorder.radiusCorners}
+                            data-part="sectionBorder"
+                            data-field="radiusCorners"
+                            onsideschange={handleOptionChange}
+                        ></c-cr-sides-picker>
+                    </template>
                     <c-cr-measure-input
                         class="appearance-field"
                         label="Shadow Size (0–30)"
@@ -307,6 +318,17 @@
                         data-field="radius"
                         onmeasurechange={handleMeasureChange}
                     ></c-cr-measure-input>
+                    <template lwc:if={hasRadius.containerBorder}>
+                        <c-cr-sides-picker
+                            class="appearance-field"
+                            kind="corners"
+                            label="Rounded Corners"
+                            value={appearance.containerBorder.radiusCorners}
+                            data-part="containerBorder"
+                            data-field="radiusCorners"
+                            onsideschange={handleOptionChange}
+                        ></c-cr-sides-picker>
+                    </template>
                     <c-cr-measure-input
                         class="appearance-field"
                         label="Shadow Size (0–30)"

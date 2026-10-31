@@ -6,6 +6,9 @@
 /** Box sides in CSS order. Borders and shadows apply to any combination of them. */
 export const ALL_SIDES = Object.freeze(["top", "right", "bottom", "left"]);
 
+/** Box corners in CSS order. A radius rounds any combination of them. */
+export const ALL_CORNERS = Object.freeze(["top-left", "top-right", "bottom-right", "bottom-left"]);
+
 /** Border settings with no border drawn: every side selected, no weight, and no shadow. The shadow
  * is a blur length; 0 draws none. */
 const NO_BORDER = Object.freeze({
@@ -13,6 +16,7 @@ const NO_BORDER = Object.freeze({
     size: "0px",
     style: "solid",
     radius: "0px",
+    radiusCorners: ALL_CORNERS,
     sides: ALL_SIDES,
     shadow: "0px",
     shadowColor: "",
@@ -99,19 +103,40 @@ function shadowValue(shadow, sides, color) {
  * @returns {string[]}
  */
 function readSides(sides) {
-    return Array.isArray(sides) ? ALL_SIDES.filter((side) => sides.includes(side)) : [...ALL_SIDES];
+    return readList(sides, ALL_SIDES);
+}
+
+/**
+ * Reads a stored list of sides or corners, keeping CSS order. Anything that isn't a list means all.
+ * @param {string[]} items The stored list.
+ * @param {readonly string[]} all Every side or corner, in CSS order.
+ * @returns {string[]}
+ */
+function readList(items, all) {
+    return Array.isArray(items) ? all.filter((item) => items.includes(item)) : [...all];
 }
 
 /**
  * Turns border settings into CSS declarations. A weight of 0 or no sides draws no border, and an
  * unset color uses the site's standard border color. A radius also clips the inside to the rounded
- * corners, so colors don't poke out. The shadow is drawn on its own sides, in its own color, or in
+ * corners, which can be any of the four, so colors don't poke out. The shadow is drawn on its own sides, in its own color, or in
  * the border's color when it has none.
- * @param {object} border The border settings: color, size, style, radius, sides, shadow, shadowColor,
+ * @param {object} border The border settings: color, size, style, radius, radiusCorners, sides, shadow,
+ * shadowColor,
  * and shadowSides.
  * @returns {string[]} The CSS declarations, empty when there's nothing to draw.
  */
-export function borderDeclarations({ color, size, style, radius, sides, shadow, shadowColor, shadowSides }) {
+export function borderDeclarations({
+    color,
+    size,
+    style,
+    radius,
+    radiusCorners,
+    sides,
+    shadow,
+    shadowColor,
+    shadowSides
+}) {
     const declarations = [];
     const borderSides = readSides(sides);
     if (parseFloat(size) > 0 && borderSides.length) {
@@ -123,7 +148,15 @@ export function borderDeclarations({ color, size, style, radius, sides, shadow, 
         }
     }
     if (parseFloat(radius) > 0) {
-        declarations.push(`border-radius: ${radius}`, "overflow: hidden");
+        const corners = readList(radiusCorners, ALL_CORNERS);
+        if (corners.length === ALL_CORNERS.length) {
+            declarations.push(`border-radius: ${radius}`);
+        } else {
+            corners.forEach((corner) => declarations.push(`border-${corner}-radius: ${radius}`));
+        }
+        if (corners.length) {
+            declarations.push("overflow: hidden");
+        }
     }
     const boxShadow = shadowValue(shadow, readSides(shadowSides), shadowColor || color || DEFAULT_BORDER_COLOR);
     if (boxShadow) {

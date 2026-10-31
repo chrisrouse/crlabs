@@ -80,4 +80,10 @@ describe("c/crAccordionAppearance", () => {
             "box-shadow: 0 0 4px var(--slds-g-color-border-1, #c9c9c9)"
         ]);
     });
+
+    it("rounds only the chosen corners", () => {
+        expect(
+            borderDeclarations(border({ size: "0px", radius: "8px", radiusCorners: ["top-left", "top-right"] }))
+        ).toEqual(["border-top-left-radius: 8px", "border-top-right-radius: 8px", "overflow: hidden"]);
+    });
 });

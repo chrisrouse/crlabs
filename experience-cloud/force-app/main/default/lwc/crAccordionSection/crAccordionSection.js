@@ -7,7 +7,7 @@ let sectionCount = 0;
 const ANIMATION_TYPES = ["slide"];
 
 /** How long an open or close animation takes, by speed. */
-const ANIMATION_DURATIONS = { slow: "600ms", normal: "400ms", fast: "250ms" };
+const ANIMATION_DURATIONS = { slow: 600, normal: 400, fast: 250 };
 
 /**
  * Whether the component is running in the Experience Builder canvas. The canvas runs in a frame
@@ -127,7 +127,7 @@ export default class CrAccordionSection extends LightningElement {
         const declarations = borderDeclarations(this._sectionBorder);
         if (this.isAnimated) {
             const duration = ANIMATION_DURATIONS[this._animation.speed] || ANIMATION_DURATIONS.normal;
-            declarations.push(`--cr-accordion-duration: ${duration}`);
+            declarations.push(`--cr-accordion-duration: ${duration}ms`);
         }
         return declarations.join("; ");
     }
@@ -205,17 +205,6 @@ export default class CrAccordionSection extends LightningElement {
     }
 
     /**
-     * The icon's background in the current state. An open section uses the open background when one
-     * is set, and the regular icon background otherwise.
-     * @returns {string}
-     */
-    get currentIconBackground() {
-        return this._expanded && this._iconOpenBackgroundColor
-            ? this._iconOpenBackgroundColor
-            : this._iconBackgroundColor;
-    }
-
-    /**
      * Color of the toggle icon. A parent accordion sets this.
      * @returns {string}
      */
@@ -228,14 +217,32 @@ export default class CrAccordionSection extends LightningElement {
     }
 
     /**
-     * Inline style for the toggle icon. Sets only the colors that have a value, so the icon's
-     * defaults apply otherwise.
+     * Inline style for the closed-state icon: the regular icon background and the icon color.
      * @returns {string}
      */
-    get iconStyle() {
+    get closeIconStyle() {
+        return this.iconStyleFor(this._iconBackgroundColor);
+    }
+
+    /**
+     * Inline style for the open-state icon: the open background when one is set, otherwise the
+     * regular one, and the icon color.
+     * @returns {string}
+     */
+    get openIconStyle() {
+        return this.iconStyleFor(this._iconOpenBackgroundColor || this._iconBackgroundColor);
+    }
+
+    /**
+     * Builds an icon's inline style. Sets only the colors that have a value, so the icon's defaults
+     * apply otherwise.
+     * @param {string} background The icon's background color, or empty.
+     * @returns {string}
+     */
+    iconStyleFor(background) {
         const declarations = [];
-        if (this.currentIconBackground) {
-            declarations.push(`--sds-c-icon-color-background: ${this.currentIconBackground}`);
+        if (background) {
+            declarations.push(`--sds-c-icon-color-background: ${background}`);
         }
         if (this._iconForegroundColor) {
             declarations.push(`--sds-c-icon-color-foreground: ${this._iconForegroundColor}`);
@@ -347,11 +354,14 @@ export default class CrAccordionSection extends LightningElement {
      */
     renderedCallback() {
         // The template's class binding doesn't keep the circle on a utility icon, so it is set here.
-        const icon = this.template.querySelector("lightning-icon");
-        if (icon) {
-            const circle = Boolean(this.currentIconBackground) && this.toggleIconName.startsWith("utility:");
-            icon.classList.toggle("slds-icon_container_circle", circle);
-        }
+        this.template.querySelectorAll("lightning-icon").forEach((icon) => {
+            const open = icon.dataset.state === "open";
+            const background = open
+                ? this._iconOpenBackgroundColor || this._iconBackgroundColor
+                : this._iconBackgroundColor;
+            const name = (open ? this._openIconName : this._closeIconName) || "";
+            icon.classList.toggle("slds-icon_container_circle", Boolean(background) && name.startsWith("utility:"));
+        });
         if (this._builderWrapper || !isInExperienceBuilder()) {
             return;
         }
@@ -417,14 +427,7 @@ export default class CrAccordionSection extends LightningElement {
      * @returns {boolean} Whether to show the toggle icon.
      */
     get showToggleIcon() {
-        return !this._hideIcon && Boolean(this.toggleIconName);
-    }
-
-    /**
-     * @returns {string} The icon for the toggle in the current state.
-     */
-    get toggleIconName() {
-        return this._expanded ? this._openIconName : this._closeIconName;
+        return !this._hideIcon && Boolean(this._openIconName || this._closeIconName);
     }
 
     /**

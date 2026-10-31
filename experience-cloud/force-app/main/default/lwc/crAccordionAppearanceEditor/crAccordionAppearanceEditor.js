@@ -144,6 +144,17 @@ export default class CrAccordionAppearanceEditor extends LightningElement {
      * Whether each border part has a shadow, which shows its Shadow Sides field.
      * @returns {{sectionBorder: boolean, containerBorder: boolean}}
      */
+    get hasRadius() {
+        return {
+            sectionBorder: parseFloat(this._appearance.sectionBorder.radius) > 0,
+            containerBorder: parseFloat(this._appearance.containerBorder.radius) > 0
+        };
+    }
+
+    /**
+     * Whether each border part has a shadow, which shows its Shadow Sides field.
+     * @returns {{sectionBorder: boolean, containerBorder: boolean}}
+     */
     get hasShadow() {
         return {
             sectionBorder: parseFloat(this._appearance.sectionBorder.shadow) > 0,

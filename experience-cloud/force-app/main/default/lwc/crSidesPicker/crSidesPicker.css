@@ -45,6 +45,11 @@
     stroke-linecap: square;
 }
 
+.tile__icon rect,
+.tile__icon path {
+    fill: none;
+}
+
 .tile__icon .on {
     stroke: currentColor;
     stroke-width: 2.5;

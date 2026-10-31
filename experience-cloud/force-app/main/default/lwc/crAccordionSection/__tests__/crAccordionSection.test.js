@@ -188,26 +188,45 @@ describe("c-cr-accordion-section", () => {
         expect(body(element).getAttribute("style")).toBe("border-top: 2px dashed #123456");
     });
 
-    const iconStyle = (element) => element.shadowRoot.querySelector("lightning-icon").getAttribute("style") || "";
+    const icon = (element, state) => element.shadowRoot.querySelector(`lightning-icon[data-state="${state}"]`);
+    const iconStyle = (element, state) => icon(element, state).getAttribute("style") || "";
 
-    it("uses the icon's open background only while the section is open", async () => {
+    it("shows both icons, each with its own background, so they can cross-fade", async () => {
         const element = renderSection();
+        element.openIconName = "utility:dash";
+        element.closeIconName = "utility:add";
         element.iconBackgroundColor = "#eeeeee";
         element.iconOpenBackgroundColor = "#0176d3";
         await Promise.resolve();
-        expect(iconStyle(element)).toContain("#eeeeee");
 
-        element.shadowRoot.querySelector("button").click();
-        await Promise.resolve();
-        expect(iconStyle(element)).toContain("#0176d3");
+        expect(icon(element, "close").iconName).toBe("utility:add");
+        expect(icon(element, "open").iconName).toBe("utility:dash");
+        expect(iconStyle(element, "close")).toContain("#eeeeee");
+        expect(iconStyle(element, "open")).toContain("#0176d3");
     });
 
-    it("keeps the regular icon background when no open background is set", async () => {
+    it("gives the open icon the regular background when no open background is set", async () => {
         const element = renderSection();
         element.iconBackgroundColor = "#eeeeee";
-        element.shadowRoot.querySelector("button").click();
         await Promise.resolve();
 
-        expect(iconStyle(element)).toContain("#eeeeee");
+        expect(iconStyle(element, "open")).toContain("#eeeeee");
+    });
+
+    it("changes the header the moment the section closes", async () => {
+        const element = renderSection();
+        element.animation = { type: "slide", speed: "normal" };
+        element.headerBackgroundColor = "#eeeeee";
+        element.headerOpenBackgroundColor = "#0176d3";
+        const button = () => element.shadowRoot.querySelector("button");
+        const header = () => element.shadowRoot.querySelector(".slds-accordion__summary").getAttribute("style");
+
+        button().click();
+        await Promise.resolve();
+        expect(header()).toContain("#0176d3");
+
+        button().click();
+        await Promise.resolve();
+        expect(header()).toContain("#eeeeee");
     });
 });

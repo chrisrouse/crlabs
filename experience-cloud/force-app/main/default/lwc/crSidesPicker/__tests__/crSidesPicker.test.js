@@ -17,11 +17,11 @@ describe("c-cr-sides-picker", () => {
         return element;
     };
 
-    const tile = (element, side) => element.shadowRoot.querySelector(`button[data-side="${side}"]`);
+    const tile = (element, side) => element.shadowRoot.querySelector(`button[data-item="${side}"]`);
     const pressed = (element) =>
         Array.from(element.shadowRoot.querySelectorAll("button"))
             .filter((button) => button.getAttribute("aria-pressed") === "true")
-            .map((button) => button.dataset.side);
+            .map((button) => button.dataset.item);
 
     it("shows Top, Right, Bottom, and Left, all on by default", () => {
         const element = renderPicker();
@@ -43,5 +43,16 @@ describe("c-cr-sides-picker", () => {
         expect(handler.mock.calls[1][0].detail.value).toEqual(["bottom", "left"]);
         await Promise.resolve();
         expect(pressed(element)).toEqual(["bottom", "left"]);
+    });
+
+    it("offers the four corners in CSS order when set to corners", () => {
+        const element = createElement("c-cr-sides-picker", { is: CrSidesPicker });
+        element.kind = "corners";
+        element.value = ["top-left", "top-right"];
+        document.body.appendChild(element);
+
+        const labels = Array.from(element.shadowRoot.querySelectorAll("button")).map((b) => b.textContent.trim());
+        expect(labels).toEqual(["Top Left", "Top Right", "Bottom Right", "Bottom Left"]);
+        expect(pressed(element)).toEqual(["top-left", "top-right"]);
     });
 });
