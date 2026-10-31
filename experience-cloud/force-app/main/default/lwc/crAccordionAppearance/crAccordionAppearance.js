@@ -15,6 +15,7 @@ const NO_BORDER = Object.freeze({
     radius: "0px",
     sides: ALL_SIDES,
     shadow: "0px",
+    shadowColor: "",
     shadowSides: ALL_SIDES
 });
 
@@ -62,9 +63,6 @@ export function parseAppearance(json) {
 /** Border color used when no custom color is chosen: the site's standard border color. */
 const DEFAULT_BORDER_COLOR = "var(--slds-g-color-border-1, #c9c9c9)";
 
-/** Shadow color: a soft black that works on light and dark backgrounds. */
-const SHADOW_COLOR = "rgba(0, 0, 0, 0.2)";
-
 /** Which way each side's shadow is pushed, as x and y multipliers of the blur. */
 const SHADOW_DIRECTION = { top: [0, -1], right: [1, 0], bottom: [0, 1], left: [-1, 0] };
 
@@ -74,21 +72,22 @@ const SHADOW_DIRECTION = { top: [0, -1], right: [1, 0], bottom: [0, 1], left: [-
  * amount of negative spread, so it shows only on its own side.
  * @param {string} shadow The blur as a CSS length, such as "8px". The shadow reaches out this far.
  * @param {string[]} sides The sides with a shadow.
+ * @param {string} color The shadow color.
  * @returns {string} The box-shadow value, or empty for no shadow.
  */
-function shadowValue(shadow, sides) {
+function shadowValue(shadow, sides, color) {
     const blur = parseFloat(shadow);
     if (!(blur > 0) || !sides.length) {
         return "";
     }
     const unit = /[a-z%]+$/i.exec(shadow)?.[0] || "px";
     if (sides.length === ALL_SIDES.length) {
-        return `0 0 ${blur}${unit} ${SHADOW_COLOR}`;
+        return `0 0 ${blur}${unit} ${color}`;
     }
     return sides
         .map((side) => {
             const [x, y] = SHADOW_DIRECTION[side];
-            return `${x * blur}${unit} ${y * blur}${unit} ${blur}${unit} -${blur}${unit} ${SHADOW_COLOR}`;
+            return `${x * blur}${unit} ${y * blur}${unit} ${blur}${unit} -${blur}${unit} ${color}`;
         })
         .join(", ");
 }
@@ -105,11 +104,13 @@ function readSides(sides) {
 /**
  * Turns border settings into CSS declarations. A weight of 0 or no sides draws no border, and an
  * unset color uses the site's standard border color. A radius also clips the inside to the rounded
- * corners, so colors don't poke out. The shadow is drawn on its own sides.
- * @param {object} border The border settings: color, size, style, radius, sides, shadow, shadowSides.
+ * corners, so colors don't poke out. The shadow is drawn on its own sides, in its own color, or in
+ * the border's color when it has none.
+ * @param {object} border The border settings: color, size, style, radius, sides, shadow, shadowColor,
+ * and shadowSides.
  * @returns {string[]} The CSS declarations, empty when there's nothing to draw.
  */
-export function borderDeclarations({ color, size, style, radius, sides, shadow, shadowSides }) {
+export function borderDeclarations({ color, size, style, radius, sides, shadow, shadowColor, shadowSides }) {
     const declarations = [];
     const borderSides = readSides(sides);
     if (parseFloat(size) > 0 && borderSides.length) {
@@ -123,7 +124,7 @@ export function borderDeclarations({ color, size, style, radius, sides, shadow, 
     if (parseFloat(radius) > 0) {
         declarations.push(`border-radius: ${radius}`, "overflow: hidden");
     }
-    const boxShadow = shadowValue(shadow, readSides(shadowSides));
+    const boxShadow = shadowValue(shadow, readSides(shadowSides), shadowColor || color || DEFAULT_BORDER_COLOR);
     if (boxShadow) {
         declarations.push(`box-shadow: ${boxShadow}`);
     }

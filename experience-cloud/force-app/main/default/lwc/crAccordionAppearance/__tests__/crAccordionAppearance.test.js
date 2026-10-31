@@ -55,19 +55,29 @@ describe("c/crAccordionAppearance", () => {
     });
 
     it("draws an even shadow on all sides", () => {
-        expect(borderDeclarations(border({ size: "0px", shadow: "4px" }))).toEqual([
-            "box-shadow: 0 0 4px rgba(0, 0, 0, 0.2)"
-        ]);
+        expect(borderDeclarations(border({ size: "0px", shadow: "4px" }))).toEqual(["box-shadow: 0 0 4px #000000"]);
     });
 
     it("draws a shadow only on the chosen sides", () => {
         expect(borderDeclarations(border({ size: "0px", shadow: "8px", shadowSides: ["bottom"] }))).toEqual([
-            "box-shadow: 0px 8px 8px -8px rgba(0, 0, 0, 0.2)"
+            "box-shadow: 0px 8px 8px -8px #000000"
         ]);
     });
 
     it("defaults to all sides and no shadow", () => {
         expect(DEFAULT_APPEARANCE.sectionBorder.sides).toEqual(["top", "right", "bottom", "left"]);
         expect(DEFAULT_APPEARANCE.sectionBorder.shadow).toBe("0px");
+    });
+
+    it("draws the shadow in its own color when one is chosen", () => {
+        expect(borderDeclarations(border({ size: "0px", shadow: "4px", shadowColor: "#ff0000" }))).toEqual([
+            "box-shadow: 0 0 4px #ff0000"
+        ]);
+    });
+
+    it("uses the site's border color for the shadow when neither color is chosen", () => {
+        expect(borderDeclarations(border({ color: "", size: "0px", shadow: "4px" }))).toEqual([
+            "box-shadow: 0 0 4px var(--slds-g-color-border-1, #c9c9c9)"
+        ]);
     });
 });

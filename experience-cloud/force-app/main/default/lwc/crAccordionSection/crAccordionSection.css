@@ -68,17 +68,7 @@
  * since the empty content takes the header's place in the bottom padding.
  */
 .cr-animated > .slds-accordion__summary {
-    position: relative;
-    z-index: 1;
     margin-bottom: 0;
-    transition: box-shadow var(--cr-accordion-duration) ease;
-}
-
-/* A light shadow under the open header, so the content reads as coming out from under it. The
-   negative spread equals the blur and the offset, so nothing shows above or beside the header. */
-.cr-animated.slds-is-open > .slds-accordion__summary {
-    box-shadow: 0 3px 3px -3px rgba(0, 0, 0, 0.25);
-    transition: box-shadow calc(var(--cr-accordion-duration) / 4) ease;
 }
 
 /* The content stays visible; the body inside does the hiding, so closing can play out. */
@@ -125,7 +115,6 @@
 
 /* No movement for people who ask for less. Nothing moves, so open content can overflow right away. */
 @media (prefers-reduced-motion: reduce) {
-    .cr-animated > .slds-accordion__summary,
     .cr-animated > .slds-accordion__content,
     .cr-animated .cr-accordion__body {
         transition: none;

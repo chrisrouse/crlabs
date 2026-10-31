@@ -234,6 +234,13 @@
                         onmeasurechange={handleMeasureChange}
                     ></c-cr-measure-input>
                     <template lwc:if={hasShadow.sectionBorder}>
+                        <c-cr-color-row
+                            label="Shadow Color"
+                            value={appearance.sectionBorder.shadowColor}
+                            data-part="sectionBorder"
+                            data-field="shadowColor"
+                            oncolorchange={handleColorChange}
+                        ></c-cr-color-row>
                         <c-cr-sides-picker
                             class="appearance-field"
                             label="Shadow Sides"
@@ -311,6 +318,13 @@
                         onmeasurechange={handleMeasureChange}
                     ></c-cr-measure-input>
                     <template lwc:if={hasShadow.containerBorder}>
+                        <c-cr-color-row
+                            label="Shadow Color"
+                            value={appearance.containerBorder.shadowColor}
+                            data-part="containerBorder"
+                            data-field="shadowColor"
+                            oncolorchange={handleColorChange}
+                        ></c-cr-color-row>
                         <c-cr-sides-picker
                             class="appearance-field"
                             label="Shadow Sides"
