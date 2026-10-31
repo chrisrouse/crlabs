@@ -103,4 +103,38 @@ describe("c-cr-accordion-section", () => {
 
         expect(actionsSlot(element)).toBeNull();
     });
+
+    const sectionBox = (element) => element.shadowRoot.querySelector("section");
+
+    it("draws no border by default", () => {
+        const element = renderSection();
+
+        expect(sectionBox(element).getAttribute("style") || "").not.toContain("border");
+    });
+
+    it("draws the border with the chosen size, style, and color", async () => {
+        const element = renderSection();
+        element.sectionBorder = { color: "#ff0000", size: "2px", style: "dashed", radius: "0px" };
+        await Promise.resolve();
+
+        expect(sectionBox(element).getAttribute("style")).toContain("border: 2px dashed #ff0000");
+    });
+
+    it("uses the site's border color when no color is chosen", async () => {
+        const element = renderSection();
+        element.sectionBorder = { size: "1px" };
+        await Promise.resolve();
+
+        expect(sectionBox(element).getAttribute("style")).toContain("border: 1px solid var(--slds-g-color-border-1");
+    });
+
+    it("rounds the corners and clips the colors to them", async () => {
+        const element = renderSection();
+        element.sectionBorder = { radius: "12px" };
+        await Promise.resolve();
+
+        const style = sectionBox(element).getAttribute("style");
+        expect(style).toContain("border-radius: 12px");
+        expect(style).toContain("overflow: hidden");
+    });
 });

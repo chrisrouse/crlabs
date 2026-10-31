@@ -36,6 +36,7 @@ export default class CrAccordionSection extends LightningElement {
 
     _expanded = false;
     _showActions = true;
+    _sectionBorder = { color: "", size: "0px", style: "solid", radius: "0px" };
     _openIconName = "utility:chevrondown";
     _closeIconName = "utility:chevronright";
     _hideIcon = false;
@@ -59,6 +60,39 @@ export default class CrAccordionSection extends LightningElement {
     }
     set expanded(value) {
         this._expanded = Boolean(value);
+    }
+
+    /**
+     * The border around the section: color, size, line style, and radius. A parent accordion sets
+     * this from its Section Border settings.
+     * @returns {object}
+     */
+    @api
+    get sectionBorder() {
+        return this._sectionBorder;
+    }
+    set sectionBorder(value) {
+        this._sectionBorder = { ...this._sectionBorder, ...(value || {}) };
+    }
+
+    /**
+     * Inline style for the section's border. A size of 0 draws no border. With no color chosen, the
+     * site's standard border color is used. A radius also clips the header and content colors to the
+     * rounded corners.
+     * @returns {string}
+     */
+    get sectionStyle() {
+        const { color, size, style, radius } = this._sectionBorder;
+        const declarations = [];
+        if (parseFloat(size) > 0) {
+            declarations.push(
+                `border: ${size} ${style || "solid"} ${color || "var(--slds-g-color-border-1, #c9c9c9)"}`
+            );
+        }
+        if (parseFloat(radius) > 0) {
+            declarations.push(`border-radius: ${radius}`, "overflow: hidden");
+        }
+        return declarations.join("; ");
     }
 
     /**

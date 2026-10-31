@@ -29,6 +29,7 @@ export default class CrAccordion extends LightningElement {
     _headerBackgroundColor = DEFAULTS.header.background;
     _headerOpenBackgroundColor = DEFAULTS.header.openBackground;
     _contentBackgroundColor = DEFAULTS.content.background;
+    _sectionBorder = { ...DEFAULTS.sectionBorder };
     _sections = new Set();
 
     /**
@@ -48,7 +49,7 @@ export default class CrAccordion extends LightningElement {
     /**
      * Style settings as one JSON string, edited in the Appearance editor. Only the settings that are
      * connected so far are applied: the toggle settings, the header and open header backgrounds, the
-     * content background, and the space between sections.
+     * content background, the section border, and the space between sections.
      * @returns {string}
      */
     @api
@@ -69,6 +70,7 @@ export default class CrAccordion extends LightningElement {
         this._headerBackgroundColor = appearance.header.background;
         this._headerOpenBackgroundColor = appearance.header.openBackground;
         this._contentBackgroundColor = appearance.content.background;
+        this._sectionBorder = appearance.sectionBorder;
         this._sections.forEach((section) => this.passSettingsTo(section));
     }
 
@@ -142,6 +144,7 @@ export default class CrAccordion extends LightningElement {
         section.headerBackgroundColor = this._headerBackgroundColor;
         section.headerOpenBackgroundColor = this._headerOpenBackgroundColor;
         section.contentBackgroundColor = this._contentBackgroundColor;
+        section.sectionBorder = this._sectionBorder;
     }
 
     /**

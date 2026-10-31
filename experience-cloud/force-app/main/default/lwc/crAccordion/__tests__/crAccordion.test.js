@@ -107,4 +107,17 @@ describe("c-cr-accordion", () => {
             expect(section.shadowRoot.querySelector('slot[name="actions"]')).toBeNull();
         });
     });
+
+    it("passes the section border from the appearance to every section", async () => {
+        const { accordion, first, second } = renderAccordion();
+
+        accordion.appearance = JSON.stringify({ sectionBorder: { size: "2px", style: "dotted", radius: "8px" } });
+        await Promise.resolve();
+
+        [first, second].forEach((section) => {
+            expect(section.sectionBorder.size).toBe("2px");
+            expect(section.sectionBorder.style).toBe("dotted");
+            expect(section.sectionBorder.radius).toBe("8px");
+        });
+    });
 });
