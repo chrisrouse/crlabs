@@ -6,9 +6,11 @@
  * The section's own padding is left alone, because the closed header depends on it.
  */
 
-/* The toggle takes its place from the accordion: 0 puts it first (left), 2 after the title (right). */
+/* The toggle takes its place from the accordion: 0 puts it first (left), 2 after the title (right).
+   On the right it's pushed to the far edge, so it lines up in every section whatever the title's length. */
 .slds-accordion__summary-action-icon {
     order: var(--cr-accordion-toggle-order, 0);
+    margin-left: var(--cr-accordion-toggle-push, 0);
     flex: 0 0 auto;
     align-self: center;
     display: inline-flex;
@@ -35,14 +37,10 @@
     flex: 0 1 auto;
     min-width: 0;
     margin-left: 0.5rem;
+    margin-right: var(--cr-accordion-title-end-gap, 0);
     white-space: normal;
     overflow: visible;
     text-overflow: clip;
-}
-
-/* The SVG's fill comes from a site stylesheet rule, so the fill is set on the exported icon part. */
-.has-icon-color::part(icon) {
-    fill: var(--cr-icon-foreground);
 }
 
 /* Open content reaches the section's side and bottom edges, matching how SLDS places the header. */

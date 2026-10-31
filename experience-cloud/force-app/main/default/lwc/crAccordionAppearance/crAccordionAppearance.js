@@ -27,9 +27,10 @@ export const DEFAULT_APPEARANCE = Object.freeze({
         hide: false,
         size: "xx-small",
         background: "",
+        openBackground: "",
         foreground: ""
     }),
-    header: Object.freeze({ background: "", openBackground: "", openText: "" }),
+    header: Object.freeze({ background: "", openBackground: "" }),
     content: Object.freeze({ background: "" }),
     separator: Object.freeze({ color: "", size: "0px", style: "solid" }),
     sectionBorder: NO_BORDER,

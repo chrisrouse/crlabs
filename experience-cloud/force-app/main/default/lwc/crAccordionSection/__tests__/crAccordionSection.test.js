@@ -187,4 +187,27 @@ describe("c-cr-accordion-section", () => {
 
         expect(body(element).getAttribute("style")).toBe("border-top: 2px dashed #123456");
     });
+
+    const iconStyle = (element) => element.shadowRoot.querySelector("lightning-icon").getAttribute("style") || "";
+
+    it("uses the icon's open background only while the section is open", async () => {
+        const element = renderSection();
+        element.iconBackgroundColor = "#eeeeee";
+        element.iconOpenBackgroundColor = "#0176d3";
+        await Promise.resolve();
+        expect(iconStyle(element)).toContain("#eeeeee");
+
+        element.shadowRoot.querySelector("button").click();
+        await Promise.resolve();
+        expect(iconStyle(element)).toContain("#0176d3");
+    });
+
+    it("keeps the regular icon background when no open background is set", async () => {
+        const element = renderSection();
+        element.iconBackgroundColor = "#eeeeee";
+        element.shadowRoot.querySelector("button").click();
+        await Promise.resolve();
+
+        expect(iconStyle(element)).toContain("#eeeeee");
+    });
 });

@@ -169,4 +169,13 @@ describe("c-cr-accordion", () => {
 
         expect(second.sectionBorder.sides).toEqual(["top", "right", "bottom", "left"]);
     });
+
+    it("pushes a right-hand toggle to the far edge of every section", async () => {
+        const { accordion } = renderAccordion();
+
+        accordion.appearance = JSON.stringify({ toggle: { position: "right" } });
+        await Promise.resolve();
+
+        expect(wrapperStyle(accordion)).toContain("--cr-accordion-toggle-push: auto");
+    });
 });

@@ -50,6 +50,7 @@ export default class CrAccordionSection extends LightningElement {
     _closeIconName = "utility:chevronright";
     _hideIcon = false;
     _iconBackgroundColor = "";
+    _iconOpenBackgroundColor = "";
     _iconForegroundColor = "";
     _iconSize = "xx-small";
     _headerBackgroundColor = "";
@@ -192,6 +193,29 @@ export default class CrAccordionSection extends LightningElement {
     }
 
     /**
+     * Background color behind the toggle icon while the section is open. A parent accordion sets this.
+     * @returns {string}
+     */
+    @api
+    get iconOpenBackgroundColor() {
+        return this._iconOpenBackgroundColor;
+    }
+    set iconOpenBackgroundColor(value) {
+        this._iconOpenBackgroundColor = value || "";
+    }
+
+    /**
+     * The icon's background in the current state. An open section uses the open background when one
+     * is set, and the regular icon background otherwise.
+     * @returns {string}
+     */
+    get currentIconBackground() {
+        return this._expanded && this._iconOpenBackgroundColor
+            ? this._iconOpenBackgroundColor
+            : this._iconBackgroundColor;
+    }
+
+    /**
      * Color of the toggle icon. A parent accordion sets this.
      * @returns {string}
      */
@@ -204,32 +228,18 @@ export default class CrAccordionSection extends LightningElement {
     }
 
     /**
-     * Class for the toggle icon. Adds has-icon-color when a foreground color is set, which lets
-     * the stylesheet color the SVG's fill, including action icons.
-     * @returns {string}
-     */
-    get iconClass() {
-        const classes = ["slds-accordion__summary-action-icon", "slds-m-right_x-small"];
-        if (this._iconForegroundColor) {
-            classes.push("has-icon-color");
-        }
-        return classes.join(" ");
-    }
-
-    /**
      * Inline style for the toggle icon. Sets only the colors that have a value, so the icon's
      * defaults apply otherwise.
      * @returns {string}
      */
     get iconStyle() {
         const declarations = [];
-        if (this._iconBackgroundColor) {
-            declarations.push(`--sds-c-icon-color-background: ${this._iconBackgroundColor}`);
+        if (this.currentIconBackground) {
+            declarations.push(`--sds-c-icon-color-background: ${this.currentIconBackground}`);
         }
         if (this._iconForegroundColor) {
             declarations.push(`--sds-c-icon-color-foreground: ${this._iconForegroundColor}`);
             declarations.push(`--sds-c-icon-color-foreground-default: ${this._iconForegroundColor}`);
-            declarations.push(`--cr-icon-foreground: ${this._iconForegroundColor}`);
         }
         return declarations.join("; ");
     }
@@ -339,7 +349,7 @@ export default class CrAccordionSection extends LightningElement {
         // The template's class binding doesn't keep the circle on a utility icon, so it is set here.
         const icon = this.template.querySelector("lightning-icon");
         if (icon) {
-            const circle = Boolean(this._iconBackgroundColor) && this.toggleIconName.startsWith("utility:");
+            const circle = Boolean(this.currentIconBackground) && this.toggleIconName.startsWith("utility:");
             icon.classList.toggle("slds-icon_container_circle", circle);
         }
         if (this._builderWrapper || !isInExperienceBuilder()) {

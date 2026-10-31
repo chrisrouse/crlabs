@@ -24,11 +24,12 @@
     max-width: 14rem;
 }
 
-/* The menu floats below the field. Its size comes from the grid, not from width settings. */
+/* The menu floats below the field and spans it edge to edge, so it never runs past the panel. */
 .icon-menu {
     position: absolute;
     top: calc(100% + 0.25rem);
     left: 0;
+    right: 0;
     z-index: 9000;
     padding: 0.75rem;
     background: #ffffff;
@@ -59,9 +60,11 @@
 
 .icon-grid {
     display: grid;
-    grid-template-columns: repeat(6, 2.5rem);
+    /* As many columns as fit the menu's width. */
+    grid-template-columns: repeat(auto-fill, minmax(2.25rem, 1fr));
     gap: 0.25rem;
     max-height: 16rem;
+    overflow-x: hidden;
     overflow-y: auto;
 }
 

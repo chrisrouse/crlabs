@@ -62,6 +62,13 @@
                         oncolorchange={handleColorChange}
                     ></c-cr-color-row>
                     <c-cr-color-row
+                        label="Icon Open Background"
+                        value={appearance.toggle.openBackground}
+                        data-part="toggle"
+                        data-field="openBackground"
+                        oncolorchange={handleColorChange}
+                    ></c-cr-color-row>
+                    <c-cr-color-row
                         label="Icon Foreground"
                         value={appearance.toggle.foreground}
                         data-part="toggle"
@@ -95,13 +102,6 @@
                         value={appearance.header.openBackground}
                         data-part="header"
                         data-field="openBackground"
-                        oncolorchange={handleColorChange}
-                    ></c-cr-color-row>
-                    <c-cr-color-row
-                        label="Open Text"
-                        value={appearance.header.openText}
-                        data-part="header"
-                        data-field="openText"
                         oncolorchange={handleColorChange}
                     ></c-cr-color-row>
                 </div>

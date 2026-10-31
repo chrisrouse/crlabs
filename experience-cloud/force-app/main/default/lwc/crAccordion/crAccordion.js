@@ -24,6 +24,7 @@ export default class CrAccordion extends LightningElement {
     _showActions = true;
     _hideIcon = DEFAULTS.toggle.hide;
     _iconBackgroundColor = DEFAULTS.toggle.background;
+    _iconOpenBackgroundColor = DEFAULTS.toggle.openBackground;
     _iconForegroundColor = DEFAULTS.toggle.foreground;
     _iconSize = DEFAULTS.toggle.size;
     _headerBackgroundColor = DEFAULTS.header.background;
@@ -69,6 +70,7 @@ export default class CrAccordion extends LightningElement {
         this._hideIcon = appearance.toggle.hide;
         this._iconSize = appearance.toggle.size;
         this._iconBackgroundColor = appearance.toggle.background;
+        this._iconOpenBackgroundColor = appearance.toggle.openBackground;
         this._iconForegroundColor = appearance.toggle.foreground;
         this._headerBackgroundColor = appearance.header.background;
         this._headerOpenBackgroundColor = appearance.header.openBackground;
@@ -99,10 +101,13 @@ export default class CrAccordion extends LightningElement {
      * @returns {string} The custom properties for the toggle position and the space between sections.
      */
     get wrapperStyle() {
+        const right = this._togglePosition === "right";
         const rem = Number(this._spacingBetween);
         const spacer = `${Number.isFinite(rem) ? rem : DEFAULTS.spacing.between}rem`;
         return [
-            `--cr-accordion-toggle-order: ${this._togglePosition === "right" ? 2 : 0}`,
+            `--cr-accordion-toggle-order: ${right ? 2 : 0}`,
+            `--cr-accordion-toggle-push: ${right ? "auto" : "0"}`,
+            `--cr-accordion-title-end-gap: ${right ? "0.5rem" : "0"}`,
             `--dxp-c-l-component-spacer-size: ${spacer}`,
             `--dxp-c-m-component-spacer-size: ${spacer}`,
             `--dxp-c-s-component-spacer-size: ${spacer}`,
@@ -147,6 +152,7 @@ export default class CrAccordion extends LightningElement {
         section.closeIconName = this._closeIconName || "utility:chevronright";
         section.hideIcon = this._hideIcon;
         section.iconBackgroundColor = this._iconBackgroundColor;
+        section.iconOpenBackgroundColor = this._iconOpenBackgroundColor;
         section.iconForegroundColor = this._iconForegroundColor;
         section.iconSize = this._iconSize;
         section.showActions = this._showActions;
