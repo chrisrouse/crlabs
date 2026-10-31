@@ -32,7 +32,7 @@ function isSelectedInBuilder(wrapper) {
 /**
  * One section of a crAccordion, or a section on its own. The header is the title slot,
  * the actions slot sits at the right, and the content slot is the expandable body.
- * In the Builder canvas, a section opens when it's selected, so the section being edited is open.
+ * In the Builder canvas, a section opens while it's selected, so the section being edited is open.
  * @slot title
  * @slot actions
  * @slot content
@@ -40,6 +40,22 @@ function isSelectedInBuilder(wrapper) {
 export default class CrAccordionSection extends LightningElement {
     /** Build label from the properties panel. Not used by the component. */
     @api versionInfo;
+
+    _sectionName = "";
+
+    /**
+     * Name that pairs this section with an Accordion Image of the same Section Name, shown in a
+     * linked Accordion Image Panel while this section is open.
+     * @returns {string}
+     */
+    @api
+    get sectionName() {
+        return this._sectionName;
+    }
+    set sectionName(value) {
+        this._sectionName = value || "";
+        this.dispatchEvent(new CustomEvent("sectionrename", { bubbles: true }));
+    }
 
     _expanded = false;
     _settled = false;
@@ -59,6 +75,7 @@ export default class CrAccordionSection extends LightningElement {
     _separator = { color: "", size: "0px", style: "solid" };
     _builderWrapper;
     _builderObserver;
+    _openedBySelection = false;
     contentId = `cr-accordion-content-${++sectionCount}`;
 
     /**
@@ -384,11 +401,19 @@ export default class CrAccordionSection extends LightningElement {
     }
 
     /**
-     * Opens the section when Builder selects it. Deselecting leaves it as it is.
+     * Opens the section when Builder selects it, or selects something inside it, and closes it again
+     * when the selection moves elsewhere. A section that was already open stays open.
      */
     handleBuilderChange = () => {
-        if (!this._expanded && isSelectedInBuilder(this._builderWrapper)) {
+        const selected = isSelectedInBuilder(this._builderWrapper);
+        if (selected && !this._expanded) {
+            this._openedBySelection = true;
             this.setExpanded(true);
+        } else if (!selected && this._openedBySelection) {
+            this._openedBySelection = false;
+            if (this._expanded) {
+                this.setExpanded(false);
+            }
         }
     };
 

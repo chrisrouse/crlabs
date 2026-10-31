@@ -12,6 +12,7 @@
         <targetConfig targets="lightningCommunity__Default">
             <property name="allowMultipleSectionsOpen" type="Boolean" label="Allow Multiple Sections Open" default="false" />
             <property name="showActions" type="Boolean" label="Show Actions" default="true" />
+            <property name="linkName" type="String" label="Link Name" default="" description="Links this accordion to an Accordion Image Panel. Enter the same name in the panel's Linked Accordion." />
             <property name="appearance" type="String" label="Appearance" default="" editor="c/crAccordionAppearanceEditor" />
             <property name="versionInfo" type="String" label="Version" default="" editor="c/crVersionInfo" />
         </targetConfig>

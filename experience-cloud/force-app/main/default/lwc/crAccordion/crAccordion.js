@@ -1,5 +1,6 @@
 import { LightningElement, api } from "lwc";
 import { borderDeclarations, parseAppearance } from "c/crAccordionAppearance";
+import { normalizeName, publishAccordionState } from "c/crAccordionLink";
 
 /** Appearance defaults, from the same module the Appearance editor uses. */
 const DEFAULTS = parseAppearance("");
@@ -15,6 +16,23 @@ export default class CrAccordion extends LightningElement {
 
     /** Build label from the properties panel. Not used by the component. */
     @api versionInfo;
+
+    _linkName = "";
+    _lastOpened;
+
+    /**
+     * Name that links this accordion to an Accordion Image Panel. The panel's Linked Accordion uses
+     * the same name. No name means no link.
+     * @returns {string}
+     */
+    @api
+    get linkName() {
+        return this._linkName;
+    }
+    set linkName(value) {
+        this._linkName = value || "";
+        this.publishState();
+    }
 
     _togglePosition = DEFAULTS.toggle.position;
     _spacingBetween = DEFAULTS.spacing.between;
@@ -90,6 +108,7 @@ export default class CrAccordion extends LightningElement {
         this.addEventListener("sectionregister", this.handleSectionRegister);
         this.addEventListener("sectionunregister", this.handleSectionUnregister);
         this.addEventListener("sectiontoggle", this.handleSectionToggle);
+        this.addEventListener("sectionrename", this.handleSectionRename);
     }
 
     /**
@@ -122,6 +141,7 @@ export default class CrAccordion extends LightningElement {
     handleSectionRegister = (event) => {
         this._sections.add(event.target);
         this._sections.forEach((section) => this.passSettingsTo(section));
+        this.publishState();
     };
 
     /**
@@ -131,6 +151,14 @@ export default class CrAccordion extends LightningElement {
     handleSectionUnregister = (event) => {
         this._sections.delete(event.target);
         this._sections.forEach((section) => this.passSettingsTo(section));
+        this.publishState();
+    };
+
+    /**
+     * Republishes the open sections when an author renames a section.
+     */
+    handleSectionRename = () => {
+        this.publishState();
     };
 
     /**
@@ -140,8 +168,28 @@ export default class CrAccordion extends LightningElement {
     handleSectionToggle = (event) => {
         if (event.detail.open) {
             this.closeOtherSections(event.target);
+            this._lastOpened = event.target;
         }
+        this.publishState();
     };
+
+    /**
+     * Tells a linked Accordion Image Panel which sections are open, most recently opened last.
+     */
+    publishState() {
+        if (!this._linkName) {
+            return;
+        }
+        const sections = [...this._sections];
+        const openSections = sections.filter((section) => section.expanded);
+        // The most recently opened section goes last, so a panel shows its image.
+        const last = openSections.indexOf(this._lastOpened);
+        if (last >= 0) {
+            openSections.push(...openSections.splice(last, 1));
+        }
+        const open = openSections.map((section) => normalizeName(section.sectionName)).filter(Boolean);
+        publishAccordionState(this._linkName, { open });
+    }
 
     /**
      * Gives a section the icon names, the icon size, and whether to hide the toggle icon.

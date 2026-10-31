@@ -1,0 +1,23 @@
+.cr-image.is-hidden {
+    display: none;
+}
+
+/* The image fades in when its section opens. */
+.cr-image.is-active {
+    animation: cr-image-fade-in 300ms ease;
+}
+
+@keyframes cr-image-fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .cr-image.is-active {
+        animation: none;
+    }
+}

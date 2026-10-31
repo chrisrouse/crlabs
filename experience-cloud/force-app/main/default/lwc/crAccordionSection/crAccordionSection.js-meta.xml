@@ -10,6 +10,7 @@
     </targets>
     <targetConfigs>
         <targetConfig targets="lightningCommunity__Default">
+            <property name="sectionName" type="String" label="Section Name" default="" description="Pairs this section with the Accordion Image of the same Section Name in a linked Accordion Image Panel." />
             <property name="versionInfo" type="String" label="Version" default="" editor="c/crVersionInfo" />
         </targetConfig>
     </targetConfigs>

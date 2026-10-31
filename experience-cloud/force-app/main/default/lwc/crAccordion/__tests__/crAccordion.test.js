@@ -1,6 +1,7 @@
 import { createElement } from "lwc";
 import CrAccordion from "c/crAccordion";
 import CrAccordionSection from "c/crAccordionSection";
+import { subscribeToAccordion } from "c/crAccordionLink";
 
 describe("c-cr-accordion", () => {
     afterEach(() => {
@@ -177,5 +178,20 @@ describe("c-cr-accordion", () => {
         await Promise.resolve();
 
         expect(wrapperStyle(accordion)).toContain("--cr-accordion-toggle-push: auto");
+    });
+
+    it("publishes its open section to a linked panel, most recently opened last", async () => {
+        const { accordion, first, second } = renderAccordion(true);
+        first.sectionName = "Pricing";
+        second.sectionName = "support";
+        accordion.linkName = "accordion-test";
+        const listener = jest.fn();
+        subscribeToAccordion("accordion-test", listener);
+
+        clickHeader(second);
+        clickHeader(first);
+        await Promise.resolve();
+
+        expect(listener).toHaveBeenLastCalledWith({ open: ["support", "pricing"] });
     });
 });
