@@ -12,6 +12,6 @@ describe("c-cr-version-info", () => {
         const element = createElement("c-cr-version-info", { is: CrVersionInfo });
         document.body.appendChild(element);
 
-        expect(element.shadowRoot.textContent).toContain("Build 2026-10-30-M");
+        expect(element.shadowRoot.textContent).toContain("Build 2026-10-31-A");
     });
 });

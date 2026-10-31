@@ -35,6 +35,7 @@ export default class CrAccordionSection extends LightningElement {
     @api versionInfo;
 
     _expanded = false;
+    _showActions = true;
     _openIconName = "utility:chevrondown";
     _closeIconName = "utility:chevronright";
     _hideIcon = false;
@@ -58,6 +59,18 @@ export default class CrAccordionSection extends LightningElement {
     }
     set expanded(value) {
         this._expanded = Boolean(value);
+    }
+
+    /**
+     * Whether the section renders its Actions slot. A parent accordion sets this. On by default.
+     * @returns {boolean}
+     */
+    @api
+    get showActions() {
+        return this._showActions;
+    }
+    set showActions(value) {
+        this._showActions = value !== false;
     }
 
     /**

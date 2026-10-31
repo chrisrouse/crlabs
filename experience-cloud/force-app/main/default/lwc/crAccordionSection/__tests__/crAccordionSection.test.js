@@ -87,4 +87,20 @@ describe("c-cr-accordion-section", () => {
 
         expect(element.shadowRoot.querySelector(".slds-accordion__summary").getAttribute("style")).toContain("#eeeeee");
     });
+
+    const actionsSlot = (element) => element.shadowRoot.querySelector('slot[name="actions"]');
+
+    it("shows the Actions slot by default", () => {
+        const element = renderSection();
+
+        expect(actionsSlot(element)).not.toBeNull();
+    });
+
+    it("leaves the Actions slot out when actions are hidden", async () => {
+        const element = renderSection();
+        element.showActions = false;
+        await Promise.resolve();
+
+        expect(actionsSlot(element)).toBeNull();
+    });
 });

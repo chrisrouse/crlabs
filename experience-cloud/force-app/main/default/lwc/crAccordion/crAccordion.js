@@ -21,6 +21,7 @@ export default class CrAccordion extends LightningElement {
     _openIconName = DEFAULTS.toggle.openIcon;
     _closeIconName = DEFAULTS.toggle.closeIcon;
     _appearanceJson = "";
+    _showActions = true;
     _hideIcon = DEFAULTS.toggle.hide;
     _iconBackgroundColor = DEFAULTS.toggle.background;
     _iconForegroundColor = DEFAULTS.toggle.foreground;
@@ -29,6 +30,20 @@ export default class CrAccordion extends LightningElement {
     _headerOpenBackgroundColor = DEFAULTS.header.openBackground;
     _contentBackgroundColor = DEFAULTS.content.background;
     _sections = new Set();
+
+    /**
+     * Shows the Actions slot in every section. When off, sections don't render the slot, so the
+     * Builder canvas shows no actions drop area either. On by default.
+     * @returns {boolean}
+     */
+    @api
+    get showActions() {
+        return this._showActions;
+    }
+    set showActions(value) {
+        this._showActions = value !== false;
+        this._sections.forEach((section) => this.passSettingsTo(section));
+    }
 
     /**
      * Style settings as one JSON string, edited in the Appearance editor. Only the settings that are
@@ -123,6 +138,7 @@ export default class CrAccordion extends LightningElement {
         section.iconBackgroundColor = this._iconBackgroundColor;
         section.iconForegroundColor = this._iconForegroundColor;
         section.iconSize = this._iconSize;
+        section.showActions = this._showActions;
         section.headerBackgroundColor = this._headerBackgroundColor;
         section.headerOpenBackgroundColor = this._headerOpenBackgroundColor;
         section.contentBackgroundColor = this._contentBackgroundColor;

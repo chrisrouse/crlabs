@@ -96,4 +96,15 @@ describe("c-cr-accordion", () => {
 
         expect(wrapperStyle(accordion)).toContain("--dxp-c-l-component-spacer-size: 0rem");
     });
+
+    it("hides the Actions slot in every section when Show Actions is off", async () => {
+        const { accordion, first, second } = renderAccordion();
+
+        accordion.showActions = false;
+        await Promise.resolve();
+
+        [first, second].forEach((section) => {
+            expect(section.shadowRoot.querySelector('slot[name="actions"]')).toBeNull();
+        });
+    });
 });
