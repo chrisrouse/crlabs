@@ -108,6 +108,46 @@
             </template>
         </div>
 
+        <div class={sectionClass.separator}>
+            <button
+                class="style-section__header"
+                data-key="separator"
+                aria-expanded={expanded.separator}
+                onclick={handleSectionToggle}
+            >
+                <span class="style-section__chevron"></span>Separator
+            </button>
+            <template lwc:if={open.separator}>
+                <div class="style-section__body">
+                    <c-cr-color-row
+                        label="Color"
+                        value={appearance.separator.color}
+                        data-part="separator"
+                        data-field="color"
+                        oncolorchange={handleColorChange}
+                    ></c-cr-color-row>
+                    <c-cr-measure-input
+                        class="appearance-field"
+                        label="Weight"
+                        units={weightUnits}
+                        value={appearance.separator.size}
+                        data-part="separator"
+                        data-field="size"
+                        onmeasurechange={handleMeasureChange}
+                    ></c-cr-measure-input>
+                    <lightning-combobox
+                        class="appearance-field"
+                        label="Line Style"
+                        options={lineStyleOptions}
+                        value={appearance.separator.style}
+                        data-part="separator"
+                        data-field="style"
+                        onchange={handleOptionChange}
+                    ></lightning-combobox>
+                </div>
+            </template>
+        </div>
+
         <div class={sectionClass.content}>
             <button
                 class="style-section__header"

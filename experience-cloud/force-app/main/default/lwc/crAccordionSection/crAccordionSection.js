@@ -55,6 +55,7 @@ export default class CrAccordionSection extends LightningElement {
     _headerBackgroundColor = "";
     _headerOpenBackgroundColor = "";
     _contentBackgroundColor = "";
+    _separator = { color: "", size: "0px", style: "solid" };
     _builderWrapper;
     _builderObserver;
     contentId = `cr-accordion-content-${++sectionCount}`;
@@ -255,6 +256,28 @@ export default class CrAccordionSection extends LightningElement {
     }
     set contentBackgroundColor(value) {
         this._contentBackgroundColor = value || "";
+    }
+
+    /**
+     * The line between the header and the content: color, size, and line style. A parent accordion
+     * sets this from its Separator settings.
+     * @returns {object}
+     */
+    @api
+    get separator() {
+        return this._separator;
+    }
+    set separator(value) {
+        this._separator = { ...this._separator, ...(value || {}) };
+    }
+
+    /**
+     * Inline style for the content body. The separator is the body's top border, so it's hidden with
+     * the content while closed, and slides in with it when animated.
+     * @returns {string}
+     */
+    get bodyStyle() {
+        return borderDeclarations({ ...this._separator, sides: ["top"], radius: "0px" }).join("; ");
     }
 
     /**

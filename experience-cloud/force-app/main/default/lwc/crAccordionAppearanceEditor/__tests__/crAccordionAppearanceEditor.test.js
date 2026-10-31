@@ -22,7 +22,7 @@ describe("c-cr-accordion-appearance-editor", () => {
 
     const lastStored = (handler) => JSON.parse(handler.mock.calls[handler.mock.calls.length - 1][0].detail.value);
 
-    it("lists the seven style sections with Toggles first, and only Toggles open", () => {
+    it("lists the eight style sections with Toggles first, and only Toggles open", () => {
         const element = renderEditor("");
 
         const labels = Array.from(element.shadowRoot.querySelectorAll(".style-section__header")).map((header) =>
@@ -31,6 +31,7 @@ describe("c-cr-accordion-appearance-editor", () => {
         expect(labels).toEqual([
             "Toggles",
             "Header",
+            "Separator",
             "Content",
             "Section Border",
             "Container Border",

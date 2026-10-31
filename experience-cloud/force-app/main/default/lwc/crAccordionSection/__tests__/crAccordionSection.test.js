@@ -171,4 +171,20 @@ describe("c-cr-accordion-section", () => {
         await Promise.resolve();
         expect(sectionClasses(element).contains("cr-is-settled")).toBe(false);
     });
+
+    const body = (element) => element.shadowRoot.querySelector(".cr-accordion__body");
+
+    it("draws no separator by default", () => {
+        const element = renderSection();
+
+        expect(body(element).getAttribute("style") || "").not.toContain("border");
+    });
+
+    it("draws the separator as the top border of the content", async () => {
+        const element = renderSection();
+        element.separator = { color: "#123456", size: "2px", style: "dashed" };
+        await Promise.resolve();
+
+        expect(body(element).getAttribute("style")).toBe("border-top: 2px dashed #123456");
+    });
 });

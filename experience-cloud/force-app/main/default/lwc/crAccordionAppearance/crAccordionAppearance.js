@@ -30,6 +30,7 @@ export const DEFAULT_APPEARANCE = Object.freeze({
     }),
     header: Object.freeze({ background: "", openBackground: "", openText: "" }),
     content: Object.freeze({ background: "" }),
+    separator: Object.freeze({ color: "", size: "0px", style: "solid" }),
     sectionBorder: NO_BORDER,
     containerBorder: NO_BORDER,
     spacing: Object.freeze({ between: 1.5 }),

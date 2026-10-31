@@ -2,7 +2,16 @@ import { LightningElement, api } from "lwc";
 import { parseAppearance } from "c/crAccordionAppearance";
 
 /** The collapsible sections, in the order they appear. Toggles starts open. */
-const SECTION_KEYS = ["toggle", "header", "content", "sectionBorder", "containerBorder", "spacing", "animation"];
+const SECTION_KEYS = [
+    "toggle",
+    "header",
+    "separator",
+    "content",
+    "sectionBorder",
+    "containerBorder",
+    "spacing",
+    "animation"
+];
 
 const POSITION_OPTIONS = [
     { label: "Left", value: "left" },
