@@ -4,38 +4,10 @@ import { LightningElement, api } from "lwc";
 const STARTING_COLOR = "#1a1b1e";
 
 /**
- * Splits a stored color into its 6-digit hex and its opacity. "#rrggbbaa" carries the opacity in
- * its last two digits; "#rrggbb" is fully opaque.
- * @param {string} value The stored color.
- * @returns {{hex: string, opacity: number}} The color and its opacity, 0 to 100.
- */
-function splitColor(value) {
-    const match = /^(#[0-9a-f]{6})([0-9a-f]{2})?$/i.exec(value || "");
-    if (!match) {
-        return { hex: value || STARTING_COLOR, opacity: 100 };
-    }
-    return { hex: match[1], opacity: match[2] ? Math.round((parseInt(match[2], 16) / 255) * 100) : 100 };
-}
-
-/**
- * Joins a 6-digit hex and an opacity into the stored color. Full opacity stays 6-digit hex.
- * @param {string} hex The color as "#rrggbb".
- * @param {number} opacity The opacity, 0 to 100.
- * @returns {string} The stored color.
- */
-function joinColor(hex, opacity) {
-    if (opacity >= 100) {
-        return hex;
-    }
-    const alpha = Math.round((Math.max(0, opacity) / 100) * 255);
-    return `${hex}${alpha.toString(16).padStart(2, "0")}`;
-}
-
-/**
  * One compact color setting: a labeled row with a color dot. Clicking the row opens the choice
- * between the default and a custom color, in place. A custom color has an opacity too. Sends
- * colorchange with the hex value ("#rrggbb", or "#rrggbbaa" below full opacity), or an empty
- * string for the default.
+ * between the default and a custom color, in place. A custom color is edited in the CRLabs
+ * Foundations color picker. Sends colorchange with the hex value ("#rrggbb", or "#rrggbbaa" below
+ * full opacity), or an empty string for the default.
  */
 export default class CrColorRow extends LightningElement {
     /** Name of the color, shown on the row. */
@@ -45,7 +17,6 @@ export default class CrColorRow extends LightningElement {
     @api value = "";
 
     _expanded = false;
-    _pendingOpacity;
 
     /**
      * @returns {boolean} Whether the default and custom choices are showing.
@@ -90,34 +61,6 @@ export default class CrColorRow extends LightningElement {
     }
 
     /**
-     * @returns {string} The color shown in the custom color field, without its opacity.
-     */
-    get customValue() {
-        return splitColor(this.value).hex;
-    }
-
-    /**
-     * @returns {number} The opacity shown in the opacity field, 0 to 100.
-     */
-    get opacity() {
-        return this._pendingOpacity ?? splitColor(this.value).opacity;
-    }
-
-    /**
-     * @returns {string} The opacity as a percentage, shown beside the slider.
-     */
-    get opacityText() {
-        return `${this.opacity}%`;
-    }
-
-    /**
-     * @returns {string} The custom color field's label, for assistive technology.
-     */
-    get customLabel() {
-        return `Custom ${this.label}`;
-    }
-
-    /**
      * @returns {string} The Use Default button's pressed state.
      */
     get defaultPressed() {
@@ -155,29 +98,13 @@ export default class CrColorRow extends LightningElement {
     }
 
     /**
-     * Sends the color the author picks.
-     * @param {Event} event The change event from the color field.
+     * Sends the color picked in the color picker. It already sends "#rrggbb", or "#rrggbbaa" below
+     * full opacity, and only when a drag or key press ends.
+     * @param {CustomEvent} event The colorchange event from the picker.
      */
-    handleColorChange(event) {
-        this.notify(joinColor(event.target.value, this.opacity));
-    }
-
-    /**
-     * Shows the opacity while the slider is dragged. It is sent only when the slider is released,
-     * because every sent change refreshes the Builder canvas.
-     * @param {Event} event The input event from the opacity slider.
-     */
-    handleOpacityInput(event) {
-        this._pendingOpacity = Number(event.target.value);
-    }
-
-    /**
-     * Sends the opacity when the slider is released or moved with the keyboard.
-     * @param {Event} event The change event from the opacity slider.
-     */
-    handleOpacityCommit(event) {
-        this._pendingOpacity = undefined;
-        this.notify(joinColor(this.customValue, Number(event.target.value)));
+    handlePickerChange(event) {
+        event.stopPropagation();
+        this.notify(event.detail.value);
     }
 
     /**

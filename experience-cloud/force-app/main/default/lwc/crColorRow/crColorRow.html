@@ -25,36 +25,12 @@
                     </button>
                 </div>
                 <template lwc:if={isCustom}>
-                    <lightning-input
-                        type="color"
-                        data-field="color"
-                        variant="label-hidden"
-                        label={customLabel}
-                        value={customValue}
+                    <c-cr-color-picker
                         class="slds-m-top_x-small"
-                        onchange={handleColorChange}
-                    ></lightning-input>
-                    <div class="slds-form-element slds-m-top_x-small">
-                        <label class="slds-form-element__label" for="opacity">Opacity</label>
-                        <div class="slds-form-element__control">
-                            <div class="slds-slider">
-                                <input
-                                    type="range"
-                                    id="opacity"
-                                    class="slds-slider__range"
-                                    data-field="opacity"
-                                    min="0"
-                                    max="100"
-                                    step="1"
-                                    value={opacity}
-                                    aria-valuetext={opacityText}
-                                    oninput={handleOpacityInput}
-                                    onchange={handleOpacityCommit}
-                                />
-                                <span class="slds-slider__value" aria-hidden="true">{opacityText}</span>
-                            </div>
-                        </div>
-                    </div>
+                        label={label}
+                        value={value}
+                        oncolorchange={handlePickerChange}
+                    ></c-cr-color-picker>
                 </template>
             </div>
         </template>

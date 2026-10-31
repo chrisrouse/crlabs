@@ -68,87 +68,23 @@ describe("c-cr-color-row", () => {
         expect(handler.mock.calls[0][0].detail.value).toBe("");
     });
 
-    it("sends the color picked in the custom field", async () => {
+    it("edits a custom color in the color picker, and passes on its color", async () => {
         const element = renderRow("#ff0000");
         const handler = jest.fn();
         element.addEventListener("colorchange", handler);
         await openRow(element);
 
-        const field = element.shadowRoot.querySelector("lightning-input");
-        field.value = "#00ff00";
-        field.dispatchEvent(new CustomEvent("change"));
+        const picker = element.shadowRoot.querySelector("c-cr-color-picker");
+        expect(picker.value).toBe("#ff0000");
 
-        expect(handler.mock.calls[0][0].detail.value).toBe("#00ff00");
-    });
-
-    const opacityField = (element) => element.shadowRoot.querySelector('input[data-field="opacity"]');
-
-    const setOpacity = (element, value) => {
-        const field = opacityField(element);
-        field.value = value;
-        field.dispatchEvent(new CustomEvent("input"));
-        field.dispatchEvent(new CustomEvent("change"));
-    };
-
-    it("shows full opacity for a 6-digit color, and reads the opacity from an 8-digit one", async () => {
-        const element = renderRow("#ff0000");
-        await openRow(element);
-        expect(opacityField(element).value).toBe("100");
-
-        element.value = "#ff000080";
-        await Promise.resolve();
-        expect(opacityField(element).value).toBe("50");
-        expect(element.shadowRoot.querySelector('lightning-input[data-field="color"]').value).toBe("#ff0000");
-    });
-
-    it("stores the opacity in the color's last two digits when the slider is released", async () => {
-        const element = renderRow("#ff0000");
-        const handler = jest.fn();
-        element.addEventListener("colorchange", handler);
-        await openRow(element);
-
-        setOpacity(element, "50");
-
-        expect(handler.mock.calls[0][0].detail.value).toBe("#ff000080");
-    });
-
-    it("keeps the opacity when the color changes", async () => {
-        const element = renderRow("#ff000080");
-        const handler = jest.fn();
-        element.addEventListener("colorchange", handler);
-        await openRow(element);
-
-        const field = element.shadowRoot.querySelector('lightning-input[data-field="color"]');
-        field.value = "#00ff00";
-        field.dispatchEvent(new CustomEvent("change"));
-
+        picker.dispatchEvent(new CustomEvent("colorchange", { detail: { value: "#00ff0080" } }));
         expect(handler.mock.calls[0][0].detail.value).toBe("#00ff0080");
     });
 
-    it("stores plain hex at full opacity, and fully transparent at 0", async () => {
-        const element = renderRow("#ff000080");
-        const handler = jest.fn();
-        element.addEventListener("colorchange", handler);
+    it("shows no picker while the default color is used", async () => {
+        const element = renderRow("");
         await openRow(element);
 
-        setOpacity(element, "100");
-        expect(handler.mock.calls[0][0].detail.value).toBe("#ff0000");
-
-        setOpacity(element, "0");
-        expect(handler.mock.calls[1][0].detail.value).toBe("#ff000000");
-    });
-
-    it("shows the opacity while dragging but sends it only on release", async () => {
-        const element = renderRow("#ff0000");
-        const handler = jest.fn();
-        element.addEventListener("colorchange", handler);
-        await openRow(element);
-
-        opacityField(element).value = "30";
-        opacityField(element).dispatchEvent(new CustomEvent("input"));
-        await Promise.resolve();
-
-        expect(element.shadowRoot.querySelector(".slds-slider__value").textContent).toBe("30%");
-        expect(handler).not.toHaveBeenCalled();
+        expect(element.shadowRoot.querySelector("c-cr-color-picker")).toBeNull();
     });
 });
