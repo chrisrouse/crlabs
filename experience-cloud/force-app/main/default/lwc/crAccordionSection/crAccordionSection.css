@@ -19,6 +19,15 @@
     transform: none !important;
 }
 
+/* The site's focus ring (dxp-slds-extensions, .slds-button:focus) also shows after a mouse click,
+   boxing the whole header. It's kept for keyboard focus and cleared only when the browser says
+   focus came from a pointer, the same rule browsers use for their own focus rings. */
+.slds-accordion__summary-action:focus:not(:focus-visible) {
+    box-shadow: none;
+    border-color: transparent;
+    outline: none;
+}
+
 /* SLDS keeps the title on one line and hides the overflow. The title slot can hold any component,
    so it wraps instead, and can shrink so the row has room to wrap. */
 .slds-accordion__summary-content {
@@ -65,9 +74,10 @@
     transition: box-shadow var(--cr-accordion-duration) ease;
 }
 
-/* A light shadow under the open header, so the content reads as coming out from under it. */
+/* A light shadow under the open header, so the content reads as coming out from under it. The
+   negative spread equals the blur and the offset, so nothing shows above or beside the header. */
 .cr-animated.slds-is-open > .slds-accordion__summary {
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 3px 3px -3px rgba(0, 0, 0, 0.25);
     transition: box-shadow calc(var(--cr-accordion-duration) / 4) ease;
 }
 

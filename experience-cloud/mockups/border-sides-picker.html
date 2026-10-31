@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Border sides and shadow pickers</title>
+<style>
+    :root { --brand: #0176d3; --border: #c9c9c9; --text: #181818; --weak: #747474; }
+    body { font-family: -apple-system, "Segoe UI", sans-serif; margin: 2rem; color: var(--text); background: #f3f3f3; font-size: 13px; }
+    h1 { font-size: 1.25rem; margin: 0 0 0.25rem; }
+    .row { display: flex; flex-wrap: wrap; gap: 2rem; margin-top: 1.5rem; align-items: flex-start; }
+    .panel { width: 300px; background: #fff; border: 1px solid #e5e5e5; border-radius: 0.25rem; padding: 1rem; }
+    .panel h2 { font-size: 0.9rem; margin: 0 0 0.25rem; }
+    .panel .note { color: var(--weak); margin: 0 0 1rem; min-height: 3em; }
+    .label { display: block; margin-bottom: 0.25rem; color: #444; }
+    .field { margin-bottom: 1rem; }
+    .result { color: var(--weak); font-size: 12px; margin-top: 0.35rem; }
+    .preview { height: 54px; background: #f8f8f8; border: 1px dashed #ddd; display: grid; place-items: center; margin-top: 0.5rem; }
+    .preview div { width: 70%; height: 26px; background: #c6d5ff; }
+    svg.side { width: 20px; height: 20px; display: block; }
+    svg.side line { stroke-linecap: square; }
+    svg.side .on { stroke: currentColor; stroke-width: 2.5; }
+    svg.side .off { stroke: #b0b0b0; stroke-width: 1.25; stroke-dasharray: 2 2; }
+
+    /* A: joined icon button group (SLDS button-group style). */
+    .group { display: inline-flex; border: 1px solid var(--border); border-radius: 0.25rem; overflow: hidden; }
+    .group button { border: 0; border-left: 1px solid var(--border); background: #fff; color: #444; padding: 0.4rem 0.5rem; cursor: pointer; }
+    .group button:first-child { border-left: 0; }
+    .group button:hover { background: #f3f3f3; }
+    .group button[aria-pressed="true"] { background: var(--brand); color: #fff; }
+    .group button[aria-pressed="true"] svg .off { stroke: rgba(255,255,255,0.55); }
+
+    /* B: tiles with a caption under the icon. */
+    .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.35rem; }
+    .tiles button { border: 1px solid var(--border); border-radius: 0.375rem; background: #fff; color: #444; padding: 0.4rem 0.1rem 0.3rem;
+        display: flex; flex-direction: column; align-items: center; gap: 0.25rem; font-size: 11px; cursor: pointer; }
+    .tiles button:hover { border-color: #999; }
+    .tiles button[aria-pressed="true"] { border-color: var(--brand); box-shadow: inset 0 0 0 1px var(--brand); color: var(--brand); background: #eef4ff; }
+
+    /* C: a box whose edges toggle on click. */
+    .boxpick { display: flex; gap: 1rem; align-items: center; }
+    .box { position: relative; width: 64px; height: 64px; }
+    .box button { position: absolute; border: 0; padding: 0; background: transparent; cursor: pointer; }
+    .box button::after { content: ""; position: absolute; background: transparent; border: 0 dashed #b0b0b0; }
+    .box .t, .box .b { left: 8px; right: 8px; height: 14px; }
+    .box .t { top: 0; } .box .b { bottom: 0; }
+    .box .l, .box .r { top: 8px; bottom: 8px; width: 14px; }
+    .box .l { left: 0; } .box .r { right: 0; }
+    .box .t::after, .box .b::after { left: 0; right: 0; top: 6px; border-top-width: 2px; }
+    .box .l::after, .box .r::after { top: 0; bottom: 0; left: 6px; border-left-width: 2px; }
+    .box button:hover::after { border-color: #666; }
+    .box button[aria-pressed="true"]::after { border-style: solid; border-color: var(--brand); border-width: 4px 0 0 0; }
+    .box .l[aria-pressed="true"]::after, .box .r[aria-pressed="true"]::after { border-width: 0 0 0 4px; }
+    .quick { display: flex; flex-direction: column; gap: 0.25rem; }
+    .quick a { color: var(--brand); cursor: pointer; text-decoration: none; }
+    .quick a:hover { text-decoration: underline; }
+
+    /* Shadow controls */
+    .seg { display: inline-flex; border: 1px solid var(--border); border-radius: 0.25rem; overflow: hidden; }
+    .seg button { border: 0; border-left: 1px solid var(--border); background: #fff; color: var(--brand); padding: 0.35rem 0.7rem; cursor: pointer; font-size: 12px; }
+    .seg button:first-child { border-left: 0; }
+    .seg button[aria-pressed="true"] { background: var(--brand); color: #fff; }
+    .shadowtiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.4rem; }
+    .shadowtiles button { border: 1px solid var(--border); border-radius: 0.375rem; background: #fff; padding: 0.5rem 0.2rem 0.3rem; cursor: pointer;
+        display: flex; flex-direction: column; align-items: center; gap: 0.35rem; font-size: 10px; color: #444; }
+    .shadowtiles button span.sw { width: 26px; height: 18px; background: #fff; border-radius: 2px; border: 1px solid #e5e5e5; }
+    .shadowtiles button[aria-pressed="true"] { border-color: var(--brand); box-shadow: inset 0 0 0 1px var(--brand); color: var(--brand); background: #eef4ff; }
+</style>
+</head>
+<body>
+<h1>Border Sides and Shadow pickers</h1>
+<div>Each panel is the properties panel's width (300px). Click to try them. The small preview shows the result.</div>
+
+<div class="row">
+    <div class="panel" id="a">
+        <h2>A. Icon Button Group</h2>
+        <p class="note">Three fixed choices, joined like a standard SLDS button group. Selected is filled. Names show on hover.</p>
+        <div class="field"><span class="label">Sides</span><div class="group" data-picker></div><div class="result"></div><div class="preview"><div></div></div></div>
+    </div>
+
+    <div class="panel" id="b">
+        <h2>B. Labeled Tiles</h2>
+        <p class="note">The same three choices as separate tiles, with a name under each icon. Clearest, a little taller.</p>
+        <div class="field"><span class="label">Sides</span><div class="tiles" data-picker></div><div class="result"></div><div class="preview"><div></div></div></div>
+    </div>
+
+    <div class="panel" id="c">
+        <h2>C. Click the Edges</h2>
+        <p class="note">Click any edge of the box to turn that side on or off, in any combination. Quick links set the common ones.</p>
+        <div class="field"><span class="label">Sides</span>
+            <div class="boxpick">
+                <div class="box">
+                    <button class="t" data-side="top" aria-pressed="true" title="Top"></button>
+                    <button class="r" data-side="right" aria-pressed="true" title="Right"></button>
+                    <button class="b" data-side="bottom" aria-pressed="true" title="Bottom"></button>
+                    <button class="l" data-side="left" aria-pressed="true" title="Left"></button>
+                </div>
+                <div class="quick"><a data-set="top,right,bottom,left">All</a><a data-set="top,bottom">Top and Bottom</a><a data-set="left,right">Left and Right</a></div>
+            </div>
+            <div class="result"></div><div class="preview"><div></div></div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="panel">
+        <h2>Shadow 1. Text Buttons</h2>
+        <p class="note">Plain segmented control, the same as Speed in the Animation section.</p>
+        <div class="field"><span class="label">Shadow</span><div class="seg" data-shadow></div><div class="preview"><div></div></div></div>
+    </div>
+    <div class="panel">
+        <h2>Shadow 2. Preview Tiles</h2>
+        <p class="note">Each tile shows its shadow, matching the look of Sides option B.</p>
+        <div class="field"><span class="label">Shadow</span><div class="shadowtiles" data-shadow></div><div class="preview"><div></div></div></div>
+    </div>
+</div>
+
+<script>
+    const SIDE_CHOICES = [
+        ["All Sides", ["top", "right", "bottom", "left"]],
+        ["Top/Bottom", ["top", "bottom"]],
+        ["Left/Right", ["left", "right"]]
+    ];
+    const SHORT = { "All Sides": "All Sides", "Top/Bottom": "Top/Bottom", "Left/Right": "Left/Right" };
+    const LINES = { top: [3, 3, 17, 3], right: [17, 3, 17, 17], bottom: [3, 17, 17, 17], left: [3, 3, 3, 17] };
+    const icon = (sides) => `<svg class="side" viewBox="0 0 20 20">${Object.entries(LINES).map(([side, [x1, y1, x2, y2]]) =>
+        `<line class="${sides.includes(side) ? "on" : "off"}" x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/>`).join("")}</svg>`;
+    const applyPreview = (field, sides) => {
+        const box = field.querySelector(".preview div");
+        box.style.border = "0";
+        sides.forEach((side) => box.style[`border-${side}`] = "2px solid #676767");
+        field.querySelector(".result").textContent = sides.length ? `Stores: ${sides.join(", ")}` : "No sides: no border";
+    };
+
+    document.querySelectorAll("[data-picker]").forEach((picker) => {
+        const tiles = picker.classList.contains("tiles");
+        const field = picker.closest(".field");
+        SIDE_CHOICES.forEach(([name, sides], i) => {
+            const button = document.createElement("button");
+            button.title = name;
+            button.setAttribute("aria-label", name);
+            button.setAttribute("aria-pressed", String(i === 0));
+            button.innerHTML = icon(sides) + (tiles ? `<span>${SHORT[name]}</span>` : "");
+            button.addEventListener("click", () => {
+                picker.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b === button)));
+                applyPreview(field, sides);
+            });
+            picker.appendChild(button);
+        });
+        applyPreview(field, SIDE_CHOICES[0][1]);
+    });
+
+    const boxField = document.querySelector("#c .field");
+    const boxSides = () => [...boxField.querySelectorAll(".box button")].filter((b) => b.getAttribute("aria-pressed") === "true").map((b) => b.dataset.side);
+    boxField.querySelectorAll(".box button").forEach((b) => b.addEventListener("click", () => {
+        b.setAttribute("aria-pressed", String(b.getAttribute("aria-pressed") !== "true"));
+        applyPreview(boxField, boxSides());
+    }));
+    boxField.querySelectorAll(".quick a").forEach((a) => a.addEventListener("click", () => {
+        const set = a.dataset.set.split(",");
+        boxField.querySelectorAll(".box button").forEach((b) => b.setAttribute("aria-pressed", String(set.includes(b.dataset.side))));
+        applyPreview(boxField, boxSides());
+    }));
+    applyPreview(boxField, boxSides());
+
+    // Shadow values close to SLDS 2's --slds-g-shadow-1 to -3.
+    const SHADOWS = [["None", "none"], ["Small", "0 1px 2px rgba(0,0,0,0.12)"], ["Medium", "0 2px 6px rgba(0,0,0,0.16)"], ["Large", "0 6px 16px rgba(0,0,0,0.2)"]];
+    document.querySelectorAll("[data-shadow]").forEach((picker) => {
+        const tiles = picker.classList.contains("shadowtiles");
+        const target = picker.closest(".field").querySelector(".preview div");
+        SHADOWS.forEach(([name, value], i) => {
+            const button = document.createElement("button");
+            button.setAttribute("aria-pressed", String(i === 0));
+            button.innerHTML = tiles ? `<span class="sw" style="box-shadow:${value}"></span><span>${name}</span>` : name;
+            button.addEventListener("click", () => {
+                picker.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b === button)));
+                target.style.boxShadow = value;
+            });
+            picker.appendChild(button);
+        });
+    });
+</script>
+</body>
+</html>
