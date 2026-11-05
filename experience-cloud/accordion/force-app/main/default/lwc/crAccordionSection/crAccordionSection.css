@@ -1,0 +1,175 @@
+/*
+ * Spacing follows SLDS. The section has 0.75rem of padding on every side, and the header pulls
+ * itself out to the section's edges with matching negative margins, so its color fills the width.
+ * A closed header also reaches into the bottom padding; an open one stops so the content can follow.
+ * The open content pulls out to the side and bottom edges the same way, so its color fills too.
+ * The section's own padding is left alone, because the closed header depends on it.
+ */
+
+/* The toggle takes its place from the accordion: 0 puts it first (left), 2 after the title (right).
+   On the right it's pushed to the far edge, so it lines up in every section whatever the title's length. */
+.slds-accordion__summary-action-icon {
+    order: var(--cr-accordion-toggle-order, 0);
+    margin-left: var(--cr-accordion-toggle-push, 0);
+    flex: 0 0 auto;
+    align-self: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 1 / 1;
+    /* The toggle shows its own open or closed icon, so SLDS's rotation would turn it twice. */
+    transform: none !important;
+}
+
+/* Both icons sit in the same spot and cross-fade, on the same timing as the header color and the
+   content, so the whole section changes together. Each icon carries its own background. */
+.cr-toggle {
+    display: inline-grid;
+}
+
+.cr-toggle__icon {
+    grid-area: 1 / 1;
+    place-self: center;
+    transition: opacity var(--cr-accordion-duration, 200ms) ease;
+}
+
+.cr-toggle__open,
+.slds-is-open .cr-toggle__close {
+    opacity: 0;
+}
+
+.slds-is-open .cr-toggle__open {
+    opacity: 1;
+}
+
+/* A rotating toggle turns its one icon to the chosen angle while open, on the same timing. */
+.cr-toggle__rotate {
+    transition: transform var(--cr-accordion-duration, 200ms) ease;
+}
+
+.slds-is-open .cr-toggle__rotate {
+    transform: rotate(var(--cr-toggle-rotation, 90deg));
+}
+
+/* The site's focus ring (dxp-slds-extensions, .slds-button:focus) also shows after a mouse click,
+   boxing the whole header. It's kept for keyboard focus and cleared only when the browser says
+   focus came from a pointer, the same rule browsers use for their own focus rings. */
+.slds-accordion__summary-action:focus:not(:focus-visible) {
+    box-shadow: none;
+    border-color: transparent;
+    outline: none;
+}
+
+/* The header's color eases between open and closed, at the animation's speed when there is one. */
+.slds-accordion__summary {
+    transition: background-color var(--cr-accordion-duration, 200ms) ease;
+}
+
+/* The optional header icon sits just before the title, whichever side the toggle is on. */
+.cr-header-icon {
+    order: 1;
+    flex: 0 0 auto;
+    align-self: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 1 / 1;
+}
+
+/* SLDS keeps the title on one line and hides the overflow. The title slot can hold any component,
+   so it fills the rest of the row (components such as Columns have no width of their own), wraps
+   instead of hiding, and can shrink so the row has room to wrap. A site rule overrides a plain
+   flex value here (the canvas computed 0 1 auto), hence !important. */
+.slds-accordion__summary-content {
+    order: 1;
+    flex: 1 1 0% !important;
+    min-width: 0;
+    margin-left: 0.5rem;
+    margin-right: var(--cr-accordion-title-end-gap, 0);
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+}
+
+/* Open content reaches the section's side and bottom edges, matching how SLDS places the header. */
+.slds-is-open > .slds-accordion__content {
+    margin-right: calc(var(--slds-c-accordion-section-spacing-inline-end, 0.75rem) * -1);
+    margin-bottom: calc(var(--slds-c-accordion-section-spacing-block-end, 0.75rem) * -1);
+    margin-left: calc(var(--slds-c-accordion-section-spacing-inline-start, 0.75rem) * -1);
+}
+
+/* Space around the content slot, inside the colored area. */
+.cr-accordion__body {
+    padding: 0.875rem;
+}
+
+/*
+ * Slide animation. SLDS hides closed content with height 0, which can't animate to auto. An animated
+ * section instead makes the content a one-row grid and moves the row between 0fr and 1fr, while the
+ * body travels down from above with it. The clip holds the content at 0 while closed and hides it
+ * while it moves, until cr-is-settled.
+ *
+ * Only the height moves. The margins are set once: the header keeps margin-bottom 0, and the content
+ * always reaches the section's side and bottom edges. A closed section lays out the same as SLDS's,
+ * since the empty content takes the header's place in the bottom padding.
+ */
+.cr-animated > .slds-accordion__summary {
+    margin-bottom: 0;
+}
+
+/* The content stays visible; the body inside does the hiding, so closing can play out. */
+.cr-animated > .slds-accordion__content {
+    display: grid;
+    grid-template-rows: 0fr;
+    height: auto;
+    visibility: visible;
+    opacity: 1;
+    margin-right: calc(var(--slds-c-accordion-section-spacing-inline-end, 0.75rem) * -1);
+    margin-bottom: calc(var(--slds-c-accordion-section-spacing-block-end, 0.75rem) * -1);
+    margin-left: calc(var(--slds-c-accordion-section-spacing-inline-start, 0.75rem) * -1);
+    transition: grid-template-rows var(--cr-accordion-duration) ease;
+}
+
+.cr-animated.slds-is-open > .slds-accordion__content {
+    grid-template-rows: 1fr;
+}
+
+.cr-animated .cr-accordion__clip {
+    min-height: 0;
+    overflow: hidden;
+}
+
+.cr-animated.cr-is-settled .cr-accordion__clip {
+    overflow: visible;
+}
+
+.cr-animated .cr-accordion__body {
+    transform: translateY(-100%);
+    visibility: hidden;
+    transition:
+        transform var(--cr-accordion-duration) ease,
+        visibility 0s var(--cr-accordion-duration);
+}
+
+.cr-animated.slds-is-open .cr-accordion__body {
+    transform: none;
+    visibility: visible;
+    transition:
+        transform var(--cr-accordion-duration) ease,
+        visibility 0s;
+}
+
+/* No movement for people who ask for less. Nothing moves, so open content can overflow right away. */
+@media (prefers-reduced-motion: reduce) {
+    .slds-accordion__summary,
+    .cr-toggle__icon,
+    .cr-toggle__rotate,
+    .cr-animated > .slds-accordion__content,
+    .cr-animated .cr-accordion__body {
+        transition: none;
+    }
+
+    .cr-animated.slds-is-open .cr-accordion__clip {
+        overflow: visible;
+    }
+}

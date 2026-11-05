@@ -1,0 +1,325 @@
+import { createElement } from "lwc";
+import CrAccordionSection from "c/crAccordionSection";
+
+describe("c-cr-accordion-section", () => {
+    afterEach(() => {
+        while (document.body.firstChild) {
+            document.body.removeChild(document.body.firstChild);
+        }
+    });
+
+    const renderSection = () => {
+        const element = createElement("c-cr-accordion-section", { is: CrAccordionSection });
+        document.body.appendChild(element);
+        return element;
+    };
+
+    const isOpen = (element) => element.shadowRoot.querySelector("section").classList.contains("slds-is-open");
+
+    it("starts closed", () => {
+        const element = renderSection();
+        const button = element.shadowRoot.querySelector("button");
+
+        expect(isOpen(element)).toBe(false);
+        expect(button.getAttribute("aria-expanded")).toBe("false");
+    });
+
+    it("opens and closes when the header is clicked", async () => {
+        const element = renderSection();
+        const button = element.shadowRoot.querySelector("button");
+
+        button.click();
+        await Promise.resolve();
+
+        expect(isOpen(element)).toBe(true);
+        expect(button.getAttribute("aria-expanded")).toBe("true");
+
+        button.click();
+        await Promise.resolve();
+
+        expect(isOpen(element)).toBe(false);
+        expect(button.getAttribute("aria-expanded")).toBe("false");
+    });
+
+    it("tells its parent when it opens or closes", () => {
+        const element = renderSection();
+        const handler = jest.fn();
+        element.addEventListener("sectiontoggle", handler);
+
+        element.shadowRoot.querySelector("button").click();
+
+        expect(handler).toHaveBeenCalledTimes(1);
+        expect(handler.mock.calls[0][0].detail.open).toBe(true);
+    });
+
+    it("ties the header button to the content it controls", () => {
+        const element = renderSection();
+        const button = element.shadowRoot.querySelector("button");
+        const content = element.shadowRoot.querySelector(".slds-accordion__content");
+
+        expect(content.id).toBeTruthy();
+        expect(button.getAttribute("aria-controls")).toBe(content.id);
+    });
+
+    it("uses the open background on the header only while the section is open", async () => {
+        const element = renderSection();
+        element.headerBackgroundColor = "#eeeeee";
+        element.headerOpenBackgroundColor = "#0176d3";
+        await Promise.resolve();
+        const header = () => element.shadowRoot.querySelector(".slds-accordion__summary");
+
+        expect(header().getAttribute("style")).toContain("#eeeeee");
+
+        element.shadowRoot.querySelector("button").click();
+        await Promise.resolve();
+        expect(header().getAttribute("style")).toContain("#0176d3");
+
+        element.shadowRoot.querySelector("button").click();
+        await Promise.resolve();
+        expect(header().getAttribute("style")).toContain("#eeeeee");
+    });
+
+    it("keeps the regular header background when no open background is set", async () => {
+        const element = renderSection();
+        element.headerBackgroundColor = "#eeeeee";
+        element.shadowRoot.querySelector("button").click();
+        await Promise.resolve();
+
+        expect(element.shadowRoot.querySelector(".slds-accordion__summary").getAttribute("style")).toContain("#eeeeee");
+    });
+
+    const actionsSlot = (element) => element.shadowRoot.querySelector('slot[name="actions"]');
+
+    it("shows the Actions slot by default", () => {
+        const element = renderSection();
+
+        expect(actionsSlot(element)).not.toBeNull();
+    });
+
+    it("leaves the Actions slot out when actions are hidden", async () => {
+        const element = renderSection();
+        element.showActions = false;
+        await Promise.resolve();
+
+        expect(actionsSlot(element)).toBeNull();
+    });
+
+    const sectionBox = (element) => element.shadowRoot.querySelector("section");
+
+    it("draws no border by default", () => {
+        const element = renderSection();
+
+        expect(sectionBox(element).getAttribute("style") || "").not.toContain("border");
+    });
+
+    it("draws the border with the chosen size, style, and color", async () => {
+        const element = renderSection();
+        element.sectionBorder = { color: "#ff0000", size: "2px", style: "dashed", radius: "0px" };
+        await Promise.resolve();
+
+        expect(sectionBox(element).getAttribute("style")).toContain("border: 2px dashed #ff0000");
+    });
+
+    it("uses the site's border color when no color is chosen", async () => {
+        const element = renderSection();
+        element.sectionBorder = { size: "1px" };
+        await Promise.resolve();
+
+        expect(sectionBox(element).getAttribute("style")).toContain("border: 1px solid var(--slds-g-color-border-1");
+    });
+
+    it("rounds the corners and clips the colors to them", async () => {
+        const element = renderSection();
+        element.sectionBorder = { radius: "12px" };
+        await Promise.resolve();
+
+        const style = sectionBox(element).getAttribute("style");
+        expect(style).toContain("border-radius: 12px");
+        expect(style).toContain("overflow: hidden");
+    });
+
+    const sectionClasses = (element) => sectionBox(element).classList;
+
+    it("doesn't animate by default", () => {
+        const element = renderSection();
+
+        expect(sectionClasses(element).contains("cr-animated")).toBe(false);
+        expect(sectionBox(element).getAttribute("style") || "").not.toContain("--cr-accordion-duration");
+    });
+
+    it("animates with the chosen type and speed", async () => {
+        const element = renderSection();
+        element.animation = { type: "slide", speed: "fast" };
+        await Promise.resolve();
+
+        expect(sectionClasses(element).contains("cr-animate-slide")).toBe(true);
+        expect(sectionBox(element).getAttribute("style")).toContain("--cr-accordion-duration: 250ms");
+    });
+
+    it("lets open content overflow only after it finishes opening, and clips it again when closing", async () => {
+        const element = renderSection();
+        element.animation = { type: "slide", speed: "normal" };
+        element.shadowRoot.querySelector("button").click();
+        await Promise.resolve();
+        expect(sectionClasses(element).contains("cr-is-settled")).toBe(false);
+
+        element.shadowRoot.querySelector(".slds-accordion__content").dispatchEvent(new CustomEvent("transitionend"));
+        await Promise.resolve();
+        expect(sectionClasses(element).contains("cr-is-settled")).toBe(true);
+
+        element.shadowRoot.querySelector("button").click();
+        await Promise.resolve();
+        expect(sectionClasses(element).contains("cr-is-settled")).toBe(false);
+    });
+
+    const body = (element) => element.shadowRoot.querySelector(".cr-accordion__body");
+
+    it("draws no separator by default", () => {
+        const element = renderSection();
+
+        expect(body(element).getAttribute("style") || "").not.toContain("border");
+    });
+
+    it("draws the separator as the top border of the content", async () => {
+        const element = renderSection();
+        element.separator = { color: "#123456", size: "2px", style: "dashed" };
+        await Promise.resolve();
+
+        expect(body(element).getAttribute("style")).toBe("border-top: 2px dashed #123456");
+    });
+
+    const icon = (element, state) => element.shadowRoot.querySelector(`lightning-icon[data-state="${state}"]`);
+    const iconStyle = (element, state) => icon(element, state).getAttribute("style") || "";
+
+    it("shows both icons, each with its own background, so they can cross-fade", async () => {
+        const element = renderSection();
+        element.openIconName = "utility:dash";
+        element.closeIconName = "utility:add";
+        element.iconBackgroundColor = "#eeeeee";
+        element.iconOpenBackgroundColor = "#0176d3";
+        await Promise.resolve();
+
+        expect(icon(element, "close").iconName).toBe("utility:add");
+        expect(icon(element, "open").iconName).toBe("utility:dash");
+        expect(iconStyle(element, "close")).toContain("#eeeeee");
+        expect(iconStyle(element, "open")).toContain("#0176d3");
+    });
+
+    it("gives the open icon the regular background when no open background is set", async () => {
+        const element = renderSection();
+        element.iconBackgroundColor = "#eeeeee";
+        await Promise.resolve();
+
+        expect(iconStyle(element, "open")).toContain("#eeeeee");
+    });
+
+    it("changes the header the moment the section closes", async () => {
+        const element = renderSection();
+        element.animation = { type: "slide", speed: "normal" };
+        element.headerBackgroundColor = "#eeeeee";
+        element.headerOpenBackgroundColor = "#0176d3";
+        const button = () => element.shadowRoot.querySelector("button");
+        const header = () => element.shadowRoot.querySelector(".slds-accordion__summary").getAttribute("style");
+
+        button().click();
+        await Promise.resolve();
+        expect(header()).toContain("#0176d3");
+
+        button().click();
+        await Promise.resolve();
+        expect(header()).toContain("#eeeeee");
+    });
+
+    it("paints the section background behind the header and content", async () => {
+        const element = renderSection();
+        const sectionStyle = () => element.shadowRoot.querySelector("section").getAttribute("style") || "";
+        expect(sectionStyle()).not.toContain("background-color");
+
+        element.sectionBackgroundColor = "#123456";
+        await Promise.resolve();
+
+        expect(sectionStyle()).toContain("background-color: #123456");
+    });
+
+    it("swaps two toggle icons by default", () => {
+        const element = renderSection();
+
+        expect(element.shadowRoot.querySelector('lightning-icon[data-state="close"]')).not.toBeNull();
+        expect(element.shadowRoot.querySelector('lightning-icon[data-state="open"]')).not.toBeNull();
+        expect(element.shadowRoot.querySelector('lightning-icon[data-state="rotate"]')).toBeNull();
+    });
+
+    it("turns one toggle icon by the rotation, using the open background while open", async () => {
+        const element = renderSection();
+        element.iconRotation = "90";
+        element.iconBackgroundColor = "#eeeeee";
+        element.iconOpenBackgroundColor = "#0176d3";
+        await Promise.resolve();
+
+        const rotating = () => element.shadowRoot.querySelector('lightning-icon[data-state="rotate"]');
+        expect(element.shadowRoot.querySelector('lightning-icon[data-state="open"]')).toBeNull();
+        expect(rotating().iconName).toBe("utility:chevronright");
+        expect(rotating().getAttribute("style")).toContain("--cr-toggle-rotation: 90deg");
+        expect(rotating().getAttribute("style")).toContain("#eeeeee");
+
+        element.shadowRoot.querySelector("button").click();
+        await Promise.resolve();
+        expect(rotating().getAttribute("style")).toContain("#0176d3");
+    });
+
+    const headerIcon = (element) => element.shadowRoot.querySelector('lightning-icon[data-state="header"]');
+
+    it("shows no header icon by default", () => {
+        const element = renderSection();
+
+        expect(headerIcon(element)).toBeNull();
+    });
+
+    it("shows the header icon with its colors, using the open background while open", async () => {
+        const element = renderSection();
+        element.headerIcon = {
+            show: true,
+            icon: "utility:question",
+            size: "small",
+            background: "#eeeeee",
+            openBackground: "#0176d3",
+            foreground: "#ffffff"
+        };
+        await Promise.resolve();
+        expect(headerIcon(element).iconName).toBe("utility:question");
+        expect(headerIcon(element).size).toBe("small");
+        expect(headerIcon(element).getAttribute("style")).toContain("#eeeeee");
+        expect(headerIcon(element).getAttribute("style")).toContain("#ffffff");
+
+        element.shadowRoot.querySelector("button").click();
+        await Promise.resolve();
+        expect(headerIcon(element).getAttribute("style")).toContain("#0176d3");
+    });
+
+    it("draws a round border around the header icon, in the foreground color by default", async () => {
+        const element = renderSection();
+        element.headerIcon = { show: true, icon: "utility:question", foreground: "#ffffff", borderSize: "2px" };
+        await Promise.resolve();
+
+        const style = headerIcon(element).getAttribute("style");
+        expect(style).toContain("border: 2px solid #ffffff");
+        expect(style).toContain("border-radius: 50%");
+        expect(style).toContain("padding: 4px");
+    });
+
+    it("uses the chosen border color, and the circle's own padding when the icon has a background", async () => {
+        const element = renderSection();
+        element.headerIcon = {
+            show: true,
+            icon: "utility:question",
+            background: "#000000",
+            borderSize: "1px",
+            borderColor: "#ff0000"
+        };
+        await Promise.resolve();
+
+        const style = headerIcon(element).getAttribute("style");
+        expect(style).toContain("border: 1px solid #ff0000");
+        expect(style).not.toContain("padding");
+    });
+});

@@ -43,6 +43,10 @@
     {
       "path": "experience-cloud/rich-text/force-app",
       "default": false
+    },
+    {
+      "path": "experience-cloud/accordion/force-app",
+      "default": false
     }
   ],
   "namespace": "crlabs",

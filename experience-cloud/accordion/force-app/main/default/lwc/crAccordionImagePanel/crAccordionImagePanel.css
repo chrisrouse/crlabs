@@ -1,0 +1,7 @@
+.cr-panel {
+    overflow: hidden;
+}
+
+.cr-panel__default.is-hidden {
+    display: none;
+}

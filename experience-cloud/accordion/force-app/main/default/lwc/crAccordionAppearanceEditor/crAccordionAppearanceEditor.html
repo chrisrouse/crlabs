@@ -1,0 +1,429 @@
+<template>
+    <div class="appearance">
+        <div class={sectionClass.containerBorder}>
+            <button
+                class="style-section__header"
+                data-key="containerBorder"
+                aria-expanded={expanded.containerBorder}
+                onclick={handleSectionToggle}
+            >
+                <span class="style-section__chevron"></span>Container
+            </button>
+            <template lwc:if={open.containerBorder}>
+                <div class="style-section__body">
+                    <c-cr-color-row
+                        label="Background"
+                        value={appearance.container.background}
+                        data-part="container"
+                        data-field="background"
+                        default-label="None"
+                        oncolorchange={handleColorChange}
+                    ></c-cr-color-row>
+                    <c-cr-border-settings
+                        class="appearance-field"
+                        value={appearance.containerBorder}
+                        data-part="containerBorder"
+                        onborderchange={handleBorderObjectChange}
+                    ></c-cr-border-settings>
+                    <c-cr-shadow-settings
+                        class="appearance-field"
+                        value={appearance.containerBorder}
+                        data-part="containerBorder"
+                        onshadowchange={handleBorderObjectChange}
+                    ></c-cr-shadow-settings>
+                </div>
+            </template>
+        </div>
+
+        <div class={sectionClass.sectionBorder}>
+            <button
+                class="style-section__header"
+                data-key="sectionBorder"
+                aria-expanded={expanded.sectionBorder}
+                onclick={handleSectionToggle}
+            >
+                <span class="style-section__chevron"></span>Section
+            </button>
+            <template lwc:if={open.sectionBorder}>
+                <div class="style-section__body">
+                    <c-cr-color-row
+                        label="Background"
+                        value={appearance.section.background}
+                        data-part="section"
+                        data-field="background"
+                        default-label={sectionDefaultLabel}
+                        oncolorchange={handleColorChange}
+                    ></c-cr-color-row>
+                    <c-cr-border-settings
+                        class="appearance-field"
+                        value={appearance.sectionBorder}
+                        data-part="sectionBorder"
+                        default-color-label="Faint Line"
+                        onborderchange={handleBorderObjectChange}
+                    ></c-cr-border-settings>
+                    <c-cr-shadow-settings
+                        class="appearance-field"
+                        value={appearance.sectionBorder}
+                        data-part="sectionBorder"
+                        onshadowchange={handleBorderObjectChange}
+                    ></c-cr-shadow-settings>
+                </div>
+            </template>
+        </div>
+
+        <div class={sectionClass.header}>
+            <button
+                class="style-section__header"
+                data-key="header"
+                aria-expanded={expanded.header}
+                onclick={handleSectionToggle}
+            >
+                <span class="style-section__chevron"></span>Header
+            </button>
+            <template lwc:if={open.header}>
+                <div class="style-section__body">
+                    <c-cr-color-row
+                        label="Background"
+                        value={appearance.header.background}
+                        data-part="header"
+                        data-field="background"
+                        default-label="Same as Section"
+                        oncolorchange={handleColorChange}
+                    ></c-cr-color-row>
+                    <c-cr-color-row
+                        label="Open Background"
+                        value={appearance.header.openBackground}
+                        data-part="header"
+                        data-field="openBackground"
+                        default-label="Shade of Header"
+                        oncolorchange={handleColorChange}
+                    ></c-cr-color-row>
+                </div>
+            </template>
+        </div>
+
+        <div class={sectionClass.toggle}>
+            <button
+                class="style-section__header"
+                data-key="toggle"
+                aria-expanded={expanded.toggle}
+                onclick={handleSectionToggle}
+            >
+                <span class="style-section__chevron"></span>Toggles
+            </button>
+            <template lwc:if={open.toggle}>
+                <div class="style-section__body">
+                    <lightning-radio-group
+                        class="appearance-field"
+                        name="togglePosition"
+                        type="button"
+                        label="Position"
+                        options={positionOptions}
+                        value={appearance.toggle.position}
+                        data-part="toggle"
+                        data-field="position"
+                        onchange={handleOptionChange}
+                    ></lightning-radio-group>
+                    <lightning-radio-group
+                        class="appearance-field"
+                        name="toggleIconChange"
+                        type="button"
+                        label="Icon Change"
+                        options={iconChangeOptions}
+                        value={appearance.toggle.change}
+                        data-part="toggle"
+                        data-field="change"
+                        onchange={handleOptionChange}
+                    ></lightning-radio-group>
+                    <template lwc:if={isRotatingToggle}>
+                        <c-cr-icon-picker
+                            class="appearance-field"
+                            label="Icon"
+                            value={appearance.toggle.closeIcon}
+                            data-part="toggle"
+                            data-field="closeIcon"
+                            oniconchange={handleOptionChange}
+                        ></c-cr-icon-picker>
+                        <lightning-combobox
+                            class="appearance-field"
+                            label="Rotation"
+                            options={rotationOptions}
+                            value={appearance.toggle.rotation}
+                            data-part="toggle"
+                            data-field="rotation"
+                            field-level-help="How far the icon turns when the section opens. Not every icon reads well turned."
+                            onchange={handleOptionChange}
+                        ></lightning-combobox>
+                    </template>
+                    <template lwc:else>
+                        <c-cr-icon-picker
+                            class="appearance-field"
+                            label="Open Icon"
+                            value={appearance.toggle.openIcon}
+                            data-part="toggle"
+                            data-field="openIcon"
+                            oniconchange={handleOptionChange}
+                        ></c-cr-icon-picker>
+                        <c-cr-icon-picker
+                            class="appearance-field"
+                            label="Close Icon"
+                            value={appearance.toggle.closeIcon}
+                            data-part="toggle"
+                            data-field="closeIcon"
+                            oniconchange={handleOptionChange}
+                        ></c-cr-icon-picker>
+                    </template>
+                    <lightning-input
+                        class="appearance-field"
+                        type="checkbox"
+                        label="Hide Icon"
+                        checked={appearance.toggle.hide}
+                        data-part="toggle"
+                        data-field="hide"
+                        onchange={handleCheckboxChange}
+                    ></lightning-input>
+                    <lightning-combobox
+                        class="appearance-field"
+                        label="Icon Size"
+                        options={iconSizeOptions}
+                        value={appearance.toggle.size}
+                        data-part="toggle"
+                        data-field="size"
+                        onchange={handleOptionChange}
+                    ></lightning-combobox>
+                    <c-cr-color-row
+                        label="Icon Background"
+                        value={appearance.toggle.background}
+                        data-part="toggle"
+                        data-field="background"
+                        oncolorchange={handleColorChange}
+                    ></c-cr-color-row>
+                    <c-cr-color-row
+                        label="Icon Open Background"
+                        value={appearance.toggle.openBackground}
+                        data-part="toggle"
+                        data-field="openBackground"
+                        oncolorchange={handleColorChange}
+                    ></c-cr-color-row>
+                    <c-cr-color-row
+                        label="Icon Foreground"
+                        value={appearance.toggle.foreground}
+                        data-part="toggle"
+                        data-field="foreground"
+                        oncolorchange={handleColorChange}
+                    ></c-cr-color-row>
+                </div>
+            </template>
+        </div>
+
+        <div class={sectionClass.headerIcon}>
+            <button
+                class="style-section__header"
+                data-key="headerIcon"
+                aria-expanded={expanded.headerIcon}
+                onclick={handleSectionToggle}
+            >
+                <span class="style-section__chevron"></span>Header Icon
+            </button>
+            <template lwc:if={open.headerIcon}>
+                <div class="style-section__body">
+                    <lightning-input
+                        class="appearance-field"
+                        type="checkbox"
+                        label="Show Header Icon"
+                        checked={appearance.headerIcon.show}
+                        data-part="headerIcon"
+                        data-field="show"
+                        onchange={handleCheckboxChange}
+                    ></lightning-input>
+                    <template lwc:if={appearance.headerIcon.show}>
+                        <c-cr-icon-picker
+                            class="appearance-field"
+                            label="Icon"
+                            value={appearance.headerIcon.icon}
+                            data-part="headerIcon"
+                            data-field="icon"
+                            oniconchange={handleOptionChange}
+                        ></c-cr-icon-picker>
+                        <lightning-combobox
+                            class="appearance-field"
+                            label="Icon Size"
+                            options={iconSizeOptions}
+                            value={appearance.headerIcon.size}
+                            data-part="headerIcon"
+                            data-field="size"
+                            onchange={handleOptionChange}
+                        ></lightning-combobox>
+                        <c-cr-color-row
+                            label="Icon Background"
+                            value={appearance.headerIcon.background}
+                            data-part="headerIcon"
+                            data-field="background"
+                            oncolorchange={handleColorChange}
+                        ></c-cr-color-row>
+                        <c-cr-color-row
+                            label="Icon Open Background"
+                            value={appearance.headerIcon.openBackground}
+                            data-part="headerIcon"
+                            data-field="openBackground"
+                            oncolorchange={handleColorChange}
+                        ></c-cr-color-row>
+                        <c-cr-color-row
+                            label="Icon Foreground"
+                            value={appearance.headerIcon.foreground}
+                            data-part="headerIcon"
+                            data-field="foreground"
+                            oncolorchange={handleColorChange}
+                        ></c-cr-color-row>
+                        <c-cr-measure-input
+                            class="appearance-field"
+                            label="Icon Border Weight (0–10)"
+                            units={iconBorderUnits}
+                            max={maxIconBorder}
+                            value={appearance.headerIcon.borderSize}
+                            data-part="headerIcon"
+                            data-field="borderSize"
+                            onmeasurechange={handleMeasureChange}
+                        ></c-cr-measure-input>
+                        <template lwc:if={hasHeaderIconBorder}>
+                            <c-cr-color-row
+                                label="Icon Border Color"
+                                value={appearance.headerIcon.borderColor}
+                                data-part="headerIcon"
+                                data-field="borderColor"
+                                oncolorchange={handleColorChange}
+                            ></c-cr-color-row>
+                        </template>
+                    </template>
+                </div>
+            </template>
+        </div>
+
+        <div class={sectionClass.separator}>
+            <button
+                class="style-section__header"
+                data-key="separator"
+                aria-expanded={expanded.separator}
+                onclick={handleSectionToggle}
+            >
+                <span class="style-section__chevron"></span>Separator
+            </button>
+            <template lwc:if={open.separator}>
+                <div class="style-section__body">
+                    <c-cr-color-row
+                        label="Color"
+                        value={appearance.separator.color}
+                        data-part="separator"
+                        data-field="color"
+                        default-label="Faint Line"
+                        oncolorchange={handleColorChange}
+                    ></c-cr-color-row>
+                    <c-cr-measure-input
+                        class="appearance-field"
+                        label="Weight"
+                        units={weightUnits}
+                        value={appearance.separator.size}
+                        data-part="separator"
+                        data-field="size"
+                        onmeasurechange={handleMeasureChange}
+                    ></c-cr-measure-input>
+                    <c-cr-border-style-picker
+                        class="appearance-field"
+                        label="Line Style"
+                        value={appearance.separator.style}
+                        data-part="separator"
+                        data-field="style"
+                        onstylechange={handleOptionChange}
+                    ></c-cr-border-style-picker>
+                </div>
+            </template>
+        </div>
+
+        <div class={sectionClass.content}>
+            <button
+                class="style-section__header"
+                data-key="content"
+                aria-expanded={expanded.content}
+                onclick={handleSectionToggle}
+            >
+                <span class="style-section__chevron"></span>Content
+            </button>
+            <template lwc:if={open.content}>
+                <div class="style-section__body">
+                    <c-cr-color-row
+                        label="Background"
+                        value={appearance.content.background}
+                        data-part="content"
+                        data-field="background"
+                        default-label="Same as Header"
+                        oncolorchange={handleColorChange}
+                    ></c-cr-color-row>
+                </div>
+            </template>
+        </div>
+
+        <div class={sectionClass.spacing}>
+            <button
+                class="style-section__header"
+                data-key="spacing"
+                aria-expanded={expanded.spacing}
+                onclick={handleSectionToggle}
+            >
+                <span class="style-section__chevron"></span>Spacing
+            </button>
+            <template lwc:if={open.spacing}>
+                <div class="style-section__body">
+                    <lightning-input
+                        class="appearance-field"
+                        type="number"
+                        label="Space Between Sections (0–5 rem)"
+                        min="0"
+                        max="5"
+                        step="any"
+                        value={appearance.spacing.between}
+                        data-part="spacing"
+                        data-field="between"
+                        onchange={handleSpacingChange}
+                        onblur={handleSpacingCommit}
+                    ></lightning-input>
+                </div>
+            </template>
+        </div>
+
+        <div class={sectionClass.animation}>
+            <button
+                class="style-section__header"
+                data-key="animation"
+                aria-expanded={expanded.animation}
+                onclick={handleSectionToggle}
+            >
+                <span class="style-section__chevron"></span>Animation
+            </button>
+            <template lwc:if={open.animation}>
+                <div class="style-section__body">
+                    <lightning-input
+                        class="appearance-field"
+                        type="checkbox"
+                        label="Animate Open and Close"
+                        checked={isAnimated}
+                        data-part="animation"
+                        data-field="type"
+                        onchange={handleAnimateChange}
+                    ></lightning-input>
+                    <template lwc:if={isAnimated}>
+                        <lightning-radio-group
+                            class="appearance-field"
+                            type="button"
+                            label="Speed"
+                            options={speedOptions}
+                            value={appearance.animation.speed}
+                            data-part="animation"
+                            data-field="speed"
+                            onchange={handleOptionChange}
+                        ></lightning-radio-group>
+                    </template>
+                </div>
+            </template>
+        </div>
+    </div>
+</template>

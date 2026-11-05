@@ -1,0 +1,73 @@
+<template>
+    <section class={sectionClass} style={sectionStyle}>
+        <div class="slds-accordion__summary slds-grid slds-grid_vertical-align-center" style={headerStyle}>
+            <h2 class="slds-accordion__summary-heading slds-grow">
+                <button
+                    class="slds-button slds-button_reset slds-accordion__summary-action slds-grid slds-grid_vertical-align-center"
+                    aria-expanded={ariaExpanded}
+                    aria-controls={contentId}
+                    onclick={handleHeaderClick}
+                >
+                    <template lwc:if={showToggleIcon}>
+                        <span class="slds-accordion__summary-action-icon cr-toggle slds-m-right_x-small">
+                            <template lwc:if={isRotating}>
+                                <lightning-icon
+                                    class="cr-toggle__icon cr-toggle__rotate"
+                                    data-state="rotate"
+                                    icon-name={closeIconName}
+                                    size={iconSize}
+                                    style={rotateIconStyle}
+                                ></lightning-icon>
+                            </template>
+                            <template lwc:else>
+                                <lightning-icon
+                                    class="cr-toggle__icon cr-toggle__close"
+                                    data-state="close"
+                                    icon-name={closeIconName}
+                                    size={iconSize}
+                                    style={closeIconStyle}
+                                ></lightning-icon>
+                                <lightning-icon
+                                    class="cr-toggle__icon cr-toggle__open"
+                                    data-state="open"
+                                    icon-name={openIconName}
+                                    size={iconSize}
+                                    style={openIconStyle}
+                                ></lightning-icon>
+                            </template>
+                        </span>
+                    </template>
+                    <template lwc:if={showHeaderIcon}>
+                        <lightning-icon
+                            class="cr-header-icon"
+                            data-state="header"
+                            icon-name={headerIcon.icon}
+                            size={headerIcon.size}
+                            style={headerIconStyle}
+                        ></lightning-icon>
+                    </template>
+                    <span class="slds-accordion__summary-content">
+                        <slot name="title"></slot>
+                    </span>
+                </button>
+            </h2>
+            <template lwc:if={showActions}>
+                <div class="slds-grid slds-grid_vertical-align-center">
+                    <slot name="actions"></slot>
+                </div>
+            </template>
+        </div>
+        <div
+            id={contentId}
+            class="slds-accordion__content"
+            style={contentStyle}
+            ontransitionend={handleContentTransitionEnd}
+        >
+            <div class="cr-accordion__clip">
+                <div class="cr-accordion__body" style={bodyStyle}>
+                    <slot name="content"></slot>
+                </div>
+            </div>
+        </div>
+    </section>
+</template>
