@@ -1,0 +1,147 @@
+/**
+ * Border and shadow settings turned into CSS. Shared by every CRLabs component that lets an author
+ * draw a border or shadow, and by the Border and Shadow settings that edit them.
+ *
+ * @example
+ * import { borderDeclarations } from "c/crBorderCss";
+ * const style = borderDeclarations(appearance.containerBorder).join("; ");
+ */
+/** Box sides in CSS order. Borders and shadows apply to any combination of them. */
+export const ALL_SIDES = Object.freeze(["top", "right", "bottom", "left"]);
+
+/** Box corners in CSS order. A radius rounds any combination of them. */
+export const ALL_CORNERS = Object.freeze([
+  "top-left",
+  "top-right",
+  "bottom-right",
+  "bottom-left"
+]);
+
+/** Border settings with no border drawn: every side selected, no weight, and no shadow. The shadow
+ * is a blur length; 0 draws none. */
+export const NO_BORDER = Object.freeze({
+  color: "",
+  size: "0px",
+  style: "solid",
+  radius: "0px",
+  radiusCorners: ALL_CORNERS,
+  sides: ALL_SIDES,
+  shadow: "0px",
+  shadowColor: "",
+  shadowSides: ALL_SIDES
+});
+
+/** Border color used when no custom color is chosen: the site's standard border color. */
+const DEFAULT_BORDER_COLOR = "var(--slds-g-color-border-1, #c9c9c9)";
+
+/** Which way each side's shadow is pushed, as x and y multipliers of the blur. */
+const SHADOW_DIRECTION = {
+  top: [0, -1],
+  right: [1, 0],
+  bottom: [0, 1],
+  left: [-1, 0]
+};
+
+/**
+ * Turns the shadow settings into a box-shadow value. All four sides give an even shadow around the
+ * box. Fewer sides give one shadow per side, each pushed out by its blur and pulled in by the same
+ * amount of negative spread, so it shows only on its own side.
+ * @param {string} shadow The blur as a CSS length, such as "8px". The shadow reaches out this far.
+ * @param {string[]} sides The sides with a shadow.
+ * @param {string} color The shadow color.
+ * @returns {string} The box-shadow value, or empty for no shadow.
+ */
+function shadowValue(shadow, sides, color) {
+  const blur = parseFloat(shadow);
+  if (!(blur > 0) || !sides.length) {
+    return "";
+  }
+  const unit = /[a-z%]+$/i.exec(shadow)?.[0] || "px";
+  if (sides.length === ALL_SIDES.length) {
+    return `0 0 ${blur}${unit} ${color}`;
+  }
+  return sides
+    .map((side) => {
+      const [x, y] = SHADOW_DIRECTION[side];
+      return `${x * blur}${unit} ${y * blur}${unit} ${blur}${unit} -${blur}${unit} ${color}`;
+    })
+    .join(", ");
+}
+
+/**
+ * Reads a list of sides, keeping CSS order. Anything that isn't a list means all sides.
+ * @param {string[]} sides The stored sides.
+ * @returns {string[]}
+ */
+function readSides(sides) {
+  return readList(sides, ALL_SIDES);
+}
+
+/**
+ * Reads a stored list of sides or corners, keeping CSS order. Anything that isn't a list means all.
+ * @param {string[]} items The stored list.
+ * @param {readonly string[]} all Every side or corner, in CSS order.
+ * @returns {string[]}
+ */
+function readList(items, all) {
+  return Array.isArray(items)
+    ? all.filter((item) => items.includes(item))
+    : [...all];
+}
+
+/**
+ * Turns border settings into CSS declarations. A weight of 0 or no sides draws no border, and an
+ * unset color uses the site's standard border color. A radius also clips the inside to the rounded
+ * corners, which can be any of the four, so colors don't poke out. The shadow is drawn on its own sides, in its own color, or in
+ * the border's color when it has none.
+ * @param {object} border The border settings: color, size, style, radius, radiusCorners, sides, shadow,
+ * shadowColor,
+ * and shadowSides.
+ * @returns {string[]} The CSS declarations, empty when there's nothing to draw.
+ */
+export function borderDeclarations({
+  color,
+  size,
+  style,
+  radius,
+  radiusCorners,
+  sides,
+  shadow,
+  shadowColor,
+  shadowSides
+}) {
+  const declarations = [];
+  const borderSides = readSides(sides);
+  if (parseFloat(size) > 0 && borderSides.length) {
+    const line = `${size} ${style || "solid"} ${color || DEFAULT_BORDER_COLOR}`;
+    if (borderSides.length === ALL_SIDES.length) {
+      declarations.push(`border: ${line}`);
+    } else {
+      borderSides.forEach((side) =>
+        declarations.push(`border-${side}: ${line}`)
+      );
+    }
+  }
+  if (parseFloat(radius) > 0) {
+    const corners = readList(radiusCorners, ALL_CORNERS);
+    if (corners.length === ALL_CORNERS.length) {
+      declarations.push(`border-radius: ${radius}`);
+    } else {
+      corners.forEach((corner) =>
+        declarations.push(`border-${corner}-radius: ${radius}`)
+      );
+    }
+    if (corners.length) {
+      declarations.push("overflow: hidden");
+    }
+  }
+  const boxShadow = shadowValue(
+    shadow,
+    readSides(shadowSides),
+    shadowColor || color || DEFAULT_BORDER_COLOR
+  );
+  if (boxShadow) {
+    declarations.push(`box-shadow: ${boxShadow}`);
+  }
+  return declarations;
+}

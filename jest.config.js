@@ -12,6 +12,10 @@ module.exports = {
         // The shipped flowSupport stub's FlowAttributeChangeEvent takes no
         // constructor arguments, so a Flow output's attributeName and value
         // are unassertable against it. See the file.
-        "^lightning/flowSupport$": "<rootDir>/test/jest-mocks/lightning/flowSupport"
+        "^lightning/flowSupport$": "<rootDir>/test/jest-mocks/lightning/flowSupport",
+        // CSS-only modules have no .js file, which the LWC resolver needs, so point each one at
+        // its stylesheet.
+        "^c/crEditorStyles$":
+            "<rootDir>/foundations/force-app/components/lwc/crEditorStyles/crEditorStyles.css"
     }
 };

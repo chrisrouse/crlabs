@@ -1,0 +1,8 @@
+<template>
+    <div class="sample" style={boxStyle}>
+        <template lwc:if={icon}>
+            <lightning-icon icon-name={icon} size="small" alternative-text={icon}></lightning-icon>
+        </template>
+        <span class="slds-m-left_x-small">{icon}</span>
+    </div>
+</template>

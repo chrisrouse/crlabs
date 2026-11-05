@@ -1,0 +1,6 @@
+@import "c/crEditorStyles";
+
+/* The last field leaves its spacing to whatever holds these settings. */
+.settings > :last-child {
+  margin-bottom: 0;
+}

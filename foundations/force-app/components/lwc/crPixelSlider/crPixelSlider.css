@@ -1,0 +1,9 @@
+/* The number beside the track keeps one width, sized for the largest value, so the track's end
+   doesn't move as the digits change. Equal-width digits keep it from shifting within that width. */
+.slds-slider__value {
+  flex: 0 0 auto;
+  box-sizing: content-box;
+  padding: 0 0.75rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}

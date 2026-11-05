@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>67.0</apiVersion>
+    <isExposed>true</isExposed>
+    <masterLabel>Foundations Test</masterLabel>
+    <description>Test harness for the CRLabs Foundations property editor controls in Flow Builder. Deployed by path for testing; never packaged.</description>
+    <targets>
+        <target>lightning__FlowScreen</target>
+    </targets>
+    <targetConfigs>
+        <!-- No default= on any property: Flow Builder re-asserts a declared default over whatever
+             the property editor writes. -->
+        <targetConfig targets="lightning__FlowScreen" configurationEditor="c-cr-foundations-test-editor">
+            <property name="icon" type="String" label="Icon" role="inputOnly" />
+            <property name="box" type="String" label="Border and Shadow (JSON)" role="inputOnly" />
+        </targetConfig>
+    </targetConfigs>
+</LightningComponentBundle>

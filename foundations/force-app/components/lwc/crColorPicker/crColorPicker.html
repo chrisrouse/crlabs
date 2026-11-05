@@ -1,0 +1,225 @@
+<template>
+  <div class="picker">
+    <div class="picker__tabs" role="tablist" aria-label={label}>
+      <button
+        class={spectrumTabClass}
+        role="tab"
+        id="spectrum-tab"
+        aria-controls="spectrum-panel"
+        aria-selected={spectrumSelected}
+        tabindex={spectrumTabIndex}
+        data-tab="spectrum"
+        onclick={handleTabClick}
+        onkeydown={handleTabKeydown}
+      >
+        Spectrum
+      </button>
+      <button
+        class={paletteTabClass}
+        role="tab"
+        id="palette-tab"
+        aria-controls="palette-panel"
+        aria-selected={paletteSelected}
+        tabindex={paletteTabIndex}
+        data-tab="palette"
+        onclick={handleTabClick}
+        onkeydown={handleTabKeydown}
+      >
+        Palette
+      </button>
+    </div>
+
+    <template lwc:if={isSpectrum}>
+      <div
+        class="picker__panel"
+        role="tabpanel"
+        id="spectrum-panel"
+        aria-labelledby="spectrum-tab"
+      >
+        <div
+          class="picker__area"
+          style={areaStyle}
+          role="slider"
+          tabindex="0"
+          aria-label={areaLabel}
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow={areaValueNow}
+          aria-valuetext={areaValueText}
+          data-control="area"
+          onpointerdown={handlePointerDown}
+          onpointermove={handlePointerMove}
+          onpointerup={handlePointerUp}
+          onpointercancel={handlePointerUp}
+          onkeydown={handleSliderKeydown}
+          onkeyup={handleSliderKeyup}
+        >
+          <span class="picker__thumb" style={areaThumbStyle}></span>
+        </div>
+
+        <div class="picker__sliders">
+          <span class="picker__preview" style={previewStyle}></span>
+          <div class="picker__bars">
+            <div
+              class="picker__bar picker__bar_hue"
+              role="slider"
+              tabindex="0"
+              aria-label={hueLabel}
+              aria-valuemin="0"
+              aria-valuemax="359"
+              aria-valuenow={hueValue}
+              aria-valuetext={hueValueText}
+              data-control="hue"
+              onpointerdown={handlePointerDown}
+              onpointermove={handlePointerMove}
+              onpointerup={handlePointerUp}
+              onpointercancel={handlePointerUp}
+              onkeydown={handleSliderKeydown}
+              onkeyup={handleSliderKeyup}
+            >
+              <span class="picker__thumb" style={hueThumbStyle}></span>
+            </div>
+            <div
+              class="picker__bar picker__bar_opacity"
+              style={opacityTrackStyle}
+              role="slider"
+              tabindex="0"
+              aria-label={opacityLabel}
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow={opacity}
+              aria-valuetext={opacityText}
+              data-control="opacity"
+              onpointerdown={handlePointerDown}
+              onpointermove={handlePointerMove}
+              onpointerup={handlePointerUp}
+              onpointercancel={handlePointerUp}
+              onkeydown={handleSliderKeydown}
+              onkeyup={handleSliderKeyup}
+            >
+              <span class="picker__thumb" style={opacityThumbStyle}></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="picker__fields">
+          <label class="picker__field picker__field_hex">
+            <span class="picker__field-label">Hex</span>
+            <input
+              class="picker__input"
+              data-field="hex"
+              value={hexText}
+              maxlength="9"
+              spellcheck="false"
+              onchange={handleFieldChange}
+            />
+          </label>
+          <label class="picker__field">
+            <span class="picker__field-label">R</span>
+            <input
+              class="picker__input"
+              data-field="r"
+              value={red}
+              inputmode="numeric"
+              onchange={handleFieldChange}
+            />
+          </label>
+          <label class="picker__field">
+            <span class="picker__field-label">G</span>
+            <input
+              class="picker__input"
+              data-field="g"
+              value={green}
+              inputmode="numeric"
+              onchange={handleFieldChange}
+            />
+          </label>
+          <label class="picker__field">
+            <span class="picker__field-label">B</span>
+            <input
+              class="picker__input"
+              data-field="b"
+              value={blue}
+              inputmode="numeric"
+              onchange={handleFieldChange}
+            />
+          </label>
+          <label class="picker__field picker__field_opacity">
+            <span class="picker__field-label">Opacity</span>
+            <input
+              class="picker__input"
+              data-field="opacity"
+              value={opacityText}
+              inputmode="numeric"
+              onchange={handleFieldChange}
+            />
+          </label>
+        </div>
+      </div>
+    </template>
+
+    <template lwc:if={isPalette}>
+      <div
+        class="picker__panel picker__palette"
+        role="tabpanel"
+        id="palette-panel"
+        aria-labelledby="palette-tab"
+      >
+        <template for:each={paletteFamilies} for:item="family">
+          <div
+            key={family.name}
+            class="picker__family"
+            role="group"
+            aria-labelledby={family.headingId}
+          >
+            <div class="picker__heading" id={family.headingId}>
+              {family.label}
+            </div>
+            <div class="picker__swatches">
+              <template for:each={family.swatches} for:item="swatch">
+                <button
+                  key={swatch.key}
+                  class="picker__swatch"
+                  style={swatch.style}
+                  title={swatch.label}
+                  aria-label={swatch.label}
+                  aria-pressed={swatch.pressed}
+                  tabindex={swatch.tabIndex}
+                  data-hex={swatch.hex}
+                  data-index={swatch.index}
+                  onclick={handleSwatchClick}
+                  onkeydown={handleSwatchKeydown}
+                ></button>
+              </template>
+            </div>
+          </div>
+        </template>
+      </div>
+    </template>
+
+    <div class="picker__saved" role="group" aria-labelledby="saved-heading">
+      <div class="picker__heading" id="saved-heading">Saved</div>
+      <div class="picker__saved-row">
+        <template for:each={savedSwatches} for:item="saved">
+          <button
+            key={saved.key}
+            class="picker__swatch"
+            style={saved.style}
+            title={saved.color}
+            aria-label={saved.label}
+            data-color={saved.color}
+            onclick={handleSavedClick}
+          ></button>
+        </template>
+        <button
+          class="picker__swatch picker__swatch_add"
+          title={saveLabel}
+          aria-label={saveLabel}
+          onclick={handleSave}
+        >
+          +
+        </button>
+      </div>
+    </div>
+  </div>
+</template>

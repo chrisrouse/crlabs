@@ -1,0 +1,86 @@
+<template>
+  <div class="slds-form-element">
+    <span class="cr-label">{label}</span>
+    <div class="icon-field">
+      <button
+        class="cr-control icon-trigger"
+        aria-haspopup="dialog"
+        aria-expanded={ariaExpanded}
+        title={selectedName}
+        onclick={handleToggle}
+      >
+        <template lwc:if={hasValue}>
+          <lightning-icon
+            icon-name={selectedName}
+            size="x-small"
+            alternative-text={selectedName}
+          ></lightning-icon>
+        </template>
+        <span class="icon-trigger-name slds-truncate">{selectedName}</span>
+        <lightning-icon
+          icon-name="utility:down"
+          size="xx-small"
+          alternative-text="Open icon menu"
+        ></lightning-icon>
+      </button>
+      <template lwc:if={isOpen}>
+        <div class="cr-menu icon-menu" role="dialog" aria-label={label}>
+          <lightning-input
+            type="search"
+            variant="label-hidden"
+            label="Search icons"
+            placeholder="Search icons"
+            value={searchValue}
+            onchange={handleSearch}
+          ></lightning-input>
+          <div
+            class="category-tabs slds-m-vertical_x-small"
+            role="group"
+            aria-label="Icon set"
+          >
+            <template for:each={categories} for:item="category">
+              <button
+                key={category.value}
+                class="cr-control category-tab"
+                data-category={category.value}
+                aria-pressed={category.pressed}
+                onclick={handleCategory}
+              >
+                {category.label}
+              </button>
+            </template>
+          </div>
+          <div class="icon-grid" role="group" aria-label="Icons">
+            <template for:each={icons} for:item="icon">
+              <button
+                key={icon.name}
+                class={icon.className}
+                data-name={icon.name}
+                aria-pressed={icon.pressed}
+                title={icon.shortName}
+                onclick={handleSelect}
+              >
+                <lightning-icon
+                  icon-name={icon.name}
+                  size="small"
+                  alternative-text={icon.shortName}
+                ></lightning-icon>
+              </button>
+            </template>
+          </div>
+          <template lwc:if={noMatches}>
+            <p class="no-matches">{noMatches}</p>
+          </template>
+          <template lwc:if={hasMore}>
+            <button
+              class="slds-button slds-button_neutral slds-m-top_x-small show-more"
+              onclick={handleShowMore}
+            >
+              {moreLabel}
+            </button>
+          </template>
+        </div>
+      </template>
+    </div>
+  </div>
+</template>

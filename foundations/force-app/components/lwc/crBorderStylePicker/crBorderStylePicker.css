@@ -1,0 +1,32 @@
+@import "c/crEditorStyles";
+
+/* Four columns, like the side and corner tiles, so the buttons line up with them. */
+.style-picker {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.35rem;
+}
+
+.style-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 2rem;
+  padding: 0.25rem;
+}
+
+/* A short sample of each line style. */
+.preview {
+  display: block;
+  width: 2rem;
+  height: 0;
+  border-bottom: 2px solid currentColor;
+}
+
+.preview-dashed {
+  border-bottom-style: dashed;
+}
+
+.preview-dotted {
+  border-bottom-style: dotted;
+}
