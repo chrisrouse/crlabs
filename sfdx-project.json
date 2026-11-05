@@ -51,6 +51,10 @@
     {
       "path": "experience-cloud/search-bar/force-app",
       "default": false
+    },
+    {
+      "path": "experience-cloud/sidebar-layout/force-app",
+      "default": false
     }
   ],
   "namespace": "crlabs",

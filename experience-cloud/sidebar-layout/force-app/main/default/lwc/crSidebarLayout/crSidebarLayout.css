@@ -1,0 +1,144 @@
+/* Layout: header, then sidebar beside content, then footer. Override the custom properties from site CSS. */
+:host {
+    --cr-sidebar-layout-sidebar-width: 16rem;
+    --cr-sidebar-layout-border-color: var(--dxp-g-neutral, #dddbda);
+    --cr-sidebar-layout-sidebar-background: var(--dxp-g-root, #ffffff);
+    --cr-sidebar-layout-drawer-width: min(20rem, 85vw);
+    --cr-sidebar-layout-duration: 200ms;
+    display: block;
+}
+
+.layout {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+}
+
+/* Header */
+.header {
+    display: flex;
+    align-items: center;
+    border-bottom: 1px solid var(--cr-sidebar-layout-border-color);
+}
+
+.header-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.menu-button {
+    display: none;
+    flex: none;
+    width: 2.75rem;
+    height: 2.75rem;
+    margin-left: 0.5rem;
+    padding: 0.625rem;
+    border: 0;
+    border-radius: 0.25rem;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+}
+
+.menu-button svg {
+    width: 100%;
+    height: 100%;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linecap: round;
+}
+
+.menu-button:focus:not(:focus-visible) {
+    box-shadow: none;
+    border-color: transparent;
+    outline: none;
+}
+
+/* Body: sidebar and content */
+.body {
+    position: relative;
+    display: flex;
+    flex: 1;
+}
+
+.sidebar {
+    flex: none;
+    width: var(--cr-sidebar-layout-sidebar-width);
+    border-right: 1px solid var(--cr-sidebar-layout-border-color);
+    background: var(--cr-sidebar-layout-sidebar-background);
+}
+
+/* The sidebar's contents stay in view while a long page scrolls. */
+.sidebar-content {
+    position: sticky;
+    top: 0;
+    max-height: 100vh;
+    overflow-y: auto;
+}
+
+.content {
+    flex: 1;
+    min-width: 0;
+}
+
+.scrim {
+    display: none;
+}
+
+/* Footer */
+.footer {
+    border-top: 1px solid var(--cr-sidebar-layout-border-color);
+}
+
+/* Phone width: the sidebar becomes a drawer over the content. */
+@media (max-width: 47.9375em) {
+    .menu-button {
+        display: block;
+    }
+
+    .sidebar {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 2;
+        width: var(--cr-sidebar-layout-drawer-width);
+        transform: translateX(-100%);
+        visibility: hidden;
+        box-shadow: 2px 0 8px rgba(0, 0, 0, 0.16);
+        transition:
+            transform var(--cr-sidebar-layout-duration) ease,
+            visibility 0s linear var(--cr-sidebar-layout-duration);
+    }
+
+    .drawer-open .sidebar {
+        transform: none;
+        visibility: visible;
+        transition: transform var(--cr-sidebar-layout-duration) ease;
+    }
+
+    .scrim {
+        display: block;
+        position: absolute;
+        inset: 0;
+        z-index: 1;
+        background: rgba(0, 0, 0, 0.32);
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity var(--cr-sidebar-layout-duration) ease;
+    }
+
+    .drawer-open .scrim {
+        opacity: 1;
+        pointer-events: auto;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sidebar,
+    .drawer-open .sidebar,
+    .scrim {
+        transition: none;
+    }
+}

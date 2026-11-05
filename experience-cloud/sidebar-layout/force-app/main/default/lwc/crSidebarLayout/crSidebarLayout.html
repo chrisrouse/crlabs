@@ -1,0 +1,35 @@
+<template>
+    <div class={layoutClass}>
+        <header class="header" data-f6-region>
+            <button
+                class="menu-button"
+                type="button"
+                aria-controls="sidebar"
+                aria-expanded={ariaExpanded}
+                aria-label={menuButtonLabel}
+                onclick={handleMenuClick}
+            >
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <path d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+            </button>
+            <div class="header-content">
+                <slot name="header"></slot>
+            </div>
+        </header>
+        <div class="body">
+            <aside id="sidebar" class="sidebar" data-f6-region>
+                <div class="sidebar-content">
+                    <slot name="sidebar"></slot>
+                </div>
+            </aside>
+            <div class="scrim" onclick={handleScrimClick}></div>
+            <main class="content" data-f6-region>
+                <slot></slot>
+            </main>
+        </div>
+        <footer class="footer" data-f6-region>
+            <slot name="footer"></slot>
+        </footer>
+    </div>
+</template>
