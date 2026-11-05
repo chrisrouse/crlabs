@@ -10,25 +10,20 @@
 export const ALL_SIDES = Object.freeze(["top", "right", "bottom", "left"]);
 
 /** Box corners in CSS order. A radius rounds any combination of them. */
-export const ALL_CORNERS = Object.freeze([
-  "top-left",
-  "top-right",
-  "bottom-right",
-  "bottom-left"
-]);
+export const ALL_CORNERS = Object.freeze(["top-left", "top-right", "bottom-right", "bottom-left"]);
 
 /** Border settings with no border drawn: every side selected, no weight, and no shadow. The shadow
  * is a blur length; 0 draws none. */
 export const NO_BORDER = Object.freeze({
-  color: "",
-  size: "0px",
-  style: "solid",
-  radius: "0px",
-  radiusCorners: ALL_CORNERS,
-  sides: ALL_SIDES,
-  shadow: "0px",
-  shadowColor: "",
-  shadowSides: ALL_SIDES
+    color: "",
+    size: "0px",
+    style: "solid",
+    radius: "0px",
+    radiusCorners: ALL_CORNERS,
+    sides: ALL_SIDES,
+    shadow: "0px",
+    shadowColor: "",
+    shadowSides: ALL_SIDES
 });
 
 /** Border color used when no custom color is chosen: the site's standard border color. */
@@ -36,10 +31,10 @@ const DEFAULT_BORDER_COLOR = "var(--slds-g-color-border-1, #c9c9c9)";
 
 /** Which way each side's shadow is pushed, as x and y multipliers of the blur. */
 const SHADOW_DIRECTION = {
-  top: [0, -1],
-  right: [1, 0],
-  bottom: [0, 1],
-  left: [-1, 0]
+    top: [0, -1],
+    right: [1, 0],
+    bottom: [0, 1],
+    left: [-1, 0]
 };
 
 /**
@@ -52,20 +47,20 @@ const SHADOW_DIRECTION = {
  * @returns {string} The box-shadow value, or empty for no shadow.
  */
 function shadowValue(shadow, sides, color) {
-  const blur = parseFloat(shadow);
-  if (!(blur > 0) || !sides.length) {
-    return "";
-  }
-  const unit = /[a-z%]+$/i.exec(shadow)?.[0] || "px";
-  if (sides.length === ALL_SIDES.length) {
-    return `0 0 ${blur}${unit} ${color}`;
-  }
-  return sides
-    .map((side) => {
-      const [x, y] = SHADOW_DIRECTION[side];
-      return `${x * blur}${unit} ${y * blur}${unit} ${blur}${unit} -${blur}${unit} ${color}`;
-    })
-    .join(", ");
+    const blur = parseFloat(shadow);
+    if (!(blur > 0) || !sides.length) {
+        return "";
+    }
+    const unit = /[a-z%]+$/i.exec(shadow)?.[0] || "px";
+    if (sides.length === ALL_SIDES.length) {
+        return `0 0 ${blur}${unit} ${color}`;
+    }
+    return sides
+        .map((side) => {
+            const [x, y] = SHADOW_DIRECTION[side];
+            return `${x * blur}${unit} ${y * blur}${unit} ${blur}${unit} -${blur}${unit} ${color}`;
+        })
+        .join(", ");
 }
 
 /**
@@ -74,7 +69,7 @@ function shadowValue(shadow, sides, color) {
  * @returns {string[]}
  */
 function readSides(sides) {
-  return readList(sides, ALL_SIDES);
+    return readList(sides, ALL_SIDES);
 }
 
 /**
@@ -84,9 +79,7 @@ function readSides(sides) {
  * @returns {string[]}
  */
 function readList(items, all) {
-  return Array.isArray(items)
-    ? all.filter((item) => items.includes(item))
-    : [...all];
+    return Array.isArray(items) ? all.filter((item) => items.includes(item)) : [...all];
 }
 
 /**
@@ -100,48 +93,40 @@ function readList(items, all) {
  * @returns {string[]} The CSS declarations, empty when there's nothing to draw.
  */
 export function borderDeclarations({
-  color,
-  size,
-  style,
-  radius,
-  radiusCorners,
-  sides,
-  shadow,
-  shadowColor,
-  shadowSides
-}) {
-  const declarations = [];
-  const borderSides = readSides(sides);
-  if (parseFloat(size) > 0 && borderSides.length) {
-    const line = `${size} ${style || "solid"} ${color || DEFAULT_BORDER_COLOR}`;
-    if (borderSides.length === ALL_SIDES.length) {
-      declarations.push(`border: ${line}`);
-    } else {
-      borderSides.forEach((side) =>
-        declarations.push(`border-${side}: ${line}`)
-      );
-    }
-  }
-  if (parseFloat(radius) > 0) {
-    const corners = readList(radiusCorners, ALL_CORNERS);
-    if (corners.length === ALL_CORNERS.length) {
-      declarations.push(`border-radius: ${radius}`);
-    } else {
-      corners.forEach((corner) =>
-        declarations.push(`border-${corner}-radius: ${radius}`)
-      );
-    }
-    if (corners.length) {
-      declarations.push("overflow: hidden");
-    }
-  }
-  const boxShadow = shadowValue(
+    color,
+    size,
+    style,
+    radius,
+    radiusCorners,
+    sides,
     shadow,
-    readSides(shadowSides),
-    shadowColor || color || DEFAULT_BORDER_COLOR
-  );
-  if (boxShadow) {
-    declarations.push(`box-shadow: ${boxShadow}`);
-  }
-  return declarations;
+    shadowColor,
+    shadowSides
+}) {
+    const declarations = [];
+    const borderSides = readSides(sides);
+    if (parseFloat(size) > 0 && borderSides.length) {
+        const line = `${size} ${style || "solid"} ${color || DEFAULT_BORDER_COLOR}`;
+        if (borderSides.length === ALL_SIDES.length) {
+            declarations.push(`border: ${line}`);
+        } else {
+            borderSides.forEach((side) => declarations.push(`border-${side}: ${line}`));
+        }
+    }
+    if (parseFloat(radius) > 0) {
+        const corners = readList(radiusCorners, ALL_CORNERS);
+        if (corners.length === ALL_CORNERS.length) {
+            declarations.push(`border-radius: ${radius}`);
+        } else {
+            corners.forEach((corner) => declarations.push(`border-${corner}-radius: ${radius}`));
+        }
+        if (corners.length) {
+            declarations.push("overflow: hidden");
+        }
+    }
+    const boxShadow = shadowValue(shadow, readSides(shadowSides), shadowColor || color || DEFAULT_BORDER_COLOR);
+    if (boxShadow) {
+        declarations.push(`box-shadow: ${boxShadow}`);
+    }
+    return declarations;
 }

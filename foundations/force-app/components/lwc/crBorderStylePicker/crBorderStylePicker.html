@@ -1,23 +1,23 @@
 <template>
-  <fieldset class="slds-form-element">
-    <legend class="cr-label">{label}</legend>
-    <div class="slds-form-element__control">
-      <div class="style-picker">
-        <template for:each={options} for:item="option">
-          <button
-            key={option.value}
-            type="button"
-            class="cr-control style-btn"
-            data-value={option.value}
-            title={option.label}
-            aria-pressed={option.pressed}
-            onclick={handleSelect}
-          >
-            <span class={option.previewClass}></span>
-            <span class="slds-assistive-text">{option.label}</span>
-          </button>
-        </template>
-      </div>
-    </div>
-  </fieldset>
+    <fieldset class="slds-form-element">
+        <legend class="cr-label">{label}</legend>
+        <div class="slds-form-element__control">
+            <div class="style-picker">
+                <template for:each={options} for:item="option">
+                    <button
+                        key={option.value}
+                        type="button"
+                        class="cr-control style-btn"
+                        data-value={option.value}
+                        title={option.label}
+                        aria-pressed={option.pressed}
+                        onclick={handleSelect}
+                    >
+                        <span class={option.previewClass}></span>
+                        <span class="slds-assistive-text">{option.label}</span>
+                    </button>
+                </template>
+            </div>
+        </div>
+    </fieldset>
 </template>

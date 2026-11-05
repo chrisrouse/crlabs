@@ -14,69 +14,69 @@
  *   cr-menu     A floating menu or popover's box, like the kit's picker results.
  */
 :host {
-  --cr-border: #c9c9c9;
-  --cr-border-active: #1b96ff;
-  --cr-selected: #0176d3;
-  --cr-selected-bg: #eef4ff;
-  --cr-text: #181818;
-  --cr-text-label: #444444;
-  --cr-text-weak: #706e6b;
-  --cr-radius: 0.25rem;
-  --cr-field-gap: 0.75rem;
-  --cr-menu-border: #b0adab;
-  --cr-menu-radius: 0.375rem;
-  --cr-menu-shadow: 0 2px 5px rgb(0 0 0 / 18%);
+    --cr-border: #c9c9c9;
+    --cr-border-active: #1b96ff;
+    --cr-selected: #0176d3;
+    --cr-selected-bg: #eef4ff;
+    --cr-text: #181818;
+    --cr-text-label: #444444;
+    --cr-text-weak: #706e6b;
+    --cr-radius: 0.25rem;
+    --cr-field-gap: 0.75rem;
+    --cr-menu-border: #b0adab;
+    --cr-menu-radius: 0.375rem;
+    --cr-menu-shadow: 0 2px 5px rgb(0 0 0 / 18%);
 }
 
 .cr-label {
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  margin: 0 0 2px;
-  padding: 4px 8px 0 0;
-  color: var(--cr-text-label);
-  font-size: 12px;
-  line-height: 18px;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin: 0 0 2px;
+    padding: 4px 8px 0 0;
+    color: var(--cr-text-label);
+    font-size: 12px;
+    line-height: 18px;
 }
 
 .cr-control {
-  border: 1px solid var(--cr-border);
-  border-radius: var(--cr-radius);
-  background: #ffffff;
-  color: var(--cr-text-label);
-  font: inherit;
-  cursor: pointer;
+    border: 1px solid var(--cr-border);
+    border-radius: var(--cr-radius);
+    background: #ffffff;
+    color: var(--cr-text-label);
+    font: inherit;
+    cursor: pointer;
 }
 
 .cr-control:hover,
 .cr-control:focus-visible {
-  border-color: var(--cr-border-active);
-  box-shadow: inset 0 0 0 1px var(--cr-border-active);
-  outline: none;
+    border-color: var(--cr-border-active);
+    box-shadow: inset 0 0 0 1px var(--cr-border-active);
+    outline: none;
 }
 
 .cr-control[aria-pressed="true"] {
-  border-color: var(--cr-selected);
-  box-shadow: inset 0 0 0 1px var(--cr-selected);
-  background: var(--cr-selected-bg);
-  color: var(--cr-selected);
+    border-color: var(--cr-selected);
+    box-shadow: inset 0 0 0 1px var(--cr-selected);
+    background: var(--cr-selected-bg);
+    color: var(--cr-selected);
 }
 
 /* A selected control that has focus keeps its selected ring and gains the focus ring outside it. */
 .cr-control[aria-pressed="true"]:focus-visible {
-  box-shadow:
-    inset 0 0 0 1px var(--cr-selected),
-    0 0 0 2px var(--cr-border-active);
+    box-shadow:
+        inset 0 0 0 1px var(--cr-selected),
+        0 0 0 2px var(--cr-border-active);
 }
 
 .cr-field {
-  display: block;
-  margin-bottom: var(--cr-field-gap);
+    display: block;
+    margin-bottom: var(--cr-field-gap);
 }
 
 .cr-menu {
-  border: 1px solid var(--cr-menu-border);
-  border-radius: var(--cr-menu-radius);
-  background: #ffffff;
-  box-shadow: var(--cr-menu-shadow);
+    border: 1px solid var(--cr-menu-border);
+    border-radius: var(--cr-menu-radius);
+    background: #ffffff;
+    box-shadow: var(--cr-menu-shadow);
 }

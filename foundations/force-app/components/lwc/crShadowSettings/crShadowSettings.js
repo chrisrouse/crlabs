@@ -20,40 +20,38 @@ const MAX_SHADOW_PX = 30;
  * <c-cr-shadow-settings value={appearance.containerBorder} onshadowchange={handleShadowChange}></c-cr-shadow-settings>
  */
 export default class CrShadowSettings extends LightningElement {
-  _value = { ...NO_BORDER };
+    _value = { ...NO_BORDER };
 
-  /**
-   * The shadow settings. Missing settings read as no shadow.
-   * @param {object} newValue The stored settings.
-   */
-  @api
-  set value(newValue) {
-    this._value = { ...NO_BORDER, ...(newValue || {}) };
-  }
-  get value() {
-    return this._value;
-  }
+    /**
+     * The shadow settings. Missing settings read as no shadow.
+     * @param {object} newValue The stored settings.
+     */
+    @api
+    set value(newValue) {
+        this._value = { ...NO_BORDER, ...(newValue || {}) };
+    }
+    get value() {
+        return this._value;
+    }
 
-  get maxShadow() {
-    return MAX_SHADOW_PX;
-  }
+    get maxShadow() {
+        return MAX_SHADOW_PX;
+    }
 
-  /**
-   * @returns {boolean} Whether a shadow is drawn, which shows its color and sides.
-   */
-  get hasShadow() {
-    return parseFloat(this._value.shadow) > 0;
-  }
+    /**
+     * @returns {boolean} Whether a shadow is drawn, which shows its color and sides.
+     */
+    get hasShadow() {
+        return parseFloat(this._value.shadow) > 0;
+    }
 
-  /**
-   * Stores the changed setting and sends the whole object.
-   * @param {CustomEvent} event A change from one field, with the setting's name on the field.
-   */
-  handleFieldChange(event) {
-    const field = event.currentTarget.dataset.field;
-    this._value = { ...this._value, [field]: event.detail.value };
-    this.dispatchEvent(
-      new CustomEvent("shadowchange", { detail: { value: this._value } })
-    );
-  }
+    /**
+     * Stores the changed setting and sends the whole object.
+     * @param {CustomEvent} event A change from one field, with the setting's name on the field.
+     */
+    handleFieldChange(event) {
+        const field = event.currentTarget.dataset.field;
+        this._value = { ...this._value, [field]: event.detail.value };
+        this.dispatchEvent(new CustomEvent("shadowchange", { detail: { value: this._value } }));
+    }
 }

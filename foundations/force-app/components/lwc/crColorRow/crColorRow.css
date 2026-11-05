@@ -2,72 +2,66 @@
 
 /* One line per color, with the label on the left and the dot on the right. */
 .color-row__trigger {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  width: 100%;
-  padding: 0.375rem 0;
-  border: none;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.375rem 0;
+    border: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
 }
 
 .color-row__trigger {
-  border-radius: var(--cr-radius);
+    border-radius: var(--cr-radius);
 }
 
 .color-row__trigger:focus-visible {
-  box-shadow: 0 0 0 2px var(--cr-border-active);
-  outline: none;
+    box-shadow: 0 0 0 2px var(--cr-border-active);
+    outline: none;
 }
 
 /* The default label sits just before the dot, quieter than the setting's name. */
 .color-row__value {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
 }
 
 .color-row__default {
-  color: var(--cr-text-weak);
-  font-size: 0.75rem;
+    color: var(--cr-text-weak);
+    font-size: 0.75rem;
 }
 
 .color-dot {
-  flex: 0 0 auto;
-  width: 1.25rem;
-  height: 1.25rem;
-  border: 1px solid var(--cr-border);
-  border-radius: 50%;
+    flex: 0 0 auto;
+    width: 1.25rem;
+    height: 1.25rem;
+    border: 1px solid var(--cr-border);
+    border-radius: 50%;
 }
 
 /* The default dot has a slash through it, so it reads as "no color set". */
 .color-dot.is-default {
-  background: linear-gradient(
-    135deg,
-    #ffffff 45%,
-    #c9c9c9 45%,
-    #c9c9c9 55%,
-    #ffffff 55%
-  );
+    background: linear-gradient(135deg, #ffffff 45%, #c9c9c9 45%, #c9c9c9 55%, #ffffff 55%);
 }
 
 .color-row__detail {
-  margin: 0.25rem 0 0.5rem;
-  padding: 0.5rem;
-  border: 1px solid var(--cr-border);
-  border-radius: var(--cr-radius);
+    margin: 0.25rem 0 0.5rem;
+    padding: 0.5rem;
+    border: 1px solid var(--cr-border);
+    border-radius: var(--cr-radius);
 }
 
 .color-row__choices {
-  display: flex;
-  gap: 0.25rem;
+    display: flex;
+    gap: 0.25rem;
 }
 
 .color-row__choice {
-  padding: 0.25rem 0.625rem;
+    padding: 0.25rem 0.625rem;
 }

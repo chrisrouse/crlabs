@@ -2,14 +2,14 @@
 
 /* The number box and the unit dropdown share one row, two parts to one. */
 .measure__row {
-  display: flex;
-  gap: 0.5rem;
+    display: flex;
+    gap: 0.5rem;
 }
 
 .measure__number {
-  flex: 2 1 0;
+    flex: 2 1 0;
 }
 
 .measure__unit {
-  flex: 1 1 0;
+    flex: 1 1 0;
 }

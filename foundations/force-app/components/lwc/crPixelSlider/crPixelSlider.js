@@ -17,65 +17,65 @@ const PX_PER_REM = 16;
  * <c-cr-pixel-slider label="Border Radius" max="150" value={radius} onmeasurechange={handleChange}></c-cr-pixel-slider>
  */
 export default class CrPixelSlider extends LightningElement {
-  /** Name of the setting, shown above the slider. */
-  @api label;
+    /** Name of the setting, shown above the slider. */
+    @api label;
 
-  /** Largest number of pixels. */
-  @api max = 100;
+    /** Largest number of pixels. */
+    @api max = 100;
 
-  /** The stored CSS length, such as "12px". A length in rem is shown in pixels. */
-  @api value = "0px";
+    /** The stored CSS length, such as "12px". A length in rem is shown in pixels. */
+    @api value = "0px";
 
-  _dragging;
+    _dragging;
 
-  /**
-   * @returns {string} The range shown under the label.
-   */
-  get rangeLabel() {
-    return `(0–${this.max} px)`;
-  }
-
-  /**
-   * @returns {string} The number's fixed width: room for the largest value's digits.
-   */
-  get valueStyle() {
-    return `width: ${String(this.max).length}ch`;
-  }
-
-  /**
-   * The value in whole pixels, kept within the range. While the slider is dragged, the dragged
-   * value shows.
-   * @returns {number}
-   */
-  get pixels() {
-    if (this._dragging !== undefined) {
-      return this._dragging;
+    /**
+     * @returns {string} The range shown under the label.
+     */
+    get rangeLabel() {
+        return `(0–${this.max} px)`;
     }
-    const length = String(this.value || "0px");
-    const number = parseFloat(length) || 0;
-    const px = /rem$/i.test(length) ? number * PX_PER_REM : number;
-    return Math.min(Number(this.max), Math.max(0, Math.round(px)));
-  }
 
-  /**
-   * Shows the value while the slider is dragged, without sending it.
-   * @param {Event} event The input event from the slider.
-   */
-  handleInput(event) {
-    this._dragging = Number(event.target.value);
-  }
+    /**
+     * @returns {string} The number's fixed width: room for the largest value's digits.
+     */
+    get valueStyle() {
+        return `width: ${String(this.max).length}ch`;
+    }
 
-  /**
-   * Sends the value when the slider is released or moved with the keyboard.
-   * @param {Event} event The change event from the slider.
-   */
-  handleChange(event) {
-    event.stopPropagation();
-    this._dragging = undefined;
-    this.dispatchEvent(
-      new CustomEvent("measurechange", {
-        detail: { value: `${event.target.value}px` }
-      })
-    );
-  }
+    /**
+     * The value in whole pixels, kept within the range. While the slider is dragged, the dragged
+     * value shows.
+     * @returns {number}
+     */
+    get pixels() {
+        if (this._dragging !== undefined) {
+            return this._dragging;
+        }
+        const length = String(this.value || "0px");
+        const number = parseFloat(length) || 0;
+        const px = /rem$/i.test(length) ? number * PX_PER_REM : number;
+        return Math.min(Number(this.max), Math.max(0, Math.round(px)));
+    }
+
+    /**
+     * Shows the value while the slider is dragged, without sending it.
+     * @param {Event} event The input event from the slider.
+     */
+    handleInput(event) {
+        this._dragging = Number(event.target.value);
+    }
+
+    /**
+     * Sends the value when the slider is released or moved with the keyboard.
+     * @param {Event} event The change event from the slider.
+     */
+    handleChange(event) {
+        event.stopPropagation();
+        this._dragging = undefined;
+        this.dispatchEvent(
+            new CustomEvent("measurechange", {
+                detail: { value: `${event.target.value}px` }
+            })
+        );
+    }
 }

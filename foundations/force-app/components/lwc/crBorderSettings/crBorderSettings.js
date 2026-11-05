@@ -23,55 +23,53 @@ const MAX_RADIUS_PX = 150;
  * <c-cr-border-settings value={appearance.containerBorder} onborderchange={handleBorderChange}></c-cr-border-settings>
  */
 export default class CrBorderSettings extends LightningElement {
-  /** What an unset Border Color falls back to, such as "Faint Line". Shown on the color row. */
-  @api defaultColorLabel;
+    /** What an unset Border Color falls back to, such as "Faint Line". Shown on the color row. */
+    @api defaultColorLabel;
 
-  _value = { ...NO_BORDER };
+    _value = { ...NO_BORDER };
 
-  /**
-   * The border settings. Missing settings read as no border.
-   * @param {object} newValue The stored settings.
-   */
-  @api
-  set value(newValue) {
-    this._value = { ...NO_BORDER, ...(newValue || {}) };
-  }
-  get value() {
-    return this._value;
-  }
+    /**
+     * The border settings. Missing settings read as no border.
+     * @param {object} newValue The stored settings.
+     */
+    @api
+    set value(newValue) {
+        this._value = { ...NO_BORDER, ...(newValue || {}) };
+    }
+    get value() {
+        return this._value;
+    }
 
-  get weightUnits() {
-    return WEIGHT_UNITS;
-  }
+    get weightUnits() {
+        return WEIGHT_UNITS;
+    }
 
-  get maxRadius() {
-    return MAX_RADIUS_PX;
-  }
+    get maxRadius() {
+        return MAX_RADIUS_PX;
+    }
 
-  /**
-   * @returns {boolean} Whether the corners are rounded, which shows Rounded Corners.
-   */
-  get hasRadius() {
-    return parseFloat(this._value.radius) > 0;
-  }
+    /**
+     * @returns {boolean} Whether the corners are rounded, which shows Rounded Corners.
+     */
+    get hasRadius() {
+        return parseFloat(this._value.radius) > 0;
+    }
 
-  /**
-   * Stores the changed setting and sends the whole object.
-   * @param {CustomEvent} event A change from one field, with the setting's name on the field.
-   */
-  handleFieldChange(event) {
-    this.update(event.currentTarget.dataset.field, event.detail.value);
-  }
+    /**
+     * Stores the changed setting and sends the whole object.
+     * @param {CustomEvent} event A change from one field, with the setting's name on the field.
+     */
+    handleFieldChange(event) {
+        this.update(event.currentTarget.dataset.field, event.detail.value);
+    }
 
-  /**
-   * Changes one setting and sends the whole object.
-   * @param {string} field The setting, such as "radius".
-   * @param {*} value The new value.
-   */
-  update(field, value) {
-    this._value = { ...this._value, [field]: value };
-    this.dispatchEvent(
-      new CustomEvent("borderchange", { detail: { value: this._value } })
-    );
-  }
+    /**
+     * Changes one setting and sends the whole object.
+     * @param {string} field The setting, such as "radius".
+     * @param {*} value The new value.
+     */
+    update(field, value) {
+        this._value = { ...this._value, [field]: value };
+        this.dispatchEvent(new CustomEvent("borderchange", { detail: { value: this._value } }));
+    }
 }

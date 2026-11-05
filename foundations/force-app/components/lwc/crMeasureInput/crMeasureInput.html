@@ -1,27 +1,27 @@
 <template>
-  <div class="measure">
-    <span class="cr-label">{label}</span>
-    <div class="measure__row">
-      <lightning-input
-        class="measure__number"
-        type="number"
-        variant="label-hidden"
-        label={label}
-        min="0"
-        max={max}
-        step="any"
-        value={number}
-        onchange={handleNumberChange}
-        onblur={handleNumberCommit}
-      ></lightning-input>
-      <lightning-combobox
-        class="measure__unit"
-        variant="label-hidden"
-        label={unitLabel}
-        options={unitOptions}
-        value={unit}
-        onchange={handleUnitChange}
-      ></lightning-combobox>
+    <div class="measure">
+        <span class="cr-label">{label}</span>
+        <div class="measure__row">
+            <lightning-input
+                class="measure__number"
+                type="number"
+                variant="label-hidden"
+                label={label}
+                min="0"
+                max={max}
+                step="any"
+                value={number}
+                onchange={handleNumberChange}
+                onblur={handleNumberCommit}
+            ></lightning-input>
+            <lightning-combobox
+                class="measure__unit"
+                variant="label-hidden"
+                label={unitLabel}
+                options={unitOptions}
+                value={unit}
+                onchange={handleUnitChange}
+            ></lightning-combobox>
+        </div>
     </div>
-  </div>
 </template>

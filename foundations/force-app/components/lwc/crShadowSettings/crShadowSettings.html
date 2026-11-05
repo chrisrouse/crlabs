@@ -1,27 +1,27 @@
 <template>
-  <div class="settings">
-    <c-cr-pixel-slider
-      class="cr-field"
-      label="Shadow Size"
-      max={maxShadow}
-      value={value.shadow}
-      data-field="shadow"
-      onmeasurechange={handleFieldChange}
-    ></c-cr-pixel-slider>
-    <template lwc:if={hasShadow}>
-      <c-cr-color-row
-        label="Shadow Color"
-        value={value.shadowColor}
-        data-field="shadowColor"
-        oncolorchange={handleFieldChange}
-      ></c-cr-color-row>
-      <c-cr-sides-picker
-        class="cr-field"
-        label="Shadow Sides"
-        value={value.shadowSides}
-        data-field="shadowSides"
-        onsideschange={handleFieldChange}
-      ></c-cr-sides-picker>
-    </template>
-  </div>
+    <div class="settings">
+        <c-cr-pixel-slider
+            class="cr-field"
+            label="Shadow Size"
+            max={maxShadow}
+            value={value.shadow}
+            data-field="shadow"
+            onmeasurechange={handleFieldChange}
+        ></c-cr-pixel-slider>
+        <template lwc:if={hasShadow}>
+            <c-cr-color-row
+                label="Shadow Color"
+                value={value.shadowColor}
+                data-field="shadowColor"
+                oncolorchange={handleFieldChange}
+            ></c-cr-color-row>
+            <c-cr-sides-picker
+                class="cr-field"
+                label="Shadow Sides"
+                value={value.shadowSides}
+                data-field="shadowSides"
+                onsideschange={handleFieldChange}
+            ></c-cr-sides-picker>
+        </template>
+    </div>
 </template>

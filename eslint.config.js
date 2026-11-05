@@ -7,7 +7,12 @@ module.exports = [
     eslintJs.configs.recommended,
     ...(Array.isArray(salesforceLwcConfig) ? salesforceLwcConfig : [salesforceLwcConfig]),
     {
-        files: ["screen-flow/screen-timer/**/lwc/**/*.js", "screen-flow/email-recipients/**/lwc/**/*.js"],
+        files: [
+            "foundations/force-app/components/**/lwc/**/*.js",
+            "foundations/test/**/lwc/**/*.js",
+            "screen-flow/screen-timer/**/lwc/**/*.js",
+            "screen-flow/email-recipients/**/lwc/**/*.js"
+        ],
         languageOptions: { ecmaVersion: 2023, sourceType: "module" }
     },
     {

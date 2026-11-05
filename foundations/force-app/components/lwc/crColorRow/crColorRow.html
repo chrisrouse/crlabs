@@ -1,47 +1,43 @@
 <template>
-  <div class="color-row">
-    <button
-      class="color-row__trigger"
-      aria-expanded={ariaExpanded}
-      onclick={handleToggle}
-    >
-      <span class="color-row__label">{label}</span>
-      <span class="color-row__value">
-        <template lwc:if={showDefaultLabel}>
-          <span class="color-row__default">{defaultLabel}</span>
+    <div class="color-row">
+        <button class="color-row__trigger" aria-expanded={ariaExpanded} onclick={handleToggle}>
+            <span class="color-row__label">{label}</span>
+            <span class="color-row__value">
+                <template lwc:if={showDefaultLabel}>
+                    <span class="color-row__default">{defaultLabel}</span>
+                </template>
+                <span class={dotClass} style={dotStyle}></span>
+            </span>
+        </button>
+        <template lwc:if={isExpanded}>
+            <div class="color-row__detail">
+                <div class="color-row__choices" role="group" aria-label={label}>
+                    <button
+                        class="cr-control color-row__choice"
+                        data-choice="default"
+                        aria-pressed={defaultPressed}
+                        onclick={handleUseDefault}
+                    >
+                        Use Default
+                    </button>
+                    <button
+                        class="cr-control color-row__choice"
+                        data-choice="custom"
+                        aria-pressed={customPressed}
+                        onclick={handleUseCustom}
+                    >
+                        Use Custom
+                    </button>
+                </div>
+                <template lwc:if={isCustom}>
+                    <c-cr-color-picker
+                        class="slds-m-top_x-small"
+                        label={label}
+                        value={value}
+                        oncolorchange={handlePickerChange}
+                    ></c-cr-color-picker>
+                </template>
+            </div>
         </template>
-        <span class={dotClass} style={dotStyle}></span>
-      </span>
-    </button>
-    <template lwc:if={isExpanded}>
-      <div class="color-row__detail">
-        <div class="color-row__choices" role="group" aria-label={label}>
-          <button
-            class="cr-control color-row__choice"
-            data-choice="default"
-            aria-pressed={defaultPressed}
-            onclick={handleUseDefault}
-          >
-            Use Default
-          </button>
-          <button
-            class="cr-control color-row__choice"
-            data-choice="custom"
-            aria-pressed={customPressed}
-            onclick={handleUseCustom}
-          >
-            Use Custom
-          </button>
-        </div>
-        <template lwc:if={isCustom}>
-          <c-cr-color-picker
-            class="slds-m-top_x-small"
-            label={label}
-            value={value}
-            oncolorchange={handlePickerChange}
-          ></c-cr-color-picker>
-        </template>
-      </div>
-    </template>
-  </div>
+    </div>
 </template>

@@ -2,69 +2,69 @@
 
 /* The field is the anchor for the floating menu. The menu is positioned from it, not from the page. */
 .icon-field {
-  position: relative;
+    position: relative;
 }
 
 /* The field fills its row like a dropdown, at any panel width. The name takes the leftover space
    and truncates, so the arrow stays at the right edge. */
 .icon-trigger {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  width: 100%;
-  min-height: 2rem;
-  padding: 0.25rem 0.625rem;
-  color: var(--cr-text);
-  text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    min-height: 2rem;
+    padding: 0.25rem 0.625rem;
+    color: var(--cr-text);
+    text-align: left;
 }
 
 .icon-trigger-name {
-  flex: 1 1 auto;
-  min-width: 0;
+    flex: 1 1 auto;
+    min-width: 0;
 }
 
 /* The menu floats below the field and spans it edge to edge, so it never runs past the panel. */
 .icon-menu {
-  position: absolute;
-  top: calc(100% + 0.25rem);
-  left: 0;
-  right: 0;
-  z-index: 9000;
-  padding: 0.75rem;
+    position: absolute;
+    top: calc(100% + 0.25rem);
+    left: 0;
+    right: 0;
+    z-index: 9000;
+    padding: 0.75rem;
 }
 
 .no-matches {
-  margin-top: 0.5rem;
-  color: var(--cr-text-weak);
-  font-size: 0.75rem;
+    margin-top: 0.5rem;
+    color: var(--cr-text-weak);
+    font-size: 0.75rem;
 }
 
 /* Five sets don't fit one row in a narrow panel, so the tabs wrap. */
 .category-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25rem;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
 }
 
 .category-tab {
-  padding: 0.25rem 0.75rem;
+    padding: 0.25rem 0.75rem;
 }
 
 .icon-grid {
-  display: grid;
-  /* Five columns at any panel width, so the icons stay large. */
-  grid-template-columns: repeat(5, 1fr);
-  gap: 0.25rem;
-  max-height: 16rem;
-  overflow-x: hidden;
-  overflow-y: auto;
+    display: grid;
+    /* Five columns at any panel width, so the icons stay large. */
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.25rem;
+    max-height: 16rem;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 .icon-option {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  /* Square tiles that grow with the column width. */
-  aspect-ratio: 1;
-  padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    /* Square tiles that grow with the column width. */
+    aspect-ratio: 1;
+    padding: 0;
 }

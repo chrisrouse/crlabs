@@ -1,51 +1,51 @@
 <template>
-  <div class="settings">
-    <c-cr-color-row
-      label="Border Color"
-      value={value.color}
-      default-label={defaultColorLabel}
-      data-field="color"
-      oncolorchange={handleFieldChange}
-    ></c-cr-color-row>
-    <c-cr-measure-input
-      class="cr-field"
-      label="Weight"
-      units={weightUnits}
-      value={value.size}
-      data-field="size"
-      onmeasurechange={handleFieldChange}
-    ></c-cr-measure-input>
-    <c-cr-border-style-picker
-      class="cr-field"
-      label="Line Style"
-      value={value.style}
-      data-field="style"
-      onstylechange={handleFieldChange}
-    ></c-cr-border-style-picker>
-    <c-cr-sides-picker
-      class="cr-field"
-      label="Sides"
-      value={value.sides}
-      data-field="sides"
-      onsideschange={handleFieldChange}
-    ></c-cr-sides-picker>
-    <c-cr-pixel-slider
-      class="cr-field"
-      label="Border Radius"
-      max={maxRadius}
-      value={value.radius}
-      data-field="radius"
-      onmeasurechange={handleFieldChange}
-    ></c-cr-pixel-slider>
-    <template lwc:if={hasRadius}>
-      <c-cr-sides-picker
-        class="cr-field"
-        kind="corners"
-        label="Rounded Corners"
-        value={value.radiusCorners}
-        data-field="radiusCorners"
-        onsideschange={handleFieldChange}
-      ></c-cr-sides-picker>
-    </template>
-  </div>
+    <div class="settings">
+        <c-cr-color-row
+            label="Border Color"
+            value={value.color}
+            default-label={defaultColorLabel}
+            data-field="color"
+            oncolorchange={handleFieldChange}
+        ></c-cr-color-row>
+        <c-cr-measure-input
+            class="cr-field"
+            label="Weight"
+            units={weightUnits}
+            value={value.size}
+            data-field="size"
+            onmeasurechange={handleFieldChange}
+        ></c-cr-measure-input>
+        <c-cr-border-style-picker
+            class="cr-field"
+            label="Line Style"
+            value={value.style}
+            data-field="style"
+            onstylechange={handleFieldChange}
+        ></c-cr-border-style-picker>
+        <c-cr-sides-picker
+            class="cr-field"
+            label="Sides"
+            value={value.sides}
+            data-field="sides"
+            onsideschange={handleFieldChange}
+        ></c-cr-sides-picker>
+        <c-cr-pixel-slider
+            class="cr-field"
+            label="Border Radius"
+            max={maxRadius}
+            value={value.radius}
+            data-field="radius"
+            onmeasurechange={handleFieldChange}
+        ></c-cr-pixel-slider>
+        <template lwc:if={hasRadius}>
+            <c-cr-sides-picker
+                class="cr-field"
+                kind="corners"
+                label="Rounded Corners"
+                value={value.radiusCorners}
+                data-field="radiusCorners"
+                onsideschange={handleFieldChange}
+            ></c-cr-sides-picker>
+        </template>
+    </div>
 </template>
