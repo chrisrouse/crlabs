@@ -1,0 +1,196 @@
+.object-picker {
+    padding: 0.5rem 0;
+    font-size: 0.8125rem;
+}
+
+.object-list {
+    list-style: none;
+    margin: 0 0 0.5rem;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.object-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.4rem 0.5rem;
+    border: 1px solid #e5e5e5;
+    border-radius: 4px;
+    background: white;
+    cursor: grab;
+}
+
+.object-row:active {
+    cursor: grabbing;
+}
+
+.drag-handle {
+    color: #c9c9c9;
+    font-size: 0.875rem;
+    flex-shrink: 0;
+}
+
+.object-label {
+    flex: 1;
+    text-align: left;
+    border: none;
+    background: transparent;
+    color: #0176d3;
+    font-size: 0.8125rem;
+    cursor: pointer;
+    padding: 0;
+}
+
+.object-label:hover {
+    text-decoration: underline;
+}
+
+.remove-btn {
+    flex-shrink: 0;
+    border: none;
+    background: transparent;
+    color: #747474;
+    cursor: pointer;
+    font-size: 0.875rem;
+    padding: 0 0.25rem;
+}
+
+.remove-btn:hover {
+    color: #c23934;
+}
+
+/* ── Inline editor ──────────────────────────────────── */
+
+.object-editor {
+    border: 1px solid #c9c9c9;
+    border-radius: 4px;
+    padding: 0.75rem;
+    margin-bottom: 0.5rem;
+    background: #f9f9f9;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.editor-label {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #3e3e3c;
+}
+
+.filter-input {
+    border: 1px solid #c9c9c9;
+    border-radius: 4px;
+    padding: 0.25rem 0.5rem;
+    font-size: 0.8125rem;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.object-dropdown {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 160px;
+    overflow-y: auto;
+    border: 1px solid #c9c9c9;
+    border-radius: 4px;
+    background: white;
+}
+
+.dropdown-item {
+    padding: 0.3rem 0.5rem;
+    font-size: 0.8125rem;
+    cursor: pointer;
+}
+
+.dropdown-item:hover {
+    background: #e8f4fd;
+}
+
+.dropdown-item.selected {
+    background: #0176d3;
+    color: white;
+}
+
+.dropdown-item.disabled {
+    color: #c9c9c9;
+    cursor: default;
+    pointer-events: none;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8125rem;
+    cursor: pointer;
+}
+
+.custom-url-input {
+    margin-top: 0.25rem;
+}
+
+.url-hint {
+    font-size: 0.75rem;
+    color: #747474;
+    margin: 0.1rem 0 0;
+}
+
+.editor-actions {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.cancel-btn {
+    border: 1px solid #c9c9c9;
+    background: white;
+    border-radius: 4px;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.8125rem;
+    cursor: pointer;
+}
+
+.save-btn {
+    border: none;
+    background: #0176d3;
+    color: white;
+    border-radius: 4px;
+    padding: 0.25rem 0.75rem;
+    font-size: 0.8125rem;
+    cursor: pointer;
+}
+
+.save-btn:hover {
+    background: #014486;
+}
+
+/* ── Add button ─────────────────────────────────────── */
+
+.add-btn {
+    border: 1px solid #0176d3;
+    background: white;
+    color: #0176d3;
+    border-radius: 4px;
+    padding: 0.3rem 1rem;
+    font-size: 0.8125rem;
+    cursor: pointer;
+}
+
+.add-btn:hover {
+    background: #e8f4fd;
+}
+.add-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.fetch-error {
+    font-size: 0.75rem;
+    color: #c23934;
+    margin: 0 0 0.5rem;
+}

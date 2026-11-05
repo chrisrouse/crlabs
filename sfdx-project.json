@@ -47,6 +47,10 @@
     {
       "path": "experience-cloud/accordion/force-app",
       "default": false
+    },
+    {
+      "path": "experience-cloud/search-bar/force-app",
+      "default": false
     }
   ],
   "namespace": "crlabs",

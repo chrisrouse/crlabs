@@ -1,0 +1,19 @@
+:host {
+    display: flex;
+    flex-shrink: 0;
+}
+
+.object-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: var(--cr-search-bar-icon-size, 2rem);
+    height: var(--cr-search-bar-icon-size, 2rem);
+    border-radius: 0.25rem;
+}
+
+/* The image fills most of the badge, as in Salesforce's own object icons. */
+.object-icon__image {
+    width: 62.5%;
+    height: 62.5%;
+}

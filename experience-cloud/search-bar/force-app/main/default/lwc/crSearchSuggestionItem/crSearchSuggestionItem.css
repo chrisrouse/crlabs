@@ -1,0 +1,41 @@
+.suggestion-item {
+    display: flex;
+    align-items: center;
+    /* A grouped menu indents rows to line up with the header text. */
+    padding: 0.5rem 0.75rem 0.5rem var(--cr-search-bar-row-indent, 0.75rem);
+    cursor: pointer;
+    gap: 0.75rem;
+}
+
+.suggestion-item:hover {
+    background: var(--cr-search-bar-menu-hover-bg, var(--cr-search-bar-menu-hover-default, #f3f3f3));
+}
+
+.suggestion-type {
+    font-size: 0.75rem;
+    color: var(--cr-search-bar-menu-type-text, var(--cr-search-bar-menu-subtle-default, #747474));
+    min-width: 4.5rem;
+    flex-shrink: 0;
+}
+
+.suggestion-name {
+    font-size: 0.875rem;
+    color: var(--cr-search-bar-menu-text, var(--cr-search-bar-menu-text-default, #1a1b1e));
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+}
+
+.promoted-badge {
+    font-size: 0.625rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    /* Dark blue on light blue is 8.7:1, enough for this small text on any menu background. */
+    color: #014486;
+    background: #e8f4fd;
+    border-radius: 4px;
+    padding: 0.1rem 0.4rem;
+    flex-shrink: 0;
+}

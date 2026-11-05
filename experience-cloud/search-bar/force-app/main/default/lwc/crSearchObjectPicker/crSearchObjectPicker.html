@@ -1,0 +1,82 @@
+<template>
+    <div class="object-picker">
+        <p class="scopesListTitle">Objects Included in Search</p>
+
+        <ul class="object-list">
+            <template for:each={selectedObjects} for:item="obj">
+                <li
+                    key={obj.apiName}
+                    class="object-row"
+                    draggable="true"
+                    data-api={obj.apiName}
+                    ondragstart={handleDragStart}
+                    ondragover={handleDragOver}
+                    ondrop={handleDrop}
+                >
+                    <span class="drag-handle" aria-hidden="true">&#9776;</span>
+                    <button class="object-label" data-index={obj.index} onclick={handleEditObject}>{obj.label}</button>
+                    <button class="remove-btn" data-index={obj.index} onclick={handleRemove} aria-label="Remove">
+                        &#x2715;
+                    </button>
+                </li>
+            </template>
+        </ul>
+
+        <template if:true={showEditor}>
+            <div class="object-editor">
+                <label class="editor-label">Object</label>
+                <input
+                    class="filter-input"
+                    type="text"
+                    placeholder="Search objects..."
+                    value={filterText}
+                    oninput={handleFilterInput}
+                />
+                <ul class="object-dropdown">
+                    <template for:each={filteredObjects} for:item="obj">
+                        <li
+                            key={obj.apiName}
+                            class={obj.itemClass}
+                            data-api={obj.apiName}
+                            data-label={obj.label}
+                            onmousedown={handleSelectObject}
+                        >
+                            {obj.label}
+                        </li>
+                    </template>
+                </ul>
+                <label class="checkbox-label">
+                    <input type="checkbox" checked={editingPubliclyAvailable} onchange={handlePublicToggle} />
+                    Publicly available
+                </label>
+                <label class="checkbox-label">
+                    <input type="checkbox" checked={editingCustomUrlEnabled} onchange={handleCustomUrlToggle} />
+                    Custom Record Page URL
+                </label>
+                <template if:true={editingCustomUrlEnabled}>
+                    <input
+                        class="filter-input custom-url-input"
+                        type="text"
+                        placeholder="/record/{Id}"
+                        value={editingCustomUrl}
+                        oninput={handleCustomUrlInput}
+                    />
+                    <p class="url-hint">Use {Id} as a token for the record ID.</p>
+                </template>
+                <div class="editor-actions">
+                    <button class="cancel-btn" onclick={handleCancelEdit}>Cancel</button>
+                    <button class="save-btn" onclick={handleSaveEdit}>Save</button>
+                </div>
+            </div>
+        </template>
+
+        <template if:true={_fetchError}>
+            <p class="fetch-error">Could not load objects. Check the browser console for details.</p>
+        </template>
+
+        <button class="add-btn" disabled={_loadingObjects} onclick={handleAdd}>
+            <template if:true={_loadingObjects}>Loading...</template>
+            <template if:false={_loadingObjects}>Add</template>
+        </button>
+    </div>
+</template>

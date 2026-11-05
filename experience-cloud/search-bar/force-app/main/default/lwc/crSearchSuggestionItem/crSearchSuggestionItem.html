@@ -1,0 +1,14 @@
+<template>
+    <div class="suggestion-item" onmousedown={handleClick}>
+        <template lwc:if={showIcon}>
+            <c-cr-search-object-icon object-api-name={objectApiName}></c-cr-search-object-icon>
+        </template>
+        <template lwc:if={showType}>
+            <span class="suggestion-type">{suggestion.typeLabel}</span>
+        </template>
+        <span class="suggestion-name">{suggestion.name}</span>
+        <template if:true={isPromoted}>
+            <span class="promoted-badge">Promoted</span>
+        </template>
+    </div>
+</template>

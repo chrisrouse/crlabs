@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>67.0</apiVersion>
+    <isExposed>true</isExposed>
+    <masterLabel>Search Bar</masterLabel>
+    <description>Site search with type-ahead suggestions from the objects you choose.</description>
+    <targets>
+        <target>lightningCommunity__Page</target>
+        <target>lightningCommunity__Default</target>
+    </targets>
+    <targetConfigs>
+        <targetConfig targets="lightningCommunity__Default">
+            <property name="placeholderText" type="String" label="Search Prompt" default="Search..." />
+            <property name="searchObjects" type="String" label="Objects Included in Search" default="[]" editor="c/crSearchObjectPicker" />
+            <property name="showSearchButton" type="Boolean" label="Show Search Button" default="true" />
+            <property name="showTypeAhead" type="Boolean" label="Show Type-Ahead Menu" default="true" description="Shows matching records below the bar as the visitor types." />
+            <property name="appearance" type="String" label="Appearance" default="" editor="c/crSearchBarAppearanceEditor" />
+            <property name="showDiagnostics" type="Boolean" label="Show Diagnostics" default="false" description="Prints the fonts the search bar actually uses below it, for troubleshooting. Turn off before publishing." />
+            <property name="versionInfo" type="String" label="Version" default="" editor="c/crVersionInfo" />
+        </targetConfig>
+    </targetConfigs>
+</LightningComponentBundle>

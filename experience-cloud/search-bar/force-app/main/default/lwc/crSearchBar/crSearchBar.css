@@ -1,0 +1,545 @@
+:host {
+    display: block;
+}
+
+/* Every style comes from a custom property written by the Appearance editor (see
+   crSearchBarAppearance). The fallbacks are the site's branding. */
+.search-bar-container {
+    /* Color defaults that cascade: the field follows the site, and the menu follows the field. An
+       empty Background or Text in Appearance falls through to the next level, and the soft text,
+       hover, and line colors are mixed from the actual text and background they sit on, so they
+       read on light and dark alike. */
+    --cr-search-bar-field-bg-default: var(--cr-search-bar-bg, var(--dxp-g-root, #ffffff));
+    --cr-search-bar-field-text-default: var(--cr-search-bar-text-color, var(--dxp-g-root-contrast, #1a1b1e));
+    --cr-search-bar-placeholder-default: color-mix(
+        in srgb,
+        var(--cr-search-bar-field-text-default) 70%,
+        var(--cr-search-bar-field-bg-default)
+    );
+    --cr-search-bar-menu-bg-default: var(--cr-search-bar-field-bg-default);
+    --cr-search-bar-menu-text-default: var(--cr-search-bar-field-text-default);
+    --cr-search-bar-menu-subtle-default: color-mix(
+        in srgb,
+        var(--cr-search-bar-menu-text, var(--cr-search-bar-menu-text-default)) 70%,
+        var(--cr-search-bar-menu-bg, var(--cr-search-bar-menu-bg-default))
+    );
+    --cr-search-bar-menu-hover-default: color-mix(
+        in srgb,
+        var(--cr-search-bar-menu-text, var(--cr-search-bar-menu-text-default)) 8%,
+        var(--cr-search-bar-menu-bg, var(--cr-search-bar-menu-bg-default))
+    );
+    --cr-search-bar-menu-scrollbar-default: color-mix(
+        in srgb,
+        var(--cr-search-bar-menu-text, var(--cr-search-bar-menu-text-default)) 35%,
+        var(--cr-search-bar-menu-bg, var(--cr-search-bar-menu-bg-default))
+    );
+    --cr-search-bar-menu-line-default: color-mix(
+        in srgb,
+        var(--cr-search-bar-menu-text, var(--cr-search-bar-menu-text-default)) 15%,
+        var(--cr-search-bar-menu-bg, var(--cr-search-bar-menu-bg-default))
+    );
+    display: flex;
+    align-items: stretch;
+    position: relative;
+    box-sizing: border-box;
+    height: var(--cr-search-bar-height, 36px);
+    font-size: var(--cr-search-bar-font-size, inherit);
+    border-radius: var(--cr-search-bar-radius-tl, 0px) var(--cr-search-bar-radius-tr, 0px)
+        var(--cr-search-bar-radius-br, 0px) var(--cr-search-bar-radius-bl, 0px);
+    box-shadow: var(--cr-search-bar-shadow, none);
+}
+
+/* Focus ring around the whole bar while the field or button has focus. The input itself draws no
+   outline. An open fixed menu already shows the bar is active, and the ring would circle only its
+   top half, so it hides then. */
+.has-focus-ring:focus-within {
+    outline: 2px solid var(--cr-search-bar-focus-color, var(--dxp-g-brand, #005fb2));
+    outline-offset: 2px;
+}
+
+.has-focus-ring.menu-open:not(.menu-floating):focus-within {
+    outline: none;
+}
+
+.input-wrapper {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+    padding: 0 0.75rem;
+    box-sizing: border-box;
+    border-style: var(--cr-search-bar-border-style, solid);
+    border-color: var(--cr-search-bar-border-color, var(--dxp-g-brand, #005fb2));
+    border-width: var(--cr-search-bar-bw-top, 1px) var(--cr-search-bar-bw-right, 1px)
+        var(--cr-search-bar-bw-bottom, 1px) var(--cr-search-bar-bw-left, 1px);
+    border-radius: var(--cr-search-bar-radius-tl, 0px) var(--cr-search-bar-radius-tr, 0px)
+        var(--cr-search-bar-radius-br, 0px) var(--cr-search-bar-radius-bl, 0px);
+    background-color: var(--cr-search-bar-field-bg-default);
+}
+
+/* Attached button: the field's right edge joins the button. */
+.has-button .input-wrapper {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-right-width: 0;
+}
+
+.left-icon {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    --sds-c-icon-color-foreground-default: var(--cr-search-bar-icon-color, var(--dxp-g-root-contrast, #1a1b1e));
+}
+
+.search-input {
+    flex: 1;
+    height: 100%;
+    min-width: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    outline: none;
+    font-size: inherit;
+    color: var(--cr-search-bar-field-text-default);
+}
+
+.search-input::placeholder {
+    color: var(--cr-search-bar-placeholder-color, var(--cr-search-bar-placeholder-default));
+}
+
+/* Suppress native browser clear button — we render our own */
+input[type="search"]::-webkit-search-cancel-button {
+    display: none;
+}
+
+.input-clear-button {
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    --sds-c-icon-color-foreground-default: var(--cr-search-bar-icon-color, var(--dxp-g-root-contrast, #1a1b1e));
+}
+
+.input-search-button {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin: 0;
+    padding: 0 var(--cr-search-bar-btn-padding, 1rem);
+    box-sizing: border-box;
+    border-style: var(--cr-search-bar-border-style, solid);
+    border-color: var(--cr-search-bar-btn-border-color, var(--cr-search-bar-border-color, var(--dxp-g-brand, #005fb2)));
+    border-width: var(--cr-search-bar-bw-top, 1px) var(--cr-search-bar-bw-right, 1px)
+        var(--cr-search-bar-bw-bottom, 1px) 0;
+    border-radius: 0 var(--cr-search-bar-radius-tr, 0px) var(--cr-search-bar-radius-br, 0px) 0;
+    background-color: var(--cr-search-bar-btn-bg, var(--dxp-g-brand, #005fb2));
+    color: var(--cr-search-bar-btn-icon-color, var(--dxp-g-brand-contrast, #ffffff));
+    box-shadow: var(--cr-search-bar-btn-shadow, none);
+    /* Every style uses the site's button typography (Theme > Buttons), like the site's own buttons.
+       It's named here rather than inherited, because an ancestor in the page can set another font. */
+    font-family: var(--dxp-s-button-font-family, inherit);
+    font-size: inherit;
+    font-style: var(--dxp-s-button-font-style, normal);
+    font-weight: var(--dxp-s-button-font-weight, 600);
+    letter-spacing: var(--dxp-s-button-letter-spacing, normal);
+    text-transform: var(--dxp-s-button-text-transform, none);
+    line-height: 1;
+    white-space: nowrap;
+    --sds-c-icon-color-foreground-default: var(--cr-search-bar-btn-icon-color, var(--dxp-g-brand-contrast, #ffffff));
+}
+
+.input-search-button:hover {
+    background-color: var(--cr-search-bar-btn-hover-bg, var(--dxp-g-brand-1, #014486));
+    border-color: var(
+        --cr-search-bar-btn-hover-border-color,
+        var(--cr-search-bar-btn-border-color, var(--cr-search-bar-border-color, var(--dxp-g-brand, #005fb2)))
+    );
+    color: var(
+        --cr-search-bar-btn-hover-text,
+        var(--cr-search-bar-btn-icon-color, var(--dxp-g-brand-contrast, #ffffff))
+    );
+    --sds-c-icon-color-foreground-default: var(
+        --cr-search-bar-btn-hover-text,
+        var(--cr-search-bar-btn-icon-color, var(--dxp-g-brand-contrast, #ffffff))
+    );
+}
+
+.input-search-button:focus {
+    background-color: var(
+        --cr-search-bar-btn-focus-bg,
+        var(--cr-search-bar-btn-hover-bg, var(--dxp-g-brand-1, #014486))
+    );
+    border-color: var(
+        --cr-search-bar-btn-focus-border-color,
+        var(--cr-search-bar-btn-border-color, var(--cr-search-bar-border-color, var(--dxp-g-brand, #005fb2)))
+    );
+    color: var(
+        --cr-search-bar-btn-focus-text,
+        var(--cr-search-bar-btn-icon-color, var(--dxp-g-brand-contrast, #ffffff))
+    );
+    --sds-c-icon-color-foreground-default: var(
+        --cr-search-bar-btn-focus-text,
+        var(--cr-search-bar-btn-icon-color, var(--dxp-g-brand-contrast, #ffffff))
+    );
+}
+
+/* An attached button sits inside the bar's border, as the site's own search bar does: its edges
+   are the bar's border in every state, whatever the button style. Only a
+   Custom button with its own Border Weight draws its own border instead. */
+.has-button:not(.btn-own-border) .input-search-button,
+.has-button:not(.btn-own-border) .input-search-button:hover,
+.has-button:not(.btn-own-border) .input-search-button:focus {
+    border-color: var(--cr-search-bar-border-color, var(--dxp-g-brand, #005fb2));
+}
+
+/* The bar's border also runs between the field and the button, as one line: the field stays open
+   on the right, and the button's left edge takes the bar's right-edge weight. */
+.has-button:not(.btn-own-border) .input-search-button {
+    border-left-width: var(--cr-search-bar-bw-right, 1px);
+}
+
+/* The bar's focus ring replaces the site's button focus ring. A Custom shadow stays on. */
+.input-search-button:focus {
+    box-shadow: var(--cr-search-bar-btn-shadow, none);
+    outline: none;
+}
+
+/* A Custom button with a Border Weight above 0 draws its own border from its Border settings
+   (line style, sides, and corners), like the site styles, and the field keeps its right edge.
+   Until the button has its own radius, it keeps the corners its placement gives it. */
+.btn-own-border .input-search-button,
+.btn-own-border.is-inset .input-search-button {
+    border-style: var(--cr-search-bar-btn-border-style, solid);
+    border-width: var(--cr-search-bar-btn-bw-top, 1px) var(--cr-search-bar-btn-bw-right, 1px)
+        var(--cr-search-bar-btn-bw-bottom, 1px) var(--cr-search-bar-btn-bw-left, 1px);
+}
+
+.btn-own-border.has-button .input-search-button {
+    border-radius: var(--cr-search-bar-btn-radius-tl, 0px)
+        var(--cr-search-bar-btn-radius-tr, var(--cr-search-bar-radius-tr, 0px))
+        var(--cr-search-bar-btn-radius-br, var(--cr-search-bar-radius-br, 0px)) var(--cr-search-bar-btn-radius-bl, 0px);
+}
+
+.btn-own-border.is-inset .input-search-button {
+    border-radius: var(--cr-search-bar-btn-radius-tl, max(0px, calc(var(--cr-search-bar-radius-tl, 0px) - 4px)))
+        var(--cr-search-bar-btn-radius-tr, max(0px, calc(var(--cr-search-bar-radius-tr, 0px) - 4px)))
+        var(--cr-search-bar-btn-radius-br, max(0px, calc(var(--cr-search-bar-radius-br, 0px) - 4px)))
+        var(--cr-search-bar-btn-radius-bl, max(0px, calc(var(--cr-search-bar-radius-bl, 0px) - 4px)));
+}
+
+.btn-own-border.has-button .input-wrapper {
+    border-right-width: var(--cr-search-bar-bw-right, 1px);
+}
+
+/* ── Site button styles ──────────────────────────── */
+
+/* Primary, Secondary, and Tertiary read the site theme's button hooks (Theme > Buttons), with the
+   same fallbacks the site's own buttons use. Custom colors aren't written for these styles, so
+   these values apply. The accent also colors the selected type-ahead tab. */
+.btn-theme-primary {
+    --cr-search-bar-btn-bg: var(--dxp-s-button-color, var(--dxp-g-brand, #0176d3));
+    --cr-search-bar-btn-border-color: var(--dxp-s-button-border-color, var(--dxp-g-brand, #0176d3));
+    --cr-search-bar-btn-icon-color: var(--dxp-s-button-color-contrast, var(--dxp-g-brand-contrast, #ffffff));
+    --cr-search-bar-btn-hover-bg: var(--dxp-s-button-color-hover, var(--dxp-g-brand-1, #014486));
+    --cr-search-bar-btn-hover-border-color: var(--dxp-s-button-border-color-hover, var(--dxp-g-brand-1, #014486));
+    --cr-search-bar-btn-hover-text: var(--dxp-s-button-color-hover-contrast, var(--dxp-g-brand-contrast-1, #ffffff));
+    --cr-search-bar-btn-focus-bg: var(--dxp-s-button-color-focus, var(--dxp-g-brand-1, #014486));
+    --cr-search-bar-btn-focus-border-color: var(--dxp-s-button-border-color-focus, var(--dxp-g-brand-1, #014486));
+    --cr-search-bar-btn-focus-text: var(--dxp-s-button-color-focus-contrast, var(--dxp-g-brand-contrast-1, #ffffff));
+    --cr-search-bar-accent: var(--dxp-s-button-color, var(--dxp-g-brand, #0176d3));
+}
+
+.btn-theme-secondary {
+    --cr-search-bar-btn-bg: var(--dxp-s-secondary-button-color, var(--dxp-g-root, #ffffff));
+    --cr-search-bar-btn-border-color: var(--dxp-s-secondary-button-border-color, var(--dxp-g-brand, #0176d3));
+    --cr-search-bar-btn-icon-color: var(--dxp-s-secondary-button-text-color, var(--dxp-g-brand, #0176d3));
+    --cr-search-bar-btn-hover-bg: var(--dxp-s-secondary-button-color-hover, var(--dxp-g-root-1, #f3f3f3));
+    --cr-search-bar-btn-hover-border-color: var(
+        --dxp-s-secondary-button-border-color-hover,
+        var(--dxp-g-brand-1, #014486)
+    );
+    --cr-search-bar-btn-hover-text: var(--dxp-s-secondary-button-text-color-hover, var(--dxp-g-brand-1, #014486));
+    --cr-search-bar-btn-focus-bg: var(--dxp-s-secondary-button-color-focus, var(--dxp-g-root-1, #f3f3f3));
+    --cr-search-bar-btn-focus-border-color: var(
+        --dxp-s-secondary-button-border-color-focus,
+        var(--dxp-g-brand-1, #014486)
+    );
+    --cr-search-bar-btn-focus-text: var(
+        --dxp-s-secondary-button-text-color-focus,
+        var(--dxp-s-secondary-button-text-color-hover, var(--dxp-g-brand-1, #014486))
+    );
+    --cr-search-bar-accent: var(--dxp-s-secondary-button-text-color, var(--dxp-g-brand, #0176d3));
+}
+
+.btn-theme-tertiary {
+    --cr-search-bar-btn-bg: var(--dxp-s-tertiary-button-color, transparent);
+    --cr-search-bar-btn-border-color: var(--dxp-s-tertiary-button-border-color, transparent);
+    --cr-search-bar-btn-icon-color: var(--dxp-s-tertiary-button-text-color, var(--dxp-g-brand, #0176d3));
+    --cr-search-bar-btn-hover-bg: var(--dxp-s-tertiary-button-color-hover, transparent);
+    --cr-search-bar-btn-hover-border-color: var(--dxp-s-tertiary-button-border-color-hover, transparent);
+    --cr-search-bar-btn-hover-text: var(--dxp-s-tertiary-button-text-color-hover, var(--dxp-g-brand-1, #014486));
+    --cr-search-bar-btn-focus-bg: var(--dxp-s-tertiary-button-color-focus, transparent);
+    --cr-search-bar-btn-focus-border-color: var(--dxp-s-tertiary-button-border-color-focus, transparent);
+    --cr-search-bar-btn-focus-text: var(--dxp-s-tertiary-button-text-color-focus, var(--dxp-g-brand-1, #014486));
+    --cr-search-bar-accent: var(--dxp-s-tertiary-button-text-color, var(--dxp-g-brand, #0176d3));
+}
+
+/* An inset site-style button has its own full border in the theme's Border, Hover Border, and
+   Focus Border colors, as the site's buttons do. */
+.btn-theme-site.is-inset .input-search-button {
+    border-style: solid;
+    border-width: 1px;
+}
+
+/* The site's Sizes settings for its button styles. Height still comes from the bar's Size. */
+.btn-theme-site .input-search-button {
+    padding: 0 var(--dxp-s-button-padding-inline-end, 1rem) 0 var(--dxp-s-button-padding-inline-start, 1rem);
+    font-size: var(--dxp-s-button-font-size, inherit);
+}
+
+.btn-theme-site.btn-size-small .input-search-button {
+    padding: 0 var(--dxp-s-button-small-padding-inline-end, 0.75rem) 0
+        var(--dxp-s-button-small-padding-inline-start, 0.75rem);
+    font-size: var(--dxp-s-button-small-font-size, var(--dxp-s-button-font-size, inherit));
+}
+
+.btn-theme-site.btn-size-large .input-search-button {
+    padding: 0 var(--dxp-s-button-large-padding-inline-end, 1.5rem) 0
+        var(--dxp-s-button-large-padding-inline-start, 1.5rem);
+    font-size: var(--dxp-s-button-large-font-size, var(--dxp-s-button-font-size, inherit));
+}
+
+/* Without the bar's ring, the button still shows keyboard focus, so it can always be found by Tab. */
+.search-bar-container:not(.has-focus-ring) .input-search-button:focus-visible {
+    outline: 2px solid var(--cr-search-bar-focus-color, var(--dxp-g-brand, #005fb2));
+    outline-offset: 2px;
+}
+
+/* Inset button: the bar draws the border, and the button sits inside it with its own rounding. */
+.is-inset {
+    gap: 4px;
+    padding: 4px;
+    border-style: var(--cr-search-bar-border-style, solid);
+    border-color: var(--cr-search-bar-border-color, var(--dxp-g-brand, #005fb2));
+    border-width: var(--cr-search-bar-bw-top, 1px) var(--cr-search-bar-bw-right, 1px)
+        var(--cr-search-bar-bw-bottom, 1px) var(--cr-search-bar-bw-left, 1px);
+    background-color: var(--cr-search-bar-field-bg-default);
+}
+
+.is-inset .input-wrapper {
+    border-width: 0;
+    background: transparent;
+}
+
+.is-inset .input-search-button {
+    border-width: 0;
+    /* Each corner is 4px tighter than the bar's, so the gap around the button stays even. */
+    border-radius: max(0px, calc(var(--cr-search-bar-radius-tl, 0px) - 4px))
+        max(0px, calc(var(--cr-search-bar-radius-tr, 0px) - 4px))
+        max(0px, calc(var(--cr-search-bar-radius-br, 0px) - 4px))
+        max(0px, calc(var(--cr-search-bar-radius-bl, 0px) - 4px));
+}
+
+/* An inset button in a site style takes the theme's button corner radius for its size. */
+.btn-theme-site.is-inset .input-search-button {
+    border-radius: var(--dxp-s-button-radius-border, 4px);
+}
+
+.btn-theme-site.btn-size-small.is-inset .input-search-button {
+    border-radius: var(--dxp-s-button-small-radius-border, var(--dxp-s-button-radius-border, 4px));
+}
+
+.btn-theme-site.btn-size-large.is-inset .input-search-button {
+    border-radius: var(--dxp-s-button-large-radius-border, var(--dxp-s-button-radius-border, 4px));
+}
+
+/* ── Type-ahead menu ─────────────────────────────── */
+
+/* Fixed (the default): the bar's border wraps the results too, so field and results are one framed
+   box. The menu continues the bar's side and bottom borders and corners, and a divider in the
+   menu's border color separates it from the field. */
+.suggestions-list {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    background: var(--cr-search-bar-menu-bg, var(--cr-search-bar-menu-bg-default));
+    border-style: var(--cr-search-bar-border-style, solid);
+    border-color: var(--cr-search-bar-border-color, var(--dxp-g-brand, #005fb2));
+    border-width: 0 var(--cr-search-bar-bw-right, 1px) var(--cr-search-bar-bw-bottom, 1px)
+        var(--cr-search-bar-bw-left, 1px);
+    border-radius: 0 0 var(--cr-search-bar-radius-br, 0px) var(--cr-search-bar-radius-bl, 0px);
+    z-index: 9000;
+    max-height: 280px;
+    overflow-y: auto;
+    /* The bar's Shadow continues around the menu, so bar and results cast one shadow. The top edge
+       is clipped so the menu's shadow doesn't spill up onto the bar. 40px clears the largest shadow
+       the panel allows (30px blur, 2px offset). Without a bar Shadow, a light default applies. */
+    box-shadow: var(--cr-search-bar-shadow, 0 4px 8px rgba(0, 0, 0, 0.1));
+    clip-path: inset(0 -40px -40px -40px);
+}
+
+/* The menu's scroll bar blends in: the track is the menu's background and the thumb a soft mix of
+   its text color. scrollbar-color covers Chrome, Edge, and Firefox; the -webkit- rules cover
+   Safari, and Chrome ignores them while scrollbar-color is set. */
+.suggestions-list {
+    scrollbar-color: var(--cr-search-bar-menu-scrollbar-default)
+        var(--cr-search-bar-menu-bg, var(--cr-search-bar-menu-bg-default));
+}
+
+.suggestions-list::-webkit-scrollbar {
+    width: 10px;
+}
+
+.suggestions-list::-webkit-scrollbar-track {
+    background: var(--cr-search-bar-menu-bg, var(--cr-search-bar-menu-bg-default));
+}
+
+.suggestions-list::-webkit-scrollbar-thumb {
+    border: 2px solid var(--cr-search-bar-menu-bg, var(--cr-search-bar-menu-bg-default));
+    border-radius: 5px;
+    background: var(--cr-search-bar-menu-scrollbar-default);
+}
+
+/* While a fixed menu is open, the bar's bottom corners square off and its bottom border becomes
+   the divider, so the frame runs unbroken around field and results. */
+.menu-open:not(.menu-floating),
+.menu-open:not(.menu-floating) .input-wrapper,
+.has-button.menu-open:not(.menu-floating) .input-search-button {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+.menu-open:not(.menu-floating),
+.menu-open:not(.menu-floating) .input-wrapper,
+.has-button:not(.btn-own-border).menu-open:not(.menu-floating) .input-search-button {
+    border-bottom-color: var(--cr-search-bar-menu-border-color, var(--cr-search-bar-menu-line-default));
+}
+
+/* Floating: a separate card below the bar, outside its border. The bar keeps its own frame. */
+.menu-floating .suggestions-list {
+    top: calc(100% + 8px);
+    border: 1px solid var(--cr-search-bar-menu-border-color, var(--cr-search-bar-menu-line-default));
+    border-radius: min(var(--cr-search-bar-radius-tl, 0px), 12px) min(var(--cr-search-bar-radius-tr, 0px), 12px)
+        min(var(--cr-search-bar-radius-br, 0px), 12px) min(var(--cr-search-bar-radius-bl, 0px), 12px);
+    /* A separate card casts its own shadow: the bar's Shadow when set, or a soft default. */
+    box-shadow: var(--cr-search-bar-shadow, 0 8px 24px rgba(0, 0, 0, 0.16));
+    clip-path: none;
+}
+
+/* Grouped layout: each object's results sit under a header with its icon and name, even when
+   only one object has results. Rows show just the record, indented to the header text. */
+.menu-group + .menu-group {
+    border-top: 1px solid var(--cr-search-bar-menu-border-color, var(--cr-search-bar-menu-line-default));
+}
+
+.menu-group {
+    --cr-search-bar-icon-size: 1.5rem;
+}
+
+.menu-group.has-icon {
+    /* Header padding + icon + gap, so the record names line up with the object name. */
+    --cr-search-bar-row-indent: calc(0.75rem + 1.5rem + 0.5rem);
+}
+
+.menu-group-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 0.75rem 0.25rem;
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--cr-search-bar-menu-text, var(--cr-search-bar-menu-text-default));
+}
+
+/* Tabs layout: a tab row that stays at the top while the results scroll. The selected tab takes
+   the button's color, the bar's accent. */
+.menu-tabs {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    gap: 1.25rem;
+    padding: 0 0.75rem;
+    overflow-x: auto;
+    border-bottom: 1px solid var(--cr-search-bar-menu-border-color, var(--cr-search-bar-menu-line-default));
+    background: var(--cr-search-bar-menu-bg, var(--cr-search-bar-menu-bg-default));
+}
+
+.menu-tab {
+    flex-shrink: 0;
+    margin: 0 0 -1px;
+    padding: 0.625rem 0 0.5rem;
+    border: none;
+    border-bottom: 2px solid transparent;
+    background: none;
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 600;
+    white-space: nowrap;
+    color: var(--cr-search-bar-menu-type-text, var(--cr-search-bar-menu-subtle-default));
+    cursor: pointer;
+}
+
+.menu-tab:hover {
+    color: var(--cr-search-bar-menu-text, var(--cr-search-bar-menu-text-default));
+}
+
+/* The selected tab's text uses the menu's text color, which always contrasts with the menu; the
+   accent, whose contrast depends on the theme, is only on the underline. */
+.menu-tab[aria-selected="true"] {
+    color: var(--cr-search-bar-menu-text, var(--cr-search-bar-menu-text-default));
+    border-bottom-color: var(--cr-search-bar-accent, var(--cr-search-bar-btn-bg, var(--dxp-g-brand, #005fb2)));
+}
+
+.menu-tab:focus-visible {
+    outline: 2px solid var(--cr-search-bar-focus-color, var(--dxp-g-brand, #005fb2));
+    outline-offset: -2px;
+}
+
+.suggestion-loading,
+.suggestion-empty {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    color: var(--cr-search-bar-menu-type-text, var(--cr-search-bar-menu-subtle-default));
+    font-style: italic;
+    margin: 0;
+}
+
+/* ── Diagnostics ─────────────────────────────────── */
+
+.diagnostics {
+    margin: 0.75rem 0 0;
+    padding: 0.5rem 0.75rem;
+    border: 1px dashed #8c8c8c;
+    background: #fafafa;
+    color: #181818;
+    font:
+        0.75rem/1.5 ui-monospace,
+        Menlo,
+        monospace;
+}
+
+.diagnostics__row {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.diagnostics dt {
+    flex: 0 0 9rem;
+    color: #5c5c5c;
+}
+
+.diagnostics dd {
+    margin: 0;
+    word-break: break-word;
+}

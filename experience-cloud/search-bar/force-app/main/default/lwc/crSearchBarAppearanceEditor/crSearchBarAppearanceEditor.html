@@ -1,0 +1,300 @@
+<template>
+    <div class="appearance">
+        <div class={sectionClass.field}>
+            <button
+                class="style-section__header"
+                data-key="field"
+                aria-expanded={expanded.field}
+                onclick={handleSectionToggle}
+            >
+                <span class="style-section__chevron"></span>Search Field
+            </button>
+            <template lwc:if={open.field}>
+                <div class="style-section__body">
+                    <lightning-radio-group
+                        class="appearance-field"
+                        name="fieldSize"
+                        label="Size"
+                        type="button"
+                        options={sizeOptions}
+                        value={appearance.field.size}
+                        data-part="field"
+                        data-field="size"
+                        onchange={handleSettingChange}
+                    ></lightning-radio-group>
+                    <c-cr-color-row
+                        label="Background"
+                        value={appearance.field.background}
+                        data-part="field"
+                        data-field="background"
+                        oncolorchange={handleSettingChange}
+                    ></c-cr-color-row>
+                    <c-cr-color-row
+                        label="Text"
+                        value={appearance.field.text}
+                        data-part="field"
+                        data-field="text"
+                        oncolorchange={handleSettingChange}
+                    ></c-cr-color-row>
+                    <c-cr-color-row
+                        label="Placeholder Text"
+                        value={appearance.field.placeholder}
+                        data-part="field"
+                        data-field="placeholder"
+                        oncolorchange={handleSettingChange}
+                    ></c-cr-color-row>
+                    <c-cr-color-row
+                        label="Icons"
+                        value={appearance.field.icon}
+                        data-part="field"
+                        data-field="icon"
+                        oncolorchange={handleSettingChange}
+                    ></c-cr-color-row>
+                    <lightning-input
+                        class="appearance-field"
+                        type="checkbox"
+                        label="Show Focus Ring"
+                        field-level-help="Outlines the whole bar while a visitor is typing in it. When it's off, the search button still shows a ring when reached with the Tab key."
+                        checked={appearance.field.showFocusRing}
+                        data-part="field"
+                        data-field="showFocusRing"
+                        onchange={handleCheckboxChange}
+                    ></lightning-input>
+                    <template lwc:if={appearance.field.showFocusRing}>
+                        <c-cr-color-row
+                            label="Focus Ring Color"
+                            value={appearance.field.focusColor}
+                            data-part="field"
+                            data-field="focusColor"
+                            oncolorchange={handleSettingChange}
+                        ></c-cr-color-row>
+                    </template>
+                </div>
+            </template>
+        </div>
+
+        <div class={sectionClass.border}>
+            <button
+                class="style-section__header"
+                data-key="border"
+                aria-expanded={expanded.border}
+                onclick={handleSectionToggle}
+            >
+                <span class="style-section__chevron"></span>Border
+            </button>
+            <template lwc:if={open.border}>
+                <div class="style-section__body">
+                    <c-cr-border-settings
+                        class="appearance-field"
+                        value={appearance.border}
+                        data-part="border"
+                        onborderchange={handleBorderObjectChange}
+                    ></c-cr-border-settings>
+                    <c-cr-shadow-settings
+                        class="appearance-field"
+                        value={appearance.border}
+                        data-part="border"
+                        onshadowchange={handleBorderObjectChange}
+                    ></c-cr-shadow-settings>
+                </div>
+            </template>
+        </div>
+
+        <div class={sectionClass.button}>
+            <button
+                class="style-section__header"
+                data-key="button"
+                aria-expanded={expanded.button}
+                onclick={handleSectionToggle}
+            >
+                <span class="style-section__chevron"></span>Search Button
+            </button>
+            <template lwc:if={open.button}>
+                <div class="style-section__body">
+                    <lightning-radio-group
+                        class="appearance-field"
+                        name="buttonStyle"
+                        label="Placement"
+                        type="button"
+                        options={buttonStyleOptions}
+                        value={appearance.button.style}
+                        data-part="button"
+                        data-field="style"
+                        onchange={handleSettingChange}
+                    ></lightning-radio-group>
+                    <lightning-combobox
+                        class="appearance-field"
+                        label="Button Style"
+                        field-level-help="Primary, Secondary, and Tertiary use the site's Theme > Buttons colors, fonts, and sizes, including hover and focus. Custom uses the colors below."
+                        options={buttonThemeOptions}
+                        value={appearance.button.theme}
+                        data-part="button"
+                        data-field="theme"
+                        onchange={handleSettingChange}
+                    ></lightning-combobox>
+                    <template lwc:if={isCustomButton}>
+                        <lightning-combobox
+                            class="appearance-field"
+                            label="Padding (Left and Right)"
+                            options={paddingOptions}
+                            value={appearance.button.padding}
+                            data-part="button"
+                            data-field="padding"
+                            onchange={handleSettingChange}
+                        ></lightning-combobox>
+                    </template>
+                    <template lwc:else>
+                        <lightning-combobox
+                            class="appearance-field"
+                            label="Size"
+                            options={buttonSizeOptions}
+                            value={appearance.button.themeSize}
+                            data-part="button"
+                            data-field="themeSize"
+                            onchange={handleSettingChange}
+                        ></lightning-combobox>
+                    </template>
+                    <lightning-input
+                        class="appearance-field"
+                        label="Label"
+                        value={appearance.button.label}
+                        data-part="button"
+                        data-field="label"
+                        placeholder="Icon only"
+                        field-level-help="Text shown on the button, such as Search. Leave empty for an icon-only button."
+                        onchange={handleLabelChange}
+                        onblur={handleLabelCommit}
+                    ></lightning-input>
+                    <lightning-input
+                        class="appearance-field"
+                        type="checkbox"
+                        label="Show Icon"
+                        checked={appearance.button.showIcon}
+                        data-part="button"
+                        data-field="showIcon"
+                        onchange={handleCheckboxChange}
+                    ></lightning-input>
+                    <template lwc:if={isCustomButton}>
+                        <c-cr-color-row
+                            label="Background"
+                            value={appearance.button.background}
+                            data-part="button"
+                            data-field="background"
+                            oncolorchange={handleSettingChange}
+                        ></c-cr-color-row>
+                        <c-cr-color-row
+                            label="Hover Background"
+                            value={appearance.button.hoverBackground}
+                            data-part="button"
+                            data-field="hoverBackground"
+                            oncolorchange={handleSettingChange}
+                        ></c-cr-color-row>
+                        <c-cr-color-row
+                            label="Text and Icon"
+                            value={appearance.button.icon}
+                            data-part="button"
+                            data-field="icon"
+                            oncolorchange={handleSettingChange}
+                        ></c-cr-color-row>
+                        <c-cr-border-settings
+                            class="appearance-field"
+                            value={appearance.button.border}
+                            data-part="button"
+                            data-field="border"
+                            onborderchange={handleBorderObjectChange}
+                        ></c-cr-border-settings>
+                        <p class="field-hint">A weight of 0 shares the bar's border.</p>
+                        <c-cr-shadow-settings
+                            class="appearance-field"
+                            value={appearance.button.border}
+                            data-part="button"
+                            data-field="border"
+                            onshadowchange={handleBorderObjectChange}
+                        ></c-cr-shadow-settings>
+                    </template>
+                </div>
+            </template>
+        </div>
+
+        <div class={sectionClass.menu}>
+            <button
+                class="style-section__header"
+                data-key="menu"
+                aria-expanded={expanded.menu}
+                onclick={handleSectionToggle}
+            >
+                <span class="style-section__chevron"></span>Type-Ahead Menu
+            </button>
+            <template lwc:if={open.menu}>
+                <div class="style-section__body">
+                    <lightning-radio-group
+                        class="appearance-field"
+                        name="menuLayout"
+                        label="Layout"
+                        type="button"
+                        options={menuLayoutOptions}
+                        value={appearance.menu.layout}
+                        data-part="menu"
+                        data-field="layout"
+                        onchange={handleSettingChange}
+                    ></lightning-radio-group>
+                    <lightning-input
+                        class="appearance-field"
+                        type="checkbox"
+                        label="Show Icons"
+                        checked={appearance.menu.showIcons}
+                        data-part="menu"
+                        data-field="showIcons"
+                        onchange={handleCheckboxChange}
+                    ></lightning-input>
+                    <lightning-radio-group
+                        class="appearance-field"
+                        name="menuPosition"
+                        label="Position"
+                        type="button"
+                        options={menuPositionOptions}
+                        value={appearance.menu.position}
+                        data-part="menu"
+                        data-field="position"
+                        onchange={handleSettingChange}
+                    ></lightning-radio-group>
+                    <c-cr-color-row
+                        label="Background"
+                        value={appearance.menu.background}
+                        data-part="menu"
+                        data-field="background"
+                        oncolorchange={handleSettingChange}
+                    ></c-cr-color-row>
+                    <c-cr-color-row
+                        label="Text"
+                        value={appearance.menu.text}
+                        data-part="menu"
+                        data-field="text"
+                        oncolorchange={handleSettingChange}
+                    ></c-cr-color-row>
+                    <c-cr-color-row
+                        label="Type Labels"
+                        value={appearance.menu.typeText}
+                        data-part="menu"
+                        data-field="typeText"
+                        oncolorchange={handleSettingChange}
+                    ></c-cr-color-row>
+                    <c-cr-color-row
+                        label="Hover Background"
+                        value={appearance.menu.hoverBackground}
+                        data-part="menu"
+                        data-field="hoverBackground"
+                        oncolorchange={handleSettingChange}
+                    ></c-cr-color-row>
+                    <c-cr-color-row
+                        label="Border and Divider"
+                        value={appearance.menu.borderColor}
+                        data-part="menu"
+                        data-field="borderColor"
+                        oncolorchange={handleSettingChange}
+                    ></c-cr-color-row>
+                </div>
+            </template>
+        </div>
+    </div>
+</template>

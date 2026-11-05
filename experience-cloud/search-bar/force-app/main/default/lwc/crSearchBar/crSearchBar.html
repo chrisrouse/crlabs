@@ -1,0 +1,130 @@
+<template>
+    <div class={containerClass} style={containerStyle} onfocusout={handleFocusOut}>
+        <div class="input-wrapper">
+            <label class="slds-assistive-text" for="cr-search-bar-input">Search</label>
+            <template if:true={showLeftIcon}>
+                <span class="left-icon" aria-hidden="true">
+                    <lightning-icon icon-name="utility:search" size="x-small"></lightning-icon>
+                </span>
+            </template>
+            <input
+                id="cr-search-bar-input"
+                class="search-input"
+                type="search"
+                role="combobox"
+                aria-autocomplete="list"
+                aria-controls="cr-search-bar-listbox"
+                aria-haspopup="listbox"
+                aria-expanded={ariaExpanded}
+                autocomplete="off"
+                maxlength="255"
+                placeholder={placeholderText}
+                value={searchTerm}
+                oninput={handleInput}
+                onkeydown={handleKeyDown}
+            />
+            <template if:true={showClearButton}>
+                <button class="input-clear-button slds-button" onclick={handleClear}>
+                    <span class="slds-assistive-text">Clear</span>
+                    <lightning-icon icon-name="utility:clear" size="xx-small"></lightning-icon>
+                </button>
+            </template>
+        </div>
+        <template if:true={showSearchButton}>
+            <button type="button" class="input-search-button slds-button slds-button_brand" onclick={handleSearchClick}>
+                <template lwc:if={showButtonIcon}>
+                    <lightning-icon icon-name="utility:search" size="x-small"></lightning-icon>
+                </template>
+                <template lwc:if={buttonLabel}>
+                    <span class="button-label">{buttonLabel}</span>
+                </template>
+                <template lwc:else>
+                    <span class="slds-assistive-text">Search</span>
+                </template>
+            </button>
+        </template>
+
+        <!-- Type-ahead menu: a list, groups under headers, or tabs per object type -->
+        <template lwc:if={showSuggestions}>
+            <div class="suggestions-list">
+                <template lwc:if={isLoadingSuggestions}>
+                    <p class="suggestion-loading">Searching...</p>
+                </template>
+                <template lwc:elseif={noSuggestions}>
+                    <p class="suggestion-empty">No results</p>
+                </template>
+                <template lwc:else>
+                    <template lwc:if={isTabsLayout}>
+                        <div class="menu-tabs" role="tablist" aria-label="Result types">
+                            <template for:each={tabs} for:item="tab">
+                                <button
+                                    key={tab.key}
+                                    type="button"
+                                    class="menu-tab"
+                                    role="tab"
+                                    aria-selected={tab.selected}
+                                    tabindex={tab.tabIndex}
+                                    data-key={tab.key}
+                                    onmousedown={handleTabMouseDown}
+                                    onclick={handleTabSelect}
+                                    onkeydown={handleTabKeyDown}
+                                >
+                                    {tab.label}
+                                </button>
+                            </template>
+                        </div>
+                    </template>
+                    <div role="listbox" id="cr-search-bar-listbox" aria-label="Suggestions">
+                        <template lwc:if={isGroupedLayout}>
+                            <template for:each={groups} for:item="group">
+                                <div key={group.key} class={groupClass} role="group" aria-label={group.label}>
+                                    <div class="menu-group-header" aria-hidden="true">
+                                        <template lwc:if={showGroupIcons}>
+                                            <c-cr-search-object-icon
+                                                object-api-name={group.key}
+                                            ></c-cr-search-object-icon>
+                                        </template>
+                                        <span>{group.label}</span>
+                                    </div>
+                                    <template for:each={group.items} for:item="item">
+                                        <c-cr-search-suggestion-item
+                                            key={item.key}
+                                            suggestion={item.suggestion}
+                                            hide-icon
+                                            hide-type
+                                            role="option"
+                                            onsuggest={handleSuggestionClick}
+                                        ></c-cr-search-suggestion-item>
+                                    </template>
+                                </div>
+                            </template>
+                        </template>
+                        <template lwc:else>
+                            <template for:each={visibleItems} for:item="item">
+                                <c-cr-search-suggestion-item
+                                    key={item.key}
+                                    suggestion={item.suggestion}
+                                    object-api-name={item.iconObject}
+                                    hide-icon={hideIcons}
+                                    hide-type={hideTypeLabels}
+                                    role="option"
+                                    onsuggest={handleSuggestionClick}
+                                ></c-cr-search-suggestion-item>
+                            </template>
+                        </template>
+                    </div>
+                </template>
+            </div>
+        </template>
+    </div>
+    <template lwc:if={showDiagnostics}>
+        <dl class="diagnostics">
+            <template for:each={diagnostics} for:item="reading">
+                <div key={reading.label} class="diagnostics__row">
+                    <dt>{reading.label}</dt>
+                    <dd>{reading.value}</dd>
+                </div>
+            </template>
+        </dl>
+    </template>
+</template>
