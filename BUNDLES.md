@@ -47,7 +47,7 @@ source, and only where someone needs one on its own.
 
 ## Open questions
 
-- **Flow Grid in the first bundle?** Its source is in the `flowgrid/` folder, and
+- **Flow Grid in the first bundle?** Its source is in the `screen-flow/flow-grid/` folder, and
   it is still in progress.
 - **Which Dev Hub holds it?** Packages cannot be moved to another Dev Hub, so this
   one goes in smartbot with the others.

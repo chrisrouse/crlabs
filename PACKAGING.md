@@ -22,7 +22,7 @@ sf org create scratch -f config/project-scratch-def.json -a crlabsInstallTest \
 
 ```bash
 sf package create --name "Flow Grid" --package-type Unlocked \
-  --path flowgrid/force-app --target-dev-hub smartbot
+  --path screen-flow/flow-grid/force-app --target-dev-hub smartbot
 ```
 
 **`sf package create` rewrites `sfdx-project.json` rather than merging into

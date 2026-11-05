@@ -4,13 +4,13 @@
   "version": "0.1.0",
   "description": "crlabs Salesforce packages",
   "scripts": {
-    "lint": "eslint screentimer/**/lwc/**/*.js email-recipients/**/lwc/**/*.js",
+    "lint": "eslint screen-flow/screen-timer/**/lwc/**/*.js screen-flow/email-recipients/**/lwc/**/*.js",
     "test": "npm run test:unit",
     "test:unit": "sfdx-lwc-jest",
     "test:unit:watch": "sfdx-lwc-jest --watch",
     "test:unit:coverage": "sfdx-lwc-jest --coverage",
-    "prettier": "prettier --write \"{screentimer,email-recipients}/**/*.{js,html,css,json,md}\"",
-    "prettier:verify": "prettier --check \"{screentimer,email-recipients}/**/*.{js,html,css,json,md}\" \"flow-config-editor-kit/**/*.{js,html,css,json,cls}\"",
+    "prettier": "prettier --write \"screen-flow/{screen-timer,email-recipients}/**/*.{js,html,css,json,md}\"",
+    "prettier:verify": "prettier --check \"screen-flow/{screen-timer,email-recipients}/**/*.{js,html,css,json,md}\" \"foundations/force-app/flow-config-editor-kit/**/*.{js,html,css,json,cls}\"",
     "verify": "npm run prettier:verify && npm run lint && npm run test:unit"
   },
   "engines": {

@@ -3,11 +3,11 @@ const salesforceLwcConfig = require("@salesforce/eslint-config-lwc/recommended")
 
 module.exports = [
     // The kit is third-party and keeps its own style; it is linted upstream.
-    { ignores: ["node_modules/**", "flow-config-editor-kit/**"] },
+    { ignores: ["node_modules/**", "foundations/force-app/flow-config-editor-kit/**"] },
     eslintJs.configs.recommended,
     ...(Array.isArray(salesforceLwcConfig) ? salesforceLwcConfig : [salesforceLwcConfig]),
     {
-        files: ["screentimer/**/lwc/**/*.js", "email-recipients/**/lwc/**/*.js"],
+        files: ["screen-flow/screen-timer/**/lwc/**/*.js", "screen-flow/email-recipients/**/lwc/**/*.js"],
         languageOptions: { ecmaVersion: 2023, sourceType: "module" }
     },
     {

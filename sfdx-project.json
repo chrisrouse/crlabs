@@ -3,7 +3,7 @@
     {
       "versionName": "ver 0.1",
       "versionNumber": "0.1.0.NEXT",
-      "path": "flow-config-editor-kit/force-app",
+      "path": "foundations/force-app",
       "default": true,
       "package": "CRLabs Foundations",
       "versionDescription": "This package needs to be installed first before installing any other CRLabs packages."
@@ -11,7 +11,7 @@
     {
       "versionName": "ver 1.0",
       "versionNumber": "1.0.0.NEXT",
-      "path": "screentimer/force-app",
+      "path": "screen-flow/screen-timer/force-app",
       "default": false,
       "package": "Screen Timer",
       "versionDescription": "Configure timers for Screen Flows.",
@@ -25,7 +25,7 @@
     {
       "versionName": "ver 0.1",
       "versionNumber": "0.1.0.NEXT",
-      "path": "email-recipients/force-app",
+      "path": "screen-flow/email-recipients/force-app",
       "default": false,
       "package": "Email Recipients",
       "versionDescription": "Screenflow component to collect email addresses.",

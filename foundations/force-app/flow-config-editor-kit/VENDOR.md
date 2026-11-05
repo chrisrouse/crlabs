@@ -50,7 +50,7 @@ To refresh: re-clone at the new SHA, replace `force-app/`, update the SHA above.
 ## Deploy
 
 ```bash
-sf project deploy start -d crlabs/flow-config-editor-kit/force-app -o "Preview Org"
+sf project deploy start -d crlabs/foundations/force-app -o "Preview Org"
 sf org assign permset --name Flow_Config_Editor_Access -o "Preview Org"
 ```
 

@@ -331,6 +331,6 @@ cannot prove.
 npm run verify   # prettier, eslint, jest
 ```
 
-The editor is built on the [Flow Config Editor Kit](../crlabs/flow-config-editor-kit),
+The editor is built on the [Flow Config Editor Kit](../../foundations/force-app/flow-config-editor-kit),
 which must be deployed to the org before this component's property panel will
 render.

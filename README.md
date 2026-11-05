@@ -7,13 +7,11 @@ package must be installed before any component package that depends on it.
 
 ## Packages
 
-| Package            | Directory                 | Purpose                                                                                                                                                 |
-| ------------------ | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Package            | Directory                 | Purpose                                                                                                                                                 |
-| ---                | ---                       | ---                                                                                                                                                     |
-| CRLabs Foundations | `flow-config-editor-kit/` | **Base package, install first.** Reusable building blocks for Flow Builder custom property editors. Forked from the Flow Config Editor Kit (see below). |
-| Screen Timer       | `screentimer/`            | Configure timers for Screen Flows. Depends on CRLabs Foundations.                                                                                       |
-| Email Recipients   | `email-recipients/`       | Screenflow component to collect email addresses. Depends on CRLabs Foundations.                                                                         |
+| Package            | Directory                       | Purpose                                                                                                                                                 |
+| ------------------ | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CRLabs Foundations | `foundations/`                  | **Base package, install first.** Reusable building blocks for Flow Builder custom property editors. Forked from the Flow Config Editor Kit (see below). |
+| Screen Timer       | `screen-flow/screen-timer/`     | Configure timers for Screen Flows. Depends on CRLabs Foundations.                                                                                       |
+| Email Recipients   | `screen-flow/email-recipients/` | Screenflow component to collect email addresses. Depends on CRLabs Foundations.                                                                         |
 
 More component packages will land here and depend on the base package.
 
@@ -25,8 +23,9 @@ by Fast Track Digital, pinned at commit 1377405, and used under the Apache Licen
 2.0. CRLabs maintains the fork and its modifications. Every modified file carries a
 notice at its top, as section 4(b) of the license requires.
 
-See `flow-config-editor-kit/LICENSE` and `flow-config-editor-kit/NOTICE`, which carry
-the attribution. `flow-config-editor-kit/VENDOR.md` records the upstream pin and the
+See `foundations/force-app/flow-config-editor-kit/LICENSE` and
+`foundations/force-app/flow-config-editor-kit/NOTICE`, which carry the attribution.
+`foundations/force-app/flow-config-editor-kit/VENDOR.md` records the upstream pin and the
 history of the changes.
 
 ### Why namespaced, when upstream is not
@@ -79,12 +78,12 @@ npm run verify      # prettier check, lint, then the Jest suites
 ```
 
 **Two Prettier configs, deliberately.** The root `.prettierrc` is this
-project's style. `flow-config-editor-kit/.prettierrc` is upstream's, verbatim,
+project's style. `foundations/force-app/flow-config-editor-kit/.prettierrc` is upstream's, verbatim,
 because that is what the vendored tree is formatted to — applying our style
 would rewrite every file and destroy the diff against upstream. Prettier uses
 the nearest config to each file, so both are checked correctly in one pass.
 
-ESLint covers `screentimer/` and `email-recipients/`; the kit is linted upstream.
+ESLint covers `screen-flow/screen-timer/` and `screen-flow/email-recipients/`; the kit is linted upstream.
 
 Fixes to the kit belong **upstream**, not here. Open a PR against
 [the upstream repo](https://github.com/RebbePod/flow-config-editor-kit); once it

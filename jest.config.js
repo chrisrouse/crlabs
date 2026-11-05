@@ -3,9 +3,9 @@ const { jestConfig } = require("@salesforce/sfdx-lwc-jest/config");
 module.exports = {
     ...jestConfig,
     testMatch: [
-        "**/flow-config-editor-kit/**/__tests__/**/*.test.js",
-        "**/screentimer/**/__tests__/**/*.test.js",
-        "**/email-recipients/**/__tests__/**/*.test.js"
+        "**/foundations/**/__tests__/**/*.test.js",
+        "**/screen-flow/screen-timer/**/__tests__/**/*.test.js",
+        "**/screen-flow/email-recipients/**/__tests__/**/*.test.js"
     ],
     moduleNameMapper: {
         ...jestConfig.moduleNameMapper,
