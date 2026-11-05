@@ -39,6 +39,10 @@
     {
       "path": "experience-cloud/shared/force-app",
       "default": false
+    },
+    {
+      "path": "experience-cloud/rich-text/force-app",
+      "default": false
     }
   ],
   "namespace": "crlabs",

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>67.0</apiVersion>
+    <isExposed>true</isExposed>
+    <masterLabel>Rich Text Block</masterLabel>
+    <description>Rich text content authored in the properties panel, placed as a block on an Experience Cloud LWR page.</description>
+    <targets>
+        <target>lightningCommunity__Page</target>
+        <target>lightningCommunity__Default</target>
+    </targets>
+    <targetConfigs>
+        <targetConfig targets="lightningCommunity__Default">
+            <property name="content" type="String" label="Content" default="" editor="c/crRichTextEditor" />
+        </targetConfig>
+    </targetConfigs>
+</LightningComponentBundle>
