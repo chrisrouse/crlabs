@@ -35,6 +35,10 @@
           "versionNumber": "0.1.0.LATEST"
         }
       ]
+    },
+    {
+      "path": "experience-cloud/shared/force-app",
+      "default": false
     }
   ],
   "namespace": "crlabs",

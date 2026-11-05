@@ -5,7 +5,8 @@ module.exports = {
     testMatch: [
         "**/foundations/**/__tests__/**/*.test.js",
         "**/screen-flow/screen-timer/**/__tests__/**/*.test.js",
-        "**/screen-flow/email-recipients/**/__tests__/**/*.test.js"
+        "**/screen-flow/email-recipients/**/__tests__/**/*.test.js",
+        "**/experience-cloud/**/__tests__/**/*.test.js"
     ],
     moduleNameMapper: {
         ...jestConfig.moduleNameMapper,
