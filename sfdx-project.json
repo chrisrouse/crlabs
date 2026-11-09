@@ -37,6 +37,10 @@
       ]
     },
     {
+      "path": "screen-flow/flow-grid/force-app",
+      "default": false
+    },
+    {
       "path": "experience-cloud/shared/force-app",
       "default": false
     },

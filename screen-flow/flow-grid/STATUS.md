@@ -1,8 +1,9 @@
 # Flow Grid — status and what's left
 
-Branch `feature/flow-grid`. Everything below is deployed to the **Preview Org**
-(`chris-b4pw@force.com`). The branch is committed but **not pushed** — around twenty
-commits are local only.
+Lives in the crlabs repo at `screen-flow/flow-grid/` since 2026-11-05; work happens on
+the `screen-flow/flow-grid` branch. Everything below is deployed to the **Preview Org**
+(`chris-b4pw@force.com`). Paths written `flowgrid/...` further down are from the old
+repo and now sit under `screen-flow/flow-grid/`.
 
 Local checks: **516 Jest tests**, ESLint and Prettier clean, full-package deploy
 succeeds. The SLDS linter reports **0 errors and 127 warnings**, all of them

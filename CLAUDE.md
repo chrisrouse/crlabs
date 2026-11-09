@@ -19,8 +19,9 @@ Cloud components are separate folders but are not packaged yet.
 **`experience-cloud/shared/` is temporary.** It holds `crVersionInfo` until the Foundations version
 component replaces it, one component at a time. Add nothing else to it.
 
-**Flow Grid is parked.** Keep its internals as they are, including its own `fgrid_colorPicker` and
-`fgrid_iconPicker`, until work on it resumes.
+**Flow Grid keeps its own internals**, including its own `fgrid_colorPicker` and `fgrid_iconPicker`,
+rather than the Foundations equivalents, until they are deliberately moved. Its running log is
+`screen-flow/flow-grid/STATUS.md`.
 
 ## Foundations rules
 

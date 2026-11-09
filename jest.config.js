@@ -6,6 +6,7 @@ module.exports = {
         "**/foundations/**/__tests__/**/*.test.js",
         "**/screen-flow/screen-timer/**/__tests__/**/*.test.js",
         "**/screen-flow/email-recipients/**/__tests__/**/*.test.js",
+        "**/screen-flow/flow-grid/**/__tests__/**/*.test.js",
         "**/experience-cloud/**/__tests__/**/*.test.js"
     ],
     moduleNameMapper: {
@@ -14,6 +15,8 @@ module.exports = {
         // constructor arguments, so a Flow output's attributeName and value
         // are unassertable against it. See the file.
         "^lightning/flowSupport$": "<rootDir>/test/jest-mocks/lightning/flowSupport",
+        // sfdx-lwc-jest has no lightning/modal stub; only Flow Grid uses it. See the file.
+        "^lightning/modal$": "<rootDir>/screen-flow/flow-grid/test/jest-mocks/lightning/modal",
         // CSS-only modules have no .js file, which the LWC resolver needs, so point each one at
         // its stylesheet.
         "^c/crEditorStyles$":

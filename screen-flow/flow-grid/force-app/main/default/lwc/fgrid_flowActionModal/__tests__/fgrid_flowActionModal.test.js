@@ -1,7 +1,7 @@
 import FgridFlowActionModal from "c/fgrid_flowActionModal";
 
 /**
- * These use the LOCAL `lightning/modal` stub in flowgrid/test/jest-mocks, because
+ * These use the LOCAL `lightning/modal` stub in screen-flow/flow-grid/test/jest-mocks, because
  * sfdx-lwc-jest ships no stub for `modal` itself. That stub reproduces one platform
  * behavior these tests depend on: `disableClose` blocks `close()` as well as the
  * close button and Escape. It is documented behavior, confirmed against the
