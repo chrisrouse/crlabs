@@ -3,9 +3,19 @@
      works here as it does on a read-only text column. Wrapping is handled by the
      standard cell layout and the column's own wrapText, so nothing is forced
      here — a `slds-truncate` would override it, which is the mistake the
-     picklist and lookup cells originally made. -->
+     picklist and lookup cells originally made.
+
+     The cell also edits in place: fgrid_longTextCell swaps the text for a text
+     box when the pencil is used. rowKey and columnKey are how the datatable
+     finds it, and columnKey is also what a draft is keyed by; see
+     fgrid_longTextEditors. -->
 <template>
-    <span title={value}>
-        <lightning-formatted-text value={value} linkify={typeAttributes.linkify}></lightning-formatted-text>
-    </span>
+    <c-fgrid_long-text-cell
+        value={value}
+        linkify={typeAttributes.linkify}
+        max-length={typeAttributes.maxLength}
+        row-key={typeAttributes.rowKey}
+        column-key={typeAttributes.columnKey}
+        label={typeAttributes.label}
+    ></c-fgrid_long-text-cell>
 </template>

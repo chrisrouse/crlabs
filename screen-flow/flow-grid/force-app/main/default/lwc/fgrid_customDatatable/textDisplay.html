@@ -1,0 +1,15 @@
+<!-- An editable Text field (fgridText): looks like the standard `text` type,
+     through the same lightning-formatted-text, and edits in place on one line.
+     Same cell as long text in single-line mode; see longTextDisplay.html and
+     fgrid_longTextEditors. -->
+<template>
+    <c-fgrid_long-text-cell
+        value={value}
+        linkify={typeAttributes.linkify}
+        max-length={typeAttributes.maxLength}
+        row-key={typeAttributes.rowKey}
+        column-key={typeAttributes.columnKey}
+        label={typeAttributes.label}
+        single-line={typeAttributes.singleLine}
+    ></c-fgrid_long-text-cell>
+</template>

@@ -1,0 +1,16 @@
+<!-- Fallback only: a Text cell normally edits in place (textDisplay.html). This
+     is what the datatable's own edit panel shows if that cell cannot be found.
+
+     data-inputable="true" is how the inline-edit machinery reads the committed
+     value. Load-bearing; see fgrid_customDatatable. -->
+<template>
+    <lightning-input
+        type="text"
+        label={columnLabel}
+        variant="label-hidden"
+        value={editedValue}
+        max-length={typeAttributes.maxLength}
+        required={required}
+        data-inputable="true"
+    ></lightning-input>
+</template>

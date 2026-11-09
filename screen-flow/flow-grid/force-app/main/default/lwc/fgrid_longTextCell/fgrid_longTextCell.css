@@ -1,0 +1,29 @@
+:host {
+    display: block;
+}
+
+.fgrid-longtext-editing {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--slds-g-spacing-1, 0.25rem);
+}
+
+/* Grows with its content (fitToContent), up to most of the screen, then scrolls. */
+.fgrid-longtext-input {
+    flex: 1 1 auto;
+    min-height: var(--slds-g-sizing-10, 3rem);
+    max-height: 60vh;
+    resize: none;
+    overflow-y: auto;
+    /* The cell sets slds-hyphenate when wrapping, which the box would inherit
+       and break words with hyphens that are not in the text. */
+    hyphens: manual;
+}
+
+.fgrid-text-input {
+    flex: 1 1 auto;
+}
+
+.fgrid-longtext-undo {
+    flex: none;
+}

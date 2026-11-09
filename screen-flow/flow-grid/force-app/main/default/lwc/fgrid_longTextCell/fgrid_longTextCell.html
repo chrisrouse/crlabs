@@ -1,0 +1,48 @@
+<template>
+    <template lwc:if={editing}>
+        <div
+            class="fgrid-longtext-editing"
+            onmousedown={handleEditorPointer}
+            onclick={handleEditorPointer}
+            ondblclick={handleEditorPointer}
+        >
+            <template lwc:if={singleLine}>
+                <input
+                    type="text"
+                    class="slds-input fgrid-text-input"
+                    data-editor
+                    aria-label={label}
+                    maxlength={maxLengthAttribute}
+                    oninput={handleInput}
+                    onkeydown={handleKeyDown}
+                    onblur={handleBlur}
+                />
+            </template>
+            <template lwc:else>
+                <textarea
+                    class="slds-textarea fgrid-longtext-input"
+                    data-editor
+                    aria-label={label}
+                    maxlength={maxLengthAttribute}
+                    oninput={handleInput}
+                    onkeydown={handleKeyDown}
+                    onblur={handleBlur}
+                ></textarea>
+            </template>
+            <lightning-button-icon
+                class="fgrid-longtext-undo"
+                icon-name="utility:undo"
+                variant="bare"
+                alternative-text="Undo changes"
+                title="Undo changes"
+                onmousedown={handleUndoMouseDown}
+                onclick={handleUndo}
+            ></lightning-button-icon>
+        </div>
+    </template>
+    <template lwc:else>
+        <span title={value}>
+            <lightning-formatted-text value={value} linkify={linkify}></lightning-formatted-text>
+        </span>
+    </template>
+</template>

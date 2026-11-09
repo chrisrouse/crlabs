@@ -933,6 +933,7 @@ export default class FgridFlowGrid extends LightningElement {
     buildGridColumns() {
         const columns = buildColumns(this._columnPaths, this._columnConfig, {
             hideHeaderActions: this.hideHeaderActions,
+            keyField: this.keyField,
             describeByPath: this.describeByPath,
             // A user-defined object has no record id, so there is nothing to
             // link to.

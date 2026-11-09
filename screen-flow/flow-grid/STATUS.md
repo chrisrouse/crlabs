@@ -1207,14 +1207,40 @@ shifting the panel to the pencil through the private
 `getPositionedElement()`. If cells still center, the `vertical-align` rule
 needs `!important` too.
 
-**Still failing on very long cells (Chris, 2026-09-28).** A TEMPORARY,
-always-on edit trace is deployed in `fgrid_customDatatable`
-(`BUILD_2026_09_28_D_editTraceEvent`, `console.debug`, Verbose level): the
-cell, pencil, scroller, page scroll and the edit panel's position and
-visibility, plus every scroll and focus, for two seconds after a pencil
-click or Enter. **Remove it before committing.** Suspects: the panel lands
-off screen, or the datatable closes it when its scroller moves more than
-5px while it is open (`handleInlineEditPanelScroll`).
+**Still failing on very long cells -- CAUSE FOUND 2026-11-09.** Not the
+off-screen anchor: the positioning library (`autoFlip`, `checkFlipPossibility`
+in positionLibrary/direction.js) measures the room below from the cell's
+BOTTOM edge, clipped part included, and flips the panel to bottom-aligned when
+there is none. Any tall cell ending near the grid's bottom opens its editor at
+its own bottom edge, often below the table. Not configurable. The edit trace
+was removed.
+
+**Replaced by editing in place -- BUILT 2026-11-09, CONFIRMED BY CHRIS IN THE
+ORG.** Long Text only, a rough first version; a second type follows
+once this is judged in the org. `fgrid_customDatatable` intercepts the
+datatable's private `privateeditcell` (capture phase, pencil and Enter both)
+for `fgridLongText` columns and asks `fgrid_longTextCell` -- found through the
+`fgrid_longTextEditors` registry, keyed by row key + `columnKey` -- to swap
+its text for a text box. A commit is re-sent as `cellchange`, keyed by
+`columnKey` like the datatable's own drafts, so Save/Cancel and auto-save are
+unchanged. Escape cancels, Ctrl/Cmd+Enter or clicking away commits, the undo
+arrow reverts. The static resource lifts the Wrapped Lines clamp while a cell
+is editing. If the registry has no cell, the old panel still opens.
+**Confirmed by Chris in the org 2026-11-09:** opens in place, Cmd/Ctrl+A stays
+in the box. Width and hyphenation fixed after (static resource, cell CSS).
+
+**Plain Text added 2026-11-09 (Chris: Long Text and Text only; Email, Phone,
+URL, Rich Text and every non-text type keep the datatable's editor).** An
+editable column on a STRING field shown as Text becomes `fgridText`: the same
+cell with `singleLine`, a one-line input where Enter commits. Set late in
+buildColumns like `fgridLongText`, so filters, rules and the Studio still see
+`text`. No describe (user-defined object) stays native. CONFIRMED BY CHRIS IN
+THE ORG 2026-11-09, along with saving, keys, Wrapped Lines and width below.
+
+Check in the org: keys stay in the box (arrows, Enter); focus survives; the
+yellow edited highlight and Save bar appear; the clamp lifts. Known gaps:
+focus is not returned to the cell after commit; two grids showing the same
+record and column would both open.
 
 `repro/datatable-scrollbar-fit/` (deployed to Preview Org) measures the
 overlap and the last cell's padding; no longer needed unless the fix fails.

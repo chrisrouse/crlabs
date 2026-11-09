@@ -1241,6 +1241,58 @@ describe("editability", () => {
     });
 });
 
+describe("plain text columns", () => {
+    const describeOf = (displayType, dataType = "text") => ({
+        Title: { label: "Title", dataType, displayType, isEditable: true, length: 80 }
+    });
+
+    it("edits an editable Text field in place, on one line, bounded by its length", () => {
+        const [column] = buildColumns(["Title"], { Title: { edit: true } }, { describeByPath: describeOf("STRING") });
+        expect(column.type).toBe("fgridText");
+        expect(column.typeAttributes).toEqual(
+            expect.objectContaining({
+                maxLength: 80,
+                singleLine: true,
+                rowKey: { fieldName: "Id" },
+                columnKey: column.columnKey,
+                label: "Title"
+            })
+        );
+    });
+
+    it("keeps a read-only Text field on the standard text type", () => {
+        const [column] = buildColumns(["Title"], {}, { describeByPath: describeOf("STRING") });
+        expect(column.type).toBe("text");
+    });
+
+    it.each([
+        ["EMAIL", "email"],
+        ["PHONE", "phone"],
+        ["URL", "url"]
+    ])("leaves %s fields on the datatable's editor", (displayType, dataType) => {
+        const [column] = buildColumns(
+            ["Title"],
+            { Title: { edit: true } },
+            { describeByPath: describeOf(displayType, dataType) }
+        );
+        expect(column.type).toBe(dataType);
+    });
+
+    it("leaves a Text field shown as Email on the datatable's editor", () => {
+        const [column] = buildColumns(
+            ["Title"],
+            { Title: { edit: true, type: "email" } },
+            { describeByPath: describeOf("STRING") }
+        );
+        expect(column.type).toBe("email");
+    });
+
+    it("stays native without a describe, where the field kind is unknown", () => {
+        const [column] = buildColumns(["Title"], { Title: { edit: true } });
+        expect(column.type).toBe("text");
+    });
+});
+
 describe("long text columns", () => {
     const longText = (extra = {}) => ({
         Description: {
@@ -1269,6 +1321,26 @@ describe("long text columns", () => {
             { describeByPath: longText() }
         );
         expect(column.typeAttributes).toEqual(expect.objectContaining({ maxLength: 32000, linkify: true }));
+    });
+
+    it("tells the cell its row key, column key and label, for editing in place", () => {
+        const [column] = buildColumns(
+            ["Description"],
+            { Description: { edit: true } },
+            { describeByPath: longText(), keyField: "External_Id__c" }
+        );
+        expect(column.typeAttributes).toEqual(
+            expect.objectContaining({
+                rowKey: { fieldName: "External_Id__c" },
+                columnKey: column.columnKey,
+                label: "Description"
+            })
+        );
+    });
+
+    it("keys the cell by Id when no key field is given", () => {
+        const [column] = buildColumns(["Description"], { Description: { edit: true } }, { describeByPath: longText() });
+        expect(column.typeAttributes.rowKey).toEqual({ fieldName: "Id" });
     });
 
     it("stays plain text when not editable", () => {
@@ -1311,7 +1383,9 @@ describe("long text columns", () => {
                 }
             }
         );
-        expect(column.type).toBe("text");
+        // Editable Text edits in place on one line (fgridText), not in a textarea.
+        expect(column.type).toBe("fgridText");
+        expect(column.typeAttributes.singleLine).toBe(true);
         expect(parseColumnConfig({ Name: { type: "fgridLongText" } }).Name.type).toBe("text");
     });
 

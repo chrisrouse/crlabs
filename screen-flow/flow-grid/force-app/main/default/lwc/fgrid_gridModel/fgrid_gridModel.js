@@ -489,7 +489,9 @@ export function buildColumns(fields, config = {}, options = {}) {
         /** True when picklist options can differ row to row, so they move to a row field. */
         perRowPicklists = false,
         dependentPicklistIcon = null,
-        userTimeZone = null
+        userTimeZone = null,
+        /** The rows' key field; a long text cell is found by its row's value. */
+        keyField = "Id"
     } = options;
 
     // Which slot each color occupies. The grid derives the same map to set the
@@ -653,7 +655,29 @@ export function buildColumns(fields, config = {}, options = {}) {
                 ...(column.typeAttributes || {}),
                 // From the field's own describe, so the editor cannot accept more
                 // than the field will store.
-                maxLength: describe.length || null
+                maxLength: describe.length || null,
+                // How the datatable finds this cell to edit it in place
+                // (fgrid_longTextEditors), and the text box's accessible name.
+                rowKey: { fieldName: keyField },
+                columnKey: column.columnKey,
+                label: column.label
+            };
+        }
+
+        // An editable Text field shown as Text edits in place as well, on one line,
+        // so every text field edits the same way (decided 2026-11-09). Email, Phone
+        // and URL keep the datatable's editor, as does a Text field whose admin chose
+        // one of those types. Without a describe -- a user-defined object -- the
+        // field kind is unknown, so the column stays native.
+        if (column.editable && column.type === "text" && describe?.displayType === "STRING") {
+            column.type = "fgridText";
+            column.typeAttributes = {
+                ...(column.typeAttributes || {}),
+                maxLength: describe.length || null,
+                rowKey: { fieldName: keyField },
+                columnKey: column.columnKey,
+                label: column.label,
+                singleLine: true
             };
         }
 

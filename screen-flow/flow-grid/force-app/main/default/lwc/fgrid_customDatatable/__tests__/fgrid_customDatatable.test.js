@@ -27,6 +27,7 @@ const TEMPLATES = {
     fgridMultiPicklist: ["multiPicklistDisplay.html", "multiPicklistEdit.html"],
     fgridLookup: ["lookupDisplay.html", "lookupEdit.html"],
     fgridLongText: ["longTextDisplay.html", "longTextEdit.html"],
+    fgridText: ["textDisplay.html", "textEdit.html"],
     fgridRichText: ["richTextDisplay.html"],
     fgridTime: ["timeDisplay.html", "timeEdit.html"],
     fgridProgressBar: ["progressBarDisplay.html"],
